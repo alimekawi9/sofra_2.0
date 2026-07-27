@@ -224,3 +224,62 @@ describe('Step 1 — status selection', () => {
     expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
   })
 })
+
+// Helper: renders the page, waits for Step 1, selects going, advances to Step 2
+async function navigateToStep2() {
+  makeSupabase()
+  render(<RSVPPage params={{ id: 'event-1' }} />)
+  await waitFor(() => screen.getByRole('button', { name: /going/i }))
+  await userEvent.click(screen.getByRole('button', { name: /going/i }))
+  await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+}
+
+describe('Step 2 — chip groups', () => {
+  it('renders all dietary chips', async () => {
+    await navigateToStep2()
+    for (const chip of ['Vegetarian','Vegan','Halal','Kosher','Gluten-free','No dairy','Pescatarian']) {
+      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+    }
+  })
+
+  it('renders all avoid chips', async () => {
+    await navigateToStep2()
+    for (const chip of ['Nuts','Shellfish','Pork','Eggs','Cilantro','Mushrooms']) {
+      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+    }
+  })
+
+  it('renders all drinks chips', async () => {
+    await navigateToStep2()
+    for (const chip of ['Cocktails','Wine','Beer','Alcohol-free']) {
+      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+    }
+  })
+
+  it('toggles a dietary chip on', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
+    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('toggles a dietary chip off again', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
+    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('chips are multi-select: selecting one does not deselect another', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Vegan' }))
+    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('avoid chips are independent of dietary chips', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Nuts' }))
+    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})

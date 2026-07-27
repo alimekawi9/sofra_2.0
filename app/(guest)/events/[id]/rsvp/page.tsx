@@ -86,6 +86,10 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   async function handleCantSubmit() {}
   async function handleProfileSubmit() {}
 
+  function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
+    setArr(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value])
+  }
+
   const stepLabel =
     status === 'going' || status === 'maybe' ? 'Step 1 of 2' : 'Step 1'
 
@@ -241,7 +245,63 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
               {step === 'profile' && (
                 <div data-testid="step2">
                   <p style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>Step 2 of 2</p>
-                  {/* Chip groups and slider added in Tasks 5–6 */}
+
+                  {prefilled && (
+                    <div data-testid="prefilled-badge" style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      background: 'rgba(217,161,91,0.12)',
+                      border: '1px solid rgba(217,161,91,0.3)',
+                      borderRadius: 999, padding: '4px 12px',
+                      marginBottom: 20, fontSize: 13, color: C.gold,
+                    }}>✦ Pulled from your profile</div>
+                  )}
+
+                  {([
+                    {
+                      label: 'Dietary', arr: dietary, setArr: setDietary, items: DIETARY,
+                      selBg: 'rgba(217,161,91,0.12)', selBorder: `1px solid ${C.gold}`,
+                    },
+                    {
+                      label: 'Avoid', arr: avoid, setArr: setAvoid, items: NOGOS,
+                      selBg: 'rgba(224,119,107,0.12)', selBorder: `1px solid ${C.rose}`,
+                    },
+                    {
+                      label: 'Drinks', arr: drinks, setArr: setDrinks, items: DRINKS,
+                      selBg: 'rgba(217,161,91,0.12)', selBorder: `1px solid ${C.gold}`,
+                    },
+                  ] satisfies Array<{
+                    label: string
+                    arr: string[]
+                    setArr: (v: string[]) => void
+                    items: readonly string[]
+                    selBg: string
+                    selBorder: string
+                  }>).map(({ label, arr, setArr, items, selBg, selBorder }) => (
+                    <div key={label} style={{ marginBottom: 24 }}>
+                      <p style={{ color: C.dim, fontSize: 13, marginBottom: 10 }}>{label}</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {items.map(item => {
+                          const selected = arr.includes(item)
+                          return (
+                            <button
+                              key={item}
+                              aria-pressed={selected}
+                              onClick={() => toggleChip(arr, setArr, item)}
+                              style={{
+                                borderRadius: 999, padding: '6px 14px', fontSize: 14, cursor: 'pointer',
+                                border: selected ? selBorder : '1px solid rgba(243,233,221,0.16)',
+                                background: selected ? selBg : 'rgba(0,0,0,0.24)',
+                                color: selected ? C.cream : C.dim,
+                                transition: 'all 0.15s',
+                              }}
+                            >{item}</button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Slider and submit button — added in Tasks 6–7 */}
                 </div>
               )}
 
