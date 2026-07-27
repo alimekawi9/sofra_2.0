@@ -82,9 +82,53 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stubs — implemented in Task 7
-  async function handleCantSubmit() {}
-  async function handleProfileSubmit() {}
+  async function handleCantSubmit() {
+    if (!uidRef.current || submitting) return
+    setSubmitting(true)
+    setError('')
+    const { error: upsertErr } = await supabase.from('rsvps').upsert(
+      { event_id: params.id, user_id: uidRef.current, status: 'cant' },
+      { onConflict: 'event_id,user_id' }
+    )
+    if (upsertErr) {
+      setError('Something went wrong. Please try again.')
+      setSubmitting(false)
+      return
+    }
+    router.push('/events/' + params.id)
+  }
+
+  async function handleProfileSubmit() {
+    if (!uidRef.current || submitting) return
+    setSubmitting(true)
+    setError('')
+    // Both upserts are idempotent against the same conflict targets, so one
+    // generic error + retry is safe — a retry re-upserts cleanly even if only
+    // one of the two failed on the previous attempt.
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from('rsvps').upsert(
+        { event_id: params.id, user_id: uidRef.current, status },
+        { onConflict: 'event_id,user_id' }
+      ),
+      supabase.from('taste_profiles').upsert(
+        {
+          user_id: uidRef.current,
+          dietary,
+          avoid,
+          drinks,
+          adventurousness,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      ),
+    ])
+    if (e1 || e2) {
+      setError('Something went wrong. Please try again.')
+      setSubmitting(false)
+      return
+    }
+    router.push('/events/' + params.id)
+  }
 
   function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
     setArr(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value])
@@ -324,7 +368,32 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                     </div>
                   </div>
 
-                  {/* Submit button — added in Task 7 */}
+                  <button
+                    onClick={handleProfileSubmit}
+                    disabled={submitting}
+                    style={{
+                      width: '100%', padding: '14px', borderRadius: 12,
+                      background: C.burgundy, color: C.cream, border: 'none',
+                      fontSize: 16, cursor: 'pointer',
+                      boxShadow: '0 0 16px rgba(92,26,27,0.5)',
+                      opacity: submitting ? 0.6 : 1,
+                    }}
+                  >
+                    {hasExistingRsvp ? 'Update RSVP →' : 'RSVP →'}
+                  </button>
+
+                  {error && (
+                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>{error}</p>
+                  )}
+
+                  <button
+                    onClick={() => { setStep('status'); setError('') }}
+                    style={{
+                      background: 'none', border: 'none', color: C.dim,
+                      fontSize: 14, cursor: 'pointer', marginTop: 16,
+                      display: 'block', width: '100%', textAlign: 'center',
+                    }}
+                  >← Back</button>
                 </div>
               )}
 

@@ -326,3 +326,73 @@ describe('adventurousness slider', () => {
     expect(slider).toHaveValue('50')
   })
 })
+
+describe('cant submit', () => {
+  it('upserts rsvps with status cant and redirects', async () => {
+    const sb = makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^submit$/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    expect(sb.rsvpUpsert).toHaveBeenCalledWith(
+      { event_id: 'event-1', user_id: 'uid-1', status: 'cant' },
+      { onConflict: 'event_id,user_id' }
+    )
+  })
+
+  it('shows error and does not redirect on cant upsert failure', async () => {
+    makeSupabase({ upsertError: { message: 'db error' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^submit$/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+    )
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+})
+
+describe('going/maybe submit', () => {
+  it('upserts both rsvps and taste_profiles and redirects', async () => {
+    const sb = makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    expect(sb.rsvpUpsert).toHaveBeenCalledWith(
+      { event_id: 'event-1', user_id: 'uid-1', status: 'going' },
+      { onConflict: 'event_id,user_id' }
+    )
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'uid-1', dietary: [], avoid: [], drinks: [], adventurousness: 50,
+      }),
+      { onConflict: 'user_id' }
+    )
+  })
+
+  it('shows error and does not redirect when either upsert fails', async () => {
+    makeSupabase({ upsertError: { message: 'db error' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+    )
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('submit button reads "Update RSVP →" when hasExistingRsvp is true', async () => {
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(screen.getByRole('button', { name: /update rsvp/i })).toBeInTheDocument()
+  })
+})
