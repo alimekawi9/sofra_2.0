@@ -65,16 +65,18 @@ it('renders without crashing', () => {
 })
 
 describe('loading state', () => {
-  it('shows skeleton while fetching', () => {
+  it('shows skeleton while fetching', async () => {
     makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
     expect(screen.getByTestId('skeleton')).toBeInTheDocument()
+    await waitFor(() => screen.queryByTestId('skeleton'))
   })
 
-  it('skeleton contains no buttons', () => {
+  it('skeleton contains no buttons', async () => {
     makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    await waitFor(() => screen.queryByTestId('skeleton'))
   })
 
   it('skeleton disappears after fetch completes', async () => {
@@ -104,31 +106,41 @@ describe('fetch error state', () => {
   })
 
   it('clicking Retry re-runs loadData and clears the error', async () => {
-    // First call fails; second call succeeds
-    let callCount = 0
+    // Each query independently fails on first call, succeeds on retry
+    let rsvpAttempts = 0
+    let profileAttempts = 0
     ;(createClient as jest.Mock).mockReturnValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'uid-1' } } }) },
-      from: jest.fn(() => ({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === 'rsvps') return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockImplementation(() => {
+                  rsvpAttempts++
+                  return rsvpAttempts === 1
+                    ? Promise.resolve({ data: null, error: { message: 'fail' } })
+                    : Promise.resolve({ data: null, error: null })
+                }),
+              }),
+            }),
+          }),
+          upsert: jest.fn().mockResolvedValue({ error: null }),
+        }
+        return {
+          select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
               maybeSingle: jest.fn().mockImplementation(() => {
-                callCount++
-                return callCount <= 2
+                profileAttempts++
+                return profileAttempts === 1
                   ? Promise.resolve({ data: null, error: { message: 'fail' } })
                   : Promise.resolve({ data: null, error: null })
               }),
             }),
-            maybeSingle: jest.fn().mockImplementation(() => {
-              callCount++
-              return callCount <= 2
-                ? Promise.resolve({ data: null, error: { message: 'fail' } })
-                : Promise.resolve({ data: null, error: null })
-            }),
           }),
-        }),
-        upsert: jest.fn().mockResolvedValue({ error: null }),
-      })),
+          upsert: jest.fn().mockResolvedValue({ error: null }),
+        }
+      }),
     })
 
     render(<RSVPPage params={{ id: 'event-1' }} />)
@@ -137,5 +149,6 @@ describe('fetch error state', () => {
     await waitFor(() =>
       expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument()
     )
+    expect(screen.getByTestId('rsvp-content')).toBeInTheDocument()
   })
 })

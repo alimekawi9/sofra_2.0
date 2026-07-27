@@ -147,7 +147,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           )}
 
           {/* Fetch error */}
-          {!loading && error && step === 'status' && (
+          {!loading && error && (
             <div style={{ textAlign: 'center', paddingTop: 40 }}>
               <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{error}</p>
               <button
