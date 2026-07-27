@@ -75,7 +75,8 @@ describe('loading state', () => {
   it('skeleton contains no buttons', async () => {
     makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    // The back button is always visible, so we only check for content buttons
+    expect(screen.queryByRole('button', { name: /going/i })).not.toBeInTheDocument()
     await waitFor(() => screen.queryByTestId('skeleton'))
   })
 

@@ -45,7 +45,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setError('')
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
+      if (!user) { router.push('/login'); return }
       uidRef.current = user.id
 
       const [{ data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
@@ -178,10 +178,10 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         }} />
 
         {/* Back link */}
-        <a
-          href={'/events/' + params.id}
-          style={{ color: C.dim, alignSelf: 'flex-start', textDecoration: 'none', fontSize: 14, position: 'relative', zIndex: 1 }}
-        >← Events</a>
+        <button
+          onClick={() => router.push('/events/' + params.id)}
+          style={{ background: 'none', border: 'none', color: C.dim, alignSelf: 'flex-start', textDecoration: 'none', fontSize: 14, position: 'relative', zIndex: 1, cursor: 'pointer', padding: 0 }}
+        >← Events</button>
 
         {/* Wordmark */}
         <h1 style={{
