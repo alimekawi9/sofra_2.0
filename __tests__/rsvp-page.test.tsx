@@ -63,3 +63,79 @@ it('renders without crashing', () => {
   render(<RSVPPage params={{ id: 'event-1' }} />)
   expect(document.body).toBeTruthy()
 })
+
+describe('loading state', () => {
+  it('shows skeleton while fetching', () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    expect(screen.getByTestId('skeleton')).toBeInTheDocument()
+  })
+
+  it('skeleton contains no buttons', () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('skeleton disappears after fetch completes', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() =>
+      expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
+    )
+  })
+})
+
+describe('fetch error state', () => {
+  it('shows error message on fetch failure', async () => {
+    makeSupabase({ fetchError: { message: 'db error' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() =>
+      expect(screen.getByText(/couldn't load/i)).toBeInTheDocument()
+    )
+  })
+
+  it('shows a Retry button on fetch failure', async () => {
+    makeSupabase({ fetchError: { message: 'db error' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+    )
+  })
+
+  it('clicking Retry re-runs loadData and clears the error', async () => {
+    // First call fails; second call succeeds
+    let callCount = 0
+    ;(createClient as jest.Mock).mockReturnValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'uid-1' } } }) },
+      from: jest.fn(() => ({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockImplementation(() => {
+                callCount++
+                return callCount <= 2
+                  ? Promise.resolve({ data: null, error: { message: 'fail' } })
+                  : Promise.resolve({ data: null, error: null })
+              }),
+            }),
+            maybeSingle: jest.fn().mockImplementation(() => {
+              callCount++
+              return callCount <= 2
+                ? Promise.resolve({ data: null, error: { message: 'fail' } })
+                : Promise.resolve({ data: null, error: null })
+            }),
+          }),
+        }),
+        upsert: jest.fn().mockResolvedValue({ error: null }),
+      })),
+    })
+
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /retry/i }))
+    await userEvent.click(screen.getByRole('button', { name: /retry/i }))
+    await waitFor(() =>
+      expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument()
+    )
+  })
+})
