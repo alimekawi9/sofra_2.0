@@ -396,3 +396,56 @@ describe('going/maybe submit', () => {
     expect(screen.getByRole('button', { name: /update rsvp/i })).toBeInTheDocument()
   })
 })
+
+describe('prefill from existing data', () => {
+  it('prefills status from an existing rsvp row', async () => {
+    makeSupabase({ rsvpRow: { status: 'maybe' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    // 'maybe' prefilled → step indicator upgrades to "Step 1 of 2"
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+  })
+
+  it('prefills chip selections from an existing taste_profiles row', async () => {
+    makeSupabase({
+      profileRow: {
+        user_id: 'uid-1', dietary: ['Vegan'], avoid: ['Nuts'], drinks: ['Wine'], adventurousness: 75,
+      },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Nuts' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Wine' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('shows "Pulled from your profile" badge when a taste_profiles row exists', async () => {
+    makeSupabase({
+      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
+  })
+
+  it('badge persists after the user edits a chip', async () => {
+    makeSupabase({
+      profileRow: { user_id: 'uid-1', dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Vegan' })) // deselect
+    expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
+  })
+
+  it('does not show badge when no taste_profiles row', async () => {
+    await navigateToStep2()
+    expect(screen.queryByTestId('prefilled-badge')).not.toBeInTheDocument()
+  })
+})
