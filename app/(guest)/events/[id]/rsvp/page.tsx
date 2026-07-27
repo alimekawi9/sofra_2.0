@@ -96,13 +96,14 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     status !== null   ? () => setStep('profile') :
     undefined
 
+  // used in Task 6 slider
   const adventLabel =
     adventurousness < 25 ? 'Keep it familiar' :
     adventurousness < 55 ? 'Open to a nudge' :
     adventurousness < 82 ? 'Feed me something new' :
     'Chef, surprise me'
 
-  const pct = adventurousness
+  const pct = adventurousness // used in Task 6 slider track fill
 
   return (
     <>
@@ -225,7 +226,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                       width: '100%', padding: '14px', borderRadius: 12,
                       background: C.burgundy, color: C.cream, border: 'none',
                       fontSize: 16, cursor: status === null ? 'default' : 'pointer',
-                      opacity: status === null ? 0.5 : 1,
+                      opacity: status === null || submitting ? 0.5 : 1,
                       boxShadow: '0 0 16px rgba(92,26,27,0.5)',
                       transition: 'background 0.15s',
                     }}
