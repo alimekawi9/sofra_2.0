@@ -283,3 +283,46 @@ describe('Step 2 — chip groups', () => {
     expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
   })
 })
+
+describe('adventurousness slider', () => {
+  async function goToStep2WithAdventurousness(value: number) {
+    makeSupabase({
+      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], drinks: [], adventurousness: value },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+  }
+
+  it('shows "Keep it familiar" for adventurousness 0', async () => {
+    await goToStep2WithAdventurousness(0)
+    expect(screen.getByText('Keep it familiar')).toBeInTheDocument()
+  })
+
+  it('shows "Open to a nudge" for adventurousness 40', async () => {
+    await goToStep2WithAdventurousness(40)
+    expect(screen.getByText('Open to a nudge')).toBeInTheDocument()
+  })
+
+  it('shows "Feed me something new" for adventurousness 70', async () => {
+    await goToStep2WithAdventurousness(70)
+    expect(screen.getByText('Feed me something new')).toBeInTheDocument()
+  })
+
+  it('shows "Chef, surprise me" for adventurousness 82', async () => {
+    await goToStep2WithAdventurousness(82)
+    expect(screen.getByText('Chef, surprise me')).toBeInTheDocument()
+  })
+
+  it('renders the slider input', async () => {
+    await navigateToStep2()
+    expect(screen.getByRole('slider', { name: /adventurousness/i })).toBeInTheDocument()
+  })
+
+  it('slider defaults to 50 when no profile row', async () => {
+    await navigateToStep2()
+    const slider = screen.getByRole('slider', { name: /adventurousness/i })
+    expect(slider).toHaveValue('50')
+  })
+})

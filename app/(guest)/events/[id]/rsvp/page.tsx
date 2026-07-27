@@ -301,7 +301,30 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                     </div>
                   ))}
 
-                  {/* Slider and submit button — added in Tasks 6–7 */}
+                  {/* Adventurousness */}
+                  <div style={{ marginBottom: 32 }}>
+                    <p style={{ color: C.cream, fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
+                      {adventLabel}
+                    </p>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={adventurousness}
+                      onChange={e => setAdventurousness(Number(e.target.value))}
+                      aria-label="Adventurousness"
+                      style={{
+                        background: `linear-gradient(to right, ${C.gold} ${pct}%, ${C.faint} ${pct}%)`,
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                      <span style={{ color: C.dim, fontSize: 12 }}>Familiar</span>
+                      <span style={{ color: C.dim, fontSize: 12 }}>Adventurous</span>
+                    </div>
+                  </div>
+
+                  {/* Submit button — added in Task 7 */}
                 </div>
               )}
 
