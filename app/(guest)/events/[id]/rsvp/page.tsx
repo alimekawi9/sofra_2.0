@@ -86,6 +86,24 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   async function handleCantSubmit() {}
   async function handleProfileSubmit() {}
 
+  const stepLabel =
+    status === 'going' || status === 'maybe' ? 'Step 1 of 2' : 'Step 1'
+
+  const primaryLabel = status === 'cant' ? 'Submit' : 'Continue →'
+
+  const onPrimaryClick =
+    status === 'cant' ? handleCantSubmit :
+    status !== null   ? () => setStep('profile') :
+    undefined
+
+  const adventLabel =
+    adventurousness < 25 ? 'Keep it familiar' :
+    adventurousness < 55 ? 'Open to a nudge' :
+    adventurousness < 82 ? 'Feed me something new' :
+    'Chef, surprise me'
+
+  const pct = adventurousness
+
   return (
     <>
       <style>{`
@@ -167,7 +185,66 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
           {/* Step content — added in Tasks 4–7 */}
           {!loading && !error && (
-            <div data-testid="rsvp-content" />
+            <div data-testid="rsvp-content">
+
+              {step === 'status' && (
+                <div>
+                  <p style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                    {stepLabel}
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                    {([
+                      { value: 'going' as RsvpStatus, label: '✦ Going' },
+                      { value: 'maybe' as RsvpStatus, label: '◈ Maybe' },
+                      { value: 'cant'  as RsvpStatus, label: "✕ Can't make it" },
+                    ]).map(({ value, label }) => {
+                      const selected = status === value
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => setStatus(value)}
+                          style={{
+                            width: '100%', padding: '14px 20px', borderRadius: 999,
+                            border: `1px solid ${selected ? C.burgundy : 'rgba(243,233,221,0.16)'}`,
+                            background: selected ? 'rgba(92,26,27,0.24)' : 'rgba(0,0,0,0.24)',
+                            color: selected ? C.cream : C.dim,
+                            boxShadow: selected ? '0 0 12px rgba(92,26,27,0.4)' : 'none',
+                            cursor: 'pointer', fontSize: 16, textAlign: 'left',
+                            transition: 'all 0.15s',
+                          }}
+                        >{label}</button>
+                      )
+                    })}
+                  </div>
+
+                  <button
+                    onClick={onPrimaryClick}
+                    disabled={status === null || submitting}
+                    style={{
+                      width: '100%', padding: '14px', borderRadius: 12,
+                      background: C.burgundy, color: C.cream, border: 'none',
+                      fontSize: 16, cursor: status === null ? 'default' : 'pointer',
+                      opacity: status === null ? 0.5 : 1,
+                      boxShadow: '0 0 16px rgba(92,26,27,0.5)',
+                      transition: 'background 0.15s',
+                    }}
+                  >{primaryLabel}</button>
+
+                  {error && (
+                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>{error}</p>
+                  )}
+                </div>
+              )}
+
+              {step === 'profile' && (
+                <div data-testid="step2">
+                  <p style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>Step 2 of 2</p>
+                  {/* Chip groups and slider added in Tasks 5–6 */}
+                </div>
+              )}
+
+            </div>
           )}
 
         </div>

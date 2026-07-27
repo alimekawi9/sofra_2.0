@@ -152,3 +152,75 @@ describe('fetch error state', () => {
     expect(screen.getByTestId('rsvp-content')).toBeInTheDocument()
   })
 })
+
+describe('Step 1 — status selection', () => {
+  it('renders three status cards after loading', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    expect(screen.getByRole('button', { name: /going/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /maybe/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /can't make it/i })).toBeInTheDocument()
+  })
+
+  it('step indicator reads "Step 1" before any selection', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    expect(screen.getByText('Step 1')).toBeInTheDocument()
+    expect(screen.queryByText('Step 1 of 2')).not.toBeInTheDocument()
+  })
+
+  it('step indicator upgrades to "Step 1 of 2" when going is selected', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+  })
+
+  it('step indicator stays "Step 1" when cant is selected', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
+    expect(screen.queryByText('Step 1 of 2')).not.toBeInTheDocument()
+    expect(screen.getByText('Step 1')).toBeInTheDocument()
+  })
+
+  it('primary button reads "Continue →" when going is selected', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument()
+  })
+
+  it('primary button reads "Submit" when cant is selected', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
+    expect(screen.getByRole('button', { name: /^submit$/i })).toBeInTheDocument()
+  })
+
+  it('button label updates when selection changes from going to cant', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
+    expect(screen.getByRole('button', { name: /^submit$/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /continue/i })).not.toBeInTheDocument()
+  })
+
+  it('clicking Continue advances to Step 2', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
+  })
+})
