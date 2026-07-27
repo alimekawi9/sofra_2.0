@@ -10,6 +10,7 @@ jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 const mockPush = jest.fn()
 
 beforeEach(() => {
+  jest.clearAllMocks()
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   mockPush.mockReset()
 })
@@ -57,8 +58,8 @@ function makeSupabase({
   return sb
 }
 
-it('renders without crashing', () => {
-  makeSupabase()
+it('renders without crashing', async () => {
+  const sb = makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
-  expect(document.body).toBeTruthy()
+  await waitFor(() => expect(sb.auth.getUser).toHaveBeenCalled())
 })
