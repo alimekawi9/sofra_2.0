@@ -139,6 +139,14 @@ Private function in the page file. Returns a complete HTML document string.
 Receives the already-computed `Course[]` from state (not the raw persisted rows),
 so exclusions are pre-scored and no secondary `scoreDish` call is needed.
 
+**Hard requirement satisfied:** because `derivedCourses` is the live React state
+array — updated in place by every swap and lock the chef performs — the PDF is
+guaranteed to reflect the chef's current menu at click time, not the original
+draft. A swapped course shows the new dish; a locked course shows whatever the
+chef locked in. This is a correctness property of the data flow, not a
+coincidence: passing `derivedCourses` directly makes it structurally impossible
+for the PDF to diverge from what is on screen.
+
 **Single RSVP source invariant:** receives `guestCount` from `intel.guestCount`
 directly — does not re-query or re-count RSVPs.
 
