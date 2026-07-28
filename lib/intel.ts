@@ -24,7 +24,7 @@ export type TableIntel = {
 }
 
 export const STRICT_DIET_LIST = ['Vegetarian', 'Vegan', 'Halal', 'Kosher'] as const
-const STRICT_DIETS = new Set(STRICT_DIET_LIST)
+const STRICT_DIETS: Set<string> = new Set(STRICT_DIET_LIST)
 
 export function buildIntel(guests: TasteProfile[]): TableIntel {
   if (guests.length === 0) {
@@ -46,7 +46,7 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
       allergyMap.get(a)!.push(g.name)
     }
   }
-  const allergyLimits: HardLimit[] = [...allergyMap.entries()].map(([label, gs]) => ({
+  const allergyLimits: HardLimit[] = Array.from(allergyMap.entries()).map(([label, gs]) => ({
     label, guests: gs, type: 'allergy',
   }))
 
@@ -59,7 +59,7 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
       dietMap.get(d)!.push(g.name)
     }
   }
-  const dietLimits: HardLimit[] = [...dietMap.entries()].map(([label, gs]) => ({
+  const dietLimits: HardLimit[] = Array.from(dietMap.entries()).map(([label, gs]) => ({
     label, guests: gs, type: 'diet',
   }))
 
@@ -73,7 +73,7 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
       dietMixMap.set(d, (dietMixMap.get(d) ?? 0) + 1)
     }
   }
-  const dietMix = [...dietMixMap.entries()]
+  const dietMix = Array.from(dietMixMap.entries())
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
@@ -84,7 +84,7 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
       drinksMap.set(d, (drinksMap.get(d) ?? 0) + 1)
     }
   }
-  const drinksCounts = [...drinksMap.entries()]
+  const drinksCounts = Array.from(drinksMap.entries())
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
@@ -125,7 +125,7 @@ function buildBrief(
 
   const allergies = hardLimits.filter(h => h.type === 'allergy')
   if (allergies.length > 0) {
-    const uniqueGuests = [...new Set(allergies.flatMap(h => h.guests))]
+    const uniqueGuests = Array.from(new Set(allergies.flatMap(h => h.guests)))
     const labels = allergies.map(h => h.label.toLowerCase())
     const labelStr = labels.length === 1
       ? labels[0]
