@@ -23,6 +23,13 @@ create policy menus_update_chef on public.menus
       where e.id = event_id
         and (e.host_id = auth.uid() or e.chef_id = auth.uid())
     )
+  )
+  with check (
+    exists (
+      select 1 from public.events e
+      where e.id = event_id
+        and (e.host_id = auth.uid() or e.chef_id = auth.uid())
+    )
   );
 
 create policy menus_delete_chef on public.menus
@@ -54,6 +61,14 @@ create policy menu_courses_insert_chef on public.menu_courses
 create policy menu_courses_update_chef on public.menu_courses
   for update to authenticated
   using (
+    exists (
+      select 1 from public.menus m
+      join public.events e on e.id = m.event_id
+      where m.id = menu_id
+        and (e.host_id = auth.uid() or e.chef_id = auth.uid())
+    )
+  )
+  with check (
     exists (
       select 1 from public.menus m
       join public.events e on e.id = m.event_id
