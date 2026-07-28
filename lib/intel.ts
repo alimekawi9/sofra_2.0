@@ -12,6 +12,7 @@ export type HardLimit = {
   type: 'allergy' | 'diet'
 }
 
+// Named TableIntel (not Intel) to match menu-draft spec and all downstream imports.
 export type TableIntel = {
   hardLimits: HardLimit[]
   dietMix: { label: string; count: number }[]
@@ -22,13 +23,17 @@ export type TableIntel = {
   guestCount: number
 }
 
-export const STRICT_DIETS = new Set(['Vegetarian', 'Vegan', 'Halal', 'Kosher'])
+export const STRICT_DIET_LIST = ['Vegetarian', 'Vegan', 'Halal', 'Kosher'] as const
+const STRICT_DIETS = new Set(STRICT_DIET_LIST)
 
 export function buildIntel(guests: TasteProfile[]): TableIntel {
   if (guests.length === 0) {
     return {
       hardLimits: [], dietMix: [], drinksCounts: [],
-      avgAdventurousness: 0, adventurousnessLabel: 'cautious',
+      avgAdventurousness: 0,
+      // 'cautious' is a safe sentinel — the brief returns 'No guest data yet.' for this case,
+      // so adventurousnessLabel is never surfaced to users when guestCount is 0.
+      adventurousnessLabel: 'cautious',
       brief: 'No guest data yet.', guestCount: 0,
     }
   }
@@ -109,7 +114,7 @@ function buildBrief(
   hardLimits: HardLimit[],
   drinksCounts: { label: string; count: number }[],
   avg: number,
-  label: string
+  label: TableIntel['adventurousnessLabel']
 ): string {
   const parts: string[] = []
 
