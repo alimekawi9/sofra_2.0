@@ -93,3 +93,27 @@ describe('cover button', () => {
     expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
   })
 })
+
+describe('theme swatches', () => {
+  it('renders all five theme names', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    for (const name of ['Ember', 'Olive', 'Midnight', 'Saffron', 'Plum']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('Ember swatch is pre-selected on first render', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    expect(screen.getByRole('button', { name: 'Ember' })).toHaveAttribute('data-selected', 'true')
+  })
+
+  it('clicking Olive makes it selected and deselects Ember', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.click(screen.getByRole('button', { name: 'Olive' }))
+    expect(screen.getByRole('button', { name: 'Olive' })).toHaveAttribute('data-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Ember' })).toHaveAttribute('data-selected', 'false')
+  })
+})

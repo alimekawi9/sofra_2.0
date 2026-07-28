@@ -150,6 +150,31 @@ export default function HostNewPage() {
             />
           </div>
 
+          {/* Theme swatches */}
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            {THEMES.map(t => {
+              const selected = theme === t.id
+              return (
+                <button
+                  key={t.id}
+                  data-selected={selected}
+                  onClick={() => setTheme(t.id)}
+                  style={{
+                    minWidth: 88, height: 60, borderRadius: 14,
+                    background: t.bg, border: 'none', cursor: 'pointer',
+                    flexShrink: 0,
+                    outline: selected ? `2px solid ${t.accent}` : '2px solid transparent',
+                    outlineOffset: 2,
+                    display: 'flex', alignItems: 'flex-end',
+                    justifyContent: 'center', paddingBottom: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: C.cream }}>{t.name}</span>
+                </button>
+              )
+            })}
+          </div>
+
         </div>
       </div>
     </>
