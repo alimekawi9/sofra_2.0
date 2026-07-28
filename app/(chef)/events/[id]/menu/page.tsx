@@ -1,23 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
-import { draftCourse, draftMenu, scoreDish, SLOT_LABELS, SLOTS } from '@/lib/menu'
+import { draftCourse, draftMenu, scoreDish, SLOT_LABELS } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot, CourseOrigin } from '@/lib/menu'
 
 const C = {
-  ink:         '#140E10',
-  ink2:        '#1E1518',
-  burgundy:    '#5C1A1B',
-  burgundyLit: '#7A2324',
-  cream:       '#F3E9DD',
-  dim:         '#B7A493',
-  faint:       '#7C6B5F',
-  gold:        '#D9A15B',
-  rose:        '#C97B6E',
+  ink:   '#140E10',
+  cream: '#F3E9DD',
+  dim:   '#B7A493',
+  faint: '#7C6B5F',
+  gold:  '#D9A15B',
+  rose:  '#C97B6E',
 }
 
 function currentMonday(): string {
@@ -55,6 +52,10 @@ function mergeGuests(
   })
 }
 
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 export function buildMenuHtml(
   derivedCourses: Course[],
   guestCount: number,
@@ -72,16 +73,16 @@ export function buildMenuHtml(
 
     const alternativeHtml = c.excludes.length > 0
       ? `<p style="font-size:12px;font-style:italic;color:#8C7560;margin-top:6px;">Alternative required for: ${
-          c.excludes.map(e => `${e.guest} (${e.reason})`).join(', ')
+          c.excludes.map(e => `${escHtml(e.guest)} (${escHtml(e.reason)})`).join(', ')
         }</p>`
       : ''
 
     return `
       <div style="text-align:center;margin:32px 0;">
         <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#8C7560;margin-bottom:8px;">
-          ${c.slotLabel}
+          ${escHtml(c.slotLabel)}
         </p>
-        <p style="font-size:20px;margin-bottom:6px;">${c.dishName || '— TBD —'}</p>
+        <p style="font-size:20px;margin-bottom:6px;">${escHtml(c.dishName) || '— TBD —'}</p>
         ${originLabel ? `<p style="font-size:12px;color:#8C7560;margin-bottom:${c.excludes.length > 0 ? '0' : '4px'};">${originLabel}</p>` : ''}
         ${alternativeHtml}
       </div>`
@@ -91,7 +92,7 @@ export function buildMenuHtml(
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Menu — ${event.title}</title>
+  <title>Menu — ${escHtml(event.title)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{background:#F3E9DD;font-family:Georgia,serif;color:#2C1F16;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:48px 24px;}
@@ -103,7 +104,7 @@ export function buildMenuHtml(
   <div class="page">
     <div style="text-align:center;margin-bottom:40px;border-bottom:1px solid #C9A96E;padding-bottom:32px;">
       <p style="font-style:italic;font-size:48px;letter-spacing:0.02em;margin-bottom:16px;">Sofra</p>
-      <p style="font-size:18px;margin-bottom:8px;">${event.title}</p>
+      <p style="font-size:18px;margin-bottom:8px;">${escHtml(event.title)}</p>
       <p style="font-size:13px;color:#8C7560;">${dateStr} · ${guestCount} cover${guestCount !== 1 ? 's' : ''}</p>
     </div>
     ${coursesHtml}
@@ -116,12 +117,10 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const { id } = params
   const router   = useRouter()
   const supabase = createClient()
-  const uidRef   = useRef<string | null>(null)
 
   const [loading,       setLoading]       = useState(true)
   const [fetchError,    setFetchError]    = useState('')
   const [actionError,   setActionError]   = useState('')
-  const [menuId,        setMenuId]        = useState<string | null>(null)
   const [courses,       setCourses]       = useState<PersistedCourse[]>([])
   const [intel,         setIntel]         = useState<TableIntel | null>(null)
   const [signatures,    setSignatures]    = useState<Signature[]>([])
@@ -144,11 +143,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       } else if (c.dish_origin === 'pantry-composed') {
         sourceDish = pantry.find(p => p.id === c.source)
       }
+      // Source dish deleted: surface as stale rather than claiming it's safe.
+      const sourceDeleted = (c.dish_origin === 'signature' || c.dish_origin === 'pantry-composed') && !sourceDish
       return {
         slot,
         slotLabel,
-        dishName:  c.dish_name,
-        origin:    (c.dish_origin as CourseOrigin) ?? 'empty',
+        dishName:  sourceDeleted ? '— source deleted, swap or lock —' : c.dish_name,
+        origin:    sourceDeleted ? 'empty' : ((c.dish_origin as CourseOrigin) ?? 'empty'),
         sourceId:  c.source,
         excludes:  sourceDish ? scoreDish(sourceDish, intel) : [],
       }
@@ -161,7 +162,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-      uidRef.current = user.id
 
       const { data: ev, error: evErr } = await supabase
         .from('events')
@@ -214,7 +214,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         .maybeSingle()
 
       if (menu) {
-        setMenuId(menu.id)
         const { data: rows } = await supabase
           .from('menu_courses')
           .select('*')
@@ -229,7 +228,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .select('id')
           .single()
         if (menuErr || !newMenu) throw new Error('menu insert failed')
-        setMenuId(newMenu.id)
 
         const inserts = drafted.map((c, i) => ({
           menu_id:     newMenu.id,
@@ -339,8 +337,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       return
     }
     win.document.write(buildMenuHtml(derivedCourses, intel.guestCount, event))
-    win.document.close()
     win.addEventListener('load', () => setTimeout(() => win.print(), 150))
+    win.document.close()
   }
 
   const allLocked = courses.length > 0 && courses.every(c => c.locked)
