@@ -60,3 +60,36 @@ it('redirects to /login when user is null', async () => {
   render(<HostNewPage />)
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
 })
+
+describe('cover button', () => {
+  it('shows "Upload cover photo" initially', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    expect(screen.getByText('Upload cover photo')).toBeInTheDocument()
+  })
+
+  it('shows "Recommended 1:1" badge initially', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    expect(screen.getByText('Recommended 1:1')).toBeInTheDocument()
+  })
+
+  it('shows "Change photo" badge and hides upload prompt after file is picked', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, file)
+    expect(screen.getByText('Change photo')).toBeInTheDocument()
+    expect(screen.queryByText('Upload cover photo')).not.toBeInTheDocument()
+  })
+
+  it('calls URL.createObjectURL with the picked file', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, file)
+    expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
+  })
+})

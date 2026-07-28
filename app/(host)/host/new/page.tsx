@@ -50,6 +50,13 @@ export default function HostNewPage() {
     init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function onFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    coverFileRef.current = file
+    setPreviewUrl(URL.createObjectURL(file))
+  }
+
   return (
     <>
       <style>{`
@@ -90,6 +97,59 @@ export default function HostNewPage() {
           position: 'relative', zIndex: 1,
           display: 'flex', flexDirection: 'column', gap: 24,
         }}>
+
+          {/* Cover button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '100%', height: 240, borderRadius: 16, overflow: 'hidden',
+                background: previewUrl
+                  ? '#000'
+                  : (THEMES.find(t => t.id === theme) ?? THEMES[0]).bg,
+                border: 'none', cursor: 'pointer',
+                display: 'block', position: 'relative',
+              }}
+            >
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="cover"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <>
+                  <div style={{
+                    position: 'absolute', inset: 0, pointerEvents: 'none',
+                    background: 'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,161,91,0.18) 0%, transparent 70%)',
+                  }} />
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                    <span style={{ fontSize: 28, color: C.dim }}>＋</span>
+                    <span style={{ fontSize: 14, color: C.dim }}>Upload cover photo</span>
+                  </div>
+                </>
+              )}
+              <div style={{
+                position: 'absolute', bottom: 10, left: 10,
+                background: 'rgba(0,0,0,0.45)', borderRadius: 999,
+                padding: '3px 10px', fontSize: 12, color: C.cream,
+              }}>
+                {previewUrl ? 'Change photo' : 'Recommended 1:1'}
+              </div>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={onFilePick}
+            />
+          </div>
+
         </div>
       </div>
     </>
