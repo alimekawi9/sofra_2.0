@@ -117,3 +117,48 @@ describe('theme swatches', () => {
     expect(screen.getByRole('button', { name: 'Ember' })).toHaveAttribute('data-selected', 'false')
   })
 })
+
+describe('form fields', () => {
+  it('renders title, tagline, venue, and dress code text inputs', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    expect(screen.getByRole('textbox', { name: /title/i })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /tagline/i })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /venue/i })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /dress code/i })).toBeInTheDocument()
+  })
+
+  it('renders the date & time input', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    expect(screen.getByTestId('date-input')).toBeInTheDocument()
+  })
+
+  it('Publish invite button is disabled when title and date are empty', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    expect(screen.getByRole('button', { name: /publish invite/i })).toBeDisabled()
+  })
+
+  it('Publish invite button is disabled when only title is filled', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
+    expect(screen.getByRole('button', { name: /publish invite/i })).toBeDisabled()
+  })
+
+  it('Publish invite button is disabled when only date is filled', () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
+    expect(screen.getByRole('button', { name: /publish invite/i })).toBeDisabled()
+  })
+
+  it('Publish invite button is enabled when title and date are both filled', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
+    fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
+    expect(screen.getByRole('button', { name: /publish invite/i })).not.toBeDisabled()
+  })
+})

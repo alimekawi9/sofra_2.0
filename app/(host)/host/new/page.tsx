@@ -57,6 +57,8 @@ export default function HostNewPage() {
     setPreviewUrl(URL.createObjectURL(file))
   }
 
+  async function handleSubmit() {}
+
   return (
     <>
       <style>{`
@@ -173,6 +175,124 @@ export default function HostNewPage() {
                 </button>
               )
             })}
+          </div>
+
+          {/* Form fields */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            <div>
+              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Title</p>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Dinner at Casa Mekawi"
+                aria-label="Title"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(0,0,0,0.24)',
+                  border: '1px solid rgba(243,233,221,0.16)',
+                  borderRadius: 14, padding: '12px 16px',
+                  color: C.cream, fontSize: 14,
+                }}
+              />
+            </div>
+
+            <div>
+              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Tagline</p>
+              <input
+                type="text"
+                value={tagline}
+                onChange={e => setTagline(e.target.value)}
+                placeholder="A night of good food and conversation"
+                aria-label="Tagline"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(0,0,0,0.24)',
+                  border: '1px solid rgba(243,233,221,0.16)',
+                  borderRadius: 14, padding: '12px 16px',
+                  color: C.cream, fontSize: 14,
+                }}
+              />
+            </div>
+
+            <div>
+              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Date & Time</p>
+              <input
+                type="datetime-local"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                data-testid="date-input"
+                aria-label="Date & Time"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(0,0,0,0.24)',
+                  border: '1px solid rgba(243,233,221,0.16)',
+                  borderRadius: 14, padding: '12px 16px',
+                  color: C.cream, fontSize: 14,
+                  colorScheme: 'dark',
+                }}
+              />
+            </div>
+
+            <div>
+              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Venue</p>
+              <input
+                type="text"
+                value={venue}
+                onChange={e => setVenue(e.target.value)}
+                placeholder="The Garden Room, San Francisco"
+                aria-label="Venue"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(0,0,0,0.24)',
+                  border: '1px solid rgba(243,233,221,0.16)',
+                  borderRadius: 14, padding: '12px 16px',
+                  color: C.cream, fontSize: 14,
+                }}
+              />
+            </div>
+
+            <div>
+              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Dress code</p>
+              <input
+                type="text"
+                value={dressCode}
+                onChange={e => setDressCode(e.target.value)}
+                placeholder="Smart casual"
+                aria-label="Dress code"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(0,0,0,0.24)',
+                  border: '1px solid rgba(243,233,221,0.16)',
+                  borderRadius: 14, padding: '12px 16px',
+                  color: C.cream, fontSize: 14,
+                }}
+              />
+            </div>
+
+          </div>
+
+          {/* Publish button */}
+          <div>
+            <button
+              onClick={handleSubmit}
+              disabled={!title || !date || submitting}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 12,
+                background: C.burgundy, color: C.cream, border: 'none',
+                fontSize: 16,
+                cursor: !title || !date ? 'default' : 'pointer',
+                opacity: !title || !date || submitting ? 0.5 : 1,
+                boxShadow: '0 0 16px rgba(92,26,27,0.5)',
+              }}
+            >Publish invite</button>
+
+            {error && (
+              <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                {error}
+              </p>
+            )}
           </div>
 
         </div>
