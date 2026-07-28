@@ -58,7 +58,11 @@ export default function HostNewPage() {
   }
 
   async function handleSubmit() {
-    if (!uidRef.current || submitting) return
+    if (submitting) return
+    if (!uidRef.current) {
+      setError('Session not ready. Please try again.')
+      return
+    }
     setSubmitting(true)
     setError('')
 
