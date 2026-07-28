@@ -162,3 +162,114 @@ describe('form fields', () => {
     expect(screen.getByRole('button', { name: /publish invite/i })).not.toBeDisabled()
   })
 })
+
+// Helper: fill required fields so the Publish invite button is enabled
+async function fillRequired() {
+  await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
+  fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
+}
+
+describe('submit handler', () => {
+  it('does not call storage.upload when no cover file was picked', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.upload).not.toHaveBeenCalled()
+  })
+
+  it('calls storage.upload when a cover file was picked', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, file)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.upload).toHaveBeenCalledWith(
+      expect.stringMatching(/^uid-1\/.+\.jpg$/),
+      file
+    )
+  })
+
+  it('shows upload error and does not call insert when upload fails', async () => {
+    const sb = makeSupabase({ uploadError: { message: 'network error' } })
+    render(<HostNewPage />)
+    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, file)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/photo upload failed/i)).toBeInTheDocument()
+    )
+    expect(sb.insert).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('inserts event row with correct column values and redirects on success', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
+    await userEvent.type(screen.getByRole('textbox', { name: /tagline/i }), 'A cozy evening')
+    fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
+    await userEvent.type(screen.getByRole('textbox', { name: /venue/i }), 'The Garden Room')
+    await userEvent.type(screen.getByRole('textbox', { name: /dress code/i }), 'Smart casual')
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+    expect(sb.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host_id:    'uid-1',
+        title:      'Test Dinner',
+        tagline:    'A cozy evening',
+        event_date: new Date('2026-08-01T19:00').toISOString(),
+        venue:      'The Garden Room',
+        dress_code: 'Smart casual',
+        theme:      'ember',
+        cover_url:  null,
+      })
+    )
+  })
+
+  it('shows insert error and does not redirect when insert fails', async () => {
+    makeSupabase({ insertError: { message: 'db error' } })
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+    )
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('uses the storage public URL as cover_url when a cover is uploaded', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, file)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ cover_url: 'https://cdn.example.com/photo.jpg' })
+    )
+  })
+
+  it('empty optional fields are inserted as null not empty string', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tagline:    null,
+        venue:      null,
+        dress_code: null,
+      })
+    )
+  })
+})

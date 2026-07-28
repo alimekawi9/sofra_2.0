@@ -57,7 +57,55 @@ export default function HostNewPage() {
     setPreviewUrl(URL.createObjectURL(file))
   }
 
-  async function handleSubmit() {}
+  async function handleSubmit() {
+    if (!uidRef.current || submitting) return
+    setSubmitting(true)
+    setError('')
+
+    let publicUrl: string | null = null
+    if (coverFileRef.current) {
+      const file = coverFileRef.current
+      const ext  = file.name.split('.').pop() ?? 'jpg'
+      const path = `${uidRef.current}/${crypto.randomUUID()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('covers')
+        .upload(path, file)
+
+      if (uploadError) {
+        setError('Photo upload failed. Please try again.')
+        setSubmitting(false)
+        return
+      }
+
+      publicUrl = supabase.storage
+        .from('covers')
+        .getPublicUrl(path).data.publicUrl
+    }
+
+    const { data, error: insertError } = await supabase
+      .from('events')
+      .insert({
+        host_id:    uidRef.current,
+        title,
+        tagline:    tagline   || null,
+        event_date: new Date(date).toISOString(),
+        venue:      venue     || null,
+        dress_code: dressCode || null,
+        theme,
+        cover_url:  publicUrl,
+      })
+      .select('id')
+      .single()
+
+    if (insertError) {
+      setError('Something went wrong. Please try again.')
+      setSubmitting(false)
+      return
+    }
+
+    router.push('/events/' + data!.id)
+  }
 
   return (
     <>
