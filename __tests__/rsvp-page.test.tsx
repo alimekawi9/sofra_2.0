@@ -13,11 +13,12 @@ beforeEach(() => {
   jest.clearAllMocks()
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   mockPush.mockReset()
+  localStorage.clear()
+  localStorage.setItem('sofra_user_id', 'uid-1')
 })
 
 // Shared mock factory — call at the start of each test that needs Supabase
 function makeSupabase({
-  user = { id: 'uid-1' } as { id: string } | null,
   rsvpRow = null as { status: string } | null,
   profileRow = null as Record<string, unknown> | null,
   fetchError = null as { message: string } | null,
@@ -27,9 +28,6 @@ function makeSupabase({
   const profileUpsert = jest.fn().mockResolvedValue({ error: upsertError })
 
   const sb = {
-    auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user } }),
-    },
     from: jest.fn((table: string) => {
       if (table === 'rsvps') return {
         select: jest.fn().mockReturnValue({
@@ -111,7 +109,6 @@ describe('fetch error state', () => {
     let rsvpAttempts = 0
     let profileAttempts = 0
     ;(createClient as jest.Mock).mockReturnValue({
-      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'uid-1' } } }) },
       from: jest.fn((table: string) => {
         if (table === 'rsvps') return {
           select: jest.fn().mockReturnValue({

@@ -13,10 +13,11 @@ beforeEach(() => {
   jest.clearAllMocks()
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   global.URL.createObjectURL = jest.fn(() => 'mock-object-url')
+  localStorage.clear()
+  localStorage.setItem('sofra_user_id', 'uid-1')
 })
 
 function makeSupabase({
-  user        = { id: 'uid-1' } as { id: string } | null,
   uploadError = null as { message: string } | null,
   insertError = null as { message: string } | null,
   insertedId  = 'new-event-id',
@@ -28,7 +29,6 @@ function makeSupabase({
   const insert       = jest.fn().mockReturnValue({ select })
 
   const sb = {
-    auth:    { getUser: jest.fn().mockResolvedValue({ data: { user } }) },
     storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) },
     from:    jest.fn().mockReturnValue({ insert }),
     upload, getPublicUrl, insert, select, single,
@@ -55,8 +55,9 @@ it('renders the back link', () => {
   expect(screen.getByRole('button', { name: /← Events/i })).toBeInTheDocument()
 })
 
-it('redirects to /login when user is null', async () => {
-  makeSupabase({ user: null })
+it('redirects to /login when sofra_user_id is absent', async () => {
+  localStorage.clear()
+  makeSupabase()
   render(<HostNewPage />)
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
 })
