@@ -217,17 +217,10 @@ describe('Hosting section', () => {
     expect(mockPush).toHaveBeenCalledWith('/events/ev-1')
   })
 
-  it('queries events table scoped to the user id as host_id', async () => {
+  it('queries events table', async () => {
     const sb = makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
     render(<EventsPage />)
     await waitFor(() => screen.getByText('Casa Mekawi'))
-    const eventsBuilder = sb.from.mock.results.find(
-      (_: unknown, i: number) => sb.from.mock.calls[i][0] === 'events'
-    )
-    expect(eventsBuilder).toBeTruthy()
-    // eq('host_id', 'uid-1') must have been called
-    const eqFn = (sb.from('events') as ReturnType<typeof sb.from>).select('').eq as jest.Mock
-    // Just verify .from was called with 'events' — query scope verified by section rendering correctly
     expect(sb.from).toHaveBeenCalledWith('events')
   })
 })
