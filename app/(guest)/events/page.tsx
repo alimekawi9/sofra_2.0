@@ -122,7 +122,7 @@ export default function EventsPage() {
       if (e1 || e2) throw new Error('fetch failed')
 
       setHosting((hostEvents ?? []) as EventRow[])
-      setInvited(((rsvpRows ?? []) as RsvpRow[]).map(r => r.events))
+      setInvited(((rsvpRows ?? []) as unknown as RsvpRow[]).map(r => r.events))
     } catch {
       setError("Couldn't load your events. Try again.")
     } finally {
