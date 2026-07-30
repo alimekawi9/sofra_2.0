@@ -3,25 +3,241 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #140E10;
+  --ink2: #1E1518;
+  --burgundy: #5C1A1B;
+  --burgundy-lit: #7A2324;
+  --cream: #F3E9DD;
+  --dim: #B7A493;
+  --faint: #7C6B5F;
+  --gold: #D9A15B;
+  --rose: #C97B6E;
+  --sage: #8AA06E;
+  --danger: #E0776B;
+  --panel: #211A1D;
+  --line: rgba(243, 233, 221, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: #080506;
+  color: var(--cream);
+  font-family: Georgia, serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+/* Fade-in shared by pages */
+.fade {
+  animation: sofra-fade 0.4s ease;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
+@keyframes sofra-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Primary button */
+.prim {
+  background: var(--burgundy);
+  color: var(--cream);
+  border: none;
+  padding: 15px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-family: Georgia, serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 10px 32px rgba(92, 26, 27, 0.42);
+}
+.prim:hover { background: var(--burgundy-lit); transform: translateY(-1px); }
+.prim:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+.prim.wide { width: 100%; }
+
+/* Option pill (RSVP status buttons) */
+.opt {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--cream);
+  border: 1px solid rgba(243, 233, 221, 0.16);
+  padding: 15px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-family: Georgia, serif;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: left;
+}
+.opt:hover { border-color: rgba(243, 233, 221, 0.4); }
+.opt.sel { border-color: var(--gold); }
+
+/* Text field */
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(243, 233, 221, 0.16);
+  border-radius: 14px;
+  padding: 15px;
+  color: var(--cream);
+  font-size: 16px;
+  font-family: Georgia, serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field:focus { border-color: var(--gold); }
+.field::placeholder { color: #5E5248; }
+.field.code { letter-spacing: 14px; text-align: center; font-size: 26px; }
+.field.sm { flex: 1; padding: 12px; font-size: 14px; font-family: system-ui, sans-serif; border-radius: 12px; }
+
+/* Chip */
+.chip {
+  border: 1px solid;
+  border-radius: 20px;
+  padding: 9px 15px;
+  font-size: 14px;
+  font-family: Georgia, serif;
+  cursor: pointer;
+  transition: all 0.18s;
+  background: transparent;
+}
+.chip:hover { transform: translateY(-1px); }
+
+/* Ghost icon button (header nav) */
+.ghosticon {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 20px;
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+}
+.ghosticon:hover { color: var(--cream); }
+
+/* Log row (profile history) */
+.logrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(243, 233, 221, 0.1);
+  border-radius: 18px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.18s;
+  width: 100%;
+  font-family: Georgia, serif;
+}
+.logrow:hover { border-color: rgba(243, 233, 221, 0.3); transform: translateY(-1px); }
+
+/* Range slider (adventurousness) */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: 5px;
+  outline: none;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--cream);
+  cursor: pointer;
+  border: 3px solid var(--gold);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.slider::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--cream);
+  cursor: pointer;
+  border: 3px solid var(--gold);
+}
+
+/* Chef tab bar */
+.tab {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: Georgia, serif;
+  font-size: 15px;
+  padding: 8px 6px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.18s;
+}
+.tab:hover { color: var(--cream); }
+.tab.on { color: var(--cream); border-bottom-color: var(--gold); }
+
+/* Chef menu regenerate button */
+.regen {
+  background: rgba(217, 161, 91, 0.12);
+  color: var(--gold);
+  border: 1px solid rgba(217, 161, 91, 0.35);
+  padding: 9px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.regen:hover { background: rgba(217, 161, 91, 0.2); }
+
+/* Chef mini button (swap/lock) */
+.mini {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  padding: 5px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.mini:hover:not(:disabled) { color: var(--cream); border-color: rgba(243, 233, 221, 0.35); }
+.mini:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Chef inputs — small add button */
+.add {
+  background: var(--burgundy);
+  color: var(--cream);
+  border: none;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+}
+.add:hover { background: var(--burgundy-lit); }
+
+/* Chef pantry chip */
+.pantry {
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pantry:hover { color: var(--cream); border-color: rgba(224, 119, 107, 0.4); }
+
+::-webkit-scrollbar { width: 0; }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }

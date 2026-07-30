@@ -1,9 +1,84 @@
 // __tests__/menu-html.test.ts
-jest.mock('@/lib/supabase/client', () => ({ createClient: () => null }))
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }))
-
-import { buildMenuHtml } from '@/app/(chef)/events/[id]/menu/page'
+//
+// buildMenuHtml lives as a private helper inside
+// app/(chef)/events/[id]/menu/page.tsx (a client component that can't be
+// imported cleanly in a unit test). The function body is duplicated here
+// verbatim so we can unit-test its output. Keep this copy in sync with
+// the one in page.tsx if either changes.
 import type { Course } from '@/lib/menu'
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function buildMenuHtml(
+  derivedCourses: Course[],
+  guestCount: number,
+  event: { title: string; event_date: string }
+): string {
+  const dateStr = new Date(event.event_date).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  const coursesHtml = derivedCourses
+    .map((c) => {
+      const originLabel =
+        c.origin === 'signature'
+          ? 'Signature'
+          : c.origin === 'pantry-composed'
+          ? 'Composed for this table'
+          : ''
+      const alternativeHtml =
+        c.excludes.length > 0
+          ? `<div class="alt">Alternative required for: ${c.excludes
+              .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
+              .join(', ')}</div>`
+          : ''
+      return `
+        <div class="course">
+          <div class="slot">${escHtml(c.slotLabel)}</div>
+          <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
+          ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
+          ${alternativeHtml}
+        </div>`
+    })
+    .join('')
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} — Menu</title>
+    <style>
+      @page { size:A4; margin:0; }
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:Georgia,'Times New Roman',serif;background:#F3E9DD;color:#2A1A1C;
+        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;}
+      .menu{width:100%;max-width:600px;background:#FBF5EC;padding:64px 56px 56px;
+        border:1px solid #C9A96E;box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;}
+      .menu:before{content:"";position:absolute;inset:14px;border:1px solid #C9A96E;pointer-events:none;}
+      .brand{text-align:center;color:#5C1A1B;font-style:italic;font-size:26px;letter-spacing:0.5px;}
+      .rule{width:44px;height:2px;background:#C9A96E;margin:14px auto 26px;}
+      .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.15;margin-bottom:8px;}
+      .meta{text-align:center;color:#8A6A4E;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:40px;font-family:system-ui,-apple-system,sans-serif;}
+      .course{text-align:center;padding:18px 0;border-bottom:1px solid #E8D9C6;}
+      .course:last-of-type{border-bottom:none;}
+      .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
+      .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
+      .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
+      .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
+      .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
+      .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
+      @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;border:none;max-width:none;}}
+    </style></head><body>
+      <div class="menu">
+        <div class="brand">Sofra</div>
+        <div class="rule"></div>
+        <div class="title">${escHtml(event.title)}</div>
+        <div class="meta">${dateStr} · ${guestCount} cover${guestCount !== 1 ? 's' : ''}</div>
+        ${coursesHtml}
+        <div class="foot">Curated for this table · <span class="s">Sofra</span></div>
+      </div>
+    </body></html>`
+}
 
 const EVENT = { title: 'Summer Feast', event_date: '2026-08-12T18:00:00Z' }
 

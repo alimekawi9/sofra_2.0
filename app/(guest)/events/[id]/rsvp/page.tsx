@@ -3,60 +3,48 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { C, THEMES, DIETARY, NOGOS, DRINKS } from '@/lib/theme'
 
-type Step       = 'status' | 'profile'
+type Step = 'status' | 'profile'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
 
-const DIETARY = ['Vegetarian','Vegan','Halal','Kosher','Gluten-free','No dairy','Pescatarian']
-const NOGOS   = ['Nuts','Shellfish','Pork','Eggs','Cilantro','Mushrooms']
-const DRINKS  = ['Cocktails','Wine','Beer','Alcohol-free']
-
-const C = {
-  ink:         '#140E10',
-  ink2:        '#1E1518',
-  burgundy:    '#5C1A1B',
-  burgundyLit: '#7A2324',
-  cream:       '#F3E9DD',
-  dim:         '#B7A493',
-  faint:       '#7C6B5F',
-  gold:        '#D9A15B',
-  rose:        '#C97B6E',
-}
-
 export default function RSVPPage({ params }: { params: { id: string } }) {
-  const router   = useRouter()
+  const router = useRouter()
   const supabase = createClient()
-  const uidRef   = useRef<string | null>(null)
+  const uidRef = useRef<string | null>(null)
 
-  const [loading,          setLoading]          = useState(true)
-  const [step,             setStep]             = useState<Step>('status')
-  const [status,           setStatus]           = useState<RsvpStatus | null>(null)
-  const [dietary,          setDietary]          = useState<string[]>([])
-  const [avoid,            setAvoid]            = useState<string[]>([])
-  const [drinks,           setDrinks]           = useState<string[]>([])
-  const [adventurousness,  setAdventurousness]  = useState(50)
-  const [prefilled,        setPrefilled]        = useState(false)
-  const [hasExistingRsvp,  setHasExistingRsvp]  = useState(false)
-  const [submitting,       setSubmitting]       = useState(false)
-  const [error,            setError]            = useState('')
+  const [loading, setLoading] = useState(true)
+  const [step, setStep] = useState<Step>('status')
+  const [status, setStatus] = useState<RsvpStatus | null>(null)
+  const [dietary, setDietary] = useState<string[]>([])
+  const [avoid, setAvoid] = useState<string[]>([])
+  const [drinks, setDrinks] = useState<string[]>([])
+  const [adventurousness, setAdventurousness] = useState(50)
+  const [prefilled, setPrefilled] = useState(false)
+  const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   async function loadData() {
     setLoading(true)
     setError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
-      uidRef.current = user.id
+      const stored = localStorage.getItem('sofra_user_id')
+      if (!stored) {
+        router.push('/login?next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
+        return
+      }
+      uidRef.current = stored
 
       const [{ data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
         supabase.from('rsvps')
           .select('status')
           .eq('event_id', params.id)
-          .eq('user_id', user.id)
+          .eq('user_id', stored)
           .maybeSingle(),
         supabase.from('taste_profiles')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', stored)
           .maybeSingle(),
       ])
 
@@ -68,7 +56,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       if (profileRow) {
         const p = profileRow as Record<string, unknown>
         setDietary((p.dietary as string[]) ?? [])
-        setAvoid((p.avoid as string[])   ?? [])
+        setAvoid((p.avoid as string[]) ?? [])
         setDrinks((p.drinks as string[]) ?? [])
         setAdventurousness((p.adventurousness as number) ?? 50)
         setPrefilled(true)
@@ -102,9 +90,6 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     if (!uidRef.current || submitting) return
     setSubmitting(true)
     setError('')
-    // Both upserts are idempotent against the same conflict targets, so one
-    // generic error + retry is safe — a retry re-upserts cleanly even if only
-    // one of the two failed on the previous attempt.
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
       supabase.from('rsvps').upsert(
         { event_id: params.id, user_id: uidRef.current, status },
@@ -131,89 +116,114 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   }
 
   function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
-    setArr(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value])
+    setArr(arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value])
   }
+
+  const theme = THEMES[0]
+  const accent = theme.accent
+
+  const prog = step === 'status' ? 50 : 100
 
   const stepLabel =
     status === 'going' || status === 'maybe' ? 'Step 1 of 2' : 'Step 1'
-
   const primaryLabel = status === 'cant' ? 'Submit' : 'Continue →'
-
   const onPrimaryClick =
-    status === 'cant' ? handleCantSubmit :
-    status !== null   ? () => setStep('profile') :
-    undefined
+    status === 'cant'
+      ? handleCantSubmit
+      : status !== null
+      ? () => setStep('profile')
+      : undefined
 
-  // used in Task 6 slider
   const adventLabel =
-    adventurousness < 25 ? 'Keep it familiar' :
-    adventurousness < 55 ? 'Open to a nudge' :
-    adventurousness < 82 ? 'Feed me something new' :
-    'Chef, surprise me'
+    adventurousness < 25
+      ? 'Keep it familiar'
+      : adventurousness < 55
+      ? 'Open to a nudge'
+      : adventurousness < 82
+      ? 'Feed me something new'
+      : 'Chef, surprise me'
 
-  const pct = adventurousness // used in Task 6 slider track fill
+  const chipClass = (on: boolean, danger?: boolean): React.CSSProperties => ({
+    background: on ? (danger ? '#4A1E1E' : C.burgundy) : 'transparent',
+    borderColor: on ? (danger ? C.rose : accent) : 'rgba(243,233,221,0.18)',
+    color: on ? C.cream : C.dim,
+  })
 
   return (
     <>
-      <style>{`
-        @keyframes skPulse { 0%,100%{opacity:.4} 50%{opacity:.7} }
-        input[type=range] { appearance:none; width:100%; height:4px; border-radius:2px; outline:none; }
-        input[type=range]::-webkit-slider-thumb { appearance:none; width:20px; height:20px; border-radius:50%; background:#D9A15B; cursor:pointer; }
-        input[type=range]::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:#D9A15B; border:none; cursor:pointer; }
-      `}</style>
+      <style>{`@keyframes sofraPulse { 0%,100%{opacity:.4} 50%{opacity:.7} }`}</style>
+      <div
+        style={{
+          minHeight: '100vh',
+          background: theme.bg,
+          fontFamily: 'Georgia, serif',
+          paddingBottom: 120,
+        }}
+      >
+        <div
+          className="fade"
+          style={{
+            maxWidth: 392,
+            margin: '0 auto',
+            padding: '22px 22px 32px',
+          }}
+        >
+          {/* Header — back / progress / close */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button
+              className="ghosticon"
+              aria-label="Back to event"
+              onClick={() =>
+                step === 'status' ? router.push('/events/' + params.id) : setStep('status')
+              }
+            >
+              ←
+            </button>
+            <div
+              style={{
+                flex: 1,
+                height: 5,
+                borderRadius: 5,
+                background: 'rgba(255,255,255,0.1)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  borderRadius: 5,
+                  width: `${prog}%`,
+                  background: accent,
+                  transition: 'width .3s',
+                }}
+              />
+            </div>
+            <button
+              className="ghosticon"
+              aria-label="Close"
+              onClick={() => router.push('/events/' + params.id)}
+            >
+              ✕
+            </button>
+          </div>
 
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(180deg, #1B1214 0%, #241619 100%)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '24px 20px',
-      }}>
-        {/* Radial glow */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,161,91,0.18) 0%, transparent 70%)',
-        }} />
-
-        {/* Back link */}
-        <button
-          onClick={() => router.push('/events/' + params.id)}
-          style={{ background: 'none', border: 'none', color: C.dim, alignSelf: 'flex-start', textDecoration: 'none', fontSize: 14, position: 'relative', zIndex: 1, cursor: 'pointer', padding: 0 }}
-        >← Events</button>
-
-        {/* Wordmark */}
-        <h1 style={{
-          fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 52,
-          color: C.cream, textAlign: 'center', margin: '12px 0 4px',
-          position: 'relative', zIndex: 1,
-        }}>Sofra</h1>
-
-        {/* Content */}
-        <div style={{ width: '100%', maxWidth: 360, position: 'relative', zIndex: 1 }}>
-
-          {/* Skeleton */}
           {loading && (
             <div data-testid="skeleton">
-              {[0,1,2].map(i => (
-                <div key={i} style={{
-                  height: 48, borderRadius: 999,
-                  background: 'rgba(255,255,255,0.08)',
-                  marginBottom: 12,
-                  animation: 'skPulse 1.4s ease-in-out infinite',
-                }} />
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: 56,
+                    borderRadius: 16,
+                    background: 'rgba(255,255,255,0.08)',
+                    marginBottom: 12,
+                    animation: 'sofraPulse 1.4s ease-in-out infinite',
+                  }}
+                />
               ))}
-              <div style={{
-                height: 48, borderRadius: 12,
-                background: 'rgba(255,255,255,0.06)',
-                marginTop: 8,
-                animation: 'skPulse 1.4s ease-in-out infinite',
-              }} />
             </div>
           )}
 
-          {/* Fetch error */}
           {!loading && error && (
             <div style={{ textAlign: 'center', paddingTop: 40 }}>
               <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{error}</p>
@@ -222,186 +232,297 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                 style={{
                   background: 'none',
                   border: `1px solid ${C.dim}`,
-                  borderRadius: 8,
+                  borderRadius: 10,
                   color: C.dim,
                   padding: '8px 20px',
                   cursor: 'pointer',
                   fontSize: 14,
+                  fontFamily: 'Georgia, serif',
                 }}
-              >Retry</button>
+              >
+                Retry
+              </button>
             </div>
           )}
 
-          {/* Step content — added in Tasks 4–7 */}
           {!loading && !error && (
             <div data-testid="rsvp-content">
-
               {step === 'status' && (
-                <div>
-                  <p style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                <>
+                  <p
+                    style={{
+                      color: C.dim,
+                      fontSize: 13,
+                      textAlign: 'center',
+                      marginBottom: 16,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
                     {stepLabel}
                   </p>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                  <h2
+                    style={{
+                      color: C.cream,
+                      fontSize: 29,
+                      margin: 0,
+                      fontWeight: 400,
+                      letterSpacing: -0.4,
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    Will you be at the table?
+                  </h2>
+                  <p
+                    style={{
+                      color: C.dim,
+                      fontSize: 15,
+                      marginTop: 10,
+                      lineHeight: 1.5,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    Reply and we’ll seat you.
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      marginTop: 20,
+                      marginBottom: 24,
+                    }}
+                  >
                     {([
                       { value: 'going' as RsvpStatus, label: '✦ Going' },
                       { value: 'maybe' as RsvpStatus, label: '◈ Maybe' },
-                      { value: 'cant'  as RsvpStatus, label: "✕ Can't make it" },
+                      { value: 'cant' as RsvpStatus, label: "✕ Can't make it" },
                     ]).map(({ value, label }) => {
                       const selected = status === value
                       return (
                         <button
                           key={value}
+                          className={selected ? 'opt sel' : 'opt'}
                           onClick={() => setStatus(value)}
-                          style={{
-                            width: '100%', padding: '14px 20px', borderRadius: 999,
-                            border: `1px solid ${selected ? C.burgundy : 'rgba(243,233,221,0.16)'}`,
-                            background: selected ? 'rgba(92,26,27,0.24)' : 'rgba(0,0,0,0.24)',
-                            color: selected ? C.cream : C.dim,
-                            boxShadow: selected ? '0 0 12px rgba(92,26,27,0.4)' : 'none',
-                            cursor: 'pointer', fontSize: 16, textAlign: 'left',
-                            transition: 'all 0.15s',
-                          }}
-                        >{label}</button>
+                          aria-pressed={selected}
+                        >
+                          {label}
+                        </button>
                       )
                     })}
                   </div>
 
                   <button
+                    className="prim wide"
                     onClick={onPrimaryClick}
                     disabled={status === null || submitting}
-                    style={{
-                      width: '100%', padding: '14px', borderRadius: 12,
-                      background: C.burgundy, color: C.cream, border: 'none',
-                      fontSize: 16, cursor: status === null ? 'default' : 'pointer',
-                      opacity: status === null || submitting ? 0.5 : 1,
-                      boxShadow: '0 0 16px rgba(92,26,27,0.5)',
-                      transition: 'background 0.15s',
-                    }}
-                  >{primaryLabel}</button>
+                  >
+                    {primaryLabel}
+                  </button>
 
                   {error && (
-                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>{error}</p>
+                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                      {error}
+                    </p>
                   )}
-                </div>
+                </>
               )}
 
               {step === 'profile' && (
                 <div data-testid="step2">
-                  <p style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>Step 2 of 2</p>
+                  <p
+                    style={{
+                      color: C.dim,
+                      fontSize: 13,
+                      textAlign: 'center',
+                      marginBottom: 8,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    Step 2 of 2
+                  </p>
+
+                  <h2
+                    style={{
+                      color: C.cream,
+                      fontSize: 29,
+                      margin: 0,
+                      fontWeight: 400,
+                      letterSpacing: -0.4,
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    How do you eat?
+                  </h2>
+                  <p
+                    style={{
+                      color: C.dim,
+                      fontSize: 15,
+                      marginTop: 10,
+                      lineHeight: 1.5,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    Sofra keeps this so you never fill it out again.
+                  </p>
 
                   {prefilled && (
-                    <div data-testid="prefilled-badge" style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      background: 'rgba(217,161,91,0.12)',
-                      border: '1px solid rgba(217,161,91,0.3)',
-                      borderRadius: 999, padding: '4px 12px',
-                      marginBottom: 20, fontSize: 13, color: C.gold,
-                    }}>✦ Pulled from your profile</div>
+                    <div
+                      data-testid="prefilled-badge"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: 'rgba(217,161,91,0.12)',
+                        border: '1px solid rgba(217,161,91,0.3)',
+                        borderRadius: 999,
+                        padding: '4px 12px',
+                        marginTop: 14,
+                        fontSize: 13,
+                        color: C.gold,
+                        fontFamily: 'system-ui, sans-serif',
+                      }}
+                    >
+                      ✦ Pulled from your profile
+                    </div>
                   )}
 
-                  {([
-                    {
-                      label: 'Dietary', arr: dietary, setArr: setDietary, items: DIETARY,
-                      selBg: 'rgba(217,161,91,0.12)', selBorder: `1px solid ${C.gold}`,
-                    },
-                    {
-                      label: 'Avoid', arr: avoid, setArr: setAvoid, items: NOGOS,
-                      selBg: 'rgba(224,119,107,0.12)', selBorder: `1px solid ${C.rose}`,
-                    },
-                    {
-                      label: 'Drinks', arr: drinks, setArr: setDrinks, items: DRINKS,
-                      selBg: 'rgba(217,161,91,0.12)', selBorder: `1px solid ${C.gold}`,
-                    },
-                  ] satisfies Array<{
-                    label: string
-                    arr: string[]
-                    setArr: (v: string[]) => void
-                    items: readonly string[]
-                    selBg: string
-                    selBorder: string
-                  }>).map(({ label, arr, setArr, items, selBg, selBorder }) => (
-                    <div key={label} style={{ marginBottom: 24 }}>
-                      <p style={{ color: C.dim, fontSize: 13, marginBottom: 10 }}>{label}</p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {items.map(item => {
-                          const selected = arr.includes(item)
-                          return (
-                            <button
-                              key={item}
-                              aria-pressed={selected}
-                              onClick={() => toggleChip(arr, setArr, item)}
-                              style={{
-                                borderRadius: 999, padding: '6px 14px', fontSize: 14, cursor: 'pointer',
-                                border: selected ? selBorder : '1px solid rgba(243,233,221,0.16)',
-                                background: selected ? selBg : 'rgba(0,0,0,0.24)',
-                                color: selected ? C.cream : C.dim,
-                                transition: 'all 0.15s',
-                              }}
-                            >{item}</button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                  <SubLabel>Dietary</SubLabel>
+                  <div style={chipWrap}>
+                    {DIETARY.map((it) => (
+                      <button
+                        key={it}
+                        className="chip"
+                        aria-pressed={dietary.includes(it)}
+                        onClick={() => toggleChip(dietary, setDietary, it)}
+                        style={chipClass(dietary.includes(it))}
+                      >
+                        {it}
+                      </button>
+                    ))}
+                  </div>
 
-                  {/* Adventurousness */}
-                  <div style={{ marginBottom: 32 }}>
-                    <p style={{ color: C.cream, fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
+                  <SubLabel>Anything you avoid?</SubLabel>
+                  <div style={chipWrap}>
+                    {NOGOS.map((it) => (
+                      <button
+                        key={it}
+                        className="chip"
+                        aria-pressed={avoid.includes(it)}
+                        onClick={() => toggleChip(avoid, setAvoid, it)}
+                        style={chipClass(avoid.includes(it), true)}
+                      >
+                        {it}
+                      </button>
+                    ))}
+                  </div>
+
+                  <SubLabel>What are you drinking?</SubLabel>
+                  <div style={chipWrap}>
+                    {DRINKS.map((it) => (
+                      <button
+                        key={it}
+                        className="chip"
+                        aria-pressed={drinks.includes(it)}
+                        onClick={() => toggleChip(drinks, setDrinks, it)}
+                        style={chipClass(drinks.includes(it))}
+                      >
+                        {it}
+                      </button>
+                    ))}
+                  </div>
+
+                  <SubLabel>How brave is your palate?</SubLabel>
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.24)',
+                      border: '1px solid rgba(243,233,221,0.1)',
+                      borderRadius: 20,
+                      padding: '22px 18px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: C.cream,
+                        fontSize: 20,
+                        textAlign: 'center',
+                        marginBottom: 20,
+                        fontStyle: 'italic',
+                      }}
+                    >
                       {adventLabel}
-                    </p>
+                    </div>
                     <input
                       type="range"
                       min={0}
                       max={100}
                       step={1}
                       value={adventurousness}
-                      onChange={e => setAdventurousness(Number(e.target.value))}
+                      onChange={(e) => setAdventurousness(Number(e.target.value))}
                       aria-label="Adventurousness"
+                      className="slider"
                       style={{
-                        background: `linear-gradient(to right, ${C.gold} ${pct}%, ${C.faint} ${pct}%)`,
+                        background: `linear-gradient(90deg, ${accent} ${adventurousness}%, rgba(255,255,255,0.08) ${adventurousness}%)`,
                       }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                      <span style={{ color: C.dim, fontSize: 12 }}>Familiar</span>
-                      <span style={{ color: C.dim, fontSize: 12 }}>Adventurous</span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        color: C.faint,
+                        fontSize: 12,
+                        marginTop: 13,
+                        fontFamily: 'system-ui, sans-serif',
+                      }}
+                    >
+                      <span>The usual</span>
+                      <span>Anything once</span>
                     </div>
                   </div>
 
                   <button
+                    className="prim wide"
+                    style={{ marginTop: 22 }}
                     onClick={handleProfileSubmit}
                     disabled={submitting}
-                    style={{
-                      width: '100%', padding: '14px', borderRadius: 12,
-                      background: C.burgundy, color: C.cream, border: 'none',
-                      fontSize: 16, cursor: 'pointer',
-                      boxShadow: '0 0 16px rgba(92,26,27,0.5)',
-                      opacity: submitting ? 0.6 : 1,
-                    }}
                   >
                     {hasExistingRsvp ? 'Update RSVP →' : 'RSVP →'}
                   </button>
 
                   {error && (
-                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>{error}</p>
+                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                      {error}
+                    </p>
                   )}
-
-                  <button
-                    onClick={() => { setStep('status'); setError('') }}
-                    style={{
-                      background: 'none', border: 'none', color: C.dim,
-                      fontSize: 14, cursor: 'pointer', marginTop: 16,
-                      display: 'block', width: '100%', textAlign: 'center',
-                    }}
-                  >← Back</button>
                 </div>
               )}
-
             </div>
           )}
-
         </div>
       </div>
     </>
+  )
+}
+
+const chipWrap: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+}
+
+function SubLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        color: C.dim,
+        fontSize: 14,
+        margin: '22px 0 11px',
+        letterSpacing: 0.3,
+        fontFamily: 'system-ui, sans-serif',
+      }}
+    >
+      {children}
+    </div>
   )
 }

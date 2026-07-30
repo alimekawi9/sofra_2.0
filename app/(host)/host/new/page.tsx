@@ -3,51 +3,30 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-
-const THEMES = [
-  { id: 'ember',    name: 'Ember',    bg: 'radial-gradient(120% 80% at 50% 0%, #7A2324 0%, #3A1416 45%, #140E10 100%)', accent: '#D9A15B' },
-  { id: 'olive',    name: 'Olive',    bg: 'radial-gradient(120% 80% at 50% 0%, #5B6B4E 0%, #2E3826 50%, #14140E 100%)', accent: '#D9C05B' },
-  { id: 'midnight', name: 'Midnight', bg: 'radial-gradient(120% 80% at 50% 0%, #26304A 0%, #161C2E 50%, #0C0E14 100%)', accent: '#C97B6E' },
-  { id: 'saffron',  name: 'Saffron',  bg: 'radial-gradient(120% 80% at 50% 0%, #B5701E 0%, #6E4212 50%, #17100A 100%)', accent: '#F3D9A0' },
-  { id: 'plum',     name: 'Plum',     bg: 'radial-gradient(120% 80% at 50% 0%, #4A2540 0%, #2A162A 50%, #120A12 100%)', accent: '#D98FB0' },
-]
-
-const C = {
-  ink:         '#140E10',
-  ink2:        '#1E1518',
-  burgundy:    '#5C1A1B',
-  burgundyLit: '#7A2324',
-  cream:       '#F3E9DD',
-  dim:         '#B7A493',
-  faint:       '#7C6B5F',
-  gold:        '#D9A15B',
-  rose:        '#C97B6E',
-}
+import { C, THEMES, getTheme } from '@/lib/theme'
 
 export default function HostNewPage() {
-  const router       = useRouter()
-  const supabase     = createClient()
-  const uidRef       = useRef<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
+  const uidRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const coverFileRef = useRef<File | null>(null)
 
-  const [theme,      setTheme]      = useState('ember')
+  const [theme, setTheme] = useState('ember')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [title,      setTitle]      = useState('')
-  const [tagline,    setTagline]    = useState('')
-  const [date,       setDate]       = useState('')
-  const [venue,      setVenue]      = useState('')
-  const [dressCode,  setDressCode]  = useState('')
+  const [title, setTitle] = useState('')
+  const [tagline, setTagline] = useState('')
+  const [date, setDate] = useState('')
+  const [venue, setVenue] = useState('')
+  const [address, setAddress] = useState('')
+  const [dressCode, setDressCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error,      setError]      = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
-      uidRef.current = user.id
-    }
-    init()
+    const stored = localStorage.getItem('sofra_user_id')
+    if (!stored) { router.push('/login'); return }
+    uidRef.current = stored
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function onFilePick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -69,7 +48,7 @@ export default function HostNewPage() {
     let publicUrl: string | null = null
     if (coverFileRef.current) {
       const file = coverFileRef.current
-      const ext  = file.name.split('.').pop() ?? 'jpg'
+      const ext = file.name.split('.').pop() ?? 'jpg'
       const path = `${uidRef.current}/${crypto.randomUUID()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
@@ -90,14 +69,15 @@ export default function HostNewPage() {
     const { data, error: insertError } = await supabase
       .from('events')
       .insert({
-        host_id:    uidRef.current,
+        host_id: uidRef.current,
         title,
-        tagline:    tagline   || null,
+        tagline: tagline || null,
         event_date: new Date(date).toISOString(),
-        venue:      venue     || null,
+        venue: venue || null,
+        address: address || null,
         dress_code: dressCode || null,
         theme,
-        cover_url:  publicUrl,
+        cover_url: publicUrl,
       })
       .select('id')
       .single()
@@ -111,244 +91,299 @@ export default function HostNewPage() {
     router.push('/events/' + data!.id)
   }
 
+  const activeTheme = getTheme(theme)
+
   return (
     <>
       <style>{`
-        input:focus { outline: none; border-color: #D9A15B; }
         input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
       `}</style>
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(180deg, #1B1214 0%, #241619 100%)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '24px 20px',
-      }}>
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,161,91,0.18) 0%, transparent 70%)',
-        }} />
-
-        <button
-          onClick={() => router.push('/events')}
-          style={{
-            background: 'none', border: 'none', color: C.dim,
-            alignSelf: 'flex-start', fontSize: 14,
-            position: 'relative', zIndex: 1, cursor: 'pointer', padding: 0,
-          }}
-        >← Events</button>
-
-        <h1 style={{
-          fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 52,
-          color: C.cream, textAlign: 'center', margin: '12px 0 24px',
-          position: 'relative', zIndex: 1,
-        }}>Sofra</h1>
-
-        <div style={{
-          width: '100%', maxWidth: 400,
-          position: 'relative', zIndex: 1,
-          display: 'flex', flexDirection: 'column', gap: 24,
-        }}>
-
-          {/* Cover button */}
-          <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          background: C.ink,
+          fontFamily: 'Georgia, serif',
+          paddingBottom: 120,
+        }}
+      >
+        <div
+          className="fade"
+          style={{ maxWidth: 392, margin: '0 auto', padding: '22px 22px 32px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => router.push('/events')}
+              aria-label="← Events"
               style={{
-                width: '100%', height: 240, borderRadius: 16, overflow: 'hidden',
-                background: previewUrl
-                  ? '#000'
-                  : (THEMES.find(t => t.id === theme) ?? THEMES[0]).bg,
-                border: 'none', cursor: 'pointer',
-                display: 'block', position: 'relative',
+                background: 'none',
+                border: 'none',
+                color: C.dim,
+                fontSize: 14,
+                cursor: 'pointer',
+                padding: '4px 6px',
+                fontFamily: 'Georgia, serif',
               }}
             >
-              {previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt="cover"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <>
-                  <div style={{
-                    position: 'absolute', inset: 0, pointerEvents: 'none',
-                    background: 'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,161,91,0.18) 0%, transparent 70%)',
-                  }} />
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 8,
-                  }}>
-                    <span style={{ fontSize: 28, color: C.dim }}>＋</span>
-                    <span style={{ fontSize: 14, color: C.dim }}>Upload cover photo</span>
-                  </div>
-                </>
-              )}
-              <div style={{
-                position: 'absolute', bottom: 10, left: 10,
-                background: 'rgba(0,0,0,0.45)', borderRadius: 999,
-                padding: '3px 10px', fontSize: 12, color: C.cream,
-              }}>
-                {previewUrl ? 'Change photo' : 'Recommended 1:1'}
-              </div>
+              ← Events
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={onFilePick}
-            />
+            <div style={{ flex: 1 }} />
           </div>
 
-          {/* Theme swatches */}
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-            {THEMES.map(t => {
-              const selected = theme === t.id
-              return (
-                <button
-                  key={t.id}
-                  data-selected={selected}
-                  onClick={() => setTheme(t.id)}
+          <h1
+            style={{
+              color: C.cream,
+              fontSize: 42,
+              fontStyle: 'italic',
+              letterSpacing: 0.5,
+              textAlign: 'center',
+              margin: '4px 0 4px',
+              fontWeight: 400,
+            }}
+          >
+            Sofra
+          </h1>
+          <div
+            style={{
+              color: C.cream,
+              fontSize: 17,
+              fontStyle: 'italic',
+              textAlign: 'center',
+              marginBottom: 22,
+            }}
+          >
+            Host a Sofra
+          </div>
+
+          {/* Cover upload */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              width: '100%',
+              height: 280,
+              borderRadius: 24,
+              position: 'relative',
+              overflow: 'hidden',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: previewUrl ? '#000' : activeTheme.bg,
+            }}
+            aria-label="Upload cover photo"
+          >
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <>
+                <div
                   style={{
-                    minWidth: 88, height: 60, borderRadius: 14,
-                    background: t.bg, border: 'none', cursor: 'pointer',
-                    flexShrink: 0,
-                    outline: selected ? `2px solid ${t.accent}` : '2px solid transparent',
-                    outlineOffset: 2,
-                    display: 'flex', alignItems: 'flex-end',
-                    justifyContent: 'center', paddingBottom: 8,
+                    position: 'absolute',
+                    top: -60,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 280,
+                    height: 280,
+                    background:
+                      'radial-gradient(circle, rgba(255,255,255,0.16), transparent 65%)',
+                  }}
+                />
+                <div
+                  style={{
+                    color: C.cream,
+                    fontSize: 34,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    zIndex: 2,
                   }}
                 >
-                  <span style={{ fontSize: 12, color: C.cream }}>{t.name}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Form fields */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-            <div>
-              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Title</p>
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Dinner at Casa Mekawi"
-                aria-label="Title"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(0,0,0,0.24)',
-                  border: '1px solid rgba(243,233,221,0.16)',
-                  borderRadius: 14, padding: '12px 16px',
-                  color: C.cream, fontSize: 14,
-                }}
-              />
-            </div>
-
-            <div>
-              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Tagline</p>
-              <input
-                type="text"
-                value={tagline}
-                onChange={e => setTagline(e.target.value)}
-                placeholder="A night of good food and conversation"
-                aria-label="Tagline"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(0,0,0,0.24)',
-                  border: '1px solid rgba(243,233,221,0.16)',
-                  borderRadius: 14, padding: '12px 16px',
-                  color: C.cream, fontSize: 14,
-                }}
-              />
-            </div>
-
-            <div>
-              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Date & Time</p>
-              <input
-                type="datetime-local"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                data-testid="date-input"
-                aria-label="Date & Time"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(0,0,0,0.24)',
-                  border: '1px solid rgba(243,233,221,0.16)',
-                  borderRadius: 14, padding: '12px 16px',
-                  color: C.cream, fontSize: 14,
-                  colorScheme: 'dark',
-                }}
-              />
-            </div>
-
-            <div>
-              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Venue</p>
-              <input
-                type="text"
-                value={venue}
-                onChange={e => setVenue(e.target.value)}
-                placeholder="The Garden Room, San Francisco"
-                aria-label="Venue"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(0,0,0,0.24)',
-                  border: '1px solid rgba(243,233,221,0.16)',
-                  borderRadius: 14, padding: '12px 16px',
-                  color: C.cream, fontSize: 14,
-                }}
-              />
-            </div>
-
-            <div>
-              <p style={{ color: C.dim, fontSize: 12, margin: '0 0 6px' }}>Dress code</p>
-              <input
-                type="text"
-                value={dressCode}
-                onChange={e => setDressCode(e.target.value)}
-                placeholder="Smart casual"
-                aria-label="Dress code"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(0,0,0,0.24)',
-                  border: '1px solid rgba(243,233,221,0.16)',
-                  borderRadius: 14, padding: '12px 16px',
-                  color: C.cream, fontSize: 14,
-                }}
-              />
-            </div>
-
-          </div>
-
-          {/* Publish button */}
-          <div>
-            <button
-              onClick={handleSubmit}
-              disabled={!title || !date || submitting}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 12,
-                background: C.burgundy, color: C.cream, border: 'none',
-                fontSize: 16,
-                cursor: !title || !date ? 'default' : 'pointer',
-                opacity: !title || !date || submitting ? 0.5 : 1,
-                boxShadow: '0 0 16px rgba(92,26,27,0.5)',
-              }}
-            >Publish invite</button>
-
-            {error && (
-              <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                {error}
-              </p>
+                  ＋
+                  <div
+                    style={{
+                      fontSize: 13,
+                      marginTop: 6,
+                      fontFamily: 'system-ui, sans-serif',
+                      opacity: 0.85,
+                    }}
+                  >
+                    Upload cover photo
+                  </div>
+                </div>
+              </>
             )}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 12,
+                right: 12,
+                background: 'rgba(0,0,0,0.55)',
+                color: C.cream,
+                fontSize: 11,
+                padding: '5px 10px',
+                borderRadius: 20,
+                fontFamily: 'system-ui, sans-serif',
+                zIndex: 3,
+              }}
+            >
+              {previewUrl ? 'Change photo' : 'Recommended 1:1'}
+            </div>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={onFilePick}
+          />
+
+          <label style={lbl}>Or pick a theme (used if no photo)</label>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              overflowX: 'auto',
+              paddingBottom: 6,
+            }}
+          >
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                data-selected={theme === t.id}
+                style={{
+                  minWidth: 88,
+                  height: 60,
+                  borderRadius: 14,
+                  border: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  padding: 8,
+                  background: t.bg,
+                  outline:
+                    theme === t.id ? `2px solid ${t.accent}` : '2px solid transparent',
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    color: C.cream,
+                    fontSize: 11,
+                    fontFamily: 'system-ui, sans-serif',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  {t.name}
+                </span>
+              </button>
+            ))}
           </div>
 
+          <label style={lbl} htmlFor="host-title">Event name</label>
+          <input
+            id="host-title"
+            className="field"
+            aria-label="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Layla’s Long Table"
+          />
+
+          <label style={lbl} htmlFor="host-tagline">Tagline</label>
+          <input
+            id="host-tagline"
+            className="field"
+            aria-label="Tagline"
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+            placeholder="A dinner for the ones who show up hungry."
+          />
+
+          <label style={lbl} htmlFor="host-date">When</label>
+          <input
+            id="host-date"
+            className="field"
+            type="datetime-local"
+            aria-label="Date & Time"
+            data-testid="date-input"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={{ colorScheme: 'dark' }}
+          />
+
+          <label style={lbl} htmlFor="host-venue">Venue</label>
+          <input
+            id="host-venue"
+            className="field"
+            aria-label="Venue"
+            value={venue}
+            onChange={(e) => setVenue(e.target.value)}
+            placeholder="Krasi — Meze & Wine"
+          />
+
+          <label style={lbl} htmlFor="host-address">Address</label>
+          <input
+            id="host-address"
+            className="field"
+            aria-label="Address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="48 Gloucester St, Boston"
+          />
+
+          <label style={lbl} htmlFor="host-dress">Dress code</label>
+          <input
+            id="host-dress"
+            className="field"
+            aria-label="Dress code"
+            value={dressCode}
+            onChange={(e) => setDressCode(e.target.value)}
+            placeholder="Smart casual — wear something you can feast in."
+          />
+
+          <button
+            className="prim wide"
+            style={{ marginTop: 18 }}
+            onClick={handleSubmit}
+            disabled={!title || !date || submitting}
+          >
+            Publish invite
+          </button>
+
+          {error && (
+            <p
+              style={{
+                color: C.rose,
+                fontSize: 13,
+                textAlign: 'center',
+                marginTop: 12,
+                fontFamily: 'system-ui, sans-serif',
+              }}
+            >
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </>
   )
+}
+
+const lbl: React.CSSProperties = {
+  color: C.faint,
+  fontSize: 12,
+  letterSpacing: 1,
+  fontWeight: 600,
+  fontFamily: 'system-ui, sans-serif',
+  display: 'block',
+  margin: '18px 0 8px',
+  textTransform: 'uppercase',
 }

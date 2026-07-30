@@ -3,25 +3,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-
-const C = {
-  ink:         '#140E10',
-  ink2:        '#1E1518',
-  burgundy:    '#5C1A1B',
-  burgundyLit: '#7A2324',
-  cream:       '#F3E9DD',
-  dim:         '#B7A493',
-  faint:       '#7C6B5F',
-  gold:        '#D9A15B',
-  rose:        '#C97B6E',
-}
+import { C } from '@/lib/theme'
 
 function currentMonday(): string {
   const d = new Date()
-  const day = d.getDay()               // 0=Sun … 6=Sat
+  const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
-  return d.toISOString().slice(0, 10)  // YYYY-MM-DD
+  return d.toISOString().slice(0, 10)
 }
 
 type Signature = {
@@ -38,25 +27,25 @@ type PantryItem = {
 }
 
 export default function KitchenPage() {
-  const router   = useRouter()
+  const router = useRouter()
   const supabase = createClient()
-  const uidRef   = useRef<string | null>(null)
+  const uidRef = useRef<string | null>(null)
 
-  const [loading,    setLoading]    = useState(true)
+  const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
 
-  const [signatures,     setSignatures]     = useState<Signature[]>([])
-  const [sigName,        setSigName]        = useState('')
-  const [sigTags,        setSigTags]        = useState('')
-  const [sigAllergens,   setSigAllergens]   = useState('')
-  const [sigAdding,      setSigAdding]      = useState(false)
-  const [sigAddError,    setSigAddError]    = useState('')
+  const [signatures, setSignatures] = useState<Signature[]>([])
+  const [sigName, setSigName] = useState('')
+  const [sigTags, setSigTags] = useState('')
+  const [sigAllergens, setSigAllergens] = useState('')
+  const [sigAdding, setSigAdding] = useState(false)
+  const [sigAddError, setSigAddError] = useState('')
   const [sigDeleteError, setSigDeleteError] = useState('')
 
-  const [pantry,            setPantry]            = useState<PantryItem[]>([])
-  const [pantryName,        setPantryName]        = useState('')
-  const [pantryAdding,      setPantryAdding]      = useState(false)
-  const [pantryAddError,    setPantryAddError]    = useState('')
+  const [pantry, setPantry] = useState<PantryItem[]>([])
+  const [pantryName, setPantryName] = useState('')
+  const [pantryAdding, setPantryAdding] = useState(false)
+  const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
 
   const weekOf = currentMonday()
@@ -65,10 +54,10 @@ export default function KitchenPage() {
     setLoading(true)
     setFetchError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
-      uidRef.current = user.id
-      const uid = user.id
+      const stored = localStorage.getItem('sofra_user_id')
+      if (!stored) { router.push('/login'); return }
+      uidRef.current = stored
+      const uid = stored
 
       const [{ data: sigs, error: e1 }, { data: items, error: e2 }] = await Promise.all([
         supabase
@@ -104,8 +93,8 @@ export default function KitchenPage() {
     setSigAdding(true)
     setSigAddError('')
 
-    const tags      = sigTags.split(',').map(t => t.trim()).filter(Boolean)
-    const allergens = sigAllergens.split(',').map(a => a.trim()).filter(Boolean)
+    const tags = sigTags.split(',').map((t) => t.trim()).filter(Boolean)
+    const allergens = sigAllergens.split(',').map((a) => a.trim()).filter(Boolean)
 
     const { data, error } = await supabase
       .from('signatures')
@@ -116,7 +105,7 @@ export default function KitchenPage() {
     if (error || !data) {
       setSigAddError('Failed to add signature. Try again.')
     } else {
-      setSignatures(prev => [data, ...prev])
+      setSignatures((prev) => [data, ...prev])
       setSigName('')
       setSigTags('')
       setSigAllergens('')
@@ -129,7 +118,7 @@ export default function KitchenPage() {
     if (!uid) return
     setSigDeleteError('')
     const prev = signatures
-    setSignatures(s => s.filter(x => x.id !== sig.id))
+    setSignatures((s) => s.filter((x) => x.id !== sig.id))
 
     const { error } = await supabase
       .from('signatures')
@@ -160,7 +149,7 @@ export default function KitchenPage() {
     if (error || !data) {
       setPantryAddError('Failed to add item. Try again.')
     } else {
-      setPantry(prev => [data, ...prev])
+      setPantry((prev) => [data, ...prev])
       setPantryName('')
     }
     setPantryAdding(false)
@@ -171,7 +160,7 @@ export default function KitchenPage() {
     if (!uid) return
     setPantryDeleteError('')
     const prev = pantry
-    setPantry(p => p.filter(x => x.id !== item.id))
+    setPantry((p) => p.filter((x) => x.id !== item.id))
 
     const { error } = await supabase
       .from('pantry_items')
@@ -185,255 +174,327 @@ export default function KitchenPage() {
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 10,
-    background: 'rgba(0,0,0,0.24)',
-    border: '1px solid rgba(243,233,221,0.12)',
-    color: C.cream,
-    fontSize: 14,
-    outline: 'none',
-    boxSizing: 'border-box',
-  }
-
-  function addBtnStyle(busy: boolean): React.CSSProperties {
-    return {
-      flexShrink: 0,
-      padding: '10px 18px',
-      borderRadius: 10,
-      background: busy ? 'rgba(217,161,91,0.18)' : C.gold,
-      color: busy ? C.dim : C.ink,
-      border: 'none',
-      fontSize: 14,
-      fontWeight: 600,
-      cursor: busy ? 'default' : 'pointer',
-    }
-  }
-
-  const deleteBtnStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: C.faint,
-    fontSize: 18,
-    cursor: 'pointer',
-    padding: '2px 6px',
-    lineHeight: 1,
-    flexShrink: 0,
-  }
-
-  const cardStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '12px 14px',
-    borderRadius: 14,
-    background: 'rgba(0,0,0,0.24)',
-    border: '1px solid rgba(243,233,221,0.10)',
-  }
-
   return (
-    <>
-      <style>{`
-        @keyframes skPulse { 0%,100%{opacity:.4} 50%{opacity:.7} }
-        @keyframes spin    { to { transform: rotate(360deg); } }
-        input::placeholder { color: #7C6B5F; }
-      `}</style>
-
-      <div style={{
+    <div
+      style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #1B1214 0%, #241619 100%)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '24px 20px',
-      }}>
+        background: C.ink,
+        fontFamily: 'Georgia, serif',
+        paddingBottom: 120,
+      }}
+    >
+      <div
+        className="fade"
+        style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
+      >
+        {/* Chef header */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ color: C.cream, fontSize: 24, fontStyle: 'italic' }}>
+            Sofra{' '}
+            <span
+              style={{
+                color: C.gold,
+                fontSize: 14,
+                fontStyle: 'normal',
+                fontFamily: 'system-ui, sans-serif',
+                letterSpacing: 1,
+              }}
+            >
+              · Kitchen
+            </span>
+          </div>
+          <div
+            style={{
+              color: C.dim,
+              fontSize: 13,
+              marginTop: 4,
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          >
+            Your signatures and this week’s pantry.
+          </div>
+        </div>
 
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,161,91,0.18) 0%, transparent 70%)',
-        }} />
+        {loading && (
+          <div style={{ color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}>
+            Loading…
+          </div>
+        )}
 
-        <h1 style={{
-          fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 52,
-          color: C.cream, textAlign: 'center', margin: '0 0 32px',
-          position: 'relative', zIndex: 1,
-        }}>Sofra</h1>
+        {!loading && fetchError && (
+          <div style={{ textAlign: 'center', paddingTop: 40 }}>
+            <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{fetchError}</p>
+            <button
+              onClick={loadData}
+              style={{
+                background: 'none',
+                border: `1px solid ${C.dim}`,
+                borderRadius: 10,
+                color: C.dim,
+                padding: '8px 20px',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontFamily: 'Georgia, serif',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
-        <div style={{
-          width: '100%', maxWidth: 400,
-          position: 'relative', zIndex: 1,
-          display: 'flex', flexDirection: 'column', gap: 40,
-        }}>
-
-          {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} style={{
-                  height: 52, borderRadius: 14,
-                  background: 'rgba(255,255,255,0.08)',
-                  animation: 'skPulse 1.4s ease-in-out infinite',
-                }} />
-              ))}
-            </div>
-          )}
-
-          {!loading && fetchError && (
-            <div style={{ textAlign: 'center', paddingTop: 40 }}>
-              <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{fetchError}</p>
-              <button
-                onClick={loadData}
+        {!loading && !fetchError && (
+          <>
+            {/* ── Signatures ── */}
+            <div style={cardStyle}>
+              <div style={cardHeadRow}>
+                <span style={cardTitle}>Your signatures</span>
+                <span style={faintSm}>dishes Sofra can always plate</span>
+              </div>
+              <div
                 style={{
-                  background: 'none',
-                  border: `1px solid ${C.dim}`,
-                  borderRadius: 8,
-                  color: C.dim,
-                  padding: '8px 20px',
-                  cursor: 'pointer',
-                  fontSize: 14,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginTop: 12,
                 }}
-              >Retry</button>
-            </div>
-          )}
-
-          {!loading && !fetchError && (
-            <>
-              {/* ── Signatures ── */}
-              <section>
-                <p style={{ color: C.dim, fontSize: 13, margin: '0 0 12px' }}>Signatures</p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      placeholder="Dish name"
-                      value={sigName}
-                      onChange={e => setSigName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') void addSignature() }}
-                      style={inputStyle}
-                    />
-                    <button
-                      onClick={() => void addSignature()}
-                      disabled={sigAdding}
-                      style={addBtnStyle(sigAdding)}
-                    >
-                      {sigAdding ? '…' : 'Add'}
-                    </button>
-                  </div>
-                  <input
-                    placeholder="Tags — comma-separated (optional)"
-                    value={sigTags}
-                    onChange={e => setSigTags(e.target.value)}
-                    style={inputStyle}
-                  />
-                  <input
-                    placeholder="Allergens — comma-separated (optional)"
-                    value={sigAllergens}
-                    onChange={e => setSigAllergens(e.target.value)}
-                    style={inputStyle}
-                  />
-                  {sigAddError && (
-                    <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
-                  )}
-                </div>
-
-                {sigDeleteError && (
-                  <p style={{ color: C.rose, fontSize: 13, marginBottom: 8 }}>{sigDeleteError}</p>
-                )}
-
+              >
                 {signatures.length === 0 ? (
-                  <p style={{ color: C.faint, fontSize: 14, textAlign: 'center', paddingTop: 12 }}>
-                    No signatures yet
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {signatures.map(sig => (
-                      <div key={sig.id} style={cardStyle}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            color: C.cream, fontSize: 15, fontWeight: 500, margin: '0 0 3px',
-                          }}>{sig.name}</p>
-                          {(sig.tags.length > 0 || sig.contains_allergens.length > 0) && (
-                            <p style={{
-                              color: C.dim, fontSize: 12, margin: 0,
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {[
-                                sig.tags.length > 0 ? sig.tags.join(', ') : null,
-                                sig.contains_allergens.length > 0
-                                  ? `⚠ ${sig.contains_allergens.join(', ')}`
-                                  : null,
-                              ].filter(Boolean).join(' · ')}
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => void deleteSignature(sig)}
-                          style={deleteBtnStyle}
-                          title="Remove"
-                        >×</button>
-                      </div>
-                    ))}
+                  <div style={{ color: C.faint, fontSize: 14, fontFamily: 'system-ui, sans-serif' }}>
+                    No signatures yet.
                   </div>
+                ) : (
+                  signatures.map((s) => (
+                    <div key={s.id} style={sigRow}>
+                      <span
+                        style={{
+                          color: C.cream,
+                          fontSize: 15,
+                          fontFamily: 'system-ui, sans-serif',
+                        }}
+                      >
+                        {s.name}
+                      </span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 5,
+                          flexWrap: 'wrap',
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {s.tags.map((t) => (
+                          <span key={t} style={tagOk}>{t}</span>
+                        ))}
+                        {s.contains_allergens.map((c) => (
+                          <span key={c} style={tagWarn}>contains {c}</span>
+                        ))}
+                        <button
+                          onClick={() => void deleteSignature(s)}
+                          style={xBtn}
+                          title="Remove"
+                          aria-label={`Remove ${s.name}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
-              </section>
+              </div>
 
-              {/* ── This Week's Pantry ── */}
-              <section>
-                <p style={{ color: C.dim, fontSize: 13, margin: '0 0 12px' }}>
-                  This Week&apos;s Pantry
-                </p>
-
-                <div style={{ display: 'flex', gap: 8, marginBottom: pantryAddError ? 8 : 16 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginTop: 14,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8 }}>
                   <input
-                    placeholder="Ingredient"
-                    value={pantryName}
-                    onChange={e => setPantryName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') void addPantryItem() }}
-                    style={inputStyle}
+                    className="field sm"
+                    placeholder="Add a signature dish…"
+                    value={sigName}
+                    onChange={(e) => setSigName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && void addSignature()}
                   />
                   <button
-                    onClick={() => void addPantryItem()}
-                    disabled={pantryAdding}
-                    style={addBtnStyle(pantryAdding)}
+                    className="add"
+                    onClick={() => void addSignature()}
+                    disabled={sigAdding}
                   >
-                    {pantryAdding ? '…' : 'Add'}
+                    {sigAdding ? '…' : 'Add'}
                   </button>
                 </div>
-                {pantryAddError && (
-                  <p style={{ color: C.rose, fontSize: 13, marginBottom: 16 }}>{pantryAddError}</p>
+                <input
+                  className="field sm"
+                  placeholder="Tags — comma separated (optional)"
+                  value={sigTags}
+                  onChange={(e) => setSigTags(e.target.value)}
+                />
+                <input
+                  className="field sm"
+                  placeholder="Allergens — comma separated (optional)"
+                  value={sigAllergens}
+                  onChange={(e) => setSigAllergens(e.target.value)}
+                />
+                {sigAddError && (
+                  <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
-
-                {pantryDeleteError && (
-                  <p style={{ color: C.rose, fontSize: 13, marginBottom: 8 }}>{pantryDeleteError}</p>
+                {sigDeleteError && (
+                  <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigDeleteError}</p>
                 )}
+              </div>
+            </div>
 
+            {/* ── Pantry ── */}
+            <div style={cardStyle}>
+              <div style={cardHeadRow}>
+                <span style={cardTitle}>This week’s pantry</span>
+                <span style={faintSm}>what’s fresh — Sofra builds new dishes from it</span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginTop: 14,
+                }}
+              >
                 {pantry.length === 0 ? (
-                  <p style={{ color: C.faint, fontSize: 14, textAlign: 'center', paddingTop: 12 }}>
-                    Nothing in the pantry this week
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {pantry.map(item => (
-                      <div key={item.id} style={cardStyle}>
-                        <p style={{
-                          flex: 1, color: C.cream, fontSize: 15, fontWeight: 500, margin: 0,
-                        }}>{item.name}</p>
-                        <button
-                          onClick={() => void deletePantryItem(item)}
-                          style={deleteBtnStyle}
-                          title="Remove"
-                        >×</button>
-                      </div>
-                    ))}
+                  <div style={{ color: C.faint, fontSize: 14, fontFamily: 'system-ui, sans-serif' }}>
+                    Nothing in the pantry this week.
                   </div>
+                ) : (
+                  pantry.map((p) => (
+                    <span
+                      key={p.id}
+                      className="pantry"
+                      onClick={() => void deletePantryItem(p)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && void deletePantryItem(p)}
+                      aria-label={`Remove ${p.name}`}
+                    >
+                      {p.name} <span style={{ color: C.faint }}>×</span>
+                    </span>
+                  ))
                 )}
-              </section>
-            </>
-          )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <input
+                  className="field sm"
+                  placeholder="Add an ingredient…"
+                  value={pantryName}
+                  onChange={(e) => setPantryName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void addPantryItem()}
+                />
+                <button
+                  className="add"
+                  onClick={() => void addPantryItem()}
+                  disabled={pantryAdding}
+                >
+                  {pantryAdding ? '…' : 'Add'}
+                </button>
+              </div>
+              {pantryAddError && (
+                <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
+              )}
+              {pantryDeleteError && (
+                <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryDeleteError}</p>
+              )}
+            </div>
 
-        </div>
+            {/* Brief */}
+            <div style={briefStyle}>
+              <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
+              <span>
+                Signatures give Sofra dishes it can trust. The pantry lets it invent new ones that
+                fit the table — without you writing every recipe.
+              </span>
+            </div>
+          </>
+        )}
       </div>
-    </>
+    </div>
   )
+}
+
+const cardStyle: React.CSSProperties = {
+  background: C.panel,
+  border: `1px solid ${C.line}`,
+  borderRadius: 18,
+  padding: 18,
+  marginBottom: 14,
+}
+
+const cardHeadRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'baseline',
+  gap: 10,
+}
+
+const cardTitle: React.CSSProperties = {
+  color: C.cream,
+  fontSize: 17,
+}
+
+const faintSm: React.CSSProperties = {
+  color: C.faint,
+  fontSize: 12,
+  fontFamily: 'system-ui, sans-serif',
+  textAlign: 'right',
+}
+
+const sigRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 0',
+  borderBottom: `1px solid ${C.line}`,
+}
+
+const tagOk: React.CSSProperties = {
+  color: C.sage,
+  fontSize: 10,
+  border: '1px solid rgba(138,160,110,0.4)',
+  borderRadius: 10,
+  padding: '2px 7px',
+  fontFamily: 'system-ui, sans-serif',
+}
+
+const tagWarn: React.CSSProperties = {
+  color: C.gold,
+  fontSize: 10,
+  border: '1px solid rgba(217,161,91,0.4)',
+  borderRadius: 10,
+  padding: '2px 7px',
+  fontFamily: 'system-ui, sans-serif',
+}
+
+const xBtn: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  color: C.faint,
+  fontSize: 16,
+  cursor: 'pointer',
+  padding: '2px 4px',
+  lineHeight: 1,
+}
+
+const briefStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  background: 'rgba(217,161,91,0.08)',
+  border: '1px solid rgba(217,161,91,0.22)',
+  borderRadius: 16,
+  padding: '14px 16px',
+  color: C.cream,
+  fontSize: 14,
+  lineHeight: 1.5,
+  fontFamily: 'system-ui, sans-serif',
+  marginTop: 4,
 }

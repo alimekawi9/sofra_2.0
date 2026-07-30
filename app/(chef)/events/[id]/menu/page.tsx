@@ -7,22 +7,88 @@ import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
 import { draftCourse, draftMenu, scoreDish, SLOT_LABELS } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot, CourseOrigin } from '@/lib/menu'
-
-const C = {
-  ink:   '#140E10',
-  cream: '#F3E9DD',
-  dim:   '#B7A493',
-  faint: '#7C6B5F',
-  gold:  '#D9A15B',
-  rose:  '#C97B6E',
-}
+import { C } from '@/lib/theme'
+import ChefTabs from '@/components/ChefTabs'
 
 function currentMonday(): string {
-  const d   = new Date()
+  const d = new Date()
   const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
   return d.toISOString().slice(0, 10)
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function buildMenuHtml(
+  derivedCourses: Course[],
+  guestCount: number,
+  event: { title: string; event_date: string }
+): string {
+  const dateStr = new Date(event.event_date).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  const coursesHtml = derivedCourses
+    .map((c) => {
+      const originLabel =
+        c.origin === 'signature'
+          ? 'Signature'
+          : c.origin === 'pantry-composed'
+          ? 'Composed for this table'
+          : ''
+      const alternativeHtml =
+        c.excludes.length > 0
+          ? `<div class="alt">Alternative required for: ${c.excludes
+              .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
+              .join(', ')}</div>`
+          : ''
+      return `
+        <div class="course">
+          <div class="slot">${escHtml(c.slotLabel)}</div>
+          <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
+          ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
+          ${alternativeHtml}
+        </div>`
+    })
+    .join('')
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} — Menu</title>
+    <style>
+      @page { size:A4; margin:0; }
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:Georgia,'Times New Roman',serif;background:#F3E9DD;color:#2A1A1C;
+        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;}
+      .menu{width:100%;max-width:600px;background:#FBF5EC;padding:64px 56px 56px;
+        border:1px solid #C9A96E;box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;}
+      .menu:before{content:"";position:absolute;inset:14px;border:1px solid #C9A96E;pointer-events:none;}
+      .brand{text-align:center;color:#5C1A1B;font-style:italic;font-size:26px;letter-spacing:0.5px;}
+      .rule{width:44px;height:2px;background:#C9A96E;margin:14px auto 26px;}
+      .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.15;margin-bottom:8px;}
+      .meta{text-align:center;color:#8A6A4E;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:40px;font-family:system-ui,-apple-system,sans-serif;}
+      .course{text-align:center;padding:18px 0;border-bottom:1px solid #E8D9C6;}
+      .course:last-of-type{border-bottom:none;}
+      .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
+      .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
+      .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
+      .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
+      .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
+      .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
+      @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;border:none;max-width:none;}}
+    </style></head><body>
+      <div class="menu">
+        <div class="brand">Sofra</div>
+        <div class="rule"></div>
+        <div class="title">${escHtml(event.title)}</div>
+        <div class="meta">${dateStr} · ${guestCount} cover${guestCount !== 1 ? 's' : ''}</div>
+        ${coursesHtml}
+        <div class="foot">Curated for this table · <span class="s">Sofra</span></div>
+      </div>
+    </body></html>`
 }
 
 type PersistedCourse = {
@@ -38,120 +104,72 @@ type PersistedCourse = {
 
 function mergeGuests(
   rsvps: Array<{ user_id: string; users: { name: string } | null }>,
-  profiles: Array<{ user_id: string; dietary: string[]; avoid: string[]; drinks: string[]; adventurousness: number }>
+  profiles: Array<{
+    user_id: string
+    dietary: string[]
+    avoid: string[]
+    drinks: string[]
+    adventurousness: number
+  }>
 ): TasteProfile[] {
-  return rsvps.map(r => {
-    const p = profiles.find(x => x.user_id === r.user_id)
+  return rsvps.map((r) => {
+    const p = profiles.find((x) => x.user_id === r.user_id)
     return {
       name: r.users?.name ?? 'Unknown',
-      dietary:         p?.dietary         ?? [],
-      avoid:           p?.avoid           ?? [],
-      drinks:          p?.drinks          ?? [],
+      dietary: p?.dietary ?? [],
+      avoid: p?.avoid ?? [],
+      drinks: p?.drinks ?? [],
       adventurousness: p?.adventurousness ?? 50,
     }
   })
 }
 
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-export function buildMenuHtml(
-  derivedCourses: Course[],
-  guestCount: number,
-  event: { title: string; event_date: string }
-): string {
-  const dateStr = new Date(event.event_date).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  })
-
-  const coursesHtml = derivedCourses.map(c => {
-    const originLabel =
-      c.origin === 'signature'         ? 'Signature'
-      : c.origin === 'pantry-composed' ? 'Pantry-composed'
-      : ''
-
-    const alternativeHtml = c.excludes.length > 0
-      ? `<p style="font-size:12px;font-style:italic;color:#8C7560;margin-top:6px;">Alternative required for: ${
-          c.excludes.map(e => `${escHtml(e.guest)} (${escHtml(e.reason)})`).join(', ')
-        }</p>`
-      : ''
-
-    return `
-      <div style="text-align:center;margin:32px 0;">
-        <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#8C7560;margin-bottom:8px;">
-          ${escHtml(c.slotLabel)}
-        </p>
-        <p style="font-size:20px;margin-bottom:6px;">${escHtml(c.dishName) || '— TBD —'}</p>
-        ${originLabel ? `<p style="font-size:12px;color:#8C7560;margin-bottom:${c.excludes.length > 0 ? '0' : '4px'};">${originLabel}</p>` : ''}
-        ${alternativeHtml}
-      </div>`
-  }).join('')
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Menu — ${escHtml(event.title)}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0;}
-    body{background:#F3E9DD;font-family:Georgia,serif;color:#2C1F16;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:48px 24px;}
-    .page{width:100%;max-width:560px;border:1px solid #C9A96E;padding:48px 56px;}
-    @media print{body{padding:0;}.page{border:1px solid #C9A96E;}}
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div style="text-align:center;margin-bottom:40px;border-bottom:1px solid #C9A96E;padding-bottom:32px;">
-      <p style="font-style:italic;font-size:48px;letter-spacing:0.02em;margin-bottom:16px;">Sofra</p>
-      <p style="font-size:18px;margin-bottom:8px;">${escHtml(event.title)}</p>
-      <p style="font-size:13px;color:#8C7560;">${dateStr} · ${guestCount} cover${guestCount !== 1 ? 's' : ''}</p>
-    </div>
-    ${coursesHtml}
-  </div>
-</body>
-</html>`
-}
-
 export default function MenuPage({ params }: { params: { id: string } }) {
   const { id } = params
-  const router   = useRouter()
+  const router = useRouter()
   const supabase = createClient()
 
-  const [loading,       setLoading]       = useState(true)
-  const [fetchError,    setFetchError]    = useState('')
-  const [actionError,   setActionError]   = useState('')
-  const [courses,       setCourses]       = useState<PersistedCourse[]>([])
-  const [intel,         setIntel]         = useState<TableIntel | null>(null)
-  const [signatures,    setSignatures]    = useState<Signature[]>([])
-  const [pantry,        setPantry]        = useState<PantryItem[]>([])
-  const [event,         setEvent]         = useState<{ title: string; event_date: string } | null>(null)
-  const [popupBlocked,  setPopupBlocked]  = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [courses, setCourses] = useState<PersistedCourse[]>([])
+  const [intel, setIntel] = useState<TableIntel | null>(null)
+  const [signatures, setSignatures] = useState<Signature[]>([])
+  const [pantry, setPantry] = useState<PantryItem[]>([])
+  const [event, setEvent] = useState<{ title: string; event_date: string } | null>(null)
+  const [popupBlocked, setPopupBlocked] = useState(false)
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
 
   const derivedCourses = useMemo<Course[]>(() => {
     if (!intel) return []
-    return courses.map(c => {
-      const slot      = c.slot as Slot
+    return courses.map((c) => {
+      const slot = c.slot as Slot
       const slotLabel = SLOT_LABELS[slot] ?? slot
       if (!c.dish_name || c.dish_origin === 'empty') {
-        return { slot, slotLabel, dishName: '', origin: 'empty' as CourseOrigin, sourceId: null, excludes: [] }
+        return {
+          slot,
+          slotLabel,
+          dishName: '',
+          origin: 'empty' as CourseOrigin,
+          sourceId: null,
+          excludes: [],
+        }
       }
       let sourceDish: Signature | PantryItem | undefined
       if (c.dish_origin === 'signature') {
-        sourceDish = signatures.find(s => s.id === c.source)
+        sourceDish = signatures.find((s) => s.id === c.source)
       } else if (c.dish_origin === 'pantry-composed') {
-        sourceDish = pantry.find(p => p.id === c.source)
+        sourceDish = pantry.find((p) => p.id === c.source)
       }
-      // Source dish deleted: surface as stale rather than claiming it's safe.
-      const sourceDeleted = (c.dish_origin === 'signature' || c.dish_origin === 'pantry-composed') && !sourceDish
+      const sourceDeleted =
+        (c.dish_origin === 'signature' || c.dish_origin === 'pantry-composed') && !sourceDish
       return {
         slot,
         slotLabel,
-        dishName:  sourceDeleted ? '— source deleted, swap or lock —' : c.dish_name,
-        origin:    sourceDeleted ? 'empty' : ((c.dish_origin as CourseOrigin) ?? 'empty'),
-        sourceId:  c.source,
-        excludes:  sourceDish ? scoreDish(sourceDish, intel) : [],
+        dishName: sourceDeleted ? '— source deleted, swap or lock —' : c.dish_name,
+        origin: sourceDeleted ? 'empty' : ((c.dish_origin as CourseOrigin) ?? 'empty'),
+        sourceId: c.source,
+        excludes: sourceDish ? scoreDish(sourceDish, intel) : [],
       }
     })
   }, [courses, intel, signatures, pantry])
@@ -160,8 +178,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     setLoading(true)
     setFetchError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
+      const stored = localStorage.getItem('sofra_user_id')
+      if (!stored) { router.push('/login'); return }
 
       const { data: ev, error: evErr } = await supabase
         .from('events')
@@ -169,8 +187,9 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         .eq('id', id)
         .single()
       if (evErr || !ev) { router.replace(`/events/${id}`); return }
-      if (user.id !== ev.host_id && user.id !== ev.chef_id) {
-        router.replace(`/events/${id}`); return
+      if (stored !== ev.host_id && stored !== ev.chef_id) {
+        router.replace(`/events/${id}`)
+        return
       }
       setEvent({ title: ev.title, event_date: ev.event_date })
 
@@ -184,7 +203,15 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
       const { data: profiles } = userIds.length
         ? await supabase.from('taste_profiles').select('*').in('user_id', userIds)
-        : { data: [] as Array<{ user_id: string; dietary: string[]; avoid: string[]; drinks: string[]; adventurousness: number }> }
+        : {
+            data: [] as Array<{
+              user_id: string
+              dietary: string[]
+              avoid: string[]
+              drinks: string[]
+              adventurousness: number
+            }>,
+          }
 
       const guests = mergeGuests(
         (rsvps ?? []) as unknown as Array<{ user_id: string; users: { name: string } | null }>,
@@ -197,11 +224,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         supabase
           .from('signatures')
           .select('id, name, tags, contains_allergens, slot')
-          .eq('chef_id', user.id),
+          .eq('chef_id', stored),
         supabase
           .from('pantry_items')
           .select('id, name')
-          .eq('chef_id', user.id)
+          .eq('chef_id', stored)
           .eq('week_of', currentMonday()),
       ])
       setSignatures(sigs ?? [])
@@ -230,13 +257,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         if (menuErr || !newMenu) throw new Error('menu insert failed')
 
         const inserts = drafted.map((c, i) => ({
-          menu_id:     newMenu.id,
-          slot:        c.slot,
-          dish_name:   c.dishName,
+          menu_id: newMenu.id,
+          slot: c.slot,
+          dish_name: c.dishName,
           dish_origin: c.origin,
-          source:      c.sourceId,
-          locked:      false,
-          sort_order:  i,
+          source: c.sourceId,
+          locked: false,
+          sort_order: i,
         }))
         const { data: rows } = await supabase
           .from('menu_courses')
@@ -266,11 +293,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     }
 
     const prev = courses
-    setCourses(courses.map(c =>
-      c.id === course.id
-        ? { ...c, dish_name: next.dishName, dish_origin: next.origin, source: next.sourceId }
-        : c
-    ))
+    setCourses(
+      courses.map((c) =>
+        c.id === course.id
+          ? { ...c, dish_name: next.dishName, dish_origin: next.origin, source: next.sourceId }
+          : c
+      )
+    )
     const { error } = await supabase
       .from('menu_courses')
       .update({ dish_name: next.dishName, dish_origin: next.origin, source: next.sourceId })
@@ -285,7 +314,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     setActionError('')
     const newLocked = !course.locked
     const prev = courses
-    setCourses(courses.map(c => c.id === course.id ? { ...c, locked: newLocked } : c))
+    setCourses(courses.map((c) => (c.id === course.id ? { ...c, locked: newLocked } : c)))
     const { error } = await supabase
       .from('menu_courses')
       .update({ locked: newLocked })
@@ -299,20 +328,27 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   async function handleRegenerate() {
     if (!intel) return
     setActionError('')
-    const unlocked = courses.filter(c => !c.locked)
+    const unlocked = courses.filter((c) => !c.locked)
     if (unlocked.length === 0) return
 
-    const updates = unlocked.map(c => ({
+    const updates = unlocked.map((c) => ({
       id: c.id,
       next: draftCourse(c.slot as Slot, intel, signatures, pantry),
     }))
 
     const prev = courses
-    setCourses(courses.map(c => {
-      const upd = updates.find(u => u.id === c.id)
-      if (!upd) return c
-      return { ...c, dish_name: upd.next.dishName, dish_origin: upd.next.origin, source: upd.next.sourceId }
-    }))
+    setCourses(
+      courses.map((c) => {
+        const upd = updates.find((u) => u.id === c.id)
+        if (!upd) return c
+        return {
+          ...c,
+          dish_name: upd.next.dishName,
+          dish_origin: upd.next.origin,
+          source: upd.next.sourceId,
+        }
+      })
+    )
 
     const results = await Promise.all(
       updates.map(({ id: cid, next }) =>
@@ -322,7 +358,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .eq('id', cid)
       )
     )
-    if (results.some(r => r.error)) {
+    if (results.some((r) => r.error)) {
       setCourses(prev)
       setActionError('Failed to regenerate menu. Try again.')
     }
@@ -341,188 +377,275 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     win.document.close()
   }
 
-  const allLocked = courses.length > 0 && courses.every(c => c.locked)
+  const allLocked = courses.length > 0 && courses.every((c) => c.locked)
 
-  const cardStyle: React.CSSProperties = {
-    padding: '16px 18px',
-    borderRadius: 14,
-    background: 'rgba(0,0,0,0.24)',
-    border: '1px solid rgba(243,233,221,0.10)',
-    marginBottom: 12,
-  }
-
-  const lockedCardStyle: React.CSSProperties = {
-    ...cardStyle,
-    border: `1px solid ${C.cream}`,
-  }
+  const dateSub = event
+    ? new Date(event.event_date).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })
+    : undefined
 
   return (
-    <>
-      <style>{`@keyframes skPulse{0%,100%{opacity:.4}50%{opacity:.7}}`}</style>
-      <div style={{
+    <div
+      style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #1B1214 0%, #241619 100%)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '24px 20px',
-      }}>
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,161,91,0.18) 0%, transparent 70%)',
-        }} />
+        background: C.ink,
+        fontFamily: 'Georgia, serif',
+        paddingBottom: 120,
+      }}
+    >
+      <div
+        className="fade"
+        style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
+      >
+        <ChefTabs
+          eventId={id}
+          active="menu"
+          title={event?.title}
+          subtitle={
+            dateSub
+              ? `${dateSub}${intel ? ` · ${intel.guestCount} covers` : ''}`
+              : undefined
+          }
+        />
 
-        <h1 style={{
-          fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 52,
-          color: C.cream, textAlign: 'center', margin: '0 0 8px',
-          position: 'relative', zIndex: 1,
-        }}>Sofra</h1>
-
-        {event && (
-          <p style={{ color: C.dim, fontSize: 14, marginBottom: 24, position: 'relative', zIndex: 1 }}>
-            {event.title}
-          </p>
+        {loading && (
+          <div style={{ color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif', padding: 20 }}>
+            Loading…
+          </div>
         )}
 
-        <div style={{ width: '100%', maxWidth: 440, position: 'relative', zIndex: 1 }}>
+        {!loading && fetchError && (
+          <div style={{ textAlign: 'center', paddingTop: 40 }}>
+            <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{fetchError}</p>
+            <button
+              onClick={() => void loadAll()}
+              style={{
+                background: 'none',
+                border: `1px solid ${C.dim}`,
+                borderRadius: 10,
+                color: C.dim,
+                padding: '8px 20px',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontFamily: 'Georgia, serif',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
-          {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[0,1,2,3,4].map(i => (
-                <div key={i} style={{
-                  height: 80, borderRadius: 14,
-                  background: 'rgba(255,255,255,0.08)',
-                  animation: 'skPulse 1.4s ease-in-out infinite',
-                }} />
-              ))}
-            </div>
-          )}
-
-          {!loading && fetchError && (
-            <div style={{ textAlign: 'center', paddingTop: 40 }}>
-              <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{fetchError}</p>
-              <button
-                onClick={() => void loadAll()}
-                style={{
-                  background: 'none', border: `1px solid ${C.dim}`,
-                  borderRadius: 8, color: C.dim, padding: '8px 20px',
-                  cursor: 'pointer', fontSize: 14,
-                }}
-              >Retry</button>
-            </div>
-          )}
-
-          {!loading && !fetchError && (
-            <>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-                <button
-                  onClick={() => void handleRegenerate()}
-                  disabled={allLocked}
+        {!loading && !fetchError && (
+          <>
+            {/* Header row */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <div style={{ color: C.cream, fontSize: 22 }}>Tonight’s draft</div>
+                <div
                   style={{
-                    flex: 1, padding: '10px 16px', borderRadius: 10,
-                    background: allLocked ? 'rgba(0,0,0,0.12)' : C.gold,
-                    color: allLocked ? C.faint : C.ink,
-                    border: 'none', fontSize: 14, fontWeight: 600,
-                    cursor: allLocked ? 'default' : 'pointer',
-                  }}
-                  title={allLocked ? 'Everything is locked' : undefined}
-                >
-                  ↻ Regenerate
-                </button>
-                <button
-                  onClick={handleGeneratePdf}
-                  style={{
-                    flex: 1, padding: '10px 16px', borderRadius: 10,
-                    background: 'none', color: C.cream,
-                    border: '1px solid rgba(243,233,221,0.24)',
-                    fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    color: C.dim,
+                    fontSize: 13,
+                    marginTop: 4,
+                    fontFamily: 'system-ui, sans-serif',
+                    maxWidth: 260,
+                    lineHeight: 1.4,
                   }}
                 >
-                  ↓ Generate menu PDF
-                </button>
+                  Composed for this table. Every dish is allergy-safe by construction.
+                </div>
               </div>
+              <button
+                className="regen"
+                onClick={() => void handleRegenerate()}
+                disabled={allLocked}
+                title={allLocked ? 'Everything is locked' : undefined}
+                style={allLocked ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              >
+                ↻ Regenerate
+              </button>
+            </div>
 
-              {popupBlocked && (
-                <p style={{ color: C.dim, fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
-                  Your browser blocked the print window. Allow popups for this site and try again.
-                </p>
-              )}
+            {actionError && (
+              <p style={{ color: C.rose, fontSize: 13, marginBottom: 12, fontFamily: 'system-ui, sans-serif' }}>
+                {actionError}
+              </p>
+            )}
 
-              {actionError && (
-                <p style={{ color: C.rose, fontSize: 13, marginBottom: 16 }}>{actionError}</p>
-              )}
-
-              {derivedCourses.map((derived, idx) => {
-                const persisted = courses[idx]
-                if (!persisted) return null
-                const isLocked = persisted.locked
-
-                return (
-                  <div key={persisted.id} style={isLocked ? lockedCardStyle : cardStyle}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <p style={{ flex: 1, color: C.dim, fontSize: 12 }}>
-                        {derived.slotLabel}
-                      </p>
+            {derivedCourses.map((derived, idx) => {
+              const persisted = courses[idx]
+              if (!persisted) return null
+              const isLocked = persisted.locked
+              const ok = derived.excludes.length === 0 && derived.origin !== 'empty'
+              return (
+                <div
+                  key={persisted.id}
+                  style={{
+                    background: C.panel,
+                    border: `1px solid ${isLocked ? 'rgba(217,161,91,0.4)' : C.line}`,
+                    borderRadius: 18,
+                    padding: 16,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: C.gold,
+                        fontSize: 11,
+                        letterSpacing: 1.5,
+                        textTransform: 'uppercase',
+                        fontFamily: 'system-ui, sans-serif',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {derived.slotLabel}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
                       <button
-                        onClick={() => void handleLock(persisted)}
-                        style={{
-                          background: 'none', border: 'none',
-                          color: isLocked ? C.gold : C.faint,
-                          fontSize: 16, cursor: 'pointer', padding: '0 4px',
-                        }}
-                        title={isLocked ? 'Unlock' : 'Lock'}
+                        className="mini"
+                        disabled={isLocked}
+                        onClick={() => !isLocked && void handleSwap(persisted)}
                       >
-                        {isLocked ? '🔒' : '🔓'}
+                        Swap
                       </button>
                       <button
-                        onClick={() => !isLocked && void handleSwap(persisted)}
-                        disabled={isLocked}
-                        style={{
-                          background: 'none', border: 'none',
-                          color: isLocked ? C.faint : C.cream,
-                          fontSize: 16, cursor: isLocked ? 'default' : 'pointer', padding: '0 4px',
-                          opacity: isLocked ? 0.4 : 1,
-                        }}
-                        title={isLocked ? 'Locked' : 'Swap'}
+                        className="mini"
+                        onClick={() => void handleLock(persisted)}
                       >
-                        ↻
+                        {isLocked ? 'Locked ✓' : 'Lock'}
                       </button>
                     </div>
+                  </div>
+                  <div style={{ color: C.cream, fontSize: 19 }}>
+                    {derived.dishName || '— TBD —'}
+                  </div>
+                  <div
+                    style={{
+                      color: C.faint,
+                      fontSize: 12,
+                      marginTop: 3,
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    {derived.origin === 'signature' && 'Chef’s signature'}
+                    {derived.origin === 'pantry-composed' && 'Composed for this table'}
+                    {derived.origin === 'empty' && 'No dish drafted — pantry and signatures are empty for this slot'}
+                  </div>
 
-                    <p style={{ color: C.cream, fontSize: 17, fontWeight: 500, marginBottom: 4 }}>
-                      {derived.dishName || '— TBD —'}
-                    </p>
-
-                    <p style={{ color: C.faint, fontSize: 12, marginBottom: derived.excludes.length > 0 ? 6 : 0 }}>
-                      {derived.origin === 'signature' && 'signature'}
-                      {derived.origin === 'pantry-composed' && 'pantry-composed · allergen check is a v1 substring heuristic'}
-                      {derived.origin === 'empty' && 'No dish drafted — pantry and signatures are empty for this slot'}
-                    </p>
-
+                  <div
+                    style={{
+                      border: `1px solid ${
+                        ok
+                          ? 'rgba(138,160,110,0.3)'
+                          : 'rgba(224,119,107,0.3)'
+                      }`,
+                      borderRadius: 12,
+                      padding: '9px 12px',
+                      marginTop: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'system-ui, sans-serif',
+                        fontWeight: 600,
+                        color: ok ? C.sage : C.gold,
+                      }}
+                    >
+                      {ok
+                        ? '✓ Serves the whole table'
+                        : derived.origin === 'empty'
+                        ? '— Draft a dish for this slot'
+                        : `Serves ${(intel?.guestCount ?? 0) - derived.excludes.length}/${intel?.guestCount ?? 0}`}
+                    </div>
                     {derived.excludes.length > 0 && (
-                      <p style={{ color: C.rose, fontSize: 13 }}>
-                        Serves {(intel?.guestCount ?? 0) - derived.excludes.length}/{intel?.guestCount ?? 0} — excludes{' '}
-                        {derived.excludes.map(e => `${e.guest} (${e.reason})`).join(', ')}
-                      </p>
-                    )}
-
-                    {derived.excludes.length === 0 && derived.origin !== 'empty' && (
-                      <p style={{ color: C.cream, fontSize: 13 }}>Serves the whole table</p>
-                    )}
-
-                    {swapNoOptions === persisted.id && (
-                      <p style={{ color: C.dim, fontSize: 12, marginTop: 4 }}>
-                        No other options available
-                      </p>
+                      <div
+                        style={{
+                          color: C.dim,
+                          fontSize: 12,
+                          marginTop: 4,
+                          fontFamily: 'system-ui, sans-serif',
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Excludes{' '}
+                        {derived.excludes.map((e) => `${e.guest} (${e.reason})`).join(', ')}
+                        <span style={{ color: C.faint }}> · alt plated on the side</span>
+                      </div>
                     )}
                   </div>
-                )
-              })}
-            </>
-          )}
-        </div>
+
+                  {swapNoOptions === persisted.id && (
+                    <p
+                      style={{
+                        color: C.dim,
+                        fontSize: 12,
+                        marginTop: 6,
+                        fontFamily: 'system-ui, sans-serif',
+                      }}
+                    >
+                      No other options available
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginTop: 18,
+                flexWrap: 'wrap',
+              }}
+            >
+              <button className="prim" onClick={handleGeneratePdf}>
+                ⎙ Generate menu PDF
+              </button>
+              <span
+                style={{
+                  color: C.faint,
+                  fontSize: 12,
+                  fontFamily: 'system-ui, sans-serif',
+                }}
+              >
+                Opens a print-ready menu — save as PDF or print.
+              </span>
+            </div>
+
+            {popupBlocked && (
+              <p
+                style={{
+                  color: C.dim,
+                  fontSize: 13,
+                  marginTop: 12,
+                  fontFamily: 'system-ui, sans-serif',
+                }}
+              >
+                Your browser blocked the print window. Allow popups for this site and try again.
+              </p>
+            )}
+          </>
+        )}
       </div>
-    </>
+    </div>
   )
 }
