@@ -39,11 +39,14 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
   const [name, setName] = useState('You')
   const [phone, setPhone] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [log, setLog] = useState<LogEntry[]>([])
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   async function loadData() {
     setLoading(true)
@@ -51,9 +54,10 @@ export default function ProfilePage() {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) { router.push('/login'); return }
+      setUserId(stored)
 
       const [{ data: user }, { data: rsvps }] = await Promise.all([
-        supabase.from('users').select('name, phone').eq('id', stored).maybeSingle(),
+        supabase.from('users').select('name, phone, photo_url').eq('id', stored).maybeSingle(),
         supabase
           .from('rsvps')
           .select('id, status, events(id, title, event_date, venue, theme, cover_url)')
@@ -63,6 +67,7 @@ export default function ProfilePage() {
       if (user) {
         setName(user.name || 'You')
         setPhone(user.phone || '')
+        setPhotoUrl(user.photo_url || null)
       }
 
       const now = Date.now()
@@ -98,9 +103,43 @@ export default function ProfilePage() {
     router.push('/login')
   }
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
-    if (f) setPhotoUrl(URL.createObjectURL(f))
+    e.target.value = ''
+    if (!f || !userId) return
+
+    setUploading(true)
+    setUploadError('')
+
+    const ext = f.name.includes('.') ? f.name.split('.').pop() : 'jpg'
+    const path = `${userId}/${Date.now()}.${ext}`
+
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, f, { contentType: f.type || undefined, upsert: false })
+
+    if (upErr) {
+      setUploadError(upErr.message)
+      setUploading(false)
+      return
+    }
+
+    const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path)
+    const url = pub.publicUrl
+
+    const { error: dbErr } = await supabase
+      .from('users')
+      .update({ photo_url: url })
+      .eq('id', userId)
+
+    if (dbErr) {
+      setUploadError(dbErr.message)
+      setUploading(false)
+      return
+    }
+
+    setPhotoUrl(url)
+    setUploading(false)
   }
 
   return (
@@ -144,15 +183,17 @@ export default function ProfilePage() {
         >
           <button
             onClick={() => fileRef.current?.click()}
+            disabled={uploading}
             style={{
               width: 104,
               height: 104,
               borderRadius: '50%',
               border: '2px dashed rgba(243,233,221,0.25)',
               background: 'rgba(255,255,255,0.03)',
-              cursor: 'pointer',
+              cursor: uploading ? 'wait' : 'pointer',
               overflow: 'hidden',
               padding: 0,
+              opacity: uploading ? 0.6 : 1,
             }}
             aria-label="Upload profile photo"
           >
@@ -189,6 +230,21 @@ export default function ProfilePage() {
             )}
           </button>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
+
+          {uploadError && (
+            <div
+              style={{
+                color: C.rose,
+                fontSize: 12,
+                marginTop: 10,
+                fontFamily: 'system-ui, sans-serif',
+                textAlign: 'center',
+                maxWidth: 260,
+              }}
+            >
+              {uploadError}
+            </div>
+          )}
 
           <div style={{ color: C.cream, fontSize: 26, marginTop: 14 }}>{name}</div>
           <div
