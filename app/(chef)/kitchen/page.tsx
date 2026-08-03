@@ -56,6 +56,7 @@ function KitchenPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromEventId = searchParams?.get('from') ?? null
+  const fromPage = searchParams?.get('from_page') === 'table' ? 'table' : 'menu'
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
@@ -359,7 +360,7 @@ function KitchenPageInner() {
 
   function handlePantryDone() {
     if (backEvent) {
-      router.push(`/events/${backEvent.id}/menu`)
+      router.push(`/events/${backEvent.id}/${fromPage}`)
       return
     }
     setPantryDoneSaved(true)
@@ -388,7 +389,7 @@ function KitchenPageInner() {
       >
         {backEvent && (
           <button
-            onClick={() => router.push(`/events/${backEvent.id}/menu`)}
+            onClick={() => router.push(`/events/${backEvent.id}/${fromPage}`)}
             style={{
               display: 'block',
               background: 'none',

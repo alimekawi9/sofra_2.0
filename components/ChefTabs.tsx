@@ -47,7 +47,7 @@ export default function ChefTabs({ eventId, active, title, subtitle }: ChefTabsP
           )}
         </div>
         <button
-          onClick={() => router.push(`/kitchen?from=${eventId}`)}
+          onClick={() => router.push(`/kitchen?from=${eventId}&from_page=${active}`)}
           className="regen"
           aria-label="My kitchen"
           style={{ background: 'transparent', border: '1px solid rgba(217,161,91,0.35)' }}

@@ -299,12 +299,6 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                     >
                       View Table
                     </button>
-                    <button
-                      onClick={() => router.push('/events/' + params.id + '/menu')}
-                      style={hostBtnStyle}
-                    >
-                      Build Menu
-                    </button>
                   </div>
                   {copyFallbackUrl && (
                     <input
