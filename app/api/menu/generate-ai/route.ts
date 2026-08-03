@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { generateMenuWithAI } from '@/lib/menu'
+import { generateMenuWithAI } from '@/lib/menu-ai'
 import type { PantryItem, Signature } from '@/lib/menu'
 import type { TableIntel } from '@/lib/intel'
 

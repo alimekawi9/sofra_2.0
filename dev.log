@@ -1,0 +1,17 @@
+
+> sofra@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+[Error: EPERM: operation not permitted, open 'C:\Users\ultra\Projects\sofra\.next\trace'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'open',
+  path: 'C:\\Users\\ultra\\Projects\\sofra\\.next\\trace'
+}
+ ✓ Ready in 488.9s

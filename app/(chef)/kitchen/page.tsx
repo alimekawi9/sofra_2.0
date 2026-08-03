@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
+import { DISH_PRESETS, CUISINES, type DishPreset } from '@/lib/dish-presets'
+
+const CUISINE_FILTERS = ['All', ...CUISINES] as const
+type CuisineFilter = (typeof CUISINE_FILTERS)[number]
 
 function currentMonday(): string {
   const d = new Date()
@@ -41,6 +45,10 @@ export default function KitchenPage() {
   const [sigAdding, setSigAdding] = useState(false)
   const [sigAddError, setSigAddError] = useState('')
   const [sigDeleteError, setSigDeleteError] = useState('')
+  const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
+  const [customName, setCustomName] = useState('')
+  const [customAdding, setCustomAdding] = useState(false)
+  const [customError, setCustomError] = useState('')
 
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [pantryName, setPantryName] = useState('')
@@ -112,6 +120,40 @@ export default function KitchenPage() {
     }
     setSigAdding(false)
   }
+
+  function applyPreset(p: DishPreset) {
+    setSigName(p.name)
+    setSigTags(p.tags.join(', '))
+    setSigAllergens(p.allergens.join(', '))
+  }
+
+  async function addCustomToMyList() {
+    const uid = uidRef.current
+    if (!uid || customAdding) return
+    const name = customName.trim()
+    if (!name) { setCustomError('Name is required.'); return }
+    setCustomAdding(true)
+    setCustomError('')
+
+    const { data, error } = await supabase
+      .from('signatures')
+      .insert({ chef_id: uid, name, tags: [], contains_allergens: [] })
+      .select('id, name, tags, contains_allergens')
+      .single()
+
+    if (error || !data) {
+      setCustomError('Failed to add. Try again.')
+    } else {
+      setSignatures((prev) => [data, ...prev])
+      setCustomName('')
+    }
+    setCustomAdding(false)
+  }
+
+  const filteredPresets =
+    presetCuisine === 'All'
+      ? DISH_PRESETS
+      : DISH_PRESETS.filter((d) => d.cuisine === presetCuisine)
 
   async function deleteSignature(sig: Signature) {
     const uid = uidRef.current
@@ -307,6 +349,113 @@ export default function KitchenPage() {
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
+                  gap: 10,
+                  marginTop: 14,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.line}`,
+                }}
+              >
+                <div
+                  style={{
+                    color: C.faint,
+                    fontSize: 11,
+                    fontFamily: 'system-ui, sans-serif',
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Quick add from presets
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {CUISINE_FILTERS.map((c) => {
+                    const on = presetCuisine === c
+                    return (
+                      <button
+                        key={c}
+                        className="chip"
+                        onClick={() => setPresetCuisine(c)}
+                        style={{
+                          background: on ? C.burgundy : 'transparent',
+                          borderColor: on ? C.gold : 'rgba(243,233,221,0.18)',
+                          color: on ? C.cream : C.dim,
+                          padding: '5px 11px',
+                          fontSize: 12,
+                          fontFamily: 'system-ui, sans-serif',
+                          borderRadius: 14,
+                        }}
+                      >
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    maxHeight: 168,
+                    overflowY: 'auto',
+                    paddingRight: 2,
+                  }}
+                >
+                  {filteredPresets.map((p) => (
+                    <button
+                      key={`${p.cuisine}-${p.name}`}
+                      onClick={() => applyPreset(p)}
+                      style={presetBtn}
+                      title={`${p.cuisine} · fills the form`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    marginTop: 6,
+                    paddingTop: 10,
+                    borderTop: `1px dashed ${C.line}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: C.faint,
+                      fontSize: 11,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    Don’t see it? Add your own — saves to your signatures only.
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      className="field sm"
+                      placeholder="Dish name…"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && void addCustomToMyList()}
+                    />
+                    <button
+                      className="add"
+                      onClick={() => void addCustomToMyList()}
+                      disabled={customAdding}
+                    >
+                      {customAdding ? '…' : 'Add to my list'}
+                    </button>
+                  </div>
+                  {customError && (
+                    <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{customError}</p>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
                   gap: 8,
                   marginTop: 14,
                 }}
@@ -483,6 +632,18 @@ const xBtn: React.CSSProperties = {
   cursor: 'pointer',
   padding: '2px 4px',
   lineHeight: 1,
+}
+
+const presetBtn: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.03)',
+  border: `1px solid ${C.line}`,
+  borderRadius: 10,
+  color: C.dim,
+  padding: '5px 10px',
+  fontSize: 12,
+  fontFamily: 'system-ui, sans-serif',
+  cursor: 'pointer',
+  transition: 'all 0.18s',
 }
 
 const briefStyle: React.CSSProperties = {
