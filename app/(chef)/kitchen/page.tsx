@@ -5,9 +5,23 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
 import { DISH_PRESETS, CUISINES, type DishPreset } from '@/lib/dish-presets'
+import { INGREDIENT_PRESETS, INGREDIENT_CATEGORIES } from '@/lib/ingredient-presets'
 
 const CUISINE_FILTERS = ['All', ...CUISINES] as const
 type CuisineFilter = (typeof CUISINE_FILTERS)[number]
+
+const INGREDIENT_CATEGORY_FILTERS = ['All', ...INGREDIENT_CATEGORIES] as const
+type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
+
+// Fixed vocabularies keep tag/allergen values consistent so the hard-limit
+// safety check in lib/menu.ts (case-insensitive) reliably matches guest avoid
+// entries — e.g. chef "nuts" ↔ guest "Nuts".
+const TAG_VOCAB = ['veg', 'vegan', 'meat', 'seafood', 'dessert', 'pescatarian'] as const
+const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork'] as const
+
+function dishKey(p: DishPreset): string {
+  return `${p.cuisine}::${p.name}`
+}
 
 function currentMonday(): string {
   const d = new Date()
@@ -40,12 +54,15 @@ export default function KitchenPage() {
 
   const [signatures, setSignatures] = useState<Signature[]>([])
   const [sigName, setSigName] = useState('')
-  const [sigTags, setSigTags] = useState('')
-  const [sigAllergens, setSigAllergens] = useState('')
+  const [sigTagsList, setSigTagsList] = useState<string[]>([])
+  const [sigAllergensList, setSigAllergensList] = useState<string[]>([])
   const [sigAdding, setSigAdding] = useState(false)
   const [sigAddError, setSigAddError] = useState('')
   const [sigDeleteError, setSigDeleteError] = useState('')
   const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
+  const [selectedDishKeys, setSelectedDishKeys] = useState<string[]>([])
+  const [dishBatchAdding, setDishBatchAdding] = useState(false)
+  const [dishBatchError, setDishBatchError] = useState('')
   const [customName, setCustomName] = useState('')
   const [customAdding, setCustomAdding] = useState(false)
   const [customError, setCustomError] = useState('')
@@ -55,6 +72,10 @@ export default function KitchenPage() {
   const [pantryAdding, setPantryAdding] = useState(false)
   const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
+  const [ingredientCategory, setIngredientCategory] = useState<IngredientCategoryFilter>('All')
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
+  const [ingredientBatchAdding, setIngredientBatchAdding] = useState(false)
+  const [ingredientBatchError, setIngredientBatchError] = useState('')
 
   const weekOf = currentMonday()
 
@@ -101,12 +122,14 @@ export default function KitchenPage() {
     setSigAdding(true)
     setSigAddError('')
 
-    const tags = sigTags.split(',').map((t) => t.trim()).filter(Boolean)
-    const allergens = sigAllergens.split(',').map((a) => a.trim()).filter(Boolean)
-
     const { data, error } = await supabase
       .from('signatures')
-      .insert({ chef_id: uid, name, tags, contains_allergens: allergens })
+      .insert({
+        chef_id: uid,
+        name,
+        tags: sigTagsList,
+        contains_allergens: sigAllergensList,
+      })
       .select('id, name, tags, contains_allergens')
       .single()
 
@@ -115,16 +138,126 @@ export default function KitchenPage() {
     } else {
       setSignatures((prev) => [data, ...prev])
       setSigName('')
-      setSigTags('')
-      setSigAllergens('')
+      setSigTagsList([])
+      setSigAllergensList([])
     }
     setSigAdding(false)
   }
 
-  function applyPreset(p: DishPreset) {
-    setSigName(p.name)
-    setSigTags(p.tags.join(', '))
-    setSigAllergens(p.allergens.join(', '))
+  function toggleDishSelection(p: DishPreset) {
+    const key = dishKey(p)
+    setSelectedDishKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    )
+  }
+
+  function toggleTag(t: string) {
+    setSigTagsList((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+  }
+
+  function toggleAllergen(a: string) {
+    setSigAllergensList((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))
+  }
+
+  async function addSelectedDishes() {
+    const uid = uidRef.current
+    if (!uid || dishBatchAdding || selectedDishKeys.length === 0) return
+    setDishBatchAdding(true)
+    setDishBatchError('')
+
+    const keyToPreset = new Map(DISH_PRESETS.map((p) => [dishKey(p), p] as const))
+    const targets = selectedDishKeys
+      .map((k) => keyToPreset.get(k))
+      .filter((p): p is DishPreset => Boolean(p))
+
+    const results = await Promise.allSettled(
+      targets.map((p) =>
+        supabase
+          .from('signatures')
+          .insert({
+            chef_id: uid,
+            name: p.name,
+            tags: p.tags,
+            contains_allergens: p.allergens,
+          })
+          .select('id, name, tags, contains_allergens')
+          .single()
+      )
+    )
+
+    const inserted: Signature[] = []
+    const failedKeys: string[] = []
+    const failedNames: string[] = []
+    results.forEach((res, i) => {
+      const preset = targets[i]
+      const ok = res.status === 'fulfilled' && !res.value.error && res.value.data
+      if (ok) {
+        inserted.push(res.value.data as Signature)
+      } else {
+        failedKeys.push(dishKey(preset))
+        failedNames.push(preset.name)
+      }
+    })
+
+    if (inserted.length > 0) {
+      setSignatures((prev) => [...inserted, ...prev])
+    }
+    setSelectedDishKeys(failedKeys)
+    if (failedNames.length > 0) {
+      const list = failedNames.join(', ')
+      setDishBatchError(
+        `Couldn't add: ${list}. They stay selected — tap "Add selected" again to retry just those.`
+      )
+    }
+    setDishBatchAdding(false)
+  }
+
+  function toggleIngredientSelection(name: string) {
+    setSelectedIngredients((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    )
+  }
+
+  async function addSelectedIngredients() {
+    const uid = uidRef.current
+    if (!uid || ingredientBatchAdding || selectedIngredients.length === 0) return
+    setIngredientBatchAdding(true)
+    setIngredientBatchError('')
+
+    const targets = [...selectedIngredients]
+    const results = await Promise.allSettled(
+      targets.map((name) =>
+        supabase
+          .from('pantry_items')
+          .insert({ chef_id: uid, name, week_of: weekOf })
+          .select('id, name, week_of')
+          .single()
+      )
+    )
+
+    const inserted: PantryItem[] = []
+    const failedNames: string[] = []
+    results.forEach((res, i) => {
+      const name = targets[i]
+      const ok = res.status === 'fulfilled' && !res.value.error && res.value.data
+      if (ok) {
+        inserted.push(res.value.data as PantryItem)
+      } else {
+        failedNames.push(name)
+      }
+    })
+
+    if (inserted.length > 0) {
+      setPantry((prev) => [...inserted, ...prev])
+    }
+    setSelectedIngredients(failedNames)
+    if (failedNames.length > 0) {
+      const list = failedNames.join(', ')
+      setIngredientBatchError(
+        `Couldn't add: ${list}. They stay selected — tap "Add selected" again to retry just those.`
+      )
+    }
+    setIngredientBatchAdding(false)
   }
 
   async function addCustomToMyList() {
@@ -154,6 +287,13 @@ export default function KitchenPage() {
     presetCuisine === 'All'
       ? DISH_PRESETS
       : DISH_PRESETS.filter((d) => d.cuisine === presetCuisine)
+
+  const filteredIngredients: string[] =
+    ingredientCategory === 'All'
+      ? INGREDIENT_CATEGORIES.flatMap((c) => INGREDIENT_PRESETS[c] ?? [])
+      : (INGREDIENT_PRESETS[ingredientCategory] ?? [])
+
+  const pantryNamesLC = new Set(pantry.map((p) => p.name.toLowerCase()))
 
   async function deleteSignature(sig: Signature) {
     const uid = uidRef.current
@@ -399,17 +539,54 @@ export default function KitchenPage() {
                     paddingRight: 2,
                   }}
                 >
-                  {filteredPresets.map((p) => (
-                    <button
-                      key={`${p.cuisine}-${p.name}`}
-                      onClick={() => applyPreset(p)}
-                      style={presetBtn}
-                      title={`${p.cuisine} · fills the form`}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
+                  {filteredPresets.map((p) => {
+                    const key = dishKey(p)
+                    const on = selectedDishKeys.includes(key)
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => toggleDishSelection(p)}
+                        style={presetChip(on)}
+                        aria-pressed={on}
+                        title={`${p.cuisine}`}
+                      >
+                        {p.name}
+                      </button>
+                    )
+                  })}
                 </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 4,
+                  }}
+                >
+                  <button
+                    className="add"
+                    onClick={() => void addSelectedDishes()}
+                    disabled={dishBatchAdding || selectedDishKeys.length === 0}
+                  >
+                    {dishBatchAdding
+                      ? '…'
+                      : `Add selected (${selectedDishKeys.length})`}
+                  </button>
+                  {selectedDishKeys.length > 0 && !dishBatchAdding && (
+                    <button
+                      onClick={() => {
+                        setSelectedDishKeys([])
+                        setDishBatchError('')
+                      }}
+                      style={clearBtn}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {dishBatchError && (
+                  <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{dishBatchError}</p>
+                )}
 
                 <div
                   style={{
@@ -456,10 +633,23 @@ export default function KitchenPage() {
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
+                  gap: 10,
                   marginTop: 14,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.line}`,
                 }}
               >
+                <div
+                  style={{
+                    color: C.faint,
+                    fontSize: 11,
+                    fontFamily: 'system-ui, sans-serif',
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Type your own signature
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     className="field sm"
@@ -476,18 +666,54 @@ export default function KitchenPage() {
                     {sigAdding ? '…' : 'Add'}
                   </button>
                 </div>
-                <input
-                  className="field sm"
-                  placeholder="Tags — comma separated (optional)"
-                  value={sigTags}
-                  onChange={(e) => setSigTags(e.target.value)}
-                />
-                <input
-                  className="field sm"
-                  placeholder="Allergens — comma separated (optional)"
-                  value={sigAllergens}
-                  onChange={(e) => setSigAllergens(e.target.value)}
-                />
+                <div
+                  style={{
+                    color: C.faint,
+                    fontSize: 11,
+                    fontFamily: 'system-ui, sans-serif',
+                  }}
+                >
+                  Tags
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {TAG_VOCAB.map((t) => {
+                    const on = sigTagsList.includes(t)
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => toggleTag(t)}
+                        style={vocabChip(on, false)}
+                        aria-pressed={on}
+                      >
+                        {t}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div
+                  style={{
+                    color: C.faint,
+                    fontSize: 11,
+                    fontFamily: 'system-ui, sans-serif',
+                  }}
+                >
+                  Contains allergens
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {ALLERGEN_VOCAB.map((a) => {
+                    const on = sigAllergensList.includes(a)
+                    return (
+                      <button
+                        key={a}
+                        onClick={() => toggleAllergen(a)}
+                        style={vocabChip(on, true)}
+                        aria-pressed={on}
+                      >
+                        {a}
+                      </button>
+                    )
+                  })}
+                </div>
                 {sigAddError && (
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
@@ -531,6 +757,111 @@ export default function KitchenPage() {
                   ))
                 )}
               </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                  marginTop: 14,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.line}`,
+                }}
+              >
+                <div
+                  style={{
+                    color: C.faint,
+                    fontSize: 11,
+                    fontFamily: 'system-ui, sans-serif',
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Quick add from presets
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {INGREDIENT_CATEGORY_FILTERS.map((c) => {
+                    const on = ingredientCategory === c
+                    return (
+                      <button
+                        key={c}
+                        className="chip"
+                        onClick={() => setIngredientCategory(c)}
+                        style={{
+                          background: on ? C.burgundy : 'transparent',
+                          borderColor: on ? C.gold : 'rgba(243,233,221,0.18)',
+                          color: on ? C.cream : C.dim,
+                          padding: '5px 11px',
+                          fontSize: 12,
+                          fontFamily: 'system-ui, sans-serif',
+                          borderRadius: 14,
+                        }}
+                      >
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    maxHeight: 168,
+                    overflowY: 'auto',
+                    paddingRight: 2,
+                  }}
+                >
+                  {filteredIngredients.map((name) => {
+                    const on = selectedIngredients.includes(name)
+                    const already = pantryNamesLC.has(name.toLowerCase())
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => toggleIngredientSelection(name)}
+                        style={presetChip(on, already)}
+                        disabled={already}
+                        aria-pressed={on}
+                        title={already ? 'Already in this week’s pantry' : undefined}
+                      >
+                        {name}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 4,
+                  }}
+                >
+                  <button
+                    className="add"
+                    onClick={() => void addSelectedIngredients()}
+                    disabled={ingredientBatchAdding || selectedIngredients.length === 0}
+                  >
+                    {ingredientBatchAdding
+                      ? '…'
+                      : `Add selected (${selectedIngredients.length})`}
+                  </button>
+                  {selectedIngredients.length > 0 && !ingredientBatchAdding && (
+                    <button
+                      onClick={() => {
+                        setSelectedIngredients([])
+                        setIngredientBatchError('')
+                      }}
+                      style={clearBtn}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {ingredientBatchError && (
+                  <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{ingredientBatchError}</p>
+                )}
+              </div>
+
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                 <input
                   className="field sm"
@@ -634,16 +965,48 @@ const xBtn: React.CSSProperties = {
   lineHeight: 1,
 }
 
-const presetBtn: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.03)',
-  border: `1px solid ${C.line}`,
-  borderRadius: 10,
-  color: C.dim,
-  padding: '5px 10px',
+function presetChip(on: boolean, disabled: boolean = false): React.CSSProperties {
+  return {
+    background: on ? C.burgundy : disabled ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.03)',
+    border: `1px solid ${on ? C.gold : C.line}`,
+    borderRadius: 10,
+    color: on ? C.cream : disabled ? C.faint : C.dim,
+    padding: '5px 10px',
+    fontSize: 12,
+    fontFamily: 'system-ui, sans-serif',
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.5 : 1,
+    transition: 'all 0.18s',
+  }
+}
+
+function vocabChip(on: boolean, danger: boolean): React.CSSProperties {
+  // Allergen chips use rose/danger palette to match how "avoid" chips look on
+  // the guest RSVP page — visual language for "off-limits".
+  return {
+    background: on ? (danger ? '#4A1E1E' : C.burgundy) : 'transparent',
+    border: `1px solid ${
+      on ? (danger ? C.rose : C.gold) : 'rgba(243,233,221,0.18)'
+    }`,
+    borderRadius: 14,
+    color: on ? C.cream : danger ? C.rose : C.dim,
+    padding: '5px 11px',
+    fontSize: 12,
+    fontFamily: 'system-ui, sans-serif',
+    cursor: 'pointer',
+    transition: 'all 0.18s',
+  }
+}
+
+const clearBtn: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  color: C.faint,
   fontSize: 12,
   fontFamily: 'system-ui, sans-serif',
   cursor: 'pointer',
-  transition: 'all 0.18s',
+  padding: '4px 6px',
+  textDecoration: 'underline',
 }
 
 const briefStyle: React.CSSProperties = {
