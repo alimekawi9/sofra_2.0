@@ -80,6 +80,8 @@ function KitchenPageInner() {
   const [pantryAdding, setPantryAdding] = useState(false)
   const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
+  const [pantryDoneSaved, setPantryDoneSaved] = useState(false)
+  const pantryDoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ingredientCategory, setIngredientCategory] = useState<IngredientCategoryFilter>('All')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
   const [ingredientBatchAdding, setIngredientBatchAdding] = useState(false)
@@ -354,6 +356,22 @@ function KitchenPageInner() {
       setPantryDeleteError('Failed to remove item. Try again.')
     }
   }
+
+  function handlePantryDone() {
+    if (backEvent) {
+      router.push(`/events/${backEvent.id}/menu`)
+      return
+    }
+    setPantryDoneSaved(true)
+    if (pantryDoneTimeoutRef.current) clearTimeout(pantryDoneTimeoutRef.current)
+    pantryDoneTimeoutRef.current = setTimeout(() => setPantryDoneSaved(false), 2000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (pantryDoneTimeoutRef.current) clearTimeout(pantryDoneTimeoutRef.current)
+    }
+  }, [])
 
   return (
     <div
@@ -862,6 +880,27 @@ function KitchenPageInner() {
               {pantryDeleteError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryDeleteError}</p>
               )}
+
+              <button
+                onClick={handlePantryDone}
+                disabled={pantryDoneSaved}
+                style={{
+                  width: '100%',
+                  marginTop: 16,
+                  background: pantryDoneSaved ? 'rgba(217,161,91,0.25)' : C.gold,
+                  color: C.ink,
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  fontFamily: 'system-ui, sans-serif',
+                  cursor: pantryDoneSaved ? 'default' : 'pointer',
+                  transition: 'all 0.18s',
+                }}
+              >
+                {pantryDoneSaved ? 'Saved ✓' : "Done — this week's pantry"}
+              </button>
             </div>
 
             {/* Brief */}
