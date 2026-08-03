@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
 import { DISH_PRESETS, CUISINES, type DishPreset } from '@/lib/dish-presets'
@@ -45,12 +45,23 @@ type PantryItem = {
 }
 
 export default function KitchenPage() {
+  return (
+    <Suspense fallback={null}>
+      <KitchenPageInner />
+    </Suspense>
+  )
+}
+
+function KitchenPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromEventId = searchParams?.get('from') ?? null
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
+  const [backEvent, setBackEvent] = useState<{ id: string; title: string } | null>(null)
 
   const [signatures, setSignatures] = useState<Signature[]>([])
   const [sigName, setSigName] = useState('')
@@ -63,9 +74,6 @@ export default function KitchenPage() {
   const [selectedDishKeys, setSelectedDishKeys] = useState<string[]>([])
   const [dishBatchAdding, setDishBatchAdding] = useState(false)
   const [dishBatchError, setDishBatchError] = useState('')
-  const [customName, setCustomName] = useState('')
-  const [customAdding, setCustomAdding] = useState(false)
-  const [customError, setCustomError] = useState('')
 
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [pantryName, setPantryName] = useState('')
@@ -87,6 +95,8 @@ export default function KitchenPage() {
       if (!stored) { router.push('/login'); return }
       uidRef.current = stored
       const uid = stored
+
+      if (fromEventId) void loadBackEvent(uid, fromEventId)
 
       const [{ data: sigs, error: e1 }, { data: items, error: e2 }] = await Promise.all([
         supabase
@@ -113,6 +123,18 @@ export default function KitchenPage() {
   }
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadBackEvent(uid: string, eventId: string) {
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, host_id, chef_id, title')
+      .eq('id', eventId)
+      .single()
+
+    if (error || !data) return
+    if (data.host_id !== uid && data.chef_id !== uid) return
+    setBackEvent({ id: data.id, title: data.title })
+  }
 
   async function addSignature() {
     const uid = uidRef.current
@@ -260,29 +282,6 @@ export default function KitchenPage() {
     setIngredientBatchAdding(false)
   }
 
-  async function addCustomToMyList() {
-    const uid = uidRef.current
-    if (!uid || customAdding) return
-    const name = customName.trim()
-    if (!name) { setCustomError('Name is required.'); return }
-    setCustomAdding(true)
-    setCustomError('')
-
-    const { data, error } = await supabase
-      .from('signatures')
-      .insert({ chef_id: uid, name, tags: [], contains_allergens: [] })
-      .select('id, name, tags, contains_allergens')
-      .single()
-
-    if (error || !data) {
-      setCustomError('Failed to add. Try again.')
-    } else {
-      setSignatures((prev) => [data, ...prev])
-      setCustomName('')
-    }
-    setCustomAdding(false)
-  }
-
   const filteredPresets =
     presetCuisine === 'All'
       ? DISH_PRESETS
@@ -369,6 +368,25 @@ export default function KitchenPage() {
         className="fade"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
       >
+        {backEvent && (
+          <button
+            onClick={() => router.push(`/events/${backEvent.id}/menu`)}
+            style={{
+              display: 'block',
+              background: 'none',
+              border: 'none',
+              color: C.gold,
+              fontSize: 13,
+              fontFamily: 'system-ui, sans-serif',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: 12,
+            }}
+          >
+            ← Back to {backEvent.title}
+          </button>
+        )}
+
         {/* Chef header */}
         <div style={{ marginBottom: 18 }}>
           <div style={{ color: C.cream, fontSize: 24, fontStyle: 'italic' }}>
@@ -587,46 +605,6 @@ export default function KitchenPage() {
                 {dishBatchError && (
                   <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{dishBatchError}</p>
                 )}
-
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    marginTop: 6,
-                    paddingTop: 10,
-                    borderTop: `1px dashed ${C.line}`,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: C.faint,
-                      fontSize: 11,
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
-                  >
-                    Don’t see it? Add your own — saves to your signatures only.
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      className="field sm"
-                      placeholder="Dish name…"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && void addCustomToMyList()}
-                    />
-                    <button
-                      className="add"
-                      onClick={() => void addCustomToMyList()}
-                      disabled={customAdding}
-                    >
-                      {customAdding ? '…' : 'Add to my list'}
-                    </button>
-                  </div>
-                  {customError && (
-                    <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{customError}</p>
-                  )}
-                </div>
               </div>
 
               <div
@@ -648,7 +626,7 @@ export default function KitchenPage() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Type your own signature
+                  Add your own dish
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
