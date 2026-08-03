@@ -13,7 +13,7 @@ export class GeminiError extends Error {
 }
 
 const MODEL = 'gemini-2.5-pro'
-const TIMEOUT_MS = 30_000
+const TIMEOUT_MS = 45_000
 
 let cached: GoogleGenAI | null = null
 function client(): GoogleGenAI {
