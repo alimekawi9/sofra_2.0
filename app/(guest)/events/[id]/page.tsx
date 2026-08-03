@@ -289,21 +289,23 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
               {isHost && (
                 <div style={{ marginTop: 14 }}>
-                  <button
-                    onClick={copyInviteLink}
-                    style={{
-                      background: 'none',
-                      border: `1px solid ${C.gold}`,
-                      borderRadius: 12,
-                      color: C.gold,
-                      padding: '7px 14px',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
-                  >
-                    {copied ? 'Copied!' : 'Copy invite link'}
-                  </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <button onClick={copyInviteLink} style={hostBtnStyle}>
+                      {copied ? 'Copied!' : 'Copy invite link'}
+                    </button>
+                    <button
+                      onClick={() => router.push('/events/' + params.id + '/table')}
+                      style={hostBtnStyle}
+                    >
+                      View Table
+                    </button>
+                    <button
+                      onClick={() => router.push('/events/' + params.id + '/menu')}
+                      style={hostBtnStyle}
+                    >
+                      Build Menu
+                    </button>
+                  </div>
                   {copyFallbackUrl && (
                     <input
                       readOnly
@@ -495,6 +497,17 @@ const cardStyle: React.CSSProperties = {
   marginBottom: 16,
   backdropFilter: 'blur(4px)',
   WebkitBackdropFilter: 'blur(4px)',
+}
+
+const hostBtnStyle: React.CSSProperties = {
+  background: 'none',
+  border: `1px solid ${C.gold}`,
+  borderRadius: 12,
+  color: C.gold,
+  padding: '7px 14px',
+  fontSize: 13,
+  cursor: 'pointer',
+  fontFamily: 'system-ui, sans-serif',
 }
 
 function Detail({

@@ -139,6 +139,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [event, setEvent] = useState<{ title: string; event_date: string } | null>(null)
   const [popupBlocked, setPopupBlocked] = useState(false)
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiNotice, setAiNotice] = useState('')
+  // Reasoning is not persisted; it only exists for the current AI session so
+  // the chef can compare the two paths side by side.
+  const [reasoningByCourseId, setReasoningByCourseId] = useState<Record<string, string>>({})
 
   const derivedCourses = useMemo<Course[]>(() => {
     if (!intel) return []
@@ -364,6 +369,97 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function handleRegenerateAI() {
+    if (!intel) return
+    setActionError('')
+    setAiNotice('')
+    const unlocked = courses.filter((c) => !c.locked)
+    if (unlocked.length === 0) return
+
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/menu/generate-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intel, signatures, pantry }),
+      })
+
+      if (!res.ok) {
+        setActionError('AI generation failed. The rule-based draft is still on screen.')
+        return
+      }
+
+      const result = (await res.json()) as {
+        courses: Course[]
+        aiFailed: boolean
+        fallbackReason?: string
+      }
+
+      if (result.aiFailed) {
+        setAiNotice(
+          `AI generation unavailable — showing rule-based draft instead${
+            result.fallbackReason ? ` (${result.fallbackReason})` : ''
+          }.`
+        )
+      }
+
+      // Map AI courses back onto persisted courses by slot; only update unlocked.
+      const bySlot = new Map<string, Course>()
+      for (const c of result.courses) bySlot.set(c.slot, c)
+
+      const updates = unlocked.map((c) => ({
+        id: c.id,
+        next: bySlot.get(c.slot),
+      })).filter((u): u is { id: string; next: Course } => !!u.next)
+
+      const prev = courses
+      const prevReasoning = reasoningByCourseId
+
+      setCourses(
+        courses.map((c) => {
+          const upd = updates.find((u) => u.id === c.id)
+          if (!upd) return c
+          return {
+            ...c,
+            dish_name: upd.next.dishName,
+            dish_origin: upd.next.origin,
+            source: upd.next.sourceId,
+          }
+        })
+      )
+
+      // Store reasoning locally (not persisted) for the AI-updated courses.
+      const nextReasoning: Record<string, string> = { ...reasoningByCourseId }
+      for (const u of updates) {
+        if (u.next.reasoning) nextReasoning[u.id] = u.next.reasoning
+        else delete nextReasoning[u.id]
+      }
+      setReasoningByCourseId(nextReasoning)
+
+      const results = await Promise.all(
+        updates.map(({ id: cid, next }) =>
+          supabase
+            .from('menu_courses')
+            .update({
+              dish_name: next.dishName,
+              dish_origin: next.origin,
+              source: next.sourceId,
+            })
+            .eq('id', cid)
+        )
+      )
+      if (results.some((r) => r.error)) {
+        setCourses(prev)
+        setReasoningByCourseId(prevReasoning)
+        setActionError('Failed to save AI menu. Try again.')
+      }
+    } catch {
+      setActionError('AI generation failed. Try again.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   function handleGeneratePdf() {
     setPopupBlocked(false)
     if (!event || !intel) return
@@ -464,16 +560,55 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   Composed for this table. Every dish is allergy-safe by construction.
                 </div>
               </div>
-              <button
-                className="regen"
-                onClick={() => void handleRegenerate()}
-                disabled={allLocked}
-                title={allLocked ? 'Everything is locked' : undefined}
-                style={allLocked ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-              >
-                ↻ Regenerate
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button
+                  className="regen"
+                  onClick={() => void handleRegenerate()}
+                  disabled={allLocked || aiLoading}
+                  title={allLocked ? 'Everything is locked' : undefined}
+                  style={
+                    allLocked || aiLoading ? { opacity: 0.5, cursor: 'not-allowed' } : undefined
+                  }
+                >
+                  ↻ Regenerate
+                </button>
+                <button
+                  className="regen"
+                  onClick={() => void handleRegenerateAI()}
+                  disabled={allLocked || aiLoading}
+                  title={
+                    allLocked
+                      ? 'Everything is locked'
+                      : aiLoading
+                      ? 'AI is thinking…'
+                      : 'Compose a fresh draft with Gemini'
+                  }
+                  style={{
+                    ...(allLocked || aiLoading
+                      ? { opacity: 0.5, cursor: 'not-allowed' }
+                      : undefined),
+                    borderColor: C.gold,
+                    color: C.gold,
+                  }}
+                >
+                  {aiLoading ? '✦ Thinking…' : '✦ Regenerate with AI'}
+                </button>
+              </div>
             </div>
+
+            {aiNotice && (
+              <p
+                style={{
+                  color: C.gold,
+                  fontSize: 13,
+                  marginBottom: 12,
+                  fontFamily: 'system-ui, sans-serif',
+                  lineHeight: 1.45,
+                }}
+              >
+                {aiNotice}
+              </p>
+            )}
 
             {actionError && (
               <p style={{ color: C.rose, fontSize: 13, marginBottom: 12, fontFamily: 'system-ui, sans-serif' }}>
@@ -536,6 +671,21 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   <div style={{ color: C.cream, fontSize: 19 }}>
                     {derived.dishName || '— TBD —'}
                   </div>
+                  {reasoningByCourseId[persisted.id] && (
+                    <div
+                      style={{
+                        color: C.gold,
+                        fontSize: 12,
+                        marginTop: 5,
+                        fontStyle: 'italic',
+                        fontFamily: 'Georgia, serif',
+                        lineHeight: 1.45,
+                        opacity: 0.9,
+                      }}
+                    >
+                      ✦ {reasoningByCourseId[persisted.id]}
+                    </div>
+                  )}
                   <div
                     style={{
                       color: C.faint,
