@@ -9,6 +9,9 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  // Scratch worktrees under .claude/ hold stale copies of the source and test
+  // files; jest was picking them up and running old tests against current code.
+  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/.claude/'],
 }
 
 export default createJestConfig(config)

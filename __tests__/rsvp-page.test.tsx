@@ -235,7 +235,7 @@ async function navigateToStep2() {
 describe('Step 2 — chip groups', () => {
   it('renders all dietary chips', async () => {
     await navigateToStep2()
-    for (const chip of ['Vegetarian','Vegan','Halal','Kosher','Gluten-free','No dairy','Pescatarian']) {
+    for (const chip of ['Vegetarian','Vegan','No pork/alcohol','Kosher','Gluten-free','No dairy','Pescatarian']) {
       expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
     }
   })

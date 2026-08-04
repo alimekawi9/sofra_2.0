@@ -34,7 +34,7 @@ describe('buildIntel', () => {
     expect(shellfish?.guests).toEqual(['Ali'])
   })
 
-  test('creates diet HardLimit for Vegetarian, Vegan, Halal, Kosher (STRICT_DIETS)', () => {
+  test('creates diet HardLimit for Vegetarian, Vegan, No pork/alcohol, Kosher (STRICT_DIETS)', () => {
     const intel = buildIntel([
       guest({ name: 'Sara', dietary: ['Vegetarian', 'Gluten-free'] }),
     ])

@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
-import { draftCourse, draftMenu, scoreDish, SLOT_LABELS } from '@/lib/menu'
-import type { Course, Signature, PantryItem, Slot, CourseOrigin } from '@/lib/menu'
+import { draftCourse, draftMenu, deriveCourse, portionGuidance, SLOT_LABELS } from '@/lib/menu'
+import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 
@@ -47,11 +47,16 @@ function buildMenuHtml(
               .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
               .join(', ')}</div>`
           : ''
+      const portionHtml =
+        c.origin === 'empty'
+          ? ''
+          : `<div class="portion">${escHtml(portionGuidance(c.slot))}</div>`
       return `
         <div class="course">
           <div class="slot">${escHtml(c.slotLabel)}</div>
           <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
           ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
+          ${portionHtml}
           ${alternativeHtml}
         </div>`
     })
@@ -75,6 +80,7 @@ function buildMenuHtml(
       .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
       .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
       .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
+      .portion{color:#8A6A4E;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-family:system-ui,sans-serif;}
       .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
       .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
       .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
@@ -147,36 +153,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
   const derivedCourses = useMemo<Course[]>(() => {
     if (!intel) return []
-    return courses.map((c) => {
-      const slot = c.slot as Slot
-      const slotLabel = SLOT_LABELS[slot] ?? slot
-      if (!c.dish_name || c.dish_origin === 'empty') {
-        return {
-          slot,
-          slotLabel,
-          dishName: '',
-          origin: 'empty' as CourseOrigin,
-          sourceId: null,
-          excludes: [],
-        }
-      }
-      let sourceDish: Signature | PantryItem | undefined
-      if (c.dish_origin === 'signature') {
-        sourceDish = signatures.find((s) => s.id === c.source)
-      } else if (c.dish_origin === 'pantry-composed') {
-        sourceDish = pantry.find((p) => p.id === c.source)
-      }
-      const sourceDeleted =
-        (c.dish_origin === 'signature' || c.dish_origin === 'pantry-composed') && !sourceDish
-      return {
-        slot,
-        slotLabel,
-        dishName: sourceDeleted ? '— source deleted, swap or lock —' : c.dish_name,
-        origin: sourceDeleted ? 'empty' : ((c.dish_origin as CourseOrigin) ?? 'empty'),
-        sourceId: c.source,
-        excludes: sourceDish ? scoreDish(sourceDish, intel) : [],
-      }
-    })
+    return courses.map((c) => deriveCourse(c, signatures, pantry, intel))
   }, [courses, intel, signatures, pantry])
 
   async function loadAll() {
@@ -232,7 +209,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .eq('chef_id', stored),
         supabase
           .from('pantry_items')
-          .select('id, name')
+          .select('id, name, tags, contains_allergens')
           .eq('chef_id', stored)
           .eq('week_of', currentMonday()),
       ])
@@ -696,8 +673,22 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   >
                     {derived.origin === 'signature' && 'Chef’s signature'}
                     {derived.origin === 'pantry-composed' && 'Composed for this table'}
-                    {derived.origin === 'empty' && 'No dish drafted — pantry and signatures are empty for this slot'}
+                    {derived.origin === 'empty' && 'No safe dish available — add a signature or pantry items for this slot'}
                   </div>
+                  {derived.origin !== 'empty' && (
+                    <div
+                      style={{
+                        color: C.faint,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                        textTransform: 'uppercase',
+                        marginTop: 6,
+                        fontFamily: 'system-ui, sans-serif',
+                      }}
+                    >
+                      {portionGuidance(derived.slot)}
+                    </div>
+                  )}
 
                   <div
                     style={{

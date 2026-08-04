@@ -16,7 +16,7 @@ type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
 // Fixed vocabularies keep tag/allergen values consistent so the hard-limit
 // safety check in lib/menu.ts (case-insensitive) reliably matches guest avoid
 // entries — e.g. chef "nuts" ↔ guest "Nuts".
-const TAG_VOCAB = ['veg', 'vegan', 'meat', 'seafood', 'dessert', 'pescatarian'] as const
+const TAG_VOCAB = ['veg', 'vegan', 'meat', 'seafood', 'dessert', 'pescatarian', 'no pork/alcohol'] as const
 const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork'] as const
 
 function dishKey(p: DishPreset): string {
@@ -42,6 +42,8 @@ type PantryItem = {
   id: string
   name: string
   week_of: string
+  tags: string[]
+  contains_allergens: string[]
 }
 
 export default function KitchenPage() {
@@ -78,6 +80,8 @@ function KitchenPageInner() {
 
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [pantryName, setPantryName] = useState('')
+  const [pantryTagsList, setPantryTagsList] = useState<string[]>([])
+  const [pantryAllergensList, setPantryAllergensList] = useState<string[]>([])
   const [pantryAdding, setPantryAdding] = useState(false)
   const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
@@ -109,7 +113,7 @@ function KitchenPageInner() {
           .order('created_at', { ascending: false }),
         supabase
           .from('pantry_items')
-          .select('id, name, week_of')
+          .select('id, name, week_of, tags, contains_allergens')
           .eq('chef_id', uid)
           .eq('week_of', weekOf)
           .order('created_at', { ascending: false }),
@@ -243,19 +247,32 @@ function KitchenPageInner() {
     )
   }
 
+  function togglePantryTag(t: string) {
+    setPantryTagsList((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+  }
+
+  function togglePantryAllergen(a: string) {
+    setPantryAllergensList((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))
+  }
+
   async function addSelectedIngredients() {
     const uid = uidRef.current
     if (!uid || ingredientBatchAdding || selectedIngredients.length === 0) return
     setIngredientBatchAdding(true)
     setIngredientBatchError('')
 
+    // Currently-selected tag/allergen chips apply to every ingredient in this
+    // batch — same UX as "Add your own dish" applying chips to the next add.
+    const tags = pantryTagsList
+    const allergens = pantryAllergensList
+
     const targets = [...selectedIngredients]
     const results = await Promise.allSettled(
       targets.map((name) =>
         supabase
           .from('pantry_items')
-          .insert({ chef_id: uid, name, week_of: weekOf })
-          .select('id, name, week_of')
+          .insert({ chef_id: uid, name, week_of: weekOf, tags, contains_allergens: allergens })
+          .select('id, name, week_of, tags, contains_allergens')
           .single()
       )
     )
@@ -274,6 +291,8 @@ function KitchenPageInner() {
 
     if (inserted.length > 0) {
       setPantry((prev) => [...inserted, ...prev])
+      setPantryTagsList([])
+      setPantryAllergensList([])
     }
     setSelectedIngredients(failedNames)
     if (failedNames.length > 0) {
@@ -326,8 +345,14 @@ function KitchenPageInner() {
 
     const { data, error } = await supabase
       .from('pantry_items')
-      .insert({ chef_id: uid, name, week_of: weekOf })
-      .select('id, name, week_of')
+      .insert({
+        chef_id: uid,
+        name,
+        week_of: weekOf,
+        tags: pantryTagsList,
+        contains_allergens: pantryAllergensList,
+      })
+      .select('id, name, week_of, tags, contains_allergens')
       .single()
 
     if (error || !data) {
@@ -335,6 +360,8 @@ function KitchenPageInner() {
     } else {
       setPantry((prev) => [data, ...prev])
       setPantryName('')
+      setPantryTagsList([])
+      setPantryAllergensList([])
     }
     setPantryAdding(false)
   }
@@ -729,9 +756,9 @@ function KitchenPageInner() {
               <div
                 style={{
                   display: 'flex',
-                  flexWrap: 'wrap',
+                  flexDirection: 'column',
                   gap: 8,
-                  marginTop: 14,
+                  marginTop: 12,
                 }}
               >
                 {pantry.length === 0 ? (
@@ -740,17 +767,41 @@ function KitchenPageInner() {
                   </div>
                 ) : (
                   pantry.map((p) => (
-                    <span
-                      key={p.id}
-                      className="pantry"
-                      onClick={() => void deletePantryItem(p)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && void deletePantryItem(p)}
-                      aria-label={`Remove ${p.name}`}
-                    >
-                      {p.name} <span style={{ color: C.faint }}>×</span>
-                    </span>
+                    <div key={p.id} style={sigRow}>
+                      <span
+                        style={{
+                          color: C.cream,
+                          fontSize: 15,
+                          fontFamily: 'system-ui, sans-serif',
+                        }}
+                      >
+                        {p.name}
+                      </span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 5,
+                          flexWrap: 'wrap',
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {p.tags.map((t) => (
+                          <span key={t} style={tagOk}>{t}</span>
+                        ))}
+                        {p.contains_allergens.map((c) => (
+                          <span key={c} style={tagWarn}>contains {c}</span>
+                        ))}
+                        <button
+                          onClick={() => void deletePantryItem(p)}
+                          style={xBtn}
+                          title="Remove"
+                          aria-label={`Remove ${p.name}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
@@ -875,6 +926,61 @@ function KitchenPageInner() {
                   {pantryAdding ? '…' : 'Add'}
                 </button>
               </div>
+
+              {/* Tag/allergen chips apply to whichever pantry insert fires next —
+                  the manual "Add" button OR the preset "Add selected" batch —
+                  and clear on success. Same UX pattern as signatures. */}
+              <div
+                style={{
+                  color: C.faint,
+                  fontSize: 11,
+                  fontFamily: 'system-ui, sans-serif',
+                  marginTop: 12,
+                }}
+              >
+                Tags
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                {TAG_VOCAB.map((t) => {
+                  const on = pantryTagsList.includes(t)
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => togglePantryTag(t)}
+                      style={vocabChip(on, false)}
+                      aria-pressed={on}
+                    >
+                      {t}
+                    </button>
+                  )
+                })}
+              </div>
+              <div
+                style={{
+                  color: C.faint,
+                  fontSize: 11,
+                  fontFamily: 'system-ui, sans-serif',
+                  marginTop: 10,
+                }}
+              >
+                Contains allergens
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                {ALLERGEN_VOCAB.map((a) => {
+                  const on = pantryAllergensList.includes(a)
+                  return (
+                    <button
+                      key={a}
+                      onClick={() => togglePantryAllergen(a)}
+                      style={vocabChip(on, true)}
+                      aria-pressed={on}
+                    >
+                      {a}
+                    </button>
+                  )
+                })}
+              </div>
+
               {pantryAddError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
               )}

@@ -6,6 +6,7 @@
 // verbatim so we can unit-test its output. Keep this copy in sync with
 // the one in page.tsx if either changes.
 import type { Course } from '@/lib/menu'
+import { portionGuidance } from '@/lib/menu'
 
 function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -36,11 +37,16 @@ function buildMenuHtml(
               .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
               .join(', ')}</div>`
           : ''
+      const portionHtml =
+        c.origin === 'empty'
+          ? ''
+          : `<div class="portion">${escHtml(portionGuidance(c.slot))}</div>`
       return `
         <div class="course">
           <div class="slot">${escHtml(c.slotLabel)}</div>
           <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
           ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
+          ${portionHtml}
           ${alternativeHtml}
         </div>`
     })
@@ -64,6 +70,7 @@ function buildMenuHtml(
       .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
       .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
       .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
+      .portion{color:#8A6A4E;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-family:system-ui,sans-serif;}
       .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
       .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
       .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
@@ -147,6 +154,25 @@ describe('buildMenuHtml', () => {
   test('omits alternative note when no exclusions', () => {
     const html = buildMenuHtml([course({ excludes: [] })], 8, EVENT)
     expect(html).not.toContain('Alternative required for')
+  })
+
+  test('includes portion guidance for each non-empty course', () => {
+    const courses: Course[] = [
+      course({ slot: 'start', slotLabel: 'To Start', dishName: 'Amuse Bouche' }),
+      course({ slot: 'finish', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
+    ]
+    const html = buildMenuHtml(courses, 6, EVENT)
+    expect(html).toContain('Serves approximately 6') // start slot yield
+    expect(html).toContain('Serves approximately 8') // finish slot yield
+  })
+
+  test('omits portion guidance for empty courses', () => {
+    const html = buildMenuHtml(
+      [course({ slot: 'sea', slotLabel: 'Main — Sea', dishName: '', origin: 'empty', sourceId: null })],
+      6,
+      EVENT
+    )
+    expect(html).not.toContain('Serves approximately')
   })
 
   test('includes cream background and gold border in styles', () => {

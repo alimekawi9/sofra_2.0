@@ -6,6 +6,7 @@ import {
   draftCourse,
   draftMenu,
   scoreDish,
+  scoreComposedDish,
   type Course,
   type PantryItem,
   type Signature,
@@ -19,14 +20,15 @@ export type AIGenerationResult = {
   fallbackReason?: string
 }
 
+// The AI is only trusted to (a) name a dish, (b) tell us where it comes from
+// (a signature id OR a set of pantry ids). Safety is derived from the
+// referenced pantry/signature entries, not from any AI self-declaration.
 type AIProposedCourse = {
   slot: Slot
   dish_name: string
   dish_origin: 'signature' | 'pantry-composed'
   signature_id?: string | null
-  pantry_id?: string | null
-  contains_allergens?: string[]
-  tags?: string[]
+  pantry_ids?: string[]
   reasoning?: string
 }
 
@@ -49,7 +51,11 @@ function buildAIPrompt(
     : '(none)'
 
   const pantryLines = pantry.length
-    ? pantry.map(p => `- id=${p.id} | ${p.name}`).join('\n')
+    ? pantry.map(p => {
+        const tags = p.tags.length ? p.tags.join(', ') : 'none'
+        const allergens = p.contains_allergens.length ? p.contains_allergens.join(', ') : 'none'
+        return `- id=${p.id} | "${p.name}" | tags=[${tags}] | contains_allergens=[${allergens}]`
+      }).join('\n')
     : '(none)'
 
   const hardLimitLines = intel.hardLimits.length
@@ -90,10 +96,10 @@ GUEST INTEL:
 - Table adventurousness: ${intel.avgAdventurousness}/100 (${intel.adventurousnessLabel})
 - Brief: ${intel.brief}
 
-HARD LIMITS — NON-NEGOTIABLE. Any course that would harm a guest is rejected
-downstream and replaced. Do not propose a course that contains a listed allergen
-or violates a strict diet (Vegetarian / Vegan / Halal / Kosher) for the affected
-guests. Hard limits:
+HARD LIMITS — NON-NEGOTIABLE. Every course is re-verified downstream against
+the ACTUAL declared tags/allergens of the pantry items (or signature) it names.
+The system trusts the chef's pantry data, not your description of the dish.
+Hard limits:
 ${hardLimitLines}
 
 TASK:
@@ -105,23 +111,28 @@ For each course you MUST return:
 - slot: one of "start" | "sea" | "land" | "green" | "finish"
 - dish_name: the plated name (for signatures, use the exact signature name)
 - dish_origin: "signature" if reusing a signature, "pantry-composed" if new
-- signature_id: the id from the list above (only when dish_origin is "signature")
-- pantry_id: the id of the main pantry item used (only when dish_origin is "pantry-composed")
-- contains_allergens: array of allergens this dish contains (use these exact
-  labels if applicable: ${['Nuts','Shellfish','Pork','Eggs','Cilantro','Mushrooms','Dairy','Gluten'].join(', ')}).
-  For a signature dish, echo its declared allergens. Be thorough — this list
-  drives the safety check.
-- tags: array of dietary tags this dish satisfies (e.g. "Vegetarian", "Vegan",
-  "Halal", "Kosher", "Gluten-free"). For a signature dish, echo its tags.
+- signature_id: the id from the signature list above (REQUIRED and only valid
+  when dish_origin is "signature"). Must exactly match an id above.
+- pantry_ids: an array of pantry item ids from the pantry list above (REQUIRED
+  and only valid when dish_origin is "pantry-composed"). List EVERY pantry
+  item that goes into the dish — this is what drives safety verification. If
+  you can't decompose the dish into pantry items listed above, don't propose
+  it; pick a different dish or reuse a signature instead. Each id must
+  exactly match one from the pantry list above; invented ids will cause the
+  course to be rejected as unverifiable.
 - reasoning: one short sentence (max ~140 chars) on why this dish fits this
   table (guest preferences, diet mix, adventurousness).
+
+Do NOT include self-declared safety fields — no "contains_allergens", no
+"violates_diets", no "tags". Safety is computed from the referenced pantry
+items' own declared data. Your job is to pick and name; the system verifies.
 
 Return ONLY a JSON object of this exact shape, no prose:
 {
   "courses": [
     { "slot": "start", "dish_name": "...", "dish_origin": "signature" | "pantry-composed",
-      "signature_id": "..." | null, "pantry_id": "..." | null,
-      "contains_allergens": ["..."], "tags": ["..."], "reasoning": "..." },
+      "signature_id": "..." | null, "pantry_ids": ["...", "..."] | null,
+      "reasoning": "..." },
     ... (5 entries, one per slot, in the order start, sea, land, green, finish)
   ]
 }`
@@ -140,42 +151,77 @@ function isAIProposedMenu(x: unknown): x is AIProposedMenu {
   })
 }
 
-function toCheckableDish(
-  proposed: AIProposedCourse,
-  signatures: Signature[]
-): Signature {
-  if (proposed.dish_origin === 'signature' && proposed.signature_id) {
-    const found = signatures.find(s => s.id === proposed.signature_id)
-    if (found) return found
-  }
-  return {
-    id: proposed.pantry_id ?? proposed.signature_id ?? `ai-${proposed.slot}`,
-    name: proposed.dish_name,
-    tags: Array.isArray(proposed.tags) ? proposed.tags : [],
-    contains_allergens: Array.isArray(proposed.contains_allergens) ? proposed.contains_allergens : [],
-    slot: proposed.slot,
-  }
-}
+type VerifiedCourse =
+  | { unverifiable: false; course: Course }
+  | { unverifiable: true; reason: string }
 
-function aiCourseToCourse(
+// Turns an AI proposal into a Course by resolving its declared source
+// (signature_id OR pantry_ids) against the real catalog and computing
+// exclusions from that. If the source doesn't resolve — signature_id missing
+// from signatures, or any pantry_id missing from pantry — the proposal is
+// unverifiable and gets rejected the same way an unsafe dish would.
+function verifyAndScore(
   proposed: AIProposedCourse,
   signatures: Signature[],
+  pantry: PantryItem[],
   intel: TableIntel
-): Course {
-  const checkable = toCheckableDish(proposed, signatures)
-  const excludes = scoreDish(checkable, intel)
-  const sourceId =
-    proposed.dish_origin === 'signature'
-      ? proposed.signature_id ?? null
-      : proposed.pantry_id ?? null
+): VerifiedCourse {
+  if (proposed.dish_origin === 'signature') {
+    const sig = proposed.signature_id
+      ? signatures.find(s => s.id === proposed.signature_id)
+      : undefined
+    if (!sig) {
+      return {
+        unverifiable: true,
+        reason: `signature_id "${proposed.signature_id ?? '<missing>'}" not in catalog`,
+      }
+    }
+    return {
+      unverifiable: false,
+      course: {
+        slot: proposed.slot,
+        slotLabel: SLOT_LABELS[proposed.slot],
+        dishName: proposed.dish_name,
+        origin: 'signature',
+        sourceId: sig.id,
+        excludes: scoreDish(sig, intel),
+        reasoning: proposed.reasoning,
+      },
+    }
+  }
+
+  // pantry-composed
+  const ids = proposed.pantry_ids ?? []
+  if (ids.length === 0) {
+    return { unverifiable: true, reason: 'composed dish with no pantry_ids' }
+  }
+  const resolved: PantryItem[] = []
+  const missing: string[] = []
+  for (const id of ids) {
+    const item = pantry.find(p => p.id === id)
+    if (item) resolved.push(item)
+    else missing.push(id)
+  }
+  if (missing.length > 0) {
+    return {
+      unverifiable: true,
+      reason: `pantry_ids not in catalog: ${missing.join(', ')}`,
+    }
+  }
   return {
-    slot: proposed.slot,
-    slotLabel: SLOT_LABELS[proposed.slot],
-    dishName: proposed.dish_name,
-    origin: proposed.dish_origin,
-    sourceId,
-    excludes,
-    reasoning: proposed.reasoning,
+    unverifiable: false,
+    course: {
+      slot: proposed.slot,
+      slotLabel: SLOT_LABELS[proposed.slot],
+      dishName: proposed.dish_name,
+      origin: 'pantry-composed',
+      // Composed dishes intentionally have no single canonical source; the
+      // menu-page display + deriveCourse both accept null source for
+      // pantry-composed origin.
+      sourceId: null,
+      excludes: scoreComposedDish(resolved, intel),
+      reasoning: proposed.reasoning,
+    },
   }
 }
 
@@ -197,6 +243,7 @@ export async function generateMenuWithAI(
   }
 
   if (!isAIProposedMenu(raw)) {
+    console.error('[menu-ai] AI response did not match expected shape, raw response:', JSON.stringify(raw))
     return {
       courses: draftMenu(intel, signatures, pantry),
       aiFailed: true,
@@ -206,31 +253,83 @@ export async function generateMenuWithAI(
 
   const bySlot = new Map<Slot, AIProposedCourse>()
   for (const c of raw.courses) {
-    if (SLOTS.includes(c.slot)) bySlot.set(c.slot, c)
+    if (!SLOTS.includes(c.slot)) continue
+    if (!c.dish_name || !c.dish_name.trim()) {
+      console.error(
+        `[menu-ai] AI proposed course for slot "${c.slot}" with an empty dish_name, ` +
+        'falling back to rule-based draft for this slot. Raw course:',
+        JSON.stringify(c)
+      )
+      continue
+    }
+    bySlot.set(c.slot, c)
   }
+
+  // Track dish names used across earlier slots so we can dedup across the
+  // whole 5-course menu — signature ids OR composed dish names — regardless
+  // of which path produced them. The rule-based fallback also honors this
+  // via its own `used` set below.
+  const usedNames = new Set<string>()
+  const usedSourceIds = new Set<string>()
 
   const courses: Course[] = SLOTS.map(slot => {
     const proposed = bySlot.get(slot)
-    if (!proposed) {
-      return draftCourse(slot, intel, signatures, pantry)
+
+    // Helper: fall back to rule-based, avoiding any dish already used in
+    // this menu. Returns the final Course (possibly `empty`).
+    const fallback = (reasonSuffix: string): Course => {
+      const safe = draftCourse(slot, intel, signatures, pantry, usedSourceIds)
+      const reasoning = proposed
+        ? `AI pick "${proposed.dish_name}" rejected: ${reasonSuffix}. Replaced with rule-based pick.`
+        : undefined
+      return reasoning ? { ...safe, reasoning } : safe
     }
 
-    const candidate = aiCourseToCourse(proposed, signatures, intel)
+    if (!proposed) {
+      const safe = draftCourse(slot, intel, signatures, pantry, usedSourceIds)
+      if (safe.sourceId) usedSourceIds.add(safe.sourceId)
+      if (safe.dishName) usedNames.add(safe.dishName.toLowerCase())
+      return safe
+    }
 
+    const verified = verifyAndScore(proposed, signatures, pantry, intel)
+    if (verified.unverifiable) {
+      const course = fallback(`unverifiable (${verified.reason})`)
+      if (course.sourceId) usedSourceIds.add(course.sourceId)
+      if (course.dishName) usedNames.add(course.dishName.toLowerCase())
+      return course
+    }
+
+    const candidate = verified.course
     const hardLimitGuests = new Set(intel.hardLimits.flatMap(h => h.guests))
     const violatesHardLimit = candidate.excludes.some(e => hardLimitGuests.has(e.guest))
 
     if (violatesHardLimit) {
-      const exclude = candidate.sourceId ? new Set([candidate.sourceId]) : undefined
-      const safe = draftCourse(slot, intel, signatures, pantry, exclude)
-      return {
-        ...safe,
-        reasoning: `AI pick "${candidate.dishName}" rejected: unsafe for ${
-          candidate.excludes.map(e => `${e.guest} (${e.reason})`).join(', ')
-        }. Replaced with rule-based pick.`,
-      }
+      const course = fallback(
+        `unsafe for ${candidate.excludes.map(e => `${e.guest} (${e.reason})`).join(', ')}`
+      )
+      if (course.sourceId) usedSourceIds.add(course.sourceId)
+      if (course.dishName) usedNames.add(course.dishName.toLowerCase())
+      return course
     }
 
+    // Dedup across the whole menu, regardless of source path (AI or rule).
+    // AI can repeat a signature id across slots OR reuse the same composed
+    // dish name; both collapse to "already used" and get replaced.
+    const nameKey = candidate.dishName.toLowerCase()
+    const alreadyUsed =
+      (candidate.sourceId && usedSourceIds.has(candidate.sourceId)) ||
+      usedNames.has(nameKey)
+
+    if (alreadyUsed) {
+      const course = fallback(`duplicate of an earlier slot ("${candidate.dishName}")`)
+      if (course.sourceId) usedSourceIds.add(course.sourceId)
+      if (course.dishName) usedNames.add(course.dishName.toLowerCase())
+      return course
+    }
+
+    if (candidate.sourceId) usedSourceIds.add(candidate.sourceId)
+    usedNames.add(nameKey)
     return candidate
   })
 

@@ -23,7 +23,7 @@ export type TableIntel = {
   guestCount: number
 }
 
-export const STRICT_DIET_LIST = ['Vegetarian', 'Vegan', 'Halal', 'Kosher'] as const
+export const STRICT_DIET_LIST = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher'] as const
 const STRICT_DIETS: Set<string> = new Set(STRICT_DIET_LIST)
 
 export function buildIntel(guests: TasteProfile[]): TableIntel {
