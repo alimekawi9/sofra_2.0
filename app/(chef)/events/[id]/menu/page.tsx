@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
-import { draftCourse, draftMenu, deriveCourse, portionGuidance, SLOT_LABELS } from '@/lib/menu'
+import { draftCourse, draftMenu, deriveCourse, inferSlot, portionGuidance, SLOT_LABELS } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
@@ -40,9 +40,20 @@ function buildMenuHtml(
           ? 'Signature'
           : c.origin === 'pantry-composed'
           ? 'Composed for this table'
+          : c.origin === 'fallback'
+          ? 'Chef’s adaptation'
           : ''
-      const alternativeHtml =
-        c.excludes.length > 0
+      const substitutionsHtml =
+        c.substitutions && c.substitutions.length > 0
+          ? `<div class="subs"><div class="subs-h">Plated on the side</div>${c.substitutions
+              .map(
+                (s) =>
+                  `<div class="sub"><span class="sub-g">${escHtml(s.guests.join(', '))}:</span> ${escHtml(s.dishName)}</div>`
+              )
+              .join('')}</div>`
+          : ''
+      const unmetHtml =
+        c.excludes.length > 0 && (!c.substitutions || c.substitutions.length === 0)
           ? `<div class="alt">Alternative required for: ${c.excludes
               .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
               .join(', ')}</div>`
@@ -57,7 +68,8 @@ function buildMenuHtml(
           <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
           ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
           ${portionHtml}
-          ${alternativeHtml}
+          ${substitutionsHtml}
+          ${unmetHtml}
         </div>`
     })
     .join('')
@@ -82,6 +94,10 @@ function buildMenuHtml(
       .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
       .portion{color:#8A6A4E;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-family:system-ui,sans-serif;}
       .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
+      .subs{margin-top:10px;padding-top:8px;border-top:1px dashed #C9A96E;font-family:system-ui,sans-serif;}
+      .subs-h{color:#8A6A4E;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+      .sub{color:#2A1A1C;font-size:12px;line-height:1.5;}
+      .sub-g{color:#5C1A1B;font-style:italic;}
       .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
       .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
       @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;border:none;max-width:none;}}
@@ -213,7 +229,20 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .eq('chef_id', stored)
           .eq('week_of', currentMonday()),
       ])
-      setSignatures(sigs ?? [])
+
+      // Backfill: the signatures table gained a `slot` column but the Kitchen
+      // UI never sets it, so every existing row is NULL. That made the rule-
+      // based draftCourse filter out every signature and return empty slots.
+      // Infer from tags/name and persist so future draws hit the fast path.
+      // Fire-and-forget — we already use the inferred slot in memory below.
+      const backfilled: Signature[] = (sigs ?? []).map((s: Signature) => {
+        if (s.slot) return s
+        const inferred = inferSlot(s.name, s.tags)
+        if (!inferred) return s
+        void supabase.from('signatures').update({ slot: inferred }).eq('id', s.id)
+        return { ...s, slot: inferred }
+      })
+      setSignatures(backfilled)
       setPantry(pantryItems ?? [])
 
       const { data: menu } = await supabase
@@ -230,7 +259,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .order('sort_order', { ascending: true })
         setCourses(rows ?? [])
       } else {
-        const drafted = draftMenu(builtIntel, sigs ?? [], pantryItems ?? [])
+        const drafted = draftMenu(builtIntel, backfilled, pantryItems ?? [])
         const { data: newMenu, error: menuErr } = await supabase
           .from('menus')
           .insert({ event_id: id })
@@ -597,7 +626,17 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               const persisted = courses[idx]
               if (!persisted) return null
               const isLocked = persisted.locked
-              const ok = derived.excludes.length === 0 && derived.origin !== 'empty'
+              // Every excluded guest has a substitute → still "serves the whole
+              // table" (main dish for most, alt for the rest).
+              const excludedGuestsWithSub = new Set(
+                (derived.substitutions ?? []).flatMap((s) => s.guests)
+              )
+              const allExcludedCovered = derived.excludes.every((e) =>
+                excludedGuestsWithSub.has(e.guest)
+              )
+              const ok =
+                derived.origin !== 'empty' &&
+                (derived.excludes.length === 0 || allExcludedCovered)
               return (
                 <div
                   key={persisted.id}
@@ -673,7 +712,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   >
                     {derived.origin === 'signature' && 'Chef’s signature'}
                     {derived.origin === 'pantry-composed' && 'Composed for this table'}
-                    {derived.origin === 'empty' && 'No safe dish available — add a signature or pantry items for this slot'}
+                    {derived.origin === 'fallback' && 'Chef’s adaptation (best available for this slot)'}
+                    {derived.origin === 'empty' && 'No signatures yet — add one in Kitchen'}
                   </div>
                   {derived.origin !== 'empty' && (
                     <div
@@ -710,11 +750,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                         color: ok ? C.sage : C.gold,
                       }}
                     >
-                      {ok
-                        ? '✓ Serves the whole table'
-                        : derived.origin === 'empty'
+                      {derived.origin === 'empty'
                         ? '— Draft a dish for this slot'
-                        : `Serves ${(intel?.guestCount ?? 0) - derived.excludes.length}/${intel?.guestCount ?? 0}`}
+                        : allExcludedCovered && derived.excludes.length > 0
+                        ? `✓ Table fit: safe for ${intel?.guestCount ?? 0}/${intel?.guestCount ?? 0} guests`
+                        : ok
+                        ? `✓ Table fit: safe for ${intel?.guestCount ?? 0}/${intel?.guestCount ?? 0} guests`
+                        : `Table fit: safe for ${(intel?.guestCount ?? 0) - derived.excludes.length}/${intel?.guestCount ?? 0} guests`}
                     </div>
                     {derived.excludes.length > 0 && (
                       <div
@@ -728,9 +770,58 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                       >
                         Excludes{' '}
                         {derived.excludes.map((e) => `${e.guest} (${e.reason})`).join(', ')}
-                        <span style={{ color: C.faint }}> · alt plated on the side</span>
                       </div>
                     )}
+                    {derived.substitutions && derived.substitutions.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          paddingTop: 8,
+                          borderTop: `1px dashed ${C.line}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: C.faint,
+                            fontSize: 11,
+                            letterSpacing: 1.2,
+                            textTransform: 'uppercase',
+                            fontFamily: 'system-ui, sans-serif',
+                            marginBottom: 4,
+                          }}
+                        >
+                          Plated on the side
+                        </div>
+                        {derived.substitutions.map((sub, si) => (
+                          <div
+                            key={si}
+                            style={{
+                              color: C.cream,
+                              fontSize: 12,
+                              marginBottom: 2,
+                              fontFamily: 'system-ui, sans-serif',
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            <span style={{ color: C.gold }}>{sub.guests.join(', ')}:</span>{' '}
+                            <span>{sub.dishName}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {derived.excludes.length > 0 &&
+                      (!derived.substitutions || derived.substitutions.length === 0) && (
+                        <div
+                          style={{
+                            color: C.rose,
+                            fontSize: 12,
+                            marginTop: 6,
+                            fontFamily: 'system-ui, sans-serif',
+                          }}
+                        >
+                          No substitute available — add a signature that avoids these constraints.
+                        </div>
+                      )}
                   </div>
 
                   {swapNoOptions === persisted.id && (

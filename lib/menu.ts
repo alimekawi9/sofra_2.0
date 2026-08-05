@@ -1,7 +1,9 @@
 import type { TableIntel } from './intel'
 
 export type Slot = 'start' | 'sea' | 'land' | 'green' | 'finish'
-export type CourseOrigin = 'signature' | 'pantry-composed' | 'empty'
+// 'fallback' — last-resort signature that still had exclusions but was picked
+// so the slot wouldn't render empty. Displays with a warning band.
+export type CourseOrigin = 'signature' | 'pantry-composed' | 'fallback' | 'empty'
 
 export type Signature = {
   id: string
@@ -18,9 +20,24 @@ export type PantryItem = {
   contains_allergens: string[]
 }
 
+// An exclusion the main dish can't avoid — either a true allergy (physical
+// danger, hard block) or a preference (dietary or taste — kept out of the
+// main dish but plated a substitute).
+export type ExclusionKind = 'allergy' | 'preference'
+
 export type Exclusion = {
   guest: string
   reason: string
+  kind: ExclusionKind
+}
+
+// One substitute plated on the side for a subset of the table. Same shape as
+// Course but scoped to a group of guests.
+export type Substitution = {
+  guests: string[]
+  dishName: string
+  origin: 'signature' | 'pantry-composed'
+  sourceId: string | null
 }
 
 export type Course = {
@@ -30,6 +47,11 @@ export type Course = {
   origin: CourseOrigin
   sourceId: string | null
   excludes: Exclusion[]
+  // Per-guest substitutes for guests in `excludes`. Guests grouped by shared
+  // substitute dish. Guests hit by an allergy still appear in `excludes` but
+  // may not receive a substitute if the pool has nothing safer for them —
+  // that's still visible to the chef as a "no substitute available" state.
+  substitutions?: Substitution[]
   // Populated only for AI-generated courses; explains why the model picked this dish.
   reasoning?: string
 }
@@ -104,8 +126,25 @@ export const SLOT_PORTIONS: Record<Slot, number> = {
   finish: 8,
 }
 
+// Deliberately says "feeds" rather than "serves" — this is a raw cooking
+// quantity (how much to prep), not a guest-safety count. Keeping the wording
+// disjoint from the table-fit safety label avoids the two being read as
+// answers to the same question.
 export function portionGuidance(slot: Slot): string {
-  return `Serves approximately ${SLOT_PORTIONS[slot]}`
+  return `Portion: feeds ~${SLOT_PORTIONS[slot]}`
+}
+
+// True allergies — physical-danger stakes. These hard-block a dish from being
+// picked at all (the guest cannot receive a plated substitute of the SAME
+// dish; the whole main is off-limits for the whole table if we can't route
+// around them, so they get an alternative). Everything not in this set (Pork
+// as religious preference, Cilantro/Mushrooms as taste, and all strict diets)
+// is a substitution case: majority-preferred dish is still selected for the
+// table, minority gets a labeled substitute.
+export const TRUE_ALLERGENS = new Set(['nuts', 'shellfish', 'dairy', 'eggs', 'gluten', 'soy'])
+
+function isTrueAllergy(label: string): boolean {
+  return TRUE_ALLERGENS.has(label.toLowerCase())
 }
 
 // A strict-diet hard limit's label ("Vegetarian" | "Vegan" | "No pork/alcohol"
@@ -124,6 +163,49 @@ const DIET_SATISFIED_BY: Record<string, Set<string>> = {
   vegan:               new Set(['vegan']),
   'no pork/alcohol':   new Set(['no pork/alcohol', 'vegan']),
   kosher:              new Set(['kosher', 'vegan']),
+  'gluten-free':       new Set(['gluten-free']),
+  'no dairy':          new Set(['no dairy', 'vegan']),
+  pescatarian:         new Set(['pescatarian', 'seafood', 'veg', 'vegan']),
+}
+
+// Infer a slot when the chef didn't set one (which is currently every
+// signature — the DB column exists but no UI writes it, so every row is NULL).
+// Tag-based mapping first (most reliable when the chef tagged 'meat',
+// 'seafood', 'dessert', 'veg'/'vegan'), then name-keyword match, else null.
+// Callers persist the inferred slot back to the DB on first read so it's
+// stable across generations. Returns null only when nothing plausible fits —
+// caller then treats the signature as slot-agnostic (last-resort tier).
+export function inferSlot(name: string, tags: string[]): Slot | null {
+  const tagset = new Set(tags.map(t => t.toLowerCase()))
+  if (tagset.has('dessert')) return 'finish'
+  if (tagset.has('seafood')) return 'sea'
+  if (tagset.has('meat')) return 'land'
+  // veg/vegan without any of the above → green main; refined below by name match
+  const isVeg = tagset.has('veg') || tagset.has('vegan') || tagset.has('vegetarian')
+
+  // Score against every slot's keyword list, pick the best.
+  const scores: Record<Slot, number> = { start: 0, sea: 0, land: 0, green: 0, finish: 0 }
+  const n = name.toLowerCase()
+  for (const slot of SLOTS) {
+    for (const k of SLOT_KEYWORDS[slot]) {
+      if (n.includes(k)) scores[slot] += 1
+    }
+  }
+  const best = SLOTS.reduce<{ slot: Slot; score: number } | null>(
+    (acc, s) => (!acc || scores[s] > acc.score ? { slot: s, score: scores[s] } : acc),
+    null
+  )
+  if (best && best.score > 0) return best.slot
+
+  if (isVeg) return 'green'
+  return null
+}
+
+// Return every signature with a resolved slot: the stored one if present,
+// otherwise the inferred one. Signatures where nothing can be inferred keep
+// null — they still enter the last-resort pool but never win a normal slot.
+export function withInferredSlots(signatures: Signature[]): Signature[] {
+  return signatures.map(s => (s.slot ? s : { ...s, slot: inferSlot(s.name, s.tags) }))
 }
 
 // Nicer phrasing than the generic `not ${tag}` for diet labels that don't
@@ -159,10 +241,11 @@ export function scoreDish(dish: Signature | PantryItem, intel: TableIntel): Excl
       h => h.type === 'allergy' && h.label.toLowerCase() === allergen.toLowerCase()
     )
     if (!limit) continue
+    const kind: ExclusionKind = isTrueAllergy(allergen) ? 'allergy' : 'preference'
     for (const guestName of limit.guests) {
       if (seen.has(guestName)) continue
       seen.add(guestName)
-      result.push({ guest: guestName, reason: `contains ${allergen.toLowerCase()}` })
+      result.push({ guest: guestName, reason: `contains ${allergen.toLowerCase()}`, kind })
     }
   }
 
@@ -175,21 +258,24 @@ export function scoreDish(dish: Signature | PantryItem, intel: TableIntel): Excl
       const nameLC  = dish.name.toLowerCase()
       const labelLC = limit.label.toLowerCase()
       if (!nameLC.includes(labelLC)) continue
+      const kind: ExclusionKind = isTrueAllergy(limit.label) ? 'allergy' : 'preference'
       for (const guestName of limit.guests) {
         if (seen.has(guestName)) continue
         seen.add(guestName)
-        result.push({ guest: guestName, reason: `may contain ${labelLC}` })
+        result.push({ guest: guestName, reason: `may contain ${labelLC}`, kind })
       }
     }
   }
 
+  // Strict diets are always preferences, not allergies — they're a labeled-
+  // substitute case, never a hard block.
   for (const limit of intel.hardLimits.filter(h => h.type === 'diet')) {
     const tag = limit.label.toLowerCase()
     if (dishSatisfiesDiet(dish.tags, tag)) continue
     for (const guestName of limit.guests) {
       if (seen.has(guestName)) continue
       seen.add(guestName)
-      result.push({ guest: guestName, reason: dietViolationReason(limit.label) })
+      result.push({ guest: guestName, reason: dietViolationReason(limit.label), kind: 'preference' })
     }
   }
 
@@ -225,6 +311,72 @@ type Candidate = {
   sourceId: string
   dishName: string
   exclusions: Exclusion[]
+  // Split so we can prefer dishes that avoid true allergies more strongly
+  // than dishes that merely dodge preferences (which have substitutes).
+  allergyExcludes: number
+  preferenceExcludes: number
+  // How well the dish matches soft table signals (dominant dietMix,
+  // adventurousness). Higher = better.
+  tableFit: number
+  // For tie-breaking / last-resort ranking.
+  slotAffinity: number
+}
+
+function countByKind(exclusions: Exclusion[], kind: ExclusionKind): number {
+  return exclusions.filter(e => e.kind === kind).length
+}
+
+// Table-fit heuristic: rewards dishes whose tags satisfy soft dietary
+// signals (Pescatarian, Halal, No dairy expressed informationally, etc.)
+// that DIDN'T rise to a strict/substitute limit. Also nudges by
+// adventurousness proxy — adventurous tables get a small bonus for less
+// mainstream flavor tags. Rough by design: real preference-fit tuning
+// happens in the AI path via the prompt.
+function tagsSatisfyLabel(dishTags: string[], label: string): boolean {
+  const t = new Set(dishTags.map(x => x.toLowerCase()))
+  const l = label.toLowerCase()
+  switch (l) {
+    case 'pescatarian':  return t.has('seafood') || t.has('veg') || t.has('vegan') || t.has('pescatarian')
+    case 'halal':        return t.has('no pork/alcohol') || t.has('vegan') || t.has('veg') || t.has('halal')
+    case 'gluten-free':  return t.has('gluten-free')
+    case 'no dairy':     return t.has('no dairy') || t.has('vegan')
+    default:             return t.has(l)
+  }
+}
+
+function tableFitScore(dish: Signature | PantryItem, intel: TableIntel): number {
+  // With no guests, we have nothing to fit to — every candidate scores 0
+  // so the sort falls through to slotAffinity + alphabetical. This is what
+  // the tiebreak tests exercise.
+  if (intel.guestCount === 0) return 0
+
+  let score = 0
+  // Soft dietary preferences — a bonus each time a guest's soft signal is
+  // satisfied. Uses raw counts (a dominant Pescatarian mix matters more).
+  for (const { label, count } of intel.dietMix) {
+    if (tagsSatisfyLabel(dish.tags, label)) score += count
+  }
+  // Adventurousness proxy: adventurous tables (>=60) get a small nudge for
+  // signature dishes tagged 'seafood' or with less-mainstream keywords
+  // (fermented/spiced/offal by name substring). Cautious tables (<40) get
+  // the reverse nudge for comfort-food name keywords.
+  const name = dish.name.toLowerCase()
+  const bold = /truffle|uni|urchin|offal|foie|liver|marrow|tartare|crudo|ceviche|kimchi|miso|harissa|labneh|freekeh/
+  const comfort = /pasta|bread|soup|potato|rice|risotto|pizza|cheese|butter/
+  if (intel.avgAdventurousness >= 60 && bold.test(name)) score += 1
+  if (intel.avgAdventurousness < 40 && comfort.test(name)) score += 1
+  return score
+}
+
+// Higher = better match. 3 for stored slot match, 2 for tag-inferred slot
+// match, 1 for name-keyword match, 0 otherwise. Used as tiebreaker inside a
+// slot AND as the primary ranking for last-resort widening.
+function slotAffinity(sig: Signature, slot: Slot): number {
+  if (sig.slot === slot) return 3
+  const inferred = inferSlot(sig.name, sig.tags)
+  if (inferred === slot) return 2
+  if (nameMatchesSlot(sig.name, slot)) return 1
+  return 0
 }
 
 // Rule-based drafting can only offer chef-curated signatures as named dishes:
@@ -235,6 +387,14 @@ type Candidate = {
 // dish, so pantry items are not eligible candidates here — an honest empty
 // slot is preferable to a fabricated name. Pantry-composed dishes still reach
 // the menu, just only via the AI path, which supplies a real dish_name.
+//
+// This function guarantees NEVER returning `origin: 'empty'` while any
+// signature exists outside the `exclude` set. Three tiers:
+//   1. Stored/inferred slot match with zero preference exclusions
+//   2. Stored/inferred slot match with fewest preference exclusions
+//   3. Last-resort — any signature not in exclude, ranked by slot affinity
+//      first (so a "sea" slot still gets fish-y signatures), then by fewest
+//      exclusions. Marked with origin 'fallback' so the UI can flag it.
 export function draftCourse(
   slot: Slot,
   intel: TableIntel,
@@ -244,41 +404,143 @@ export function draftCourse(
 ): Course {
   const slotLabel = SLOT_LABELS[slot]
 
-  const candidates: Candidate[] = signatures
-    .filter(s => s.slot === slot)
-    .map(s => ({
-      sourceId: s.id,
-      dishName: s.name,
-      exclusions: scoreDish(s, intel),
-    }))
+  const withSlots = withInferredSlots(signatures)
+  const availableSigs = exclude ? withSlots.filter(s => !exclude.has(s.id)) : withSlots
 
-  const eligible = exclude
-    ? candidates.filter(c => !exclude.has(c.sourceId))
-    : candidates
-
-  if (eligible.length === 0) {
+  if (availableSigs.length === 0) {
     return { slot, slotLabel, dishName: '', origin: 'empty', sourceId: null, excludes: [] }
   }
 
-  const minExclusions = Math.min(...eligible.map(c => c.exclusions.length))
-  const pool = minExclusions === 0
-    ? eligible.filter(c => c.exclusions.length === 0)
-    : eligible
-
-  pool.sort((a, b) => {
-    if (a.exclusions.length !== b.exclusions.length) return a.exclusions.length - b.exclusions.length
-    return a.dishName.localeCompare(b.dishName)
-  })
-
-  const winner = pool[0]
-  return {
-    slot,
-    slotLabel,
-    dishName: winner.dishName,
-    origin: 'signature',
-    sourceId: winner.sourceId,
-    excludes: winner.exclusions,
+  const toCandidate = (s: Signature): Candidate => {
+    const exclusions = scoreDish(s, intel)
+    return {
+      sourceId: s.id,
+      dishName: s.name,
+      exclusions,
+      allergyExcludes: countByKind(exclusions, 'allergy'),
+      preferenceExcludes: countByKind(exclusions, 'preference'),
+      tableFit: tableFitScore(s, intel),
+      slotAffinity: slotAffinity(s, slot),
+    }
   }
+
+  const inSlot = availableSigs
+    .filter(s => s.slot === slot)
+    .map(toCandidate)
+
+  const pickBestFromPool = (pool: Candidate[], origin: 'signature' | 'fallback'): Course => {
+    pool.sort((a, b) => {
+      // Allergies first (physical danger — even the substitute may share the
+      // allergen), then table-fit (best match for the whole table's soft
+      // preferences), then preferences (substitutes handle these cleanly),
+      // then slot affinity, then alphabetical for stable output.
+      if (a.allergyExcludes !== b.allergyExcludes) return a.allergyExcludes - b.allergyExcludes
+      if (a.tableFit !== b.tableFit) return b.tableFit - a.tableFit
+      if (a.preferenceExcludes !== b.preferenceExcludes) return a.preferenceExcludes - b.preferenceExcludes
+      if (a.slotAffinity !== b.slotAffinity) return b.slotAffinity - a.slotAffinity
+      return a.dishName.localeCompare(b.dishName)
+    })
+    const winner = pool[0]
+    return {
+      slot,
+      slotLabel,
+      dishName: winner.dishName,
+      origin,
+      sourceId: winner.sourceId,
+      excludes: winner.exclusions,
+    }
+  }
+
+  if (inSlot.length > 0) return pickBestFromPool(inSlot, 'signature')
+
+  // Tier 3 — last-resort: no signature is slotted here (stored or inferred),
+  // but we promised the menu is never empty while any signature exists.
+  // Widen to every available signature, rank by slot affinity so the pick
+  // still feels plausible for the slot (a name-keyword-only match beats a
+  // random alphabetical winner), and mark origin='fallback' so the chef
+  // sees this was a stretch.
+  const fallbackPool = availableSigs
+    .map(toCandidate)
+    .filter(c => c.slotAffinity > 0)
+
+  const finalPool = fallbackPool.length > 0
+    ? fallbackPool
+    : availableSigs.map(toCandidate)
+
+  return pickBestFromPool(finalPool, 'fallback')
+}
+
+// For each guest excluded from the main course, find the best available
+// substitute signature — a dish that doesn't exclude them (same reason). The
+// pool is: signatures NOT already used by this menu OR the main dish itself,
+// preferring same-slot > any-slot with matching slot affinity. Guests
+// excluded for the same reason (e.g. three vegetarians) share one substitute.
+//
+// Note: an allergy exclusion (nuts, shellfish, etc.) is not a "the majority
+// still eats the dish" case — the substitution shows up as an alt too, since
+// nut-allergic Sam still needs something plated. Only the semantic label
+// differs (in the UI, allergy gets red framing; preference gets amber).
+export function assignSubstitutions(
+  main: Course,
+  intel: TableIntel,
+  signatures: Signature[],
+  usedInMenu: Set<string>
+): Substitution[] {
+  if (main.excludes.length === 0) return []
+
+  // Group excluded guests by their exclusion reason so we only pick one
+  // substitute per shared constraint.
+  const byReason = new Map<string, string[]>()
+  for (const e of main.excludes) {
+    const existing = byReason.get(e.reason) ?? []
+    existing.push(e.guest)
+    byReason.set(e.reason, existing)
+  }
+
+  const withSlots = withInferredSlots(signatures)
+  const busyIds = new Set<string>(usedInMenu)
+  if (main.sourceId) busyIds.add(main.sourceId)
+
+  const subs: Substitution[] = []
+  const reasonGroups = Array.from(byReason.values())
+  for (const guests of reasonGroups) {
+    // A dish is a valid substitute for THIS group iff it does not exclude
+    // any guest in the group. Pick the best one by slot affinity + fewest
+    // total exclusions for the whole table (so we don't rescue one group at
+    // the cost of many other guests).
+    const pool = withSlots
+      .filter(s => !busyIds.has(s.id))
+      .map(s => {
+        const exclusions = scoreDish(s, intel)
+        const excludesAnyOfGroup = exclusions.some(e => guests.includes(e.guest))
+        return {
+          sig: s,
+          exclusions,
+          excludesAnyOfGroup,
+          affinity: slotAffinity(s, main.slot),
+        }
+      })
+      .filter(x => !x.excludesAnyOfGroup)
+
+    if (pool.length === 0) continue
+
+    pool.sort((a, b) => {
+      if (a.affinity !== b.affinity) return b.affinity - a.affinity
+      if (a.exclusions.length !== b.exclusions.length) return a.exclusions.length - b.exclusions.length
+      return a.sig.name.localeCompare(b.sig.name)
+    })
+
+    const winner = pool[0].sig
+    busyIds.add(winner.id) // don't reuse the same substitute for two groups
+    subs.push({
+      guests,
+      dishName: winner.name,
+      origin: 'signature',
+      sourceId: winner.id,
+    })
+  }
+
+  return subs
 }
 
 export function draftMenu(
@@ -291,10 +553,14 @@ export function draftMenu(
   // slot's keywords) resolve identically per slot and the same dish gets
   // picked for multiple courses.
   const used = new Set<string>()
+  const withSlots = withInferredSlots(signatures)
   return SLOTS.map(slot => {
-    const course = draftCourse(slot, intel, signatures, pantry, used)
+    const course = draftCourse(slot, intel, withSlots, pantry, used)
     if (course.sourceId) used.add(course.sourceId)
-    return course
+    const substitutions = assignSubstitutions(course, intel, withSlots, used)
+    // Reserve substitute dish ids so later slots don't reuse them as mains.
+    for (const s of substitutions) if (s.sourceId) used.add(s.sourceId)
+    return substitutions.length > 0 ? { ...course, substitutions } : course
   })
 }
 
@@ -331,26 +597,45 @@ export function deriveCourse(
     }
   }
 
+  // 'fallback' persists as 'signature' since the DB check constraint predates
+  // this variant. It's a display-only distinction re-derived here when the
+  // stored source can't cover the slot in a preferred tier — but for now,
+  // treat any signature/fallback origin as looking up in signatures.
+  const isSignatureLike =
+    persisted.dish_origin === 'signature' || persisted.dish_origin === 'fallback'
+
   let sourceDish: Signature | PantryItem | undefined
-  if (persisted.dish_origin === 'signature') {
+  if (isSignatureLike) {
     sourceDish = signatures.find(s => s.id === persisted.source)
   } else if (persisted.dish_origin === 'pantry-composed') {
     sourceDish = pantry.find(p => p.id === persisted.source)
   }
 
   const sourceDeleted =
-    (persisted.dish_origin === 'signature' || persisted.dish_origin === 'pantry-composed')
+    (isSignatureLike || persisted.dish_origin === 'pantry-composed')
     && !!persisted.source
     && !sourceDish
 
-  return {
+  const excludes = sourceDish ? scoreDish(sourceDish, intel) : []
+
+  const course: Course = {
     slot,
     slotLabel,
     dishName: sourceDeleted ? '— source deleted, swap or lock —' : persisted.dish_name,
     origin: sourceDeleted ? 'empty' : ((persisted.dish_origin as CourseOrigin) ?? 'empty'),
     sourceId: persisted.source,
-    excludes: sourceDish ? scoreDish(sourceDish, intel) : [],
+    excludes,
   }
+
+  if (course.origin === 'empty' || excludes.length === 0) return course
+
+  const substitutions = assignSubstitutions(
+    course,
+    intel,
+    signatures,
+    new Set(course.sourceId ? [course.sourceId] : [])
+  )
+  return substitutions.length > 0 ? { ...course, substitutions } : course
 }
 
 // AI-assisted menu generation lives in `./menu-ai` (server-only) so this file

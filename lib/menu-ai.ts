@@ -3,6 +3,7 @@ import type { TableIntel } from './intel'
 import {
   SLOTS,
   SLOT_LABELS,
+  assignSubstitutions,
   draftCourse,
   draftMenu,
   scoreDish,
@@ -272,6 +273,16 @@ export async function generateMenuWithAI(
   const usedNames = new Set<string>()
   const usedSourceIds = new Set<string>()
 
+  // Attach per-guest substitutions and update the used-id set to include
+  // substitute dish ids (so later slots don't reuse a signature already
+  // plated as an alt on an earlier course).
+  const attachSubs = (course: Course): Course => {
+    if (course.origin === 'empty' || course.excludes.length === 0) return course
+    const subs = assignSubstitutions(course, intel, signatures, usedSourceIds)
+    for (const s of subs) if (s.sourceId) usedSourceIds.add(s.sourceId)
+    return subs.length > 0 ? { ...course, substitutions: subs } : course
+  }
+
   const courses: Course[] = SLOTS.map(slot => {
     const proposed = bySlot.get(slot)
 
@@ -289,7 +300,7 @@ export async function generateMenuWithAI(
       const safe = draftCourse(slot, intel, signatures, pantry, usedSourceIds)
       if (safe.sourceId) usedSourceIds.add(safe.sourceId)
       if (safe.dishName) usedNames.add(safe.dishName.toLowerCase())
-      return safe
+      return attachSubs(safe)
     }
 
     const verified = verifyAndScore(proposed, signatures, pantry, intel)
@@ -297,20 +308,24 @@ export async function generateMenuWithAI(
       const course = fallback(`unverifiable (${verified.reason})`)
       if (course.sourceId) usedSourceIds.add(course.sourceId)
       if (course.dishName) usedNames.add(course.dishName.toLowerCase())
-      return course
+      return attachSubs(course)
     }
 
     const candidate = verified.course
-    const hardLimitGuests = new Set(intel.hardLimits.flatMap(h => h.guests))
-    const violatesHardLimit = candidate.excludes.some(e => hardLimitGuests.has(e.guest))
+    // Only true allergies (kind='allergy' — nuts, shellfish, dairy, eggs,
+    // gluten, soy — physical-danger stakes) hard-block the AI's proposal.
+    // Preferences (strict diets, taste-based avoids like Pork/Cilantro/
+    // Mushrooms) are handled downstream by per-guest substitutions, so they
+    // are not a rejection reason — the dish still gets picked for the table.
+    const allergyExcludes = candidate.excludes.filter(e => e.kind === 'allergy')
 
-    if (violatesHardLimit) {
+    if (allergyExcludes.length > 0) {
       const course = fallback(
-        `unsafe for ${candidate.excludes.map(e => `${e.guest} (${e.reason})`).join(', ')}`
+        `unsafe (allergy) for ${allergyExcludes.map(e => `${e.guest} (${e.reason})`).join(', ')}`
       )
       if (course.sourceId) usedSourceIds.add(course.sourceId)
       if (course.dishName) usedNames.add(course.dishName.toLowerCase())
-      return course
+      return attachSubs(course)
     }
 
     // Dedup across the whole menu, regardless of source path (AI or rule).
@@ -325,12 +340,12 @@ export async function generateMenuWithAI(
       const course = fallback(`duplicate of an earlier slot ("${candidate.dishName}")`)
       if (course.sourceId) usedSourceIds.add(course.sourceId)
       if (course.dishName) usedNames.add(course.dishName.toLowerCase())
-      return course
+      return attachSubs(course)
     }
 
     if (candidate.sourceId) usedSourceIds.add(candidate.sourceId)
     usedNames.add(nameKey)
-    return candidate
+    return attachSubs(candidate)
   })
 
   return { courses, aiFailed: false }

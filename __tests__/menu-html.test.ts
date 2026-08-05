@@ -141,8 +141,8 @@ describe('buildMenuHtml', () => {
   test('includes alternative note when course has exclusions', () => {
     const c = course({
       excludes: [
-        { guest: 'Ali', reason: 'contains nuts' },
-        { guest: 'Sara', reason: 'not vegetarian' },
+        { guest: 'Ali', reason: 'contains nuts', kind: 'allergy' },
+        { guest: 'Sara', reason: 'not vegetarian', kind: 'preference' },
       ],
     })
     const html = buildMenuHtml([c], 8, EVENT)
@@ -162,8 +162,8 @@ describe('buildMenuHtml', () => {
       course({ slot: 'finish', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
     ]
     const html = buildMenuHtml(courses, 6, EVENT)
-    expect(html).toContain('Serves approximately 6') // start slot yield
-    expect(html).toContain('Serves approximately 8') // finish slot yield
+    expect(html).toContain('Portion: feeds ~6') // start slot yield
+    expect(html).toContain('Portion: feeds ~8') // finish slot yield
   })
 
   test('omits portion guidance for empty courses', () => {
@@ -172,7 +172,7 @@ describe('buildMenuHtml', () => {
       6,
       EVENT
     )
-    expect(html).not.toContain('Serves approximately')
+    expect(html).not.toContain('Portion: feeds')
   })
 
   test('includes cream background and gold border in styles', () => {
@@ -207,7 +207,7 @@ describe('buildMenuHtml', () => {
   })
 
   test('HTML-escapes exclusion guest name and reason', () => {
-    const c = course({ excludes: [{ guest: 'A<B', reason: 'x>y' }] })
+    const c = course({ excludes: [{ guest: 'A<B', reason: 'x>y', kind: 'allergy' }] })
     const html = buildMenuHtml([c], 4, EVENT)
     expect(html).not.toContain('A<B')
     expect(html).toContain('A&lt;B')

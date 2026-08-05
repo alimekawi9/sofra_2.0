@@ -1,7 +1,7 @@
 import { buildIntel } from '@/lib/intel'
 import {
   scoreDish, scoreComposedDish, draftCourse, draftMenu, deriveCourse,
-  nameMatchesSlot, portionGuidance, SLOT_LABELS, SLOTS,
+  assignSubstitutions, inferSlot, nameMatchesSlot, portionGuidance, SLOT_LABELS, SLOTS,
 } from '@/lib/menu'
 import type { Signature, PantryItem, Course, PersistedCourseLike } from '@/lib/menu'
 
@@ -45,13 +45,13 @@ describe('scoreDish — signature', () => {
   test('excludes guest when dish contains their allergen (case-insensitive)', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
     const dish = sig({ id: '1', name: 'Walnut Cake', slot: 'finish', contains_allergens: ['Nuts'] })
-    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts' }])
+    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
   test('excludes guest whose strict diet is not in dish tags', () => {
     const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 }])
     const dish = sig({ id: '2', name: 'Beef Tartare', slot: 'land' })
-    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Sara', reason: 'not vegetarian' }])
+    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Sara', reason: 'not vegetarian', kind: 'preference' }])
   })
 
   test('does not exclude guest when dish carries their required diet tag', () => {
@@ -94,7 +94,7 @@ describe('scoreDish — signature', () => {
   test('"veg" tag alone does NOT satisfy No pork/alcohol (may contain alcohol)', () => {
     const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 }])
     const dish = sig({ id: '8', name: 'Coq au Something', slot: 'land', tags: ['veg'] })
-    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Tarek', reason: 'contains pork or alcohol' }])
+    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Tarek', reason: 'contains pork or alcohol', kind: 'preference' }])
   })
 
   // A dish can be genuinely safe (no pork, no alcohol) without being vegan —
@@ -110,7 +110,7 @@ describe('scoreDish — signature', () => {
   test('"veg" tag alone does NOT satisfy Vegan', () => {
     const intel = buildIntel([{ name: 'Vera', dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 }])
     const dish = sig({ id: '9', name: 'Panna Cotta', slot: 'finish', tags: ['veg'] })
-    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Vera', reason: 'not vegan' }])
+    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Vera', reason: 'not vegan', kind: 'preference' }])
   })
 
   test('reproduces the demo table bug: Baba Ganoush is safe for the whole vegetarian/no-pork-alcohol table', () => {
@@ -134,8 +134,9 @@ describe('scoreDish — signature', () => {
   })
 })
 
-// The demo table (scripts/seed-demo-event.mjs) shows "Serves 5/9" for every
-// Main — Land course because every land signature is a meat dish, so the
+// The demo table (scripts/seed-demo-event.mjs) shows "Table fit: safe for
+// 5/9 guests" for every Main — Land course because every land signature is
+// a meat dish, so the
 // same 4 diet-restricted guests (3 vegetarian + 1 no-pork/alcohol) are excluded from
 // all of them — a real property of that signature catalog, not a bug. These
 // tests confirm the exclusion count genuinely tracks the allergen a dish
@@ -165,7 +166,7 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
     const lambKofta = sig({ id: 'land-1', name: 'Lamb Kofta', slot: 'land', tags: ['meat'] })
     const excludes = scoreDish(lambKofta, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Mona', 'Nadia', 'Priya', 'Tarek'])
-    expect(excludes).toHaveLength(4) // Serves 5/9
+    expect(excludes).toHaveLength(4) // Table fit: safe for 5/9 guests
   })
 
   test('Main — Sea dish with shellfish: excludes the same diet guests PLUS the shellfish-allergic guest', () => {
@@ -174,7 +175,7 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
     })
     const excludes = scoreDish(sushiPlatter, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Mona', 'Nadia', 'Priya', 'Tarek', 'Yara'])
-    expect(excludes).toHaveLength(5) // Serves 4/9 — differs from the land dish's 5/9
+    expect(excludes).toHaveLength(5) // Table fit: safe for 4/9 guests — differs from the land dish's 5/9
   })
 
   test('nuts-containing dish excludes a different guest set (nut-avoiders, not vegetarians)', () => {
@@ -183,7 +184,7 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
     })
     const excludes = scoreDish(muhammara, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Dana', 'Nadia', 'Sam'])
-    expect(excludes).toHaveLength(3) // Serves 6/9 — differs from both the land and sea counts
+    expect(excludes).toHaveLength(3) // Table fit: safe for 6/9 guests — differs from both the land and sea counts
   })
 })
 
@@ -191,7 +192,7 @@ describe('scoreDish — pantry item', () => {
   test('excludes guest when avoid label is a substring of item name (case-insensitive)', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
     const item = pantryItem('p1', 'Mixed Nuts Brittle')
-    expect(scoreDish(item, intel)).toEqual([{ guest: 'Ali', reason: 'may contain nuts' }])
+    expect(scoreDish(item, intel)).toEqual([{ guest: 'Ali', reason: 'may contain nuts', kind: 'allergy' }])
   })
 
   test('does not flag when avoid label is not in item name', () => {
@@ -207,7 +208,7 @@ describe('scoreDish — pantry item', () => {
   test('untagged pantry item fails closed on strict diet with signature-parity reason', () => {
     const intel = buildIntel([{ name: 'Sara', dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 }])
     const item = pantryItem('p3', 'Seasonal Vegetable')
-    expect(scoreDish(item, intel)).toEqual([{ guest: 'Sara', reason: 'not vegan' }])
+    expect(scoreDish(item, intel)).toEqual([{ guest: 'Sara', reason: 'not vegan', kind: 'preference' }])
   })
 
   test('tagged pantry item satisfies a matching strict diet (dishSatisfiesDiet)', () => {
@@ -225,7 +226,7 @@ describe('scoreDish — pantry item', () => {
   test('declared contains_allergens excludes allergic guest (parity with signatures)', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
     const item = pantryItem('p6', 'Pistachio Cream', { contains_allergens: ['Nuts'] })
-    expect(scoreDish(item, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts' }])
+    expect(scoreDish(item, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
   test('declared allergen and name-substring dedup to a single exclusion per guest', () => {
@@ -234,7 +235,7 @@ describe('scoreDish — pantry item', () => {
     const item = pantryItem('p7', 'Mixed Nuts', { contains_allergens: ['Nuts'] })
     const excludes = scoreDish(item, intel)
     expect(excludes).toHaveLength(1)
-    expect(excludes[0]).toEqual({ guest: 'Ali', reason: 'contains nuts' })
+    expect(excludes[0]).toEqual({ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' })
   })
 })
 
@@ -262,7 +263,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
     ])
     // Lamb: violates vegetarian, but tagged safe for no-pork/alcohol.
     const items = [pantryItem('p1', 'Lamb', { tags: ['meat', 'no pork/alcohol'] })]
-    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian' }])
+    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }])
   })
 
   test('flags guest when any component declares an allergen they avoid (case-insensitive)', () => {
@@ -271,7 +272,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
       pantryItem('p1', 'Rice', { tags: ['vegan'] }),
       pantryItem('p2', 'Pistachio Cream', { tags: ['vegan'], contains_allergens: ['nuts'] }),
     ]
-    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts' }])
+    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
   test('untagged component fails closed on strict diet (no free pass just for being pantry-composed)', () => {
@@ -279,7 +280,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
     ])
     const items = [pantryItem('p1', 'Seasonal Vegetable')]
-    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian' }])
+    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }])
   })
 
   test('deduplicates a guest hit by multiple components — one exclusion per guest', () => {
@@ -290,7 +291,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
     ]
     const excludes = scoreComposedDish(items, intel)
     expect(excludes).toHaveLength(1)
-    expect(excludes[0]).toEqual({ guest: 'Ali', reason: 'contains nuts' })
+    expect(excludes[0]).toEqual({ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' })
   })
 
   test('empty component list is treated as safe (no ingredients = no violations)', () => {
@@ -302,12 +303,14 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
 })
 
 describe('portionGuidance', () => {
-  // Static per-slot batch-size hint. The chef reads "Serves approximately N"
-  // as a recipe yield and scales up for the full table themselves — no
-  // dependency on guest count so the number is stable across events.
-  test('every slot returns a "Serves approximately N" string', () => {
+  // Static per-slot batch-size hint. The chef reads "Portion: feeds ~N" as a
+  // recipe yield and scales up for the full table themselves — no dependency
+  // on guest count so the number is stable across events. Phrased with
+  // "feeds" (not "serves") so it can't be misread as the table-fit safety
+  // count shown elsewhere on the same course card.
+  test('every slot returns a "Portion: feeds ~N" string', () => {
     for (const slot of SLOTS) {
-      expect(portionGuidance(slot)).toMatch(/^Serves approximately \d+$/)
+      expect(portionGuidance(slot)).toMatch(/^Portion: feeds ~\d+$/)
     }
   })
 
@@ -489,5 +492,154 @@ describe('draftMenu', () => {
     const pantry = [pantryItem('p1', 'Zaatar'), pantryItem('p2', 'Aleppo Pepper')]
     const courses = draftMenu(noGuests, [], pantry)
     expect(courses.every(c => c.origin === 'empty' && c.dishName === '')).toBe(true)
+  })
+})
+
+// The bug the user hit in production: every signature in the database has
+// slot=NULL because the Kitchen UI never wrote it. The rule-based
+// draftCourse filter `s.slot === slot` then rejected all 15 signatures,
+// leaving every course origin='empty'. These tests lock in the two safety
+// nets: (1) inferSlot fills the void from tags/name, and (2) draftCourse's
+// last-resort fallback tier never returns empty while any signature exists.
+describe('inferSlot — auto-assign when chef never set a slot', () => {
+  test('meat tag maps to land', () => {
+    expect(inferSlot('Lamb Kofta', ['meat'])).toBe('land')
+  })
+  test('seafood tag maps to sea', () => {
+    expect(inferSlot('Grilled Fish', ['seafood'])).toBe('sea')
+  })
+  test('dessert tag maps to finish', () => {
+    expect(inferSlot('Panna Cotta', ['dessert'])).toBe('finish')
+  })
+  test('vegan tag with no other signal maps to green', () => {
+    expect(inferSlot('Chickpea Bowl', ['vegan'])).toBe('green')
+  })
+  test('name keywords beat tag defaults (soup → start)', () => {
+    expect(inferSlot('Butternut Soup', ['veg'])).toBe('start')
+  })
+  test('unknown tags + generic name → null (last-resort tier)', () => {
+    expect(inferSlot('Mystery Plate', [])).toBeNull()
+  })
+})
+
+describe('draftCourse never returns empty when signatures exist (the real bug)', () => {
+  test('slot=null signatures still enter the pool via inferSlot', () => {
+    // Simulates the DB state: chef added Baba Ganoush + Lamb Kofta from the
+    // preset picker, both stored with slot=null. Neither slot was reachable
+    // under the old `s.slot === slot` filter — start and land both went
+    // empty. With inferSlot, tag 'veg'/'vegan' → green (no name hit here),
+    // but 'Baba Ganoush' name matches start's 'baba' keyword, so it lands
+    // in start correctly.
+    const sigs: Signature[] = [
+      { id: '1', name: 'Baba Ganoush', tags: ['veg', 'vegan'], contains_allergens: [], slot: null },
+      { id: '2', name: 'Lamb Kofta',   tags: ['meat'],         contains_allergens: [], slot: null },
+    ]
+    const startCourse = draftCourse('start', noGuests, sigs, [])
+    const landCourse  = draftCourse('land',  noGuests, sigs, [])
+    expect(startCourse.origin).not.toBe('empty')
+    expect(startCourse.dishName).toBe('Baba Ganoush')
+    expect(landCourse.origin).not.toBe('empty')
+    expect(landCourse.dishName).toBe('Lamb Kofta')
+  })
+
+  test('last-resort tier picks the best available signature when nothing slots to this course', () => {
+    // Only signatures are for land + finish. The `sea` slot has zero
+    // in-slot candidates → last-resort widens the pool. Marked 'fallback'.
+    const sigs = [
+      sig({ id: 'l1', name: 'Lamb Chops',  slot: 'land',   tags: ['meat'] }),
+      sig({ id: 'f1', name: 'Panna Cotta', slot: 'finish', tags: ['dessert'] }),
+    ]
+    const seaCourse = draftCourse('sea', noGuests, sigs, [])
+    expect(seaCourse.origin).toBe('fallback')
+    expect(seaCourse.dishName).not.toBe('')
+  })
+
+  test('genuinely empty signature list still returns empty (only truly-empty state)', () => {
+    const c = draftCourse('sea', noGuests, [], [])
+    expect(c.origin).toBe('empty')
+  })
+})
+
+describe('per-guest substitutions — strict-diet preferences become side plates', () => {
+  test('vegetarian excluded from a meat main receives a labeled substitute from the veg pool', () => {
+    // Table: 2 vegetarians who cannot eat lamb. Under the substitution
+    // model, the main course still lands on the majority-preferred dish
+    // that would otherwise best-fit the table (e.g. locked by the chef,
+    // picked by the AI, or the only slotted candidate) — and the excluded
+    // guests receive a labeled alt on the side.
+    const intel = buildIntel([
+      { name: 'Omar', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Priya', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+    ])
+    const sigs = [
+      sig({ id: 'l1', name: 'Lamb Kofta',  slot: 'land',  tags: ['meat'] }),
+      sig({ id: 'g1', name: 'Ratatouille', slot: 'green', tags: ['veg', 'vegan'] }),
+    ]
+    const lamb: Course = {
+      slot: 'land',
+      slotLabel: SLOT_LABELS.land,
+      dishName: 'Lamb Kofta',
+      origin: 'signature',
+      sourceId: 'l1',
+      excludes: scoreDish(sigs[0], intel),
+    }
+    const subs = assignSubstitutions(lamb, intel, sigs, new Set())
+    expect(subs).toHaveLength(1)
+    expect(subs[0].guests.sort()).toEqual(['Nadia', 'Priya'])
+    expect(subs[0].dishName).toBe('Ratatouille')
+    expect(subs[0].origin).toBe('signature')
+  })
+
+  test('guests with different exclusion reasons get different substitutes', () => {
+    const intel = buildIntel([
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Sam',   dietary: [],             avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+    ])
+    // Main dish excludes Sam (nuts) AND Nadia (not vegetarian). Alt pool
+    // has two veg options + one nut-free meat option, so the assignment
+    // can hand each excluded guest a dish they can actually eat.
+    const sigs = [
+      sig({ id: 'm1', name: 'Nut-Crusted Lamb', slot: 'land', tags: ['meat'], contains_allergens: ['Nuts'] }),
+      sig({ id: 'v1', name: 'Aubergine Steak',  slot: 'land', tags: ['veg', 'vegan'] }),
+      sig({ id: 'm2', name: 'Plain Lamb',       slot: 'land', tags: ['meat'] }),
+      sig({ id: 'v2', name: 'Ratatouille',      slot: 'land', tags: ['veg', 'vegan'] }),
+    ]
+    const main: Course = {
+      slot: 'land',
+      slotLabel: SLOT_LABELS.land,
+      dishName: 'Nut-Crusted Lamb',
+      origin: 'signature',
+      sourceId: 'm1',
+      excludes: scoreDish(sigs[0], intel),
+    }
+    const subs = assignSubstitutions(main, intel, sigs, new Set())
+    // Both excluded guests receive a substitute they can actually eat —
+    // exact dish depends on ranking, but Sam's must be nut-free and
+    // Nadia's must be veg. And they cannot be the same dish.
+    const nadiaSub = subs.find(s => s.guests.includes('Nadia'))
+    const samSub   = subs.find(s => s.guests.includes('Sam'))
+    expect(nadiaSub).toBeDefined()
+    expect(samSub).toBeDefined()
+    expect(nadiaSub!.dishName).not.toBe(samSub!.dishName)
+    // Nadia's substitute must be vegetarian (one of the veg options).
+    expect(['Aubergine Steak', 'Ratatouille']).toContain(nadiaSub!.dishName)
+    // Sam's substitute must not contain nuts (main is nut-crusted; the
+    // three others are all nut-free per the fixture).
+    expect(samSub!.dishName).not.toBe('Nut-Crusted Lamb')
+  })
+
+  test('true allergy blocks the main pick (dish with a nut-safe alt gets selected instead)', () => {
+    const intel = buildIntel([
+      { name: 'Sam', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+    ])
+    const sigs = [
+      sig({ id: 'f1', name: 'Walnut Tart', slot: 'finish', contains_allergens: ['Nuts'] }),
+      sig({ id: 'f2', name: 'Panna Cotta', slot: 'finish', tags: ['veg'] }),
+    ]
+    // Allergy exclusions rank higher than preference exclusions, so
+    // Panna Cotta (0 allergy) beats Walnut Tart (1 allergy). Sam is served.
+    const course = draftCourse('finish', intel, sigs, [])
+    expect(course.dishName).toBe('Panna Cotta')
   })
 })

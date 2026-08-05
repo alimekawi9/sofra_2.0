@@ -5,8 +5,18 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
+import { deriveCourse } from '@/lib/menu'
+import type { Course, Signature, PantryItem } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
+
+function currentMonday(): string {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  return d.toISOString().slice(0, 10)
+}
 
 type RsvpRow = { user_id: string; users: { name: string } | null }
 type ProfileRow = {
@@ -41,6 +51,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
   const [guests, setGuests] = useState<TasteProfile[]>([])
   const [eventTitle, setEventTitle] = useState('')
   const [eventDate, setEventDate] = useState('')
+  const [courses, setCourses] = useState<Course[]>([])
 
   async function loadAll() {
     setLoading(true)
@@ -51,7 +62,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
 
       const { data: ev, error: evErr } = await supabase
         .from('events')
-        .select('host_id, title, event_date')
+        .select('host_id, chef_id, title, event_date')
         .eq('id', id)
         .single()
       if (evErr || !ev) { router.replace(`/events/${id}`); return }
@@ -76,7 +87,46 @@ export default function TablePage({ params }: { params: { id: string } }) {
         (profiles ?? []) as ProfileRow[]
       )
       setGuests(merged)
-      setIntel(buildIntel(merged))
+      const builtIntel = buildIntel(merged)
+      setIntel(builtIntel)
+
+      // Load the persisted menu (if any) so we can display the per-guest
+      // substitution plan alongside table intel. Chef owns the signatures
+      // and pantry, so lookups run against the chef's account.
+      const chefId = ev.chef_id ?? stored
+      const [{ data: sigs }, { data: pantryRows }, { data: menu }] = await Promise.all([
+        supabase
+          .from('signatures')
+          .select('id, name, tags, contains_allergens, slot')
+          .eq('chef_id', chefId),
+        supabase
+          .from('pantry_items')
+          .select('id, name, tags, contains_allergens')
+          .eq('chef_id', chefId)
+          .eq('week_of', currentMonday()),
+        supabase.from('menus').select('id').eq('event_id', id).maybeSingle(),
+      ])
+      if (menu) {
+        const { data: courseRows } = await supabase
+          .from('menu_courses')
+          .select('slot, dish_name, dish_origin, source, sort_order')
+          .eq('menu_id', menu.id)
+          .order('sort_order', { ascending: true })
+        const derived: Course[] = (courseRows ?? []).map((c) =>
+          deriveCourse(
+            {
+              slot: c.slot,
+              dish_name: c.dish_name,
+              dish_origin: c.dish_origin,
+              source: c.source,
+            },
+            (sigs ?? []) as Signature[],
+            (pantryRows ?? []) as PantryItem[],
+            builtIntel
+          )
+        )
+        setCourses(derived)
+      }
     } catch {
       setFetchError("Couldn't load table intel. Try again.")
     } finally {
@@ -352,6 +402,105 @@ export default function TablePage({ params }: { params: { id: string } }) {
               <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
               <span>{intel.brief}</span>
             </div>
+
+            {/* Per-guest substitution plan — group by guest so the chef sees
+                what each cover receives if it differs from the main. */}
+            {courses.length > 0 && (() => {
+              const perGuest = new Map<string, { slotLabel: string; dishName: string }[]>()
+              for (const c of courses) {
+                if (!c.substitutions || c.origin === 'empty') continue
+                for (const sub of c.substitutions) {
+                  for (const g of sub.guests) {
+                    const list = perGuest.get(g) ?? []
+                    list.push({ slotLabel: c.slotLabel, dishName: sub.dishName })
+                    perGuest.set(g, list)
+                  }
+                }
+              }
+              const unmet = courses.flatMap((c) =>
+                c.excludes
+                  .filter(
+                    (e) => !(c.substitutions ?? []).some((s) => s.guests.includes(e.guest))
+                  )
+                  .map((e) => ({
+                    slotLabel: c.slotLabel,
+                    guest: e.guest,
+                    reason: e.reason,
+                    kind: e.kind,
+                  }))
+              )
+
+              if (perGuest.size === 0 && unmet.length === 0) return null
+
+              return (
+                <div style={{ ...card, marginTop: 14 }}>
+                  <div style={cardTitle}>Substitution plan</div>
+                  <div
+                    style={{
+                      color: C.faint,
+                      fontSize: 12,
+                      marginTop: 4,
+                      marginBottom: 12,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    What each guest gets when the main course doesn’t fit them.
+                  </div>
+                  {Array.from(perGuest.entries()).map(([guest, subs]) => (
+                    <div
+                      key={guest}
+                      style={{
+                        marginBottom: 10,
+                        paddingBottom: 8,
+                        borderBottom: `1px dashed ${C.line}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: C.gold,
+                          fontSize: 13,
+                          fontFamily: 'system-ui, sans-serif',
+                          fontWeight: 600,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {guest}
+                      </div>
+                      {subs.map((s, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            color: C.cream,
+                            fontSize: 13,
+                            fontFamily: 'system-ui, sans-serif',
+                            lineHeight: 1.55,
+                          }}
+                        >
+                          <span style={{ color: C.dim }}>{s.slotLabel}:</span> {s.dishName}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  {unmet.length > 0 && (
+                    <div
+                      style={{
+                        color: C.rose,
+                        fontSize: 12,
+                        fontFamily: 'system-ui, sans-serif',
+                        lineHeight: 1.5,
+                        marginTop: 6,
+                      }}
+                    >
+                      No substitute available for:{' '}
+                      {unmet
+                        .map((u) => `${u.guest} on ${u.slotLabel} (${u.reason})`)
+                        .join('; ')}
+                      . Add more signatures to cover these.
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </>
         )}
       </div>

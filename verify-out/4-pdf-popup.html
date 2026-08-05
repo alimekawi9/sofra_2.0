@@ -1,0 +1,77 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Layla's Long Table — Demo — Menu</title>
+    <style>
+      @page { size:A4; margin:0; }
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:Georgia,'Times New Roman',serif;background:#F3E9DD;color:#2A1A1C;
+        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;}
+      .menu{width:100%;max-width:600px;background:#FBF5EC;padding:64px 56px 56px;
+        border:1px solid #C9A96E;box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;}
+      .menu:before{content:"";position:absolute;inset:14px;border:1px solid #C9A96E;pointer-events:none;}
+      .brand{text-align:center;color:#5C1A1B;font-style:italic;font-size:26px;letter-spacing:0.5px;}
+      .rule{width:44px;height:2px;background:#C9A96E;margin:14px auto 26px;}
+      .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.15;margin-bottom:8px;}
+      .meta{text-align:center;color:#8A6A4E;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:40px;font-family:system-ui,-apple-system,sans-serif;}
+      .course{text-align:center;padding:18px 0;border-bottom:1px solid #E8D9C6;}
+      .course:last-of-type{border-bottom:none;}
+      .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
+      .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
+      .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
+      .portion{color:#8A6A4E;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-family:system-ui,sans-serif;}
+      .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
+      .subs{margin-top:10px;padding-top:8px;border-top:1px dashed #C9A96E;font-family:system-ui,sans-serif;}
+      .subs-h{color:#8A6A4E;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+      .sub{color:#2A1A1C;font-size:12px;line-height:1.5;}
+      .sub-g{color:#5C1A1B;font-style:italic;}
+      .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
+      .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
+      @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;border:none;max-width:none;}}
+    </style></head><body>
+      <div class="menu">
+        <div class="brand">Sofra</div>
+        <div class="rule"></div>
+        <div class="title">Layla's Long Table — Demo</div>
+        <div class="meta">11 August 2026 · 9 covers</div>
+        
+        <div class="course">
+          <div class="slot">To Start</div>
+          <div class="dish">Baba Ganoush</div>
+          <div class="origin">Signature</div>
+          <div class="portion">Portion: feeds ~6</div>
+          
+          
+        </div>
+        <div class="course">
+          <div class="slot">Main — Sea</div>
+          <div class="dish">Roasted Butternut Squash with Miso Glaze</div>
+          <div class="origin">Composed for this table</div>
+          <div class="portion">Portion: feeds ~4</div>
+          
+          
+        </div>
+        <div class="course">
+          <div class="slot">Main — Land</div>
+          <div class="dish">Osso Buco</div>
+          <div class="origin">Signature</div>
+          <div class="portion">Portion: feeds ~4</div>
+          <div class="subs"><div class="subs-h">Plated on the side</div><div class="sub"><span class="sub-g">Nadia, Mona, Priya:</span> Baba Ganoush</div></div>
+          
+        </div>
+        <div class="course">
+          <div class="slot">Main — Green</div>
+          <div class="dish">Mac and Cheese</div>
+          <div class="origin">Signature</div>
+          <div class="portion">Portion: feeds ~6</div>
+          
+          
+        </div>
+        <div class="course">
+          <div class="slot">To Finish</div>
+          <div class="dish">Knafeh</div>
+          <div class="origin">Signature</div>
+          <div class="portion">Portion: feeds ~8</div>
+          
+          
+        </div>
+        <div class="foot">Curated for this table · <span class="s">Sofra</span></div>
+      </div>
+    </body></html>

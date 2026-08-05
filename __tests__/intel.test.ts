@@ -34,12 +34,16 @@ describe('buildIntel', () => {
     expect(shellfish?.guests).toEqual(['Ali'])
   })
 
-  test('creates diet HardLimit for Vegetarian, Vegan, No pork/alcohol, Kosher (STRICT_DIETS)', () => {
+  test('creates diet HardLimit for every strict diet the guest declared', () => {
+    // All strict diets — Vegetarian, Vegan, No pork/alcohol, Kosher,
+    // Gluten-free, No dairy, Pescatarian — now become substitution-case
+    // hardLimits (not soft dietMix), so a majority-preferred dish that
+    // doesn't satisfy the diet gets the guest a labeled substitute.
     const intel = buildIntel([
       guest({ name: 'Sara', dietary: ['Vegetarian', 'Gluten-free'] }),
     ])
     expect(intel.hardLimits.some(h => h.label === 'Vegetarian' && h.type === 'diet')).toBe(true)
-    expect(intel.hardLimits.some(h => h.label === 'Gluten-free')).toBe(false)
+    expect(intel.hardLimits.some(h => h.label === 'Gluten-free' && h.type === 'diet')).toBe(true)
   })
 
   test('allergy HardLimits appear before diet HardLimits', () => {
@@ -51,14 +55,15 @@ describe('buildIntel', () => {
     expect(firstAllergyIdx).toBeLessThan(firstDietIdx)
   })
 
-  test('dietMix excludes STRICT_DIETS, sorted descending', () => {
+  test('dietMix excludes STRICT_DIETS (all now including Gluten-free, No dairy, Pescatarian)', () => {
     const intel = buildIntel([
-      guest({ name: 'A', dietary: ['Gluten-free', 'Pescatarian'] }),
-      guest({ name: 'B', dietary: ['Gluten-free'] }),
+      guest({ name: 'A', dietary: ['Gluten-free'] }),
+      guest({ name: 'B', dietary: ['Halal'] }),  // not strict — soft dietMix
       guest({ name: 'C', dietary: ['Vegan'] }),  // strict — excluded from dietMix
     ])
-    expect(intel.dietMix[0]).toEqual({ label: 'Gluten-free', count: 2 })
+    expect(intel.dietMix.some(d => d.label === 'Gluten-free')).toBe(false)
     expect(intel.dietMix.some(d => d.label === 'Vegan')).toBe(false)
+    expect(intel.dietMix.some(d => d.label === 'Halal')).toBe(true)
   })
 
   test('drinksCounts sorted descending', () => {

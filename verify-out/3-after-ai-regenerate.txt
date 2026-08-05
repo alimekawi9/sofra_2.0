@@ -1,0 +1,60 @@
+◈
+Events
+＋
+Host
+◐
+You
+Sofra · Kitchen
+Layla's Long Table — Demo · Tue, Aug 11 · 9 covers
+My Kitchen
+The Table
+Drafted Menu
+Tonight’s draft
+Composed for this table. Every dish is allergy-safe by construction.
+↻ Regenerate
+✦ Regenerate with AI
+TO START
+Swap
+Lock
+Baba Ganoush
+✦ A safe and welcoming start for all guests, this vegan classic with no listed allergens aligns with the chef's Mediterranean style.
+Chef’s signature
+PORTION: FEEDS ~6
+✓ Table fit: safe for 9/9 guests
+MAIN — SEA
+Swap
+Lock
+Roasted Butternut Squash with Miso Glaze
+✦ This creative, umami-rich vegetarian course safely navigates the shellfish allergy and suits the table's adventurous palate.
+Composed for this table
+PORTION: FEEDS ~4
+✓ Table fit: safe for 9/9 guests
+MAIN — LAND
+Swap
+Lock
+Osso Buco
+✦ This elegant Italian classic is a safe main for all non-vegetarians, containing no pork or other specified allergens.
+Chef’s signature
+PORTION: FEEDS ~4
+✓ Table fit: safe for 9/9 guests
+Excludes Nadia (not vegetarian), Mona (not vegetarian), Priya (not vegetarian)
+PLATED ON THE SIDE
+Nadia, Mona, Priya: Baba Ganoush
+MAIN — GREEN
+Swap
+Lock
+Mac and Cheese
+✦ AI pick "Chana Masala" rejected: duplicate of an earlier slot ("Chana Masala"). Replaced with rule-based pick.
+Chef’s signature
+PORTION: FEEDS ~6
+✓ Table fit: safe for 9/9 guests
+TO FINISH
+Swap
+Lock
+Knafeh
+✦ An exciting Middle Eastern dessert to conclude the meal on an adventurous note, safely avoiding the group's nut allergy.
+Chef’s signature
+PORTION: FEEDS ~8
+✓ Table fit: safe for 9/9 guests
+⎙ Generate menu PDF
+Opens a print-ready menu — save as PDF or print.

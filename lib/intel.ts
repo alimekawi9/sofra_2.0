@@ -23,7 +23,15 @@ export type TableIntel = {
   guestCount: number
 }
 
-export const STRICT_DIET_LIST = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher'] as const
+// Every strict diet is a substitution-case (not a hard block on dish
+// selection). Genuine allergies live in guest.avoid, not here. We used to
+// keep Gluten-free / No dairy / Pescatarian as soft "dietMix" info because
+// they had no downstream effect — now they trigger per-guest substitutes on
+// dishes that don't satisfy them.
+export const STRICT_DIET_LIST = [
+  'Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher',
+  'Gluten-free', 'No dairy', 'Pescatarian',
+] as const
 const STRICT_DIETS: Set<string> = new Set(STRICT_DIET_LIST)
 
 export function buildIntel(guests: TasteProfile[]): TableIntel {

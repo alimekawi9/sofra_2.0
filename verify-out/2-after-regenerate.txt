@@ -1,0 +1,55 @@
+◈
+Events
+＋
+Host
+◐
+You
+Sofra · Kitchen
+Layla's Long Table — Demo · Tue, Aug 11 · 9 covers
+My Kitchen
+The Table
+Drafted Menu
+Tonight’s draft
+Composed for this table. Every dish is allergy-safe by construction.
+↻ Regenerate
+✦ Regenerate with AI
+TO START
+Swap
+Lock
+Baba Ganoush
+Chef’s signature
+PORTION: FEEDS ~6
+✓ Table fit: safe for 9/9 guests
+MAIN — SEA
+Swap
+Lock
+Baba Ganoush
+Chef’s adaptation (best available for this slot)
+PORTION: FEEDS ~4
+✓ Table fit: safe for 9/9 guests
+MAIN — LAND
+Swap
+Lock
+Classic Burger
+Chef’s signature
+PORTION: FEEDS ~4
+✓ Table fit: safe for 9/9 guests
+Excludes Nadia (not vegetarian), Mona (not vegetarian), Priya (not vegetarian)
+PLATED ON THE SIDE
+Nadia, Mona, Priya: Baba Ganoush
+MAIN — GREEN
+Swap
+Lock
+Chana Masala
+Chef’s signature
+PORTION: FEEDS ~6
+✓ Table fit: safe for 9/9 guests
+TO FINISH
+Swap
+Lock
+Gulab Jamun
+Chef’s signature
+PORTION: FEEDS ~8
+✓ Table fit: safe for 9/9 guests
+⎙ Generate menu PDF
+Opens a print-ready menu — save as PDF or print.

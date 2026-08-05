@@ -47,10 +47,33 @@ function makeSupabase({
           }),
         }
       }
-      // taste_profiles
+      if (table === 'taste_profiles') {
+        return {
+          select: jest.fn().mockReturnValue({
+            in: jest.fn().mockResolvedValue({ data: profiles, error: null }),
+          }),
+        }
+      }
+      if (table === 'menus') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        }
+      }
+      // signatures, pantry_items, menu_courses — return empty lists so the
+      // Table page loads without a menu-related failure. Tests that need a
+      // populated menu can wire it in explicitly.
+      const emptyList = { data: [], error: null }
       return {
         select: jest.fn().mockReturnValue({
-          in: jest.fn().mockResolvedValue({ data: profiles, error: null }),
+          eq: jest.fn().mockImplementation(() => ({
+            eq: jest.fn().mockResolvedValue(emptyList),
+            order: jest.fn().mockResolvedValue(emptyList),
+            then: (resolve: (v: typeof emptyList) => void) => resolve(emptyList),
+          })),
         }),
       }
     }),
@@ -154,9 +177,11 @@ describe('Hard Limits card', () => {
 
   it('shows open-table empty state when no hard limits', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
+    // Halal is a soft dietary label — not in STRICT_DIETS, so it drops
+    // into dietMix and doesn't create a hard limit.
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Carol' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: ['Gluten-free'], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: ['Halal'], avoid: [], drinks: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
@@ -188,13 +213,14 @@ describe('Diet Mix section', () => {
 
   it('shows a soft diet label when a guest has one', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
+    // Halal is a soft dietary — surfaces in the dietMix card.
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Dan' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: ['Gluten-free'], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: ['Halal'], avoid: [], drinks: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
-      expect(screen.getByText(/gluten-free/i)).toBeInTheDocument()
+      expect(screen.getByText(/halal/i)).toBeInTheDocument()
     )
   })
 
