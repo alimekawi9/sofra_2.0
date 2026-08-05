@@ -736,5 +736,48 @@ export function deriveMenu(
   })
 }
 
+// Top-K signatures per slot, unioned across all 5 slots into one deduped list.
+// Used to trim the AI prompt: sending the entire signature catalog on a large
+// chef inflates prompt size (and Gemini latency) without changing outcomes,
+// since the model only picks 5 dishes anyway. The rank within each slot uses
+// the same deterministic scoring the rule-based path uses (fewest allergies,
+// then slot affinity, then tableFit, then alphabetical) so the shortlist is
+// exactly the pool the fallback would draw from — the AI can only pick worse
+// candidates by ignoring the shortlist, not better ones it would have found
+// in the full catalog. `perSlot` defaults to 3; higher gives the AI more room
+// to be creative, lower trims the prompt more aggressively.
+export function shortlistSignaturesForAI(
+  signatures: Signature[],
+  intel: TableIntel,
+  perSlot: number = 3,
+): Signature[] {
+  const withSlots = withInferredSlots(signatures)
+  const seen = new Set<string>()
+  const out: Signature[] = []
+  for (const slot of SLOTS) {
+    const scored = withSlots.map(s => {
+      const exclusions = scoreDish(s, intel)
+      return {
+        sig: s,
+        allergies: exclusions.filter(e => e.kind === 'allergy').length,
+        affinity: slotAffinity(s, slot),
+        fit: tableFitScore(s, intel),
+      }
+    })
+    scored.sort((a, b) => {
+      if (a.allergies !== b.allergies) return a.allergies - b.allergies
+      if (a.affinity !== b.affinity) return b.affinity - a.affinity
+      if (a.fit !== b.fit) return b.fit - a.fit
+      return a.sig.name.localeCompare(b.sig.name)
+    })
+    for (const item of scored.slice(0, perSlot)) {
+      if (seen.has(item.sig.id)) continue
+      seen.add(item.sig.id)
+      out.push(item.sig)
+    }
+  }
+  return out
+}
+
 // AI-assisted menu generation lives in `./menu-ai` (server-only) so this file
 // stays safe to import from client components.

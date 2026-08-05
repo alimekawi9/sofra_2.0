@@ -1,7 +1,8 @@
 import { buildIntel } from '@/lib/intel'
 import {
   scoreDish, scoreComposedDish, draftCourse, draftMenu, deriveCourse, deriveMenu,
-  assignSubstitutions, inferSlot, nameMatchesSlot, portionGuidance, SLOT_LABELS, SLOTS,
+  assignSubstitutions, inferSlot, nameMatchesSlot, portionGuidance,
+  shortlistSignaturesForAI, SLOT_LABELS, SLOTS,
 } from '@/lib/menu'
 import type { Signature, PantryItem, Course, PersistedCourseLike } from '@/lib/menu'
 
@@ -824,6 +825,65 @@ describe('deriveMenu — cross-course substitute dedup', () => {
     expect(land.substitutions?.some(s => s.dishName === 'Chana Masala')).toBeFalsy()
     // Baba Ganoush is next-best veg option.
     expect(land.substitutions?.[0]?.dishName).toBe('Baba Ganoush')
+  })
+})
+
+describe('shortlistSignaturesForAI — trims AI prompt while preserving strong picks', () => {
+  test('unions top-K per slot into one deduped list, preserving slot-order encounters', () => {
+    const intel = buildIntel([
+      { name: 'Ali', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+    ])
+    const sigs = [
+      sig({ id: 'oct',  name: 'Charred Octopus', slot: 'sea',    tags: ['seafood'] }),
+      sig({ id: 'lamb', name: 'Braised Lamb',    slot: 'land',   tags: ['meat'] }),
+      sig({ id: 'salm', name: 'Roasted Salmon',  slot: 'sea',    tags: ['seafood'] }),
+      sig({ id: 'chan', name: 'Chana Masala',    slot: 'green',  tags: ['vegan'] }),
+      sig({ id: 'baba', name: 'Baba Ganoush',    slot: 'start',  tags: ['vegan'] }),
+      sig({ id: 'knaf', name: 'Knafeh',          slot: 'finish', tags: ['dessert'] }),
+      sig({ id: 'duck', name: 'Duck Confit',     slot: 'land',   tags: ['meat'] }),
+    ]
+    const short = shortlistSignaturesForAI(sigs, intel, 2)
+    // 2 per slot × 5 slots = up to 10, but we only have 7 distinct dishes.
+    // All 7 should survive (chef doesn't have enough sigs to trim).
+    expect(short).toHaveLength(7)
+    expect(new Set(short.map(s => s.id))).toEqual(new Set(sigs.map(s => s.id)))
+  })
+
+  test('drops weak candidates when catalog is bigger than K × slots', () => {
+    const intel = buildIntel([
+      { name: 'Ali', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+    ])
+    // 10 desserts and 10 meats — with K=1 and 5 slots (at most 5 wins), most
+    // of the catalog is dropped. The strongest per-slot picks by affinity
+    // survive; the rest are trimmed.
+    const many = [
+      ...Array.from({ length: 10 }, (_, i) =>
+        sig({ id: `d${i}`, name: `Dessert ${i}`, slot: 'finish', tags: ['dessert'] })
+      ),
+      ...Array.from({ length: 10 }, (_, i) =>
+        sig({ id: `m${i}`, name: `Meat ${i}`, slot: 'land', tags: ['meat'] })
+      ),
+    ]
+    const short = shortlistSignaturesForAI(many, intel, 1)
+    // Two winners: one per slot (finish, land). Other three slots have no
+    // matching sigs — they still pick the alphabetically-first candidate,
+    // but that's usually one already picked for finish/land, so dedup collapses.
+    expect(short.length).toBeGreaterThanOrEqual(2)
+    expect(short.length).toBeLessThan(many.length)
+  })
+
+  test('demotes dishes with true allergies for affected guests', () => {
+    const intel = buildIntel([
+      { name: 'Sam', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+    ])
+    const sigs = [
+      sig({ id: 'nuts', name: 'Almond Cake',   slot: 'finish', tags: ['dessert'], contains_allergens: ['nuts'] }),
+      sig({ id: 'safe', name: 'Chocolate Tart', slot: 'finish', tags: ['dessert'] }),
+    ]
+    const short = shortlistSignaturesForAI(sigs, intel, 1)
+    // The nut-free dessert should be first (fewer allergy excludes).
+    const finishPick = short.find(s => s.slot === 'finish')
+    expect(finishPick?.id).toBe('safe')
   })
 })
 

@@ -13,11 +13,15 @@ export class GeminiError extends Error {
 }
 
 const MODEL = 'gemini-2.5-pro'
-// 3 real attempts against the demo event (9 guests, 15 signatures, 12 pantry
-// items, ~5966-char / ~1492-token prompt) landed at 44194ms, 44343ms, and a
-// timeout at 45020ms — i.e. gemini-2.5-pro's real response time for this
-// prompt size sits right at the old 45s cutoff, so ordinary variance tips it
-// over. 60s gives ~15s (~35%) of headroom above the observed successes.
+// Timeout calibration:
+//   At ~5966-char prompt (commit b6975b5): 44194ms, 44343ms, 45020ms — moved
+//   45s → 60s to clear the tail with ~35% headroom.
+//   At ~6983-char prompt (post allergy/preference split, commit 5fbf895):
+//   60006ms (TIMEOUT), 37111ms, 34907ms — 1/3 attempts hit the ceiling.
+//   At ~4732-char prompt (post shortlistSignaturesForAI + compressed prose):
+//   37511ms, 29760ms, 39551ms — 0 timeouts, max ~40s. Headroom is back to
+//   ~50%. See scripts/measure-ai-prompt.mjs + scripts/measure-gemini-timing.mjs
+//   to re-measure whenever the prompt grows again.
 const TIMEOUT_MS = 60_000
 
 let cached: GoogleGenAI | null = null

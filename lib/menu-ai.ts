@@ -9,6 +9,7 @@ import {
   nameMatchesSlot,
   scoreDish,
   scoreComposedDish,
+  shortlistSignaturesForAI,
   type Course,
   type PantryItem,
   type Signature,
@@ -38,13 +39,19 @@ type AIProposedMenu = {
   courses: AIProposedCourse[]
 }
 
-function buildAIPrompt(
+export function buildAIPrompt(
   intel: TableIntel,
   signatures: Signature[],
   pantry: PantryItem[]
 ): string {
-  const sigLines = signatures.length
-    ? signatures.map(s => {
+  // Send only the top-K signatures per slot rather than the full catalog.
+  // On a large chef, the full list dominates prompt size and correlates with
+  // Gemini timeouts; the shortlist is exactly the pool the rule-based
+  // fallback would draw from, so we don't lose viable picks — see
+  // shortlistSignaturesForAI in ./menu.
+  const shortSignatures = shortlistSignaturesForAI(signatures, intel, 3)
+  const sigLines = shortSignatures.length
+    ? shortSignatures.map(s => {
         const slot = s.slot ?? 'any'
         const tags = s.tags.length ? s.tags.join(', ') : 'none'
         const allergens = s.contains_allergens.length ? s.contains_allergens.join(', ') : 'none'
@@ -89,80 +96,52 @@ function buildAIPrompt(
     ? intel.drinksCounts.map(d => `${d.label}=${d.count}`).join(', ')
     : 'none'
 
-  return `You are helping a chef compose a 5-course tasting menu for a private dinner.
+  return `Compose a 5-course tasting menu. Slots, in order:
+  start (To Start), sea (Main — Sea), land (Main — Land), green (Main — Green), finish (To Finish)
 
-Fill exactly these slots, in this order:
-  1. start   — "To Start"
-  2. sea     — "Main — Sea"
-  3. land    — "Main — Land"
-  4. green   — "Main — Green"
-  5. finish  — "To Finish"
-
-CHEF'S SIGNATURE DISHES (reuse where they fit; each has a preferred slot):
+SIGNATURE DISHES (chef's picks, pre-filtered to strong slot matches — reuse where they fit):
 ${sigLines}
 
-THIS WEEK'S PANTRY (raw ingredients — use these to compose NEW dishes that feel
-like the chef's own style, not generic placeholders. Never name a composed dish
-"Chef's <ingredient>" — invent a real, evocative dish name):
+PANTRY (raw ingredients for NEW composed dishes; invent evocative dish names,
+never "Chef's <ingredient>"):
 ${pantryLines}
 
 GUEST INTEL:
 - ${intel.guestCount} guest${intel.guestCount === 1 ? '' : 's'}
-- Diet mix (soft, informational): ${dietMix}
-- Drinks split: ${drinks}
-- Table adventurousness: ${intel.avgAdventurousness}/100 (${intel.adventurousnessLabel})
+- Diet mix (soft): ${dietMix}
+- Drinks: ${drinks}
+- Adventurousness: ${intel.avgAdventurousness}/100 (${intel.adventurousnessLabel})
 - Brief: ${intel.brief}
 
-TRUE ALLERGIES — NON-NEGOTIABLE, physical-danger stakes. NEVER propose a
-dish that contains these allergens for the affected guest. Every course is
-re-verified downstream against the ACTUAL declared tags/allergens of the
-pantry items (or signature) it names — the system trusts the chef's pantry
-data, not your description of the dish. Allergy exclusions cause rejection.
+ALLERGIES — hard block. Never propose a dish containing these for the affected
+guest. Downstream verifies each course against the pantry's declared allergens
+(chef's data is the source of truth, not your description) and rejects violations.
 ${allergyLines}
 
-DIET / TASTE PREFERENCES — handled by per-guest substitutes, NOT by picking
-a preference-safe dish for the whole table. This is important for Sea and
-Land: the Main — Sea slot must actually be seafood-based, even if some
-vegetarians can't eat it. The Main — Land slot must actually be
-meat/poultry-based. Do NOT downgrade Sea to "veg pasta" or Land to "veg
-curry" just to satisfy vegetarians — the system will plate them a labeled
-alternate on the side. Sea composed dishes must include a seafood
-pantry item; Land composed dishes must include a meat/poultry pantry item,
-otherwise the course will be rejected downstream.
+PREFERENCES — the system handles these with side-plated substitutes. Pick the
+right dish for the WHOLE table regardless. Do NOT swap Sea to veg pasta or Land
+to veg curry to appease vegetarians. Composed Sea MUST include a seafood
+pantry item; composed Land MUST include a meat/poultry pantry item — otherwise
+the course is rejected.
 ${preferenceLines}
 
-TASK:
-Propose one dish per slot. Decide for yourself how many slots reuse a signature
-vs. compose something new from the pantry; aim for a menu that feels cohesive
-with the chef's signature style.
+Return ONE dish per slot. Fields per course:
+- slot: "start"|"sea"|"land"|"green"|"finish"
+- dish_name: plated name (exact signature name if reusing)
+- dish_origin: "signature" | "pantry-composed"
+- signature_id: id from the signature list (only when dish_origin="signature"; must match exactly)
+- pantry_ids: array of ids from the pantry list (only when dish_origin="pantry-composed"; list
+  EVERY component; invented or missing ids get the course rejected)
+- reasoning: one short sentence (~140 chars) on why this fits.
 
-For each course you MUST return:
-- slot: one of "start" | "sea" | "land" | "green" | "finish"
-- dish_name: the plated name (for signatures, use the exact signature name)
-- dish_origin: "signature" if reusing a signature, "pantry-composed" if new
-- signature_id: the id from the signature list above (REQUIRED and only valid
-  when dish_origin is "signature"). Must exactly match an id above.
-- pantry_ids: an array of pantry item ids from the pantry list above (REQUIRED
-  and only valid when dish_origin is "pantry-composed"). List EVERY pantry
-  item that goes into the dish — this is what drives safety verification. If
-  you can't decompose the dish into pantry items listed above, don't propose
-  it; pick a different dish or reuse a signature instead. Each id must
-  exactly match one from the pantry list above; invented ids will cause the
-  course to be rejected as unverifiable.
-- reasoning: one short sentence (max ~140 chars) on why this dish fits this
-  table (guest preferences, diet mix, adventurousness).
+Do NOT return self-declared safety fields (no contains_allergens, violates_diets, tags).
 
-Do NOT include self-declared safety fields — no "contains_allergens", no
-"violates_diets", no "tags". Safety is computed from the referenced pantry
-items' own declared data. Your job is to pick and name; the system verifies.
-
-Return ONLY a JSON object of this exact shape, no prose:
+Return ONLY this JSON, no prose:
 {
   "courses": [
-    { "slot": "start", "dish_name": "...", "dish_origin": "signature" | "pantry-composed",
-      "signature_id": "..." | null, "pantry_ids": ["...", "..."] | null,
-      "reasoning": "..." },
-    ... (5 entries, one per slot, in the order start, sea, land, green, finish)
+    { "slot": "start", "dish_name": "...", "dish_origin": "...",
+      "signature_id": "..."|null, "pantry_ids": [...]|null, "reasoning": "..." },
+    ... (5 entries, in the order start, sea, land, green, finish)
   ]
 }`
 }
