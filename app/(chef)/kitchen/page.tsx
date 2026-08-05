@@ -4,8 +4,22 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
-import { DISH_PRESETS, CUISINES, type DishPreset } from '@/lib/dish-presets'
+import {
+  DISH_PRESETS,
+  CUISINES,
+  isDishRole,
+  withDishRole,
+  withoutDishRoles,
+  type DishPreset,
+} from '@/lib/dish-presets'
 import { INGREDIENT_PRESETS, INGREDIENT_CATEGORIES } from '@/lib/ingredient-presets'
+import { formatTagLabel } from '@/lib/tag-format'
+import {
+  PANTRY_TAG_GROUPS,
+  SIGNATURE_TAG_GROUPS,
+  pantryTagsForPersistence,
+  type TagGroup,
+} from '@/lib/kitchen-tags'
 
 const CUISINE_FILTERS = ['All', ...CUISINES] as const
 type CuisineFilter = (typeof CUISINE_FILTERS)[number]
@@ -19,21 +33,8 @@ type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
 // diet matching — they tell inferSlot this dish isn't eligible for a Main
 // slot even if it's also tagged 'meat'/'veg' (see lib/menu.ts inferSlot).
 //
-// TAG_GROUPS is the source of truth for the chef-side tag picker. Storage
-// stays a flat string[] on each dish/pantry item; grouping is display-only.
-// The Role/Diet group carries the original legacy vocab — do not rename or
-// remove those values, since existing signatures + inferSlot in lib/menu.ts
-// depend on them.
-const TAG_GROUPS: readonly { label: string; tags: readonly string[] }[] = [
-  { label: 'Role',           tags: ['starter', 'side', 'dessert'] },
-  { label: 'Diet',           tags: ['veg', 'vegan', 'pescatarian', 'no pork/alcohol', 'meat', 'seafood'] },
-  { label: 'Protein',        tags: ['beef', 'lamb', 'chicken', 'turkey', 'pork', 'duck', 'fish', 'shellfish', 'egg', 'dairy', 'legume', 'tofu', 'mushroom', 'grain', 'pasta', 'vegetable', 'fruit', 'mixed', 'none'] },
-  { label: 'Texture',        tags: ['crunchy', 'tender', 'chewy', 'juicy', 'silky', 'flaky', 'firm', 'mild', 'bitter', 'savory', 'herbal', 'crispy', 'soft', 'creamy'] },
-  { label: 'Cooking Method', tags: ['braised', 'baked', 'steamed', 'boiled', 'seared', 'smoked', 'stewed', 'pickled', 'raw', 'grilled', 'roasted', 'fried'] },
-  { label: 'Temperature',    tags: ['chilled', 'hot', 'cold', 'room_temperature'] },
-  { label: 'Flavor',         tags: ['fresh', 'rich', 'spicy', 'sweet', 'smoky', 'acidic', 'earthy', 'umami'] },
-]
-
+// Picker configuration lives in lib/kitchen-tags.ts. Signature roles and
+// pantry descriptors are intentionally separate there.
 // ALLERGEN_VOCAB must cover every value in NOGOS (lib/theme.ts) — otherwise
 // a guest's avoid label has no chef-side chip to declare against, and the
 // exclusion silently misses. It ALSO carries dairy/gluten/soy, which aren't
@@ -95,6 +96,7 @@ function KitchenPageInner() {
   const [sigName, setSigName] = useState('')
   const [sigTagsList, setSigTagsList] = useState<string[]>([])
   const [sigAllergensList, setSigAllergensList] = useState<string[]>([])
+  const [editingSignatureId, setEditingSignatureId] = useState<string | null>(null)
   const [sigAdding, setSigAdding] = useState(false)
   const [sigAddError, setSigAddError] = useState('')
   const [sigDeleteError, setSigDeleteError] = useState('')
@@ -107,6 +109,7 @@ function KitchenPageInner() {
   const [pantryName, setPantryName] = useState('')
   const [pantryTagsList, setPantryTagsList] = useState<string[]>([])
   const [pantryAllergensList, setPantryAllergensList] = useState<string[]>([])
+  const [editingPantryId, setEditingPantryId] = useState<string | null>(null)
   const [pantryAdding, setPantryAdding] = useState(false)
   const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
@@ -146,7 +149,12 @@ function KitchenPageInner() {
 
       if (e1 || e2) throw new Error('fetch failed')
       setSignatures(sigs ?? [])
-      setPantry(items ?? [])
+      setPantry(
+        (items ?? []).map((item: PantryItem) => ({
+          ...item,
+          tags: pantryTagsForPersistence(item.tags),
+        }))
+      )
     } catch {
       setFetchError("Couldn't load your kitchen. Try again.")
     } finally {
@@ -176,26 +184,47 @@ function KitchenPageInner() {
     setSigAdding(true)
     setSigAddError('')
 
-    const { data, error } = await supabase
-      .from('signatures')
-      .insert({
-        chef_id: uid,
-        name,
-        tags: sigTagsList,
-        contains_allergens: sigAllergensList,
-      })
+    const payload = {
+      name,
+      tags: sigTagsList,
+      contains_allergens: sigAllergensList,
+    }
+    const query = editingSignatureId
+      ? supabase.from('signatures').update(payload).eq('id', editingSignatureId).eq('chef_id', uid)
+      : supabase.from('signatures').insert({ chef_id: uid, ...payload })
+    const { data, error } = await query
       .select('id, name, tags, contains_allergens')
       .single()
 
     if (error || !data) {
       setSigAddError('Failed to add signature. Try again.')
     } else {
-      setSignatures((prev) => [data, ...prev])
+      setSignatures((prev) =>
+        editingSignatureId
+          ? prev.map((signature) => (signature.id === editingSignatureId ? data : signature))
+          : [data, ...prev]
+      )
       setSigName('')
       setSigTagsList([])
       setSigAllergensList([])
+      setEditingSignatureId(null)
     }
     setSigAdding(false)
+  }
+
+  function editSignature(signature: Signature) {
+    setEditingSignatureId(signature.id)
+    setSigName(signature.name)
+    setSigTagsList([...signature.tags])
+    setSigAllergensList([...signature.contains_allergens])
+    setSigAddError('')
+  }
+
+  function cancelSignatureEdit() {
+    setEditingSignatureId(null)
+    setSigName('')
+    setSigTagsList([])
+    setSigAllergensList([])
   }
 
   function toggleDishSelection(p: DishPreset) {
@@ -206,7 +235,12 @@ function KitchenPageInner() {
   }
 
   function toggleTag(t: string) {
-    setSigTagsList((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+    setSigTagsList((prev) => {
+      if (!isDishRole(t)) {
+        return prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+      }
+      return prev.includes(t) ? withoutDishRoles(prev) : withDishRole(prev, t)
+    })
   }
 
   function toggleAllergen(a: string) {
@@ -231,10 +265,7 @@ function KitchenPageInner() {
           .insert({
             chef_id: uid,
             name: p.name,
-            // Non-main presets carry their role as an extra tag so inferSlot
-            // (lib/menu.ts) keeps them out of Main — Land/Sea/Green even
-            // though 'meat'/'veg' is still needed for diet/allergen matching.
-            tags: p.role === 'main' ? p.tags : [...p.tags, p.role],
+            tags: withDishRole(p.tags, p.role),
             contains_allergens: p.allergens,
           })
           .select('id, name, tags, contains_allergens')
@@ -291,7 +322,7 @@ function KitchenPageInner() {
 
     // Currently-selected tag/allergen chips apply to every ingredient in this
     // batch — same UX as "Add your own dish" applying chips to the next add.
-    const tags = pantryTagsList
+    const tags = pantryTagsForPersistence(pantryTagsList)
     const allergens = pantryAllergensList
 
     const targets = [...selectedIngredients]
@@ -371,27 +402,49 @@ function KitchenPageInner() {
     setPantryAdding(true)
     setPantryAddError('')
 
-    const { data, error } = await supabase
-      .from('pantry_items')
-      .insert({
-        chef_id: uid,
-        name,
-        week_of: weekOf,
-        tags: pantryTagsList,
-        contains_allergens: pantryAllergensList,
-      })
+    const payload = {
+      name,
+      week_of: weekOf,
+      tags: pantryTagsForPersistence(pantryTagsList),
+      contains_allergens: pantryAllergensList,
+    }
+    const query = editingPantryId
+      ? supabase.from('pantry_items').update(payload).eq('id', editingPantryId).eq('chef_id', uid)
+      : supabase.from('pantry_items').insert({ chef_id: uid, ...payload })
+    const { data, error } = await query
       .select('id, name, week_of, tags, contains_allergens')
       .single()
 
     if (error || !data) {
       setPantryAddError('Failed to add item. Try again.')
     } else {
-      setPantry((prev) => [data, ...prev])
+      const clean = { ...data, tags: pantryTagsForPersistence(data.tags) }
+      setPantry((prev) =>
+        editingPantryId
+          ? prev.map((item) => (item.id === editingPantryId ? clean : item))
+          : [clean, ...prev]
+      )
       setPantryName('')
       setPantryTagsList([])
       setPantryAllergensList([])
+      setEditingPantryId(null)
     }
     setPantryAdding(false)
+  }
+
+  function editPantryItem(item: PantryItem) {
+    setEditingPantryId(item.id)
+    setPantryName(item.name)
+    setPantryTagsList(pantryTagsForPersistence(item.tags))
+    setPantryAllergensList([...item.contains_allergens])
+    setPantryAddError('')
+  }
+
+  function cancelPantryEdit() {
+    setEditingPantryId(null)
+    setPantryName('')
+    setPantryTagsList([])
+    setPantryAllergensList([])
   }
 
   async function deletePantryItem(item: PantryItem) {
@@ -558,11 +611,18 @@ function KitchenPageInner() {
                         }}
                       >
                         {s.tags.map((t) => (
-                          <span key={t} style={tagOk}>{t}</span>
+                          <span key={t} style={tagOk}>{formatTagLabel(t)}</span>
                         ))}
                         {s.contains_allergens.map((c) => (
-                          <span key={c} style={tagWarn}>contains {c}</span>
+                          <span key={c} style={tagWarn}>contains {formatTagLabel(c)}</span>
                         ))}
+                        <button
+                          onClick={() => editSignature(s)}
+                          style={xBtn}
+                          aria-label={`Edit ${s.name}`}
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => void deleteSignature(s)}
                           style={xBtn}
@@ -700,7 +760,7 @@ function KitchenPageInner() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Add your own dish
+                  {editingSignatureId ? 'Edit signature dish' : 'Add your own dish'}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
@@ -715,10 +775,17 @@ function KitchenPageInner() {
                     onClick={() => void addSignature()}
                     disabled={sigAdding}
                   >
-                    {sigAdding ? '…' : 'Add'}
+                    {sigAdding ? '…' : editingSignatureId ? 'Save' : 'Add'}
                   </button>
+                  {editingSignatureId && (
+                    <button onClick={cancelSignatureEdit} style={clearBtn}>Cancel</button>
+                  )}
                 </div>
-                <TagGroupsPicker selected={sigTagsList} onToggle={toggleTag} />
+                <TagGroupsPicker
+                  groups={SIGNATURE_TAG_GROUPS}
+                  selected={sigTagsList}
+                  onToggle={toggleTag}
+                />
                 <div
                   style={{
                     color: C.faint,
@@ -739,7 +806,7 @@ function KitchenPageInner() {
                         style={vocabChip(on, true)}
                         aria-pressed={on}
                       >
-                        {a}
+                        {formatTagLabel(a)}
                       </button>
                     )
                   })}
@@ -793,11 +860,18 @@ function KitchenPageInner() {
                         }}
                       >
                         {p.tags.map((t) => (
-                          <span key={t} style={tagOk}>{t}</span>
+                          <span key={t} style={tagOk}>{formatTagLabel(t)}</span>
                         ))}
                         {p.contains_allergens.map((c) => (
-                          <span key={c} style={tagWarn}>contains {c}</span>
+                          <span key={c} style={tagWarn}>contains {formatTagLabel(c)}</span>
                         ))}
+                        <button
+                          onClick={() => editPantryItem(p)}
+                          style={xBtn}
+                          aria-label={`Edit ${p.name}`}
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => void deletePantryItem(p)}
                           style={xBtn}
@@ -929,15 +1003,22 @@ function KitchenPageInner() {
                   onClick={() => void addPantryItem()}
                   disabled={pantryAdding}
                 >
-                  {pantryAdding ? '…' : 'Add'}
+                  {pantryAdding ? '…' : editingPantryId ? 'Save' : 'Add'}
                 </button>
+                {editingPantryId && (
+                  <button onClick={cancelPantryEdit} style={clearBtn}>Cancel</button>
+                )}
               </div>
 
               {/* Tag/allergen chips apply to whichever pantry insert fires next —
                   the manual "Add" button OR the preset "Add selected" batch —
                   and clear on success. Same UX pattern as signatures. */}
               <div style={{ marginTop: 12 }}>
-                <TagGroupsPicker selected={pantryTagsList} onToggle={togglePantryTag} />
+                <TagGroupsPicker
+                  groups={PANTRY_TAG_GROUPS}
+                  selected={pantryTagsList}
+                  onToggle={togglePantryTag}
+                />
               </div>
               <div
                 style={{
@@ -959,7 +1040,7 @@ function KitchenPageInner() {
                       style={vocabChip(on, true)}
                       aria-pressed={on}
                     >
-                      {a}
+                      {formatTagLabel(a)}
                     </button>
                   )
                 })}
@@ -1089,15 +1170,17 @@ function presetChip(on: boolean, disabled: boolean = false): React.CSSProperties
 }
 
 function TagGroupsPicker({
+  groups,
   selected,
   onToggle,
 }: {
+  groups: readonly TagGroup[]
   selected: string[]
   onToggle: (tag: string) => void
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {TAG_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.label}>
           <div
             style={{
@@ -1119,7 +1202,7 @@ function TagGroupsPicker({
                   style={vocabChip(on, false)}
                   aria-pressed={on}
                 >
-                  {t}
+                  {formatTagLabel(t)}
                 </button>
               )
             })}

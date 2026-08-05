@@ -1,0 +1,1592 @@
+{
+  "generated_at": "2026-08-05T23:26:23.599Z",
+  "read_only": true,
+  "storage_model": {
+    "signatures": {
+      "table": "signatures",
+      "tags": "text[]",
+      "allergens": "contains_allergens text[]",
+      "legacy_slot": "slot text"
+    },
+    "pantry": {
+      "table": "pantry_items",
+      "tags": "text[]",
+      "allergens": "contains_allergens text[]"
+    },
+    "typed_tag_columns": false
+  },
+  "completeness_rule": {
+    "signature": "role + protein/base + method + temperature + at least one texture/profile value",
+    "pantry": "protein/base (including canonical none); role is forbidden; dish-specific groups are not required"
+  },
+  "canonical_expected": {
+    "role": [
+      "starter",
+      "main",
+      "side",
+      "dessert",
+      "flex"
+    ],
+    "allergen": [
+      "nuts",
+      "gluten",
+      "soy",
+      "dairy",
+      "shellfish",
+      "eggs",
+      "pork",
+      "sesame",
+      "mustard",
+      "celery",
+      "sulfites",
+      "lupin",
+      "molluscs"
+    ],
+    "protein": [
+      "beef",
+      "lamb",
+      "chicken",
+      "turkey",
+      "pork",
+      "duck",
+      "fish",
+      "shellfish",
+      "egg",
+      "dairy",
+      "legume",
+      "tofu",
+      "mushroom",
+      "grain",
+      "pasta",
+      "vegetable",
+      "fruit",
+      "mixed",
+      "none"
+    ],
+    "texture": [
+      "crunchy",
+      "tender",
+      "chewy",
+      "juicy",
+      "silky",
+      "flaky",
+      "firm"
+    ],
+    "profile": [
+      "mild",
+      "bitter",
+      "savory",
+      "herbal"
+    ],
+    "method": [
+      "braised",
+      "baked",
+      "steamed",
+      "boiled",
+      "seared",
+      "smoked",
+      "stewed",
+      "pickled"
+    ],
+    "temperature": [
+      "chilled",
+      "hot",
+      "cold",
+      "room_temperature"
+    ]
+  },
+  "current_ui_definitions": {
+    "roles": [
+      "starter",
+      "main",
+      "side",
+      "dessert",
+      "flex"
+    ],
+    "groups": {
+      "Diet": [
+        "veg",
+        "vegan",
+        "pescatarian",
+        "no pork/alcohol",
+        "meat",
+        "seafood"
+      ],
+      "Protein": [
+        "beef",
+        "lamb",
+        "chicken",
+        "turkey",
+        "pork",
+        "duck",
+        "fish",
+        "shellfish",
+        "egg",
+        "dairy",
+        "legume",
+        "tofu",
+        "mushroom",
+        "grain",
+        "pasta",
+        "vegetable",
+        "fruit",
+        "mixed",
+        "none"
+      ],
+      "Texture": [
+        "crunchy",
+        "tender",
+        "chewy",
+        "juicy",
+        "silky",
+        "flaky",
+        "firm",
+        "mild",
+        "bitter",
+        "savory",
+        "herbal",
+        "crispy",
+        "soft",
+        "creamy"
+      ],
+      "Cooking Method": [
+        "braised",
+        "baked",
+        "steamed",
+        "boiled",
+        "seared",
+        "smoked",
+        "stewed",
+        "pickled",
+        "raw",
+        "grilled",
+        "roasted",
+        "fried"
+      ],
+      "Temperature": [
+        "chilled",
+        "hot",
+        "cold",
+        "room_temperature"
+      ],
+      "Flavor": [
+        "fresh",
+        "rich",
+        "spicy",
+        "sweet",
+        "smoky",
+        "acidic",
+        "earthy",
+        "umami"
+      ]
+    },
+    "allergens_source": "app/(chef)/kitchen/page.tsx ALLERGEN_VOCAB",
+    "allergens": [
+      "nuts",
+      "shellfish",
+      "dairy",
+      "gluten",
+      "eggs",
+      "soy",
+      "pork",
+      "mushrooms",
+      "cilantro",
+      "sesame",
+      "mustard",
+      "celery",
+      "sulfites",
+      "lupin",
+      "molluscs"
+    ]
+  },
+  "definition_comparison": {
+    "role": {
+      "missing_from_ui": [],
+      "extra_in_ui": []
+    },
+    "allergen": {
+      "missing_from_ui": [],
+      "extra_in_ui": [
+        "mushrooms",
+        "cilantro"
+      ]
+    },
+    "protein": {
+      "missing_from_ui": [],
+      "extra_in_ui": []
+    },
+    "texture": {
+      "missing_from_ui": [],
+      "extra_in_ui": [
+        "mild",
+        "bitter",
+        "savory",
+        "herbal",
+        "crispy",
+        "soft",
+        "creamy"
+      ]
+    },
+    "profile": {
+      "missing_from_ui": [],
+      "extra_in_ui": [
+        "crunchy",
+        "tender",
+        "chewy",
+        "juicy",
+        "silky",
+        "flaky",
+        "firm",
+        "crispy",
+        "soft",
+        "creamy"
+      ]
+    },
+    "method": {
+      "missing_from_ui": [],
+      "extra_in_ui": [
+        "raw",
+        "grilled",
+        "roasted",
+        "fried"
+      ]
+    },
+    "temperature": {
+      "missing_from_ui": [],
+      "extra_in_ui": []
+    }
+  },
+  "totals": {
+    "signatures": 18,
+    "pantry": 13
+  },
+  "records": {
+    "signatures": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala",
+        "tags": [
+          "veg",
+          "vegan"
+        ],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [
+            "veg",
+            "vegan"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "5d2c879e-e3e1-44e4-8981-cbd9824eed04",
+        "name": "Gulab Jamun",
+        "tags": [
+          "dessert",
+          "veg"
+        ],
+        "contains_allergens": [
+          "dairy",
+          "gluten"
+        ],
+        "grouped": {
+          "role": [
+            "dessert"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy",
+            "gluten"
+          ],
+          "other": [
+            "veg"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [
+          "dairy",
+          "eggs"
+        ],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy",
+            "eggs"
+          ],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [
+          "gluten",
+          "dairy"
+        ],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "gluten",
+            "dairy"
+          ],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [
+          "dairy"
+        ],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy"
+          ],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "03a7a570-285b-4f44-85e6-ef042acaf768",
+        "name": "Knafeh",
+        "tags": [
+          "dessert",
+          "veg"
+        ],
+        "contains_allergens": [
+          "dairy",
+          "gluten"
+        ],
+        "grouped": {
+          "role": [
+            "dessert"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy",
+            "gluten"
+          ],
+          "other": [
+            "veg"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork",
+        "tags": [
+          "meat"
+        ],
+        "contains_allergens": [
+          "pork"
+        ],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "pork"
+          ],
+          "other": [
+            "meat"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "22de68df-872d-46ab-bf3a-c39c902774a7",
+        "name": "Tzatziki",
+        "tags": [
+          "veg",
+          "starter"
+        ],
+        "contains_allergens": [
+          "dairy"
+        ],
+        "grouped": {
+          "role": [
+            "starter"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy"
+          ],
+          "other": [
+            "veg"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "14ad7fbe-6a37-4118-8cd7-7631f1305842",
+        "name": "Greek Salad",
+        "tags": [
+          "veg",
+          "side"
+        ],
+        "contains_allergens": [
+          "dairy"
+        ],
+        "grouped": {
+          "role": [
+            "side"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy"
+          ],
+          "other": [
+            "veg"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "ae40fdca-0055-4bff-a8fa-d923f37e9e0e",
+        "name": "Mac and Cheese",
+        "tags": [
+          "veg",
+          "side"
+        ],
+        "contains_allergens": [
+          "dairy",
+          "gluten"
+        ],
+        "grouped": {
+          "role": [
+            "side"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy",
+            "gluten"
+          ],
+          "other": [
+            "veg"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "66dc5fe4-e24d-460d-a6da-6dff97b13e9d",
+        "name": "Tabbouleh",
+        "tags": [
+          "veg",
+          "vegan",
+          "side"
+        ],
+        "contains_allergens": [
+          "gluten"
+        ],
+        "grouped": {
+          "role": [
+            "side"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "gluten"
+          ],
+          "other": [
+            "veg",
+            "vegan"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "e707a1f9-defa-46a8-a82c-107a3a86ad6a",
+        "name": "Muhammara",
+        "tags": [
+          "veg",
+          "vegan",
+          "starter"
+        ],
+        "contains_allergens": [
+          "nuts"
+        ],
+        "grouped": {
+          "role": [
+            "starter"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "nuts"
+          ],
+          "other": [
+            "veg",
+            "vegan"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "b2d6915e-b169-4ffb-b96d-7d38b7fec2d7",
+        "name": "Baba Ganoush",
+        "tags": [
+          "veg",
+          "vegan",
+          "starter"
+        ],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [
+            "starter"
+          ],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [
+            "veg",
+            "vegan"
+          ],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi",
+        "tags": [
+          "veg"
+        ],
+        "contains_allergens": [
+          "dairy",
+          "mushrooms"
+        ],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [
+            "dairy"
+          ],
+          "other": [
+            "veg"
+          ],
+          "other_allergens": [
+            "mushrooms"
+          ]
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      }
+    ],
+    "pantry": [
+      {
+        "id": "8128a09e-5416-42b5-9fea-9ea8de9c9534",
+        "name": "Baladi bread",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "243c1dca-8155-440f-9e01-49f70bae7620",
+        "name": "Lamb shoulder",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "315a29bc-2c7a-4b41-b735-debcc08ad001",
+        "name": "Duck breast",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "52b65ea7-2dd6-4bbd-80b0-9378789685be",
+        "name": "Chickpeas",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "0e7a2a27-ad1f-4ed1-988f-fd2738a12283",
+        "name": "Beef tenderloin",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "1470f5d1-047e-4916-bbc6-968aab5a2f72",
+        "name": "Butternut squash",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "d31953ba-af93-46a9-9867-76aba855d627",
+        "name": "Scallops",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "76f5b022-7c5c-4b96-af4d-889a7636650e",
+        "name": "Bell peppers",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "75959b20-0b98-41f7-a05d-649e283f2065",
+        "name": "Parsley",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "9f880612-5907-4cc3-9cc2-a6f3e74c22c4",
+        "name": "Heavy cream",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "469b9dbb-cbff-48a9-976b-cbe4504c66cc",
+        "name": "Miso paste",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "f5c06810-1d1e-409f-ac4b-ee1248386da0",
+        "name": "Polenta",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      },
+      {
+        "id": "84ce14f3-64bf-4c94-b049-e7a06d8ec3a2",
+        "name": "Orzo",
+        "tags": [],
+        "contains_allergens": [],
+        "grouped": {
+          "role": [],
+          "protein": [],
+          "texture": [],
+          "profile": [],
+          "method": [],
+          "temperature": [],
+          "allergen": [],
+          "other": [],
+          "other_allergens": []
+        },
+        "unknown_tags": [],
+        "unknown_allergens": [],
+        "malformed_values": []
+      }
+    ]
+  },
+  "findings": {
+    "signatures_missing_role": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites"
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites"
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala"
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka"
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger"
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco"
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit"
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh"
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork"
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi"
+      }
+    ],
+    "signatures_missing_protein": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites"
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites"
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala"
+      },
+      {
+        "id": "5d2c879e-e3e1-44e4-8981-cbd9824eed04",
+        "name": "Gulab Jamun"
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka"
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger"
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco"
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit"
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh"
+      },
+      {
+        "id": "03a7a570-285b-4f44-85e6-ef042acaf768",
+        "name": "Knafeh"
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork"
+      },
+      {
+        "id": "22de68df-872d-46ab-bf3a-c39c902774a7",
+        "name": "Tzatziki"
+      },
+      {
+        "id": "14ad7fbe-6a37-4118-8cd7-7631f1305842",
+        "name": "Greek Salad"
+      },
+      {
+        "id": "ae40fdca-0055-4bff-a8fa-d923f37e9e0e",
+        "name": "Mac and Cheese"
+      },
+      {
+        "id": "66dc5fe4-e24d-460d-a6da-6dff97b13e9d",
+        "name": "Tabbouleh"
+      },
+      {
+        "id": "e707a1f9-defa-46a8-a82c-107a3a86ad6a",
+        "name": "Muhammara"
+      },
+      {
+        "id": "b2d6915e-b169-4ffb-b96d-7d38b7fec2d7",
+        "name": "Baba Ganoush"
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi"
+      }
+    ],
+    "signatures_missing_method": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites"
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites"
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala"
+      },
+      {
+        "id": "5d2c879e-e3e1-44e4-8981-cbd9824eed04",
+        "name": "Gulab Jamun"
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka"
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger"
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco"
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit"
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh"
+      },
+      {
+        "id": "03a7a570-285b-4f44-85e6-ef042acaf768",
+        "name": "Knafeh"
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork"
+      },
+      {
+        "id": "22de68df-872d-46ab-bf3a-c39c902774a7",
+        "name": "Tzatziki"
+      },
+      {
+        "id": "14ad7fbe-6a37-4118-8cd7-7631f1305842",
+        "name": "Greek Salad"
+      },
+      {
+        "id": "ae40fdca-0055-4bff-a8fa-d923f37e9e0e",
+        "name": "Mac and Cheese"
+      },
+      {
+        "id": "66dc5fe4-e24d-460d-a6da-6dff97b13e9d",
+        "name": "Tabbouleh"
+      },
+      {
+        "id": "e707a1f9-defa-46a8-a82c-107a3a86ad6a",
+        "name": "Muhammara"
+      },
+      {
+        "id": "b2d6915e-b169-4ffb-b96d-7d38b7fec2d7",
+        "name": "Baba Ganoush"
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi"
+      }
+    ],
+    "signatures_missing_temperature": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites"
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites"
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala"
+      },
+      {
+        "id": "5d2c879e-e3e1-44e4-8981-cbd9824eed04",
+        "name": "Gulab Jamun"
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka"
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger"
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco"
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit"
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh"
+      },
+      {
+        "id": "03a7a570-285b-4f44-85e6-ef042acaf768",
+        "name": "Knafeh"
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork"
+      },
+      {
+        "id": "22de68df-872d-46ab-bf3a-c39c902774a7",
+        "name": "Tzatziki"
+      },
+      {
+        "id": "14ad7fbe-6a37-4118-8cd7-7631f1305842",
+        "name": "Greek Salad"
+      },
+      {
+        "id": "ae40fdca-0055-4bff-a8fa-d923f37e9e0e",
+        "name": "Mac and Cheese"
+      },
+      {
+        "id": "66dc5fe4-e24d-460d-a6da-6dff97b13e9d",
+        "name": "Tabbouleh"
+      },
+      {
+        "id": "e707a1f9-defa-46a8-a82c-107a3a86ad6a",
+        "name": "Muhammara"
+      },
+      {
+        "id": "b2d6915e-b169-4ffb-b96d-7d38b7fec2d7",
+        "name": "Baba Ganoush"
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi"
+      }
+    ],
+    "signatures_missing_texture_or_profile": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites"
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites"
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala"
+      },
+      {
+        "id": "5d2c879e-e3e1-44e4-8981-cbd9824eed04",
+        "name": "Gulab Jamun"
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka"
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger"
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco"
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit"
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh"
+      },
+      {
+        "id": "03a7a570-285b-4f44-85e6-ef042acaf768",
+        "name": "Knafeh"
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork"
+      },
+      {
+        "id": "22de68df-872d-46ab-bf3a-c39c902774a7",
+        "name": "Tzatziki"
+      },
+      {
+        "id": "14ad7fbe-6a37-4118-8cd7-7631f1305842",
+        "name": "Greek Salad"
+      },
+      {
+        "id": "ae40fdca-0055-4bff-a8fa-d923f37e9e0e",
+        "name": "Mac and Cheese"
+      },
+      {
+        "id": "66dc5fe4-e24d-460d-a6da-6dff97b13e9d",
+        "name": "Tabbouleh"
+      },
+      {
+        "id": "e707a1f9-defa-46a8-a82c-107a3a86ad6a",
+        "name": "Muhammara"
+      },
+      {
+        "id": "b2d6915e-b169-4ffb-b96d-7d38b7fec2d7",
+        "name": "Baba Ganoush"
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi"
+      }
+    ],
+    "incomplete_signatures": [
+      {
+        "id": "ad8ab3b6-4a29-458e-a4b3-e3ecea00967a",
+        "name": "Steak frites"
+      },
+      {
+        "id": "226786bb-7007-4208-8300-198ae8ad431f",
+        "name": "Steak frites"
+      },
+      {
+        "id": "a7505983-049e-40d9-9bd4-4d42db8dd0be",
+        "name": "Chana Masala"
+      },
+      {
+        "id": "5d2c879e-e3e1-44e4-8981-cbd9824eed04",
+        "name": "Gulab Jamun"
+      },
+      {
+        "id": "95bf45cd-fe56-41d1-8792-02cb9fa5cead",
+        "name": "Moussaka"
+      },
+      {
+        "id": "5e745895-f0fe-49e8-af24-e33a7af810ce",
+        "name": "Classic Burger"
+      },
+      {
+        "id": "de879ae1-f627-4bde-92a4-e2d0ebf79ff0",
+        "name": "Osso Buco"
+      },
+      {
+        "id": "b9d5f628-6ca4-464c-a60c-44457101719e",
+        "name": "Duck Confit"
+      },
+      {
+        "id": "6f61a18a-fc1b-4771-9dc2-7b773d755254",
+        "name": "Lamb Rogan Josh"
+      },
+      {
+        "id": "03a7a570-285b-4f44-85e6-ef042acaf768",
+        "name": "Knafeh"
+      },
+      {
+        "id": "45ca17d0-da67-458b-8085-2c8b40a094ba",
+        "name": "BBQ Pulled Pork"
+      },
+      {
+        "id": "22de68df-872d-46ab-bf3a-c39c902774a7",
+        "name": "Tzatziki"
+      },
+      {
+        "id": "14ad7fbe-6a37-4118-8cd7-7631f1305842",
+        "name": "Greek Salad"
+      },
+      {
+        "id": "ae40fdca-0055-4bff-a8fa-d923f37e9e0e",
+        "name": "Mac and Cheese"
+      },
+      {
+        "id": "66dc5fe4-e24d-460d-a6da-6dff97b13e9d",
+        "name": "Tabbouleh"
+      },
+      {
+        "id": "e707a1f9-defa-46a8-a82c-107a3a86ad6a",
+        "name": "Muhammara"
+      },
+      {
+        "id": "b2d6915e-b169-4ffb-b96d-7d38b7fec2d7",
+        "name": "Baba Ganoush"
+      },
+      {
+        "id": "db2357ca-d222-45a2-981c-ddb1f5008db8",
+        "name": "Risotto ai Funghi"
+      }
+    ],
+    "pantry_with_roles": [],
+    "incomplete_pantry": [
+      {
+        "id": "8128a09e-5416-42b5-9fea-9ea8de9c9534",
+        "name": "Baladi bread"
+      },
+      {
+        "id": "243c1dca-8155-440f-9e01-49f70bae7620",
+        "name": "Lamb shoulder"
+      },
+      {
+        "id": "315a29bc-2c7a-4b41-b735-debcc08ad001",
+        "name": "Duck breast"
+      },
+      {
+        "id": "52b65ea7-2dd6-4bbd-80b0-9378789685be",
+        "name": "Chickpeas"
+      },
+      {
+        "id": "0e7a2a27-ad1f-4ed1-988f-fd2738a12283",
+        "name": "Beef tenderloin"
+      },
+      {
+        "id": "1470f5d1-047e-4916-bbc6-968aab5a2f72",
+        "name": "Butternut squash"
+      },
+      {
+        "id": "d31953ba-af93-46a9-9867-76aba855d627",
+        "name": "Scallops"
+      },
+      {
+        "id": "76f5b022-7c5c-4b96-af4d-889a7636650e",
+        "name": "Bell peppers"
+      },
+      {
+        "id": "75959b20-0b98-41f7-a05d-649e283f2065",
+        "name": "Parsley"
+      },
+      {
+        "id": "9f880612-5907-4cc3-9cc2-a6f3e74c22c4",
+        "name": "Heavy cream"
+      },
+      {
+        "id": "469b9dbb-cbff-48a9-976b-cbe4504c66cc",
+        "name": "Miso paste"
+      },
+      {
+        "id": "f5c06810-1d1e-409f-ac4b-ee1248386da0",
+        "name": "Polenta"
+      },
+      {
+        "id": "84ce14f3-64bf-4c94-b049-e7a06d8ec3a2",
+        "name": "Orzo"
+      }
+    ],
+    "unknown_values": {
+      "tags": [],
+      "allergens": [],
+      "malformed": []
+    },
+    "legacy_values": {
+      "tags": [
+        "meat",
+        "veg",
+        "vegan"
+      ],
+      "allergens": [
+        "mushrooms"
+      ]
+    },
+    "canonical_never_used": {
+      "tags": [
+        "baked",
+        "beef",
+        "bitter",
+        "boiled",
+        "braised",
+        "chewy",
+        "chicken",
+        "chilled",
+        "cold",
+        "crunchy",
+        "dairy",
+        "duck",
+        "egg",
+        "firm",
+        "fish",
+        "flaky",
+        "flex",
+        "fruit",
+        "grain",
+        "herbal",
+        "hot",
+        "juicy",
+        "lamb",
+        "legume",
+        "main",
+        "mild",
+        "mixed",
+        "mushroom",
+        "none",
+        "pasta",
+        "pickled",
+        "pork",
+        "room_temperature",
+        "savory",
+        "seared",
+        "shellfish",
+        "silky",
+        "smoked",
+        "steamed",
+        "stewed",
+        "tender",
+        "tofu",
+        "turkey",
+        "vegetable"
+      ],
+      "allergens": [
+        "celery",
+        "lupin",
+        "molluscs",
+        "mustard",
+        "sesame",
+        "shellfish",
+        "soy",
+        "sulfites"
+      ]
+    }
+  }
+}

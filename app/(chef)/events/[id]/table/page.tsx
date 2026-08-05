@@ -9,6 +9,8 @@ import { deriveCourse } from '@/lib/menu'
 import type { Course, Signature, PantryItem } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
+import { formatTagLabel } from '@/lib/tag-format'
+import { withoutDishRoles } from '@/lib/dish-presets'
 
 function currentMonday(): string {
   const d = new Date()
@@ -123,7 +125,10 @@ export default function TablePage({ params }: { params: { id: string } }) {
               source: c.source,
             },
             (sigs ?? []) as Signature[],
-            (pantryRows ?? []) as PantryItem[],
+            ((pantryRows ?? []) as PantryItem[]).map((item) => ({
+              ...item,
+              tags: withoutDishRoles(item.tags),
+            })),
             builtIntel
           )
         )
@@ -255,7 +260,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                         }}
                       >
                         <span aria-hidden>⛔ </span>
-                        <span>{limit.label}</span>
+                        <span>{formatTagLabel(limit.label)}</span>
                       </span>
                       <span
                         style={{
@@ -561,7 +566,7 @@ function Bar({
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {label}
+        {formatTagLabel(label)}
       </span>
       <div
         style={{

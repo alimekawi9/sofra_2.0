@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { withoutDishRoles } from '@/lib/dish-presets'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
-import { draftCourse, draftMenu, deriveMenu, inferSlot, portionGuidance, SLOT_LABELS } from '@/lib/menu'
+import { draftCourse, draftMenu, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
@@ -247,7 +248,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         return { ...s, slot: inferred }
       })
       setSignatures(backfilled)
-      setPantry(pantryItems ?? [])
+      const roleFreePantry = (pantryItems ?? []).map((item: PantryItem) => ({
+        ...item,
+        tags: withoutDishRoles(item.tags),
+      }))
+      setPantry(roleFreePantry)
 
       const { data: menu } = await supabase
         .from('menus')
@@ -263,7 +268,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .order('sort_order', { ascending: true })
         setCourses(rows ?? [])
       } else {
-        const drafted = draftMenu(builtIntel, backfilled, pantryItems ?? [])
+        const drafted = draftMenu(builtIntel, backfilled, roleFreePantry)
         const { data: newMenu, error: menuErr } = await supabase
           .from('menus')
           .insert({ event_id: id })

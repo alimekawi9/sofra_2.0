@@ -7,7 +7,26 @@
 // dishes are eligible for "Main — Land/Sea/Green"; 'side' and 'starter'
 // dishes are traditionally accompaniments or appetizers and are only ever
 // routed to "To Start" (see inferSlot in lib/menu.ts).
-export type DishRole = 'main' | 'side' | 'starter'
+export const DISH_ROLES = ['starter', 'main', 'side', 'dessert', 'flex'] as const
+export type DishRole = (typeof DISH_ROLES)[number]
+
+const DISH_ROLE_SET = new Set<string>(DISH_ROLES)
+
+export function isDishRole(value: string): value is DishRole {
+  return DISH_ROLE_SET.has(value)
+}
+
+export function dishRoleFromTags(tags: readonly string[]): DishRole | null {
+  return tags.find(isDishRole) ?? null
+}
+
+export function withoutDishRoles(tags: readonly string[]): string[] {
+  return tags.filter((tag) => !isDishRole(tag))
+}
+
+export function withDishRole(tags: readonly string[], role: DishRole): string[] {
+  return [...withoutDishRoles(tags), role]
+}
 
 export type DishPreset = {
   name: string
@@ -40,8 +59,8 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Lamb Kofta', cuisine: 'Levantine', tags: ['meat'], allergens: [], role: 'main' },
   { name: 'Kibbeh', cuisine: 'Levantine', tags: ['meat'], allergens: ['gluten'], role: 'main' },
   { name: 'Mansaf', cuisine: 'Levantine', tags: ['meat'], allergens: ['dairy'], role: 'main' },
-  { name: 'Baklava', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'], role: 'main' },
-  { name: 'Knafeh', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'], role: 'main' },
+  { name: 'Baklava', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'], role: 'dessert' },
+  { name: 'Knafeh', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'], role: 'dessert' },
 
   // Italian
   { name: 'Margherita Pizza', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy', 'gluten'], role: 'main' },
@@ -51,8 +70,8 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Caprese Salad', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy'], role: 'starter' },
   { name: 'Bruschetta', cuisine: 'Italian', tags: ['veg', 'vegan'], allergens: ['gluten'], role: 'starter' },
   { name: 'Lasagna', cuisine: 'Italian', tags: ['meat'], allergens: ['dairy', 'gluten'], role: 'main' },
-  { name: 'Tiramisu', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs', 'gluten', 'alcohol'], role: 'main' },
-  { name: 'Panna Cotta', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy'], role: 'main' },
+  { name: 'Tiramisu', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs', 'gluten', 'alcohol'], role: 'dessert' },
+  { name: 'Panna Cotta', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy'], role: 'dessert' },
 
   // French
   { name: 'Coq au Vin', cuisine: 'French', tags: ['meat'], allergens: ['alcohol', 'pork'], role: 'main' },
@@ -61,8 +80,8 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'French Onion Soup', cuisine: 'French', tags: ['veg'], allergens: ['dairy', 'gluten'], role: 'starter' },
   { name: 'Duck Confit', cuisine: 'French', tags: ['meat'], allergens: [], role: 'main' },
   { name: 'Bouillabaisse', cuisine: 'French', tags: ['seafood'], allergens: ['shellfish', 'alcohol'], role: 'main' },
-  { name: 'Crème Brûlée', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs'], role: 'main' },
-  { name: 'Tarte Tatin', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'main' },
+  { name: 'Crème Brûlée', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs'], role: 'dessert' },
+  { name: 'Tarte Tatin', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'dessert' },
 
   // Japanese
   { name: 'Sushi Platter', cuisine: 'Japanese', tags: ['seafood'], allergens: ['shellfish'], role: 'main' },
@@ -71,7 +90,7 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Tempura', cuisine: 'Japanese', tags: [], allergens: ['gluten', 'shellfish', 'eggs'], role: 'starter' },
   { name: 'Teriyaki Chicken', cuisine: 'Japanese', tags: ['meat'], allergens: ['soy', 'gluten'], role: 'main' },
   { name: 'Gyoza', cuisine: 'Japanese', tags: ['meat'], allergens: ['gluten', 'soy', 'pork'], role: 'starter' },
-  { name: 'Matcha Mochi', cuisine: 'Japanese', tags: ['dessert', 'veg', 'vegan'], allergens: [], role: 'main' },
+  { name: 'Matcha Mochi', cuisine: 'Japanese', tags: ['dessert', 'veg', 'vegan'], allergens: [], role: 'dessert' },
 
   // Mexican
   { name: 'Tacos al Pastor', cuisine: 'Mexican', tags: ['meat'], allergens: ['pork'], role: 'main' },
@@ -80,7 +99,7 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Chiles Rellenos', cuisine: 'Mexican', tags: ['veg'], allergens: ['dairy', 'eggs', 'gluten'], role: 'main' },
   { name: 'Mole Poblano', cuisine: 'Mexican', tags: ['meat'], allergens: ['nuts'], role: 'main' },
   { name: 'Ceviche', cuisine: 'Mexican', tags: ['seafood'], allergens: ['shellfish'], role: 'starter' },
-  { name: 'Churros', cuisine: 'Mexican', tags: ['dessert', 'veg'], allergens: ['gluten', 'eggs', 'dairy'], role: 'main' },
+  { name: 'Churros', cuisine: 'Mexican', tags: ['dessert', 'veg'], allergens: ['gluten', 'eggs', 'dairy'], role: 'dessert' },
 
   // Indian
   { name: 'Butter Chicken', cuisine: 'Indian', tags: ['meat'], allergens: ['dairy', 'nuts'], role: 'main' },
@@ -89,7 +108,7 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Lamb Rogan Josh', cuisine: 'Indian', tags: ['meat'], allergens: ['dairy'], role: 'main' },
   { name: 'Samosas', cuisine: 'Indian', tags: ['veg', 'vegan'], allergens: ['gluten'], role: 'starter' },
   { name: 'Biryani', cuisine: 'Indian', tags: [], allergens: ['dairy'], role: 'main' },
-  { name: 'Gulab Jamun', cuisine: 'Indian', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'], role: 'main' },
+  { name: 'Gulab Jamun', cuisine: 'Indian', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'], role: 'dessert' },
 
   // Greek
   { name: 'Greek Salad', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy'], role: 'side' },
@@ -97,7 +116,7 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Souvlaki', cuisine: 'Greek', tags: ['meat'], allergens: [], role: 'main' },
   { name: 'Spanakopita', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy', 'gluten', 'eggs'], role: 'starter' },
   { name: 'Tzatziki', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy'], role: 'starter' },
-  { name: 'Baklava (Greek style)', cuisine: 'Greek', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'], role: 'main' },
+  { name: 'Baklava (Greek style)', cuisine: 'Greek', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'], role: 'dessert' },
 
   // American
   { name: 'Classic Burger', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy'], role: 'main' },
@@ -105,7 +124,7 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Mac and Cheese', cuisine: 'American', tags: ['veg'], allergens: ['dairy', 'gluten'], role: 'side' },
   { name: 'Cornbread', cuisine: 'American', tags: ['veg'], allergens: ['gluten', 'eggs', 'dairy'], role: 'side' },
   { name: 'Fried Chicken', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy', 'eggs'], role: 'main' },
-  { name: 'Apple Pie', cuisine: 'American', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'main' },
+  { name: 'Apple Pie', cuisine: 'American', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'dessert' },
 ]
 
 // Name → role lookup so inferSlot in lib/menu.ts can classify legacy DB rows
