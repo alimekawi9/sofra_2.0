@@ -50,7 +50,7 @@ const GUESTS = [
   { name: 'Nadia', phone: '+10000000003', dietary: ['Vegetarian'], avoid: ['Nuts'], drinks: ['Wine'], adventurousness: 55 },
   { name: 'Sam', phone: '+10000000004', dietary: [], avoid: ['Nuts'], drinks: ['Beer'], adventurousness: 40 },
   { name: 'Yara', phone: '+10000000005', dietary: [], avoid: ['Shellfish'], drinks: ['Wine'], adventurousness: 75 },
-  { name: 'Tarek', phone: '+10000000006', dietary: ['Halal'], avoid: [], drinks: ['Cocktails'], adventurousness: 90 },
+  { name: 'Tarek', phone: '+10000000006', dietary: ['No pork/alcohol'], avoid: [], drinks: ['Cocktails'], adventurousness: 90 },
   { name: 'Mona', phone: '+10000000007', dietary: ['Vegetarian'], avoid: ['Mushrooms'], drinks: ['Alcohol-free'], adventurousness: 35 },
   { name: 'Dana', phone: '+10000000008', dietary: [], avoid: ['Nuts'], drinks: ['Wine'], adventurousness: 60 },
   { name: 'Priya', phone: '+10000000009', dietary: ['Vegetarian'], avoid: [], drinks: ['Wine'], adventurousness: 65 },

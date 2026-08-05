@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
-import { draftCourse, draftMenu, deriveCourse, inferSlot, portionGuidance, SLOT_LABELS } from '@/lib/menu'
+import { draftCourse, draftMenu, deriveMenu, inferSlot, portionGuidance, SLOT_LABELS } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
@@ -45,10 +45,10 @@ function buildMenuHtml(
           : ''
       const substitutionsHtml =
         c.substitutions && c.substitutions.length > 0
-          ? `<div class="subs"><div class="subs-h">Plated on the side</div>${c.substitutions
+          ? `<div class="subs"><div class="subs-h">Guest alternates</div>${c.substitutions
               .map(
                 (s) =>
-                  `<div class="sub"><span class="sub-g">${escHtml(s.guests.join(', '))}:</span> ${escHtml(s.dishName)}</div>`
+                  `<div class="sub"><span class="sub-g">${escHtml(s.guests.join(', '))}</span> get instead: ${escHtml(s.dishName)}</div>`
               )
               .join('')}</div>`
           : ''
@@ -122,6 +122,7 @@ type PersistedCourse = {
   locked: boolean
   source: string | null
   sort_order: number
+  component_ids: string[] | null
 }
 
 function mergeGuests(
@@ -169,7 +170,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
   const derivedCourses = useMemo<Course[]>(() => {
     if (!intel) return []
-    return courses.map((c) => deriveCourse(c, signatures, pantry, intel))
+    return deriveMenu(courses, signatures, pantry, intel)
   }, [courses, intel, signatures, pantry])
 
   async function loadAll() {
@@ -273,6 +274,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           dish_name: c.dishName,
           dish_origin: c.origin,
           source: c.sourceId,
+          component_ids: c.componentIds ?? null,
           locked: false,
           sort_order: i,
         }))
@@ -307,13 +309,24 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     setCourses(
       courses.map((c) =>
         c.id === course.id
-          ? { ...c, dish_name: next.dishName, dish_origin: next.origin, source: next.sourceId }
+          ? {
+              ...c,
+              dish_name: next.dishName,
+              dish_origin: next.origin,
+              source: next.sourceId,
+              component_ids: next.componentIds ?? null,
+            }
           : c
       )
     )
     const { error } = await supabase
       .from('menu_courses')
-      .update({ dish_name: next.dishName, dish_origin: next.origin, source: next.sourceId })
+      .update({
+        dish_name: next.dishName,
+        dish_origin: next.origin,
+        source: next.sourceId,
+        component_ids: next.componentIds ?? null,
+      })
       .eq('id', course.id)
     if (error) {
       setCourses(prev)
@@ -333,45 +346,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     if (error) {
       setCourses(prev)
       setActionError('Failed to update lock. Try again.')
-    }
-  }
-
-  async function handleRegenerate() {
-    if (!intel) return
-    setActionError('')
-    const unlocked = courses.filter((c) => !c.locked)
-    if (unlocked.length === 0) return
-
-    const updates = unlocked.map((c) => ({
-      id: c.id,
-      next: draftCourse(c.slot as Slot, intel, signatures, pantry),
-    }))
-
-    const prev = courses
-    setCourses(
-      courses.map((c) => {
-        const upd = updates.find((u) => u.id === c.id)
-        if (!upd) return c
-        return {
-          ...c,
-          dish_name: upd.next.dishName,
-          dish_origin: upd.next.origin,
-          source: upd.next.sourceId,
-        }
-      })
-    )
-
-    const results = await Promise.all(
-      updates.map(({ id: cid, next }) =>
-        supabase
-          .from('menu_courses')
-          .update({ dish_name: next.dishName, dish_origin: next.origin, source: next.sourceId })
-          .eq('id', cid)
-      )
-    )
-    if (results.some((r) => r.error)) {
-      setCourses(prev)
-      setActionError('Failed to regenerate menu. Try again.')
     }
   }
 
@@ -430,6 +404,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
             dish_name: upd.next.dishName,
             dish_origin: upd.next.origin,
             source: upd.next.sourceId,
+            component_ids: upd.next.componentIds ?? null,
           }
         })
       )
@@ -450,6 +425,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               dish_name: next.dishName,
               dish_origin: next.origin,
               source: next.sourceId,
+              component_ids: next.componentIds ?? null,
             })
             .eq('id', cid)
         )
@@ -569,17 +545,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button
                   className="regen"
-                  onClick={() => void handleRegenerate()}
-                  disabled={allLocked || aiLoading}
-                  title={allLocked ? 'Everything is locked' : undefined}
-                  style={
-                    allLocked || aiLoading ? { opacity: 0.5, cursor: 'not-allowed' } : undefined
-                  }
-                >
-                  ↻ Regenerate
-                </button>
-                <button
-                  className="regen"
                   onClick={() => void handleRegenerateAI()}
                   disabled={allLocked || aiLoading}
                   title={
@@ -597,7 +562,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                     color: C.gold,
                   }}
                 >
-                  {aiLoading ? '✦ Thinking…' : '✦ Regenerate with AI'}
+                  {aiLoading ? '✦ Thinking…' : '✦ Set the Table'}
                 </button>
               </div>
             </div>
@@ -790,7 +755,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                             marginBottom: 4,
                           }}
                         >
-                          Plated on the side
+                          Guest alternates
                         </div>
                         {derived.substitutions.map((sub, si) => (
                           <div
@@ -803,8 +768,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                               lineHeight: 1.45,
                             }}
                           >
-                            <span style={{ color: C.gold }}>{sub.guests.join(', ')}:</span>{' '}
-                            <span>{sub.dishName}</span>
+                            <span style={{ color: C.gold }}>{sub.guests.join(', ')}</span>{' '}
+                            <span>get instead: {sub.dishName}</span>
                           </div>
                         ))}
                       </div>

@@ -1,4 +1,5 @@
 import type { TableIntel } from './intel'
+import { dishRoleByName } from './dish-presets'
 
 export type Slot = 'start' | 'sea' | 'land' | 'green' | 'finish'
 // 'fallback' — last-resort signature that still had exclusions but was picked
@@ -52,6 +53,11 @@ export type Course = {
   // may not receive a substitute if the pool has nothing safer for them —
   // that's still visible to the chef as a "no substitute available" state.
   substitutions?: Substitution[]
+  // For pantry-composed dishes, the pantry item ids that make up the dish.
+  // Needed so `deriveCourse` can re-score composed dishes on page reload —
+  // without them, source=null pantry-composed rows would return excludes=[]
+  // and silently look safe for the whole table.
+  componentIds?: string[]
   // Populated only for AI-generated courses; explains why the model picked this dish.
   reasoning?: string
 }
@@ -126,12 +132,12 @@ export const SLOT_PORTIONS: Record<Slot, number> = {
   finish: 8,
 }
 
-// Deliberately says "feeds" rather than "serves" — this is a raw cooking
+// Deliberately says "bellies" rather than "serves" — this is a raw cooking
 // quantity (how much to prep), not a guest-safety count. Keeping the wording
 // disjoint from the table-fit safety label avoids the two being read as
 // answers to the same question.
 export function portionGuidance(slot: Slot): string {
-  return `Portion: feeds ~${SLOT_PORTIONS[slot]}`
+  return `Enough for ~${SLOT_PORTIONS[slot]} bellies`
 }
 
 // True allergies — physical-danger stakes. These hard-block a dish from being
@@ -175,8 +181,22 @@ const DIET_SATISFIED_BY: Record<string, Set<string>> = {
 // Callers persist the inferred slot back to the DB on first read so it's
 // stable across generations. Returns null only when nothing plausible fits —
 // caller then treats the signature as slot-agnostic (last-resort tier).
+//
+// 'side'/'starter' is checked before any course-type tag: a dish can be
+// tagged 'meat' or 'veg' for diet/allergen matching (it IS a meat dish, it
+// IS vegetarian-safe) while still not being a standalone main — Mac and
+// Cheese is 'veg' but a side, Gyoza is 'meat' but a starter. Those dishes
+// route to 'start' so "Main — Land" / "Main — Green" only ever draw from
+// genuine mains.
 export function inferSlot(name: string, tags: string[]): Slot | null {
   const tagset = new Set(tags.map(t => t.toLowerCase()))
+  if (tagset.has('side') || tagset.has('starter')) return 'start'
+  // Preset-name fallback: legacy DB rows (added before the role tag existed)
+  // still lack 'side'/'starter' in their stored tags. Consulting the preset
+  // list by name keeps Mac and Cheese / Greek Salad / Tzatziki / Gyoza / etc.
+  // out of Main — Land/Sea/Green without needing to backfill every row.
+  const presetRole = dishRoleByName(name)
+  if (presetRole === 'side' || presetRole === 'starter') return 'start'
   if (tagset.has('dessert')) return 'finish'
   if (tagset.has('seafood')) return 'sea'
   if (tagset.has('meat')) return 'land'
@@ -454,14 +474,18 @@ export function draftCourse(
   if (inSlot.length > 0) return pickBestFromPool(inSlot, 'signature')
 
   // Tier 3 — last-resort: no signature is slotted here (stored or inferred),
-  // but we promised the menu is never empty while any signature exists.
-  // Widen to every available signature, rank by slot affinity so the pick
-  // still feels plausible for the slot (a name-keyword-only match beats a
-  // random alphabetical winner), and mark origin='fallback' so the chef
-  // sees this was a stretch.
+  // widen to every available signature ranked by slot affinity.
   const fallbackPool = availableSigs
     .map(toCandidate)
     .filter(c => c.slotAffinity > 0)
+
+  // Sea and Land are category-strict: showing "Ratatouille" under "Main —
+  // Sea" is worse than showing an empty slot the chef can fill themselves.
+  // An honest empty is better than a misleading fill. Start/Green/Finish
+  // stay permissive since "any veg" plausibly fits any of those.
+  if (fallbackPool.length === 0 && (slot === 'sea' || slot === 'land')) {
+    return { slot, slotLabel, dishName: '', origin: 'empty', sourceId: null, excludes: [] }
+  }
 
   const finalPool = fallbackPool.length > 0
     ? fallbackPool
@@ -484,7 +508,8 @@ export function assignSubstitutions(
   main: Course,
   intel: TableIntel,
   signatures: Signature[],
-  usedInMenu: Set<string>
+  usedInMenu: Set<string>,
+  usedNames?: Set<string>,
 ): Substitution[] {
   if (main.excludes.length === 0) return []
 
@@ -500,6 +525,11 @@ export function assignSubstitutions(
   const withSlots = withInferredSlots(signatures)
   const busyIds = new Set<string>(usedInMenu)
   if (main.sourceId) busyIds.add(main.sourceId)
+  // Track used lowercased names too — a signature substitute could otherwise
+  // duplicate the name of an AI-composed main from an earlier slot (which
+  // has no sourceId to dedup against).
+  const busyNames = new Set<string>(usedNames ?? [])
+  if (main.dishName) busyNames.add(main.dishName.toLowerCase())
 
   const subs: Substitution[] = []
   const reasonGroups = Array.from(byReason.values())
@@ -509,7 +539,7 @@ export function assignSubstitutions(
     // total exclusions for the whole table (so we don't rescue one group at
     // the cost of many other guests).
     const pool = withSlots
-      .filter(s => !busyIds.has(s.id))
+      .filter(s => !busyIds.has(s.id) && !busyNames.has(s.name.toLowerCase()))
       .map(s => {
         const exclusions = scoreDish(s, intel)
         const excludesAnyOfGroup = exclusions.some(e => guests.includes(e.guest))
@@ -532,6 +562,7 @@ export function assignSubstitutions(
 
     const winner = pool[0].sig
     busyIds.add(winner.id) // don't reuse the same substitute for two groups
+    busyNames.add(winner.name.toLowerCase())
     subs.push({
       guests,
       dishName: winner.name,
@@ -551,15 +582,21 @@ export function draftMenu(
   // Slots are drafted in order, excluding dishes already used by earlier
   // slots in this same menu — otherwise ties (e.g. no pantry item matching a
   // slot's keywords) resolve identically per slot and the same dish gets
-  // picked for multiple courses.
+  // picked for multiple courses. Track both ids AND lowercased names so
+  // substitutes can't collide with an earlier composed main whose sourceId
+  // is null.
   const used = new Set<string>()
+  const usedNames = new Set<string>()
   const withSlots = withInferredSlots(signatures)
   return SLOTS.map(slot => {
     const course = draftCourse(slot, intel, withSlots, pantry, used)
     if (course.sourceId) used.add(course.sourceId)
-    const substitutions = assignSubstitutions(course, intel, withSlots, used)
-    // Reserve substitute dish ids so later slots don't reuse them as mains.
-    for (const s of substitutions) if (s.sourceId) used.add(s.sourceId)
+    if (course.dishName) usedNames.add(course.dishName.toLowerCase())
+    const substitutions = assignSubstitutions(course, intel, withSlots, used, usedNames)
+    for (const s of substitutions) {
+      if (s.sourceId) used.add(s.sourceId)
+      if (s.dishName) usedNames.add(s.dishName.toLowerCase())
+    }
     return substitutions.length > 0 ? { ...course, substitutions } : course
   })
 }
@@ -569,6 +606,12 @@ export type PersistedCourseLike = {
   dish_name: string
   dish_origin: string | null
   source: string | null
+  // For pantry-composed dishes, the pantry item ids the AI used to compose
+  // the dish. Enables `deriveCourse` to re-score composed dishes on page
+  // reload — without this the row's `source` is null and excludes come back
+  // empty (silent 9/9). Optional for backward compatibility with rows
+  // written before the schema gained `component_ids`.
+  component_ids?: string[] | null
 }
 
 // Turns a persisted menu_courses row into a displayable Course, re-checking
@@ -577,11 +620,18 @@ export type PersistedCourseLike = {
 // is set) that entry is now gone — a null source (e.g. an AI-composed dish
 // not tied to one specific pantry item) is not a deletion and must keep its
 // dish_name.
+//
+// The `usedInMenu` / `usedNames` params are how `deriveMenu` (below) threads
+// cross-course dedup state through per-course substitute selection. Callers
+// deriving a single course in isolation can omit them and get the same
+// behavior as before.
 export function deriveCourse(
   persisted: PersistedCourseLike,
   signatures: Signature[],
   pantry: PantryItem[],
-  intel: TableIntel
+  intel: TableIntel,
+  usedInMenu?: Set<string>,
+  usedNames?: Set<string>,
 ): Course {
   const slot = persisted.slot as Slot
   const slotLabel = SLOT_LABELS[slot] ?? persisted.slot
@@ -604,19 +654,40 @@ export function deriveCourse(
   const isSignatureLike =
     persisted.dish_origin === 'signature' || persisted.dish_origin === 'fallback'
 
-  let sourceDish: Signature | PantryItem | undefined
+  let excludes: Exclusion[] = []
+  let sourceDeleted = false
+  let componentIds: string[] | undefined
+
   if (isSignatureLike) {
-    sourceDish = signatures.find(s => s.id === persisted.source)
+    const sig = signatures.find(s => s.id === persisted.source)
+    if (!sig && persisted.source) sourceDeleted = true
+    else if (sig) excludes = scoreDish(sig, intel)
   } else if (persisted.dish_origin === 'pantry-composed') {
-    sourceDish = pantry.find(p => p.id === persisted.source)
+    // Prefer component_ids (composed from N pantry items) — that's the
+    // source of truth for exclusion computation. Fall back to legacy single
+    // `source` for older rows written before component_ids existed.
+    const compIds = persisted.component_ids ?? null
+    if (compIds && compIds.length > 0) {
+      const resolved: PantryItem[] = []
+      const missing: string[] = []
+      for (const id of compIds) {
+        const item = pantry.find(p => p.id === id)
+        if (item) resolved.push(item)
+        else missing.push(id)
+      }
+      if (missing.length > 0 && resolved.length === 0) sourceDeleted = true
+      else {
+        componentIds = compIds
+        excludes = scoreComposedDish(resolved, intel)
+      }
+    } else if (persisted.source) {
+      const item = pantry.find(p => p.id === persisted.source)
+      if (!item) sourceDeleted = true
+      else excludes = scoreDish(item, intel)
+    }
+    // else: pre-migration row with source=null and no component_ids — leave
+    // excludes empty (matches prior behavior for backward compat).
   }
-
-  const sourceDeleted =
-    (isSignatureLike || persisted.dish_origin === 'pantry-composed')
-    && !!persisted.source
-    && !sourceDish
-
-  const excludes = sourceDish ? scoreDish(sourceDish, intel) : []
 
   const course: Course = {
     slot,
@@ -625,6 +696,7 @@ export function deriveCourse(
     origin: sourceDeleted ? 'empty' : ((persisted.dish_origin as CourseOrigin) ?? 'empty'),
     sourceId: persisted.source,
     excludes,
+    ...(componentIds ? { componentIds } : {}),
   }
 
   if (course.origin === 'empty' || excludes.length === 0) return course
@@ -633,9 +705,35 @@ export function deriveCourse(
     course,
     intel,
     signatures,
-    new Set(course.sourceId ? [course.sourceId] : [])
+    usedInMenu ?? new Set(course.sourceId ? [course.sourceId] : []),
+    usedNames,
   )
   return substitutions.length > 0 ? { ...course, substitutions } : course
+}
+
+// Cross-course dedup wrapper around deriveCourse. Threads a shared
+// used-ids + used-names set through each course's substitute selection so a
+// signature that's already the main for slot A can't be handed back as a
+// substitute for slot B. Also excludes substitute names from being reused.
+// Call this once per menu render instead of `.map(deriveCourse)`.
+export function deriveMenu(
+  persisted: PersistedCourseLike[],
+  signatures: Signature[],
+  pantry: PantryItem[],
+  intel: TableIntel,
+): Course[] {
+  const usedIds = new Set<string>()
+  const usedNames = new Set<string>()
+  return persisted.map(p => {
+    const course = deriveCourse(p, signatures, pantry, intel, usedIds, usedNames)
+    if (course.sourceId) usedIds.add(course.sourceId)
+    if (course.dishName) usedNames.add(course.dishName.toLowerCase())
+    for (const s of course.substitutions ?? []) {
+      if (s.sourceId) usedIds.add(s.sourceId)
+      if (s.dishName) usedNames.add(s.dishName.toLowerCase())
+    }
+    return course
+  })
 }
 
 // AI-assisted menu generation lives in `./menu-ai` (server-only) so this file

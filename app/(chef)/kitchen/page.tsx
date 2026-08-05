@@ -15,9 +15,19 @@ type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
 
 // Fixed vocabularies keep tag/allergen values consistent so the hard-limit
 // safety check in lib/menu.ts (case-insensitive) reliably matches guest avoid
-// entries — e.g. chef "nuts" ↔ guest "Nuts".
-const TAG_VOCAB = ['veg', 'vegan', 'meat', 'seafood', 'dessert', 'pescatarian', 'no pork/alcohol'] as const
-const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork'] as const
+// entries — e.g. chef "nuts" ↔ guest "Nuts". 'side'/'starter' don't affect
+// diet matching — they tell inferSlot this dish isn't eligible for a Main
+// slot even if it's also tagged 'meat'/'veg' (see lib/menu.ts inferSlot).
+//
+// ALLERGEN_VOCAB must cover every value in NOGOS (lib/theme.ts) — otherwise
+// a guest's avoid label has no chef-side chip to declare against, and the
+// exclusion silently misses. It ALSO carries dairy/gluten/soy, which aren't
+// in NOGOS but are true medical allergens (TRUE_ALLERGENS in lib/menu.ts)
+// the chef must be able to declare. Cilantro/Mushrooms/Pork are preferences
+// (not TRUE_ALLERGENS) and score as kind='preference' → labeled substitute
+// rather than hard block.
+const TAG_VOCAB = ['veg', 'vegan', 'meat', 'seafood', 'dessert', 'pescatarian', 'no pork/alcohol', 'side', 'starter'] as const
+const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork', 'mushrooms', 'cilantro'] as const
 
 function dishKey(p: DishPreset): string {
   return `${p.cuisine}::${p.name}`
@@ -206,7 +216,10 @@ function KitchenPageInner() {
           .insert({
             chef_id: uid,
             name: p.name,
-            tags: p.tags,
+            // Non-main presets carry their role as an extra tag so inferSlot
+            // (lib/menu.ts) keeps them out of Main — Land/Sea/Green even
+            // though 'meat'/'veg' is still needed for diet/allergen matching.
+            tags: p.role === 'main' ? p.tags : [...p.tags, p.role],
             contains_allergens: p.allergens,
           })
           .select('id, name, tags, contains_allergens')

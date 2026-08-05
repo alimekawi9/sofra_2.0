@@ -6,6 +6,7 @@ import {
   assignSubstitutions,
   draftCourse,
   draftMenu,
+  nameMatchesSlot,
   scoreDish,
   scoreComposedDish,
   type Course,
@@ -59,10 +60,25 @@ function buildAIPrompt(
       }).join('\n')
     : '(none)'
 
-  const hardLimitLines = intel.hardLimits.length
-    ? intel.hardLimits.map(h =>
-        `- ${h.type.toUpperCase()} "${h.label}" affects: ${h.guests.join(', ')}`
-      ).join('\n')
+  // Split the hard limits so the AI understands: allergies (nuts, shellfish,
+  // dairy, eggs, gluten, soy) are true physical-danger blocks — never
+  // propose a dish containing them for the affected guest. Diet + taste
+  // preferences (Vegetarian, Vegan, Pork, Mushrooms, etc.) are handled
+  // downstream by per-guest substitutes — the AI should still pick a proper
+  // Sea/Land dish for the table even if some vegetarians can't eat it, and
+  // the system will plate them an alternate.
+  const allergyLines = intel.hardLimits.filter(h => h.type === 'allergy').length
+    ? intel.hardLimits
+        .filter(h => h.type === 'allergy')
+        .map(h => `- "${h.label}" affects: ${h.guests.join(', ')}`)
+        .join('\n')
+    : '(none)'
+
+  const preferenceLines = intel.hardLimits.filter(h => h.type === 'diet').length
+    ? intel.hardLimits
+        .filter(h => h.type === 'diet')
+        .map(h => `- "${h.label}" affects: ${h.guests.join(', ')}`)
+        .join('\n')
     : '(none)'
 
   const dietMix = intel.dietMix.length
@@ -97,11 +113,23 @@ GUEST INTEL:
 - Table adventurousness: ${intel.avgAdventurousness}/100 (${intel.adventurousnessLabel})
 - Brief: ${intel.brief}
 
-HARD LIMITS — NON-NEGOTIABLE. Every course is re-verified downstream against
-the ACTUAL declared tags/allergens of the pantry items (or signature) it names.
-The system trusts the chef's pantry data, not your description of the dish.
-Hard limits:
-${hardLimitLines}
+TRUE ALLERGIES — NON-NEGOTIABLE, physical-danger stakes. NEVER propose a
+dish that contains these allergens for the affected guest. Every course is
+re-verified downstream against the ACTUAL declared tags/allergens of the
+pantry items (or signature) it names — the system trusts the chef's pantry
+data, not your description of the dish. Allergy exclusions cause rejection.
+${allergyLines}
+
+DIET / TASTE PREFERENCES — handled by per-guest substitutes, NOT by picking
+a preference-safe dish for the whole table. This is important for Sea and
+Land: the Main — Sea slot must actually be seafood-based, even if some
+vegetarians can't eat it. The Main — Land slot must actually be
+meat/poultry-based. Do NOT downgrade Sea to "veg pasta" or Land to "veg
+curry" just to satisfy vegetarians — the system will plate them a labeled
+alternate on the side. Sea composed dishes must include a seafood
+pantry item; Land composed dishes must include a meat/poultry pantry item,
+otherwise the course will be rejected downstream.
+${preferenceLines}
 
 TASK:
 Propose one dish per slot. Decide for yourself how many slots reuse a signature
@@ -209,6 +237,30 @@ function verifyAndScore(
       reason: `pantry_ids not in catalog: ${missing.join(', ')}`,
     }
   }
+
+  // Sea/Land are category-strict slots: a "Main — Sea" composed only of
+  // Miso Paste + Orzo + Bell Peppers is misleading even if it verifies safe.
+  // Require at least one component whose tag ('seafood' / 'meat') or name
+  // matches the slot's keywords. If nothing plausible, reject as
+  // unverifiable so the caller either falls back to a rule-based pick or
+  // leaves the slot honestly empty.
+  if (proposed.slot === 'sea' || proposed.slot === 'land') {
+    const needTag = proposed.slot === 'sea' ? 'seafood' : 'meat'
+    const slotOk = resolved.some(item => {
+      const hasTag = item.tags.some(t => t.toLowerCase() === needTag)
+      return hasTag || nameMatchesSlot(item.name, proposed.slot)
+    })
+    if (!slotOk) {
+      return {
+        unverifiable: true,
+        reason:
+          `composed dish for slot "${proposed.slot}" has no ` +
+          `${proposed.slot === 'sea' ? 'seafood/fish' : 'meat/poultry'} component ` +
+          `(components: ${resolved.map(r => r.name).join(', ')})`,
+      }
+    }
+  }
+
   return {
     unverifiable: false,
     course: {
@@ -218,9 +270,10 @@ function verifyAndScore(
       origin: 'pantry-composed',
       // Composed dishes intentionally have no single canonical source; the
       // menu-page display + deriveCourse both accept null source for
-      // pantry-composed origin.
+      // pantry-composed origin and use componentIds for exclusion scoring.
       sourceId: null,
       excludes: scoreComposedDish(resolved, intel),
+      componentIds: resolved.map(r => r.id),
       reasoning: proposed.reasoning,
     },
   }
@@ -273,13 +326,17 @@ export async function generateMenuWithAI(
   const usedNames = new Set<string>()
   const usedSourceIds = new Set<string>()
 
-  // Attach per-guest substitutions and update the used-id set to include
-  // substitute dish ids (so later slots don't reuse a signature already
-  // plated as an alt on an earlier course).
+  // Attach per-guest substitutions and update the used-id + used-name sets
+  // to include substitute dishes (so later slots don't reuse a signature
+  // already plated as an alt on an earlier course, and later composed dishes
+  // can't accidentally reuse a substitute name).
   const attachSubs = (course: Course): Course => {
     if (course.origin === 'empty' || course.excludes.length === 0) return course
-    const subs = assignSubstitutions(course, intel, signatures, usedSourceIds)
-    for (const s of subs) if (s.sourceId) usedSourceIds.add(s.sourceId)
+    const subs = assignSubstitutions(course, intel, signatures, usedSourceIds, usedNames)
+    for (const s of subs) {
+      if (s.sourceId) usedSourceIds.add(s.sourceId)
+      if (s.dishName) usedNames.add(s.dishName.toLowerCase())
+    }
     return subs.length > 0 ? { ...course, substitutions: subs } : course
   }
 

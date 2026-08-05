@@ -2,11 +2,19 @@
 // Tapping a preset fills name/tags/allergens — the chef can still edit
 // before saving. Free-text entry remains available for anything not listed.
 
+// A dish's course role is independent of its diet/course-type tags ('meat',
+// 'veg', etc — those stay for allergen/diet matching in lib/menu.ts). 'main'
+// dishes are eligible for "Main — Land/Sea/Green"; 'side' and 'starter'
+// dishes are traditionally accompaniments or appetizers and are only ever
+// routed to "To Start" (see inferSlot in lib/menu.ts).
+export type DishRole = 'main' | 'side' | 'starter'
+
 export type DishPreset = {
   name: string
   cuisine: string
   tags: string[]
   allergens: string[]
+  role: DishRole
 }
 
 export const CUISINES = [
@@ -22,80 +30,92 @@ export const CUISINES = [
 
 export const DISH_PRESETS: DishPreset[] = [
   // Levantine
-  { name: 'Hummus', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [] },
-  { name: 'Baba Ganoush', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [] },
-  { name: 'Tabbouleh', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: ['gluten'] },
-  { name: 'Fattoush', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: ['gluten'] },
-  { name: 'Falafel', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [] },
-  { name: 'Muhammara', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: ['nuts'] },
-  { name: 'Shawarma', cuisine: 'Levantine', tags: ['meat'], allergens: [] },
-  { name: 'Lamb Kofta', cuisine: 'Levantine', tags: ['meat'], allergens: [] },
-  { name: 'Kibbeh', cuisine: 'Levantine', tags: ['meat'], allergens: ['gluten'] },
-  { name: 'Mansaf', cuisine: 'Levantine', tags: ['meat'], allergens: ['dairy'] },
-  { name: 'Baklava', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'] },
-  { name: 'Knafeh', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'] },
+  { name: 'Hummus', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [], role: 'starter' },
+  { name: 'Baba Ganoush', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [], role: 'starter' },
+  { name: 'Tabbouleh', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: ['gluten'], role: 'side' },
+  { name: 'Fattoush', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: ['gluten'], role: 'side' },
+  { name: 'Falafel', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [], role: 'main' },
+  { name: 'Muhammara', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: ['nuts'], role: 'starter' },
+  { name: 'Shawarma', cuisine: 'Levantine', tags: ['meat'], allergens: [], role: 'main' },
+  { name: 'Lamb Kofta', cuisine: 'Levantine', tags: ['meat'], allergens: [], role: 'main' },
+  { name: 'Kibbeh', cuisine: 'Levantine', tags: ['meat'], allergens: ['gluten'], role: 'main' },
+  { name: 'Mansaf', cuisine: 'Levantine', tags: ['meat'], allergens: ['dairy'], role: 'main' },
+  { name: 'Baklava', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'], role: 'main' },
+  { name: 'Knafeh', cuisine: 'Levantine', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'], role: 'main' },
 
   // Italian
-  { name: 'Margherita Pizza', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy', 'gluten'] },
-  { name: 'Spaghetti Carbonara', cuisine: 'Italian', tags: ['meat'], allergens: ['dairy', 'eggs', 'gluten', 'pork'] },
-  { name: 'Risotto ai Funghi', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy'] },
-  { name: 'Osso Buco', cuisine: 'Italian', tags: ['meat'], allergens: ['alcohol'] },
-  { name: 'Caprese Salad', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy'] },
-  { name: 'Bruschetta', cuisine: 'Italian', tags: ['veg', 'vegan'], allergens: ['gluten'] },
-  { name: 'Lasagna', cuisine: 'Italian', tags: ['meat'], allergens: ['dairy', 'gluten'] },
-  { name: 'Tiramisu', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs', 'gluten', 'alcohol'] },
-  { name: 'Panna Cotta', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy'] },
+  { name: 'Margherita Pizza', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy', 'gluten'], role: 'main' },
+  { name: 'Spaghetti Carbonara', cuisine: 'Italian', tags: ['meat'], allergens: ['dairy', 'eggs', 'gluten', 'pork'], role: 'main' },
+  { name: 'Risotto ai Funghi', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy'], role: 'main' },
+  { name: 'Osso Buco', cuisine: 'Italian', tags: ['meat'], allergens: ['alcohol'], role: 'main' },
+  { name: 'Caprese Salad', cuisine: 'Italian', tags: ['veg'], allergens: ['dairy'], role: 'starter' },
+  { name: 'Bruschetta', cuisine: 'Italian', tags: ['veg', 'vegan'], allergens: ['gluten'], role: 'starter' },
+  { name: 'Lasagna', cuisine: 'Italian', tags: ['meat'], allergens: ['dairy', 'gluten'], role: 'main' },
+  { name: 'Tiramisu', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs', 'gluten', 'alcohol'], role: 'main' },
+  { name: 'Panna Cotta', cuisine: 'Italian', tags: ['dessert', 'veg'], allergens: ['dairy'], role: 'main' },
 
   // French
-  { name: 'Coq au Vin', cuisine: 'French', tags: ['meat'], allergens: ['alcohol', 'pork'] },
-  { name: 'Beef Bourguignon', cuisine: 'French', tags: ['meat'], allergens: ['alcohol', 'pork'] },
-  { name: 'Ratatouille', cuisine: 'French', tags: ['veg', 'vegan'], allergens: [] },
-  { name: 'French Onion Soup', cuisine: 'French', tags: ['veg'], allergens: ['dairy', 'gluten'] },
-  { name: 'Duck Confit', cuisine: 'French', tags: ['meat'], allergens: [] },
-  { name: 'Bouillabaisse', cuisine: 'French', tags: ['seafood'], allergens: ['shellfish', 'alcohol'] },
-  { name: 'Crème Brûlée', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs'] },
-  { name: 'Tarte Tatin', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'] },
+  { name: 'Coq au Vin', cuisine: 'French', tags: ['meat'], allergens: ['alcohol', 'pork'], role: 'main' },
+  { name: 'Beef Bourguignon', cuisine: 'French', tags: ['meat'], allergens: ['alcohol', 'pork'], role: 'main' },
+  { name: 'Ratatouille', cuisine: 'French', tags: ['veg', 'vegan'], allergens: [], role: 'main' },
+  { name: 'French Onion Soup', cuisine: 'French', tags: ['veg'], allergens: ['dairy', 'gluten'], role: 'starter' },
+  { name: 'Duck Confit', cuisine: 'French', tags: ['meat'], allergens: [], role: 'main' },
+  { name: 'Bouillabaisse', cuisine: 'French', tags: ['seafood'], allergens: ['shellfish', 'alcohol'], role: 'main' },
+  { name: 'Crème Brûlée', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['dairy', 'eggs'], role: 'main' },
+  { name: 'Tarte Tatin', cuisine: 'French', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'main' },
 
   // Japanese
-  { name: 'Sushi Platter', cuisine: 'Japanese', tags: ['seafood'], allergens: ['shellfish'] },
-  { name: 'Ramen', cuisine: 'Japanese', tags: ['meat'], allergens: ['gluten', 'eggs', 'pork', 'soy'] },
-  { name: 'Miso Soup', cuisine: 'Japanese', tags: ['veg'], allergens: ['soy'] },
-  { name: 'Tempura', cuisine: 'Japanese', tags: [], allergens: ['gluten', 'shellfish', 'eggs'] },
-  { name: 'Teriyaki Chicken', cuisine: 'Japanese', tags: ['meat'], allergens: ['soy', 'gluten'] },
-  { name: 'Gyoza', cuisine: 'Japanese', tags: ['meat'], allergens: ['gluten', 'soy', 'pork'] },
-  { name: 'Matcha Mochi', cuisine: 'Japanese', tags: ['dessert', 'veg', 'vegan'], allergens: [] },
+  { name: 'Sushi Platter', cuisine: 'Japanese', tags: ['seafood'], allergens: ['shellfish'], role: 'main' },
+  { name: 'Ramen', cuisine: 'Japanese', tags: ['meat'], allergens: ['gluten', 'eggs', 'pork', 'soy'], role: 'main' },
+  { name: 'Miso Soup', cuisine: 'Japanese', tags: ['veg'], allergens: ['soy'], role: 'starter' },
+  { name: 'Tempura', cuisine: 'Japanese', tags: [], allergens: ['gluten', 'shellfish', 'eggs'], role: 'starter' },
+  { name: 'Teriyaki Chicken', cuisine: 'Japanese', tags: ['meat'], allergens: ['soy', 'gluten'], role: 'main' },
+  { name: 'Gyoza', cuisine: 'Japanese', tags: ['meat'], allergens: ['gluten', 'soy', 'pork'], role: 'starter' },
+  { name: 'Matcha Mochi', cuisine: 'Japanese', tags: ['dessert', 'veg', 'vegan'], allergens: [], role: 'main' },
 
   // Mexican
-  { name: 'Tacos al Pastor', cuisine: 'Mexican', tags: ['meat'], allergens: ['pork'] },
-  { name: 'Guacamole', cuisine: 'Mexican', tags: ['veg', 'vegan'], allergens: [] },
-  { name: 'Elote', cuisine: 'Mexican', tags: ['veg'], allergens: ['dairy'] },
-  { name: 'Chiles Rellenos', cuisine: 'Mexican', tags: ['veg'], allergens: ['dairy', 'eggs', 'gluten'] },
-  { name: 'Mole Poblano', cuisine: 'Mexican', tags: ['meat'], allergens: ['nuts'] },
-  { name: 'Ceviche', cuisine: 'Mexican', tags: ['seafood'], allergens: ['shellfish'] },
-  { name: 'Churros', cuisine: 'Mexican', tags: ['dessert', 'veg'], allergens: ['gluten', 'eggs', 'dairy'] },
+  { name: 'Tacos al Pastor', cuisine: 'Mexican', tags: ['meat'], allergens: ['pork'], role: 'main' },
+  { name: 'Guacamole', cuisine: 'Mexican', tags: ['veg', 'vegan'], allergens: [], role: 'starter' },
+  { name: 'Elote', cuisine: 'Mexican', tags: ['veg'], allergens: ['dairy'], role: 'side' },
+  { name: 'Chiles Rellenos', cuisine: 'Mexican', tags: ['veg'], allergens: ['dairy', 'eggs', 'gluten'], role: 'main' },
+  { name: 'Mole Poblano', cuisine: 'Mexican', tags: ['meat'], allergens: ['nuts'], role: 'main' },
+  { name: 'Ceviche', cuisine: 'Mexican', tags: ['seafood'], allergens: ['shellfish'], role: 'starter' },
+  { name: 'Churros', cuisine: 'Mexican', tags: ['dessert', 'veg'], allergens: ['gluten', 'eggs', 'dairy'], role: 'main' },
 
   // Indian
-  { name: 'Butter Chicken', cuisine: 'Indian', tags: ['meat'], allergens: ['dairy', 'nuts'] },
-  { name: 'Chana Masala', cuisine: 'Indian', tags: ['veg', 'vegan'], allergens: [] },
-  { name: 'Saag Paneer', cuisine: 'Indian', tags: ['veg'], allergens: ['dairy'] },
-  { name: 'Lamb Rogan Josh', cuisine: 'Indian', tags: ['meat'], allergens: ['dairy'] },
-  { name: 'Samosas', cuisine: 'Indian', tags: ['veg', 'vegan'], allergens: ['gluten'] },
-  { name: 'Biryani', cuisine: 'Indian', tags: [], allergens: ['dairy'] },
-  { name: 'Gulab Jamun', cuisine: 'Indian', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'] },
+  { name: 'Butter Chicken', cuisine: 'Indian', tags: ['meat'], allergens: ['dairy', 'nuts'], role: 'main' },
+  { name: 'Chana Masala', cuisine: 'Indian', tags: ['veg', 'vegan'], allergens: [], role: 'main' },
+  { name: 'Saag Paneer', cuisine: 'Indian', tags: ['veg'], allergens: ['dairy'], role: 'main' },
+  { name: 'Lamb Rogan Josh', cuisine: 'Indian', tags: ['meat'], allergens: ['dairy'], role: 'main' },
+  { name: 'Samosas', cuisine: 'Indian', tags: ['veg', 'vegan'], allergens: ['gluten'], role: 'starter' },
+  { name: 'Biryani', cuisine: 'Indian', tags: [], allergens: ['dairy'], role: 'main' },
+  { name: 'Gulab Jamun', cuisine: 'Indian', tags: ['dessert', 'veg'], allergens: ['dairy', 'gluten'], role: 'main' },
 
   // Greek
-  { name: 'Greek Salad', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy'] },
-  { name: 'Moussaka', cuisine: 'Greek', tags: ['meat'], allergens: ['dairy', 'eggs', 'gluten'] },
-  { name: 'Souvlaki', cuisine: 'Greek', tags: ['meat'], allergens: [] },
-  { name: 'Spanakopita', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy', 'gluten', 'eggs'] },
-  { name: 'Tzatziki', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy'] },
-  { name: 'Baklava (Greek style)', cuisine: 'Greek', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'] },
+  { name: 'Greek Salad', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy'], role: 'side' },
+  { name: 'Moussaka', cuisine: 'Greek', tags: ['meat'], allergens: ['dairy', 'eggs', 'gluten'], role: 'main' },
+  { name: 'Souvlaki', cuisine: 'Greek', tags: ['meat'], allergens: [], role: 'main' },
+  { name: 'Spanakopita', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy', 'gluten', 'eggs'], role: 'starter' },
+  { name: 'Tzatziki', cuisine: 'Greek', tags: ['veg'], allergens: ['dairy'], role: 'starter' },
+  { name: 'Baklava (Greek style)', cuisine: 'Greek', tags: ['dessert', 'veg'], allergens: ['nuts', 'gluten', 'dairy'], role: 'main' },
 
   // American
-  { name: 'Classic Burger', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy'] },
-  { name: 'BBQ Pulled Pork', cuisine: 'American', tags: ['meat'], allergens: ['pork'] },
-  { name: 'Mac and Cheese', cuisine: 'American', tags: ['veg'], allergens: ['dairy', 'gluten'] },
-  { name: 'Cornbread', cuisine: 'American', tags: ['veg'], allergens: ['gluten', 'eggs', 'dairy'] },
-  { name: 'Fried Chicken', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy', 'eggs'] },
-  { name: 'Apple Pie', cuisine: 'American', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'] },
+  { name: 'Classic Burger', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy'], role: 'main' },
+  { name: 'BBQ Pulled Pork', cuisine: 'American', tags: ['meat'], allergens: ['pork'], role: 'main' },
+  { name: 'Mac and Cheese', cuisine: 'American', tags: ['veg'], allergens: ['dairy', 'gluten'], role: 'side' },
+  { name: 'Cornbread', cuisine: 'American', tags: ['veg'], allergens: ['gluten', 'eggs', 'dairy'], role: 'side' },
+  { name: 'Fried Chicken', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy', 'eggs'], role: 'main' },
+  { name: 'Apple Pie', cuisine: 'American', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'main' },
 ]
+
+// Name → role lookup so inferSlot in lib/menu.ts can classify legacy DB rows
+// added before the `role` field existed. Those rows have tags like ['veg']
+// with no 'side'/'starter' tag, and would otherwise route Mac and Cheese to
+// the Main — Green slot. Case-insensitive.
+const DISH_ROLE_BY_NAME = new Map<string, DishRole>(
+  DISH_PRESETS.map(p => [p.name.toLowerCase(), p.role])
+)
+
+export function dishRoleByName(name: string): DishRole | null {
+  return DISH_ROLE_BY_NAME.get(name.toLowerCase()) ?? null
+}

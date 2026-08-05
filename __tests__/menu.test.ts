@@ -1,6 +1,6 @@
 import { buildIntel } from '@/lib/intel'
 import {
-  scoreDish, scoreComposedDish, draftCourse, draftMenu, deriveCourse,
+  scoreDish, scoreComposedDish, draftCourse, draftMenu, deriveCourse, deriveMenu,
   assignSubstitutions, inferSlot, nameMatchesSlot, portionGuidance, SLOT_LABELS, SLOTS,
 } from '@/lib/menu'
 import type { Signature, PantryItem, Course, PersistedCourseLike } from '@/lib/menu'
@@ -303,14 +303,14 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
 })
 
 describe('portionGuidance', () => {
-  // Static per-slot batch-size hint. The chef reads "Portion: feeds ~N" as a
-  // recipe yield and scales up for the full table themselves — no dependency
-  // on guest count so the number is stable across events. Phrased with
-  // "feeds" (not "serves") so it can't be misread as the table-fit safety
+  // Static per-slot batch-size hint. The chef reads "Enough for ~N bellies" as
+  // a recipe yield and scales up for the full table themselves — no
+  // dependency on guest count so the number is stable across events. Phrased
+  // disjointly from "serves" so it can't be misread as the table-fit safety
   // count shown elsewhere on the same course card.
-  test('every slot returns a "Portion: feeds ~N" string', () => {
+  test('every slot returns an "Enough for ~N bellies" string', () => {
     for (const slot of SLOTS) {
-      expect(portionGuidance(slot)).toMatch(/^Portion: feeds ~\d+$/)
+      expect(portionGuidance(slot)).toMatch(/^Enough for ~\d+ bellies$/)
     }
   })
 
@@ -520,6 +520,13 @@ describe('inferSlot — auto-assign when chef never set a slot', () => {
   test('unknown tags + generic name → null (last-resort tier)', () => {
     expect(inferSlot('Mystery Plate', [])).toBeNull()
   })
+  test('side tag routes to start even with a meat/veg course-type tag', () => {
+    expect(inferSlot('Mac and Cheese', ['veg', 'side'])).toBe('start')
+    expect(inferSlot('Gyoza', ['meat', 'side'])).toBe('start')
+  })
+  test('starter tag routes to start even with a meat/veg course-type tag', () => {
+    expect(inferSlot('Samosas', ['veg', 'vegan', 'starter'])).toBe('start')
+  })
 })
 
 describe('draftCourse never returns empty when signatures exist (the real bug)', () => {
@@ -542,16 +549,44 @@ describe('draftCourse never returns empty when signatures exist (the real bug)',
     expect(landCourse.dishName).toBe('Lamb Kofta')
   })
 
-  test('last-resort tier picks the best available signature when nothing slots to this course', () => {
-    // Only signatures are for land + finish. The `sea` slot has zero
-    // in-slot candidates → last-resort widens the pool. Marked 'fallback'.
+  test('last-resort tier picks best affinity match when any exists', () => {
+    // Sea has no in-slot signature, but "Sea Bass Terrine" name-matches 'sea'
+    // keywords → slotAffinity=1 → fallback pool has one candidate.
+    const sigs = [
+      sig({ id: 'l1', name: 'Lamb Chops',        slot: 'land',   tags: ['meat'] }),
+      sig({ id: 'f1', name: 'Panna Cotta',       slot: 'finish', tags: ['dessert'] }),
+      sig({ id: 's1', name: 'Sea Bass Terrine',  slot: 'start' }),
+    ]
+    const seaCourse = draftCourse('sea', noGuests, sigs, [])
+    expect(seaCourse.origin).toBe('fallback')
+    expect(seaCourse.dishName).toBe('Sea Bass Terrine')
+  })
+
+  test('sea/land 0-affinity fallback returns empty rather than a misleading fill', () => {
+    // Only land + finish signatures, none name-matching sea. The old
+    // behavior widened to any signature and would pick e.g. "Panna Cotta"
+    // for Main — Sea, which mislabels the category. New behavior: honest
+    // empty so the chef knows to add a real sea dish.
     const sigs = [
       sig({ id: 'l1', name: 'Lamb Chops',  slot: 'land',   tags: ['meat'] }),
       sig({ id: 'f1', name: 'Panna Cotta', slot: 'finish', tags: ['dessert'] }),
     ]
-    const seaCourse = draftCourse('sea', noGuests, sigs, [])
-    expect(seaCourse.origin).toBe('fallback')
-    expect(seaCourse.dishName).not.toBe('')
+    expect(draftCourse('sea', noGuests, sigs, []).origin).toBe('empty')
+    // Symmetric for land when only start/finish/green signatures exist.
+    const noMeat = [
+      sig({ id: 'g1', name: 'Chickpea Stew', slot: 'green', tags: ['veg'] }),
+      sig({ id: 'f1', name: 'Panna Cotta',   slot: 'finish', tags: ['dessert'] }),
+    ]
+    expect(draftCourse('land', noGuests, noMeat, []).origin).toBe('empty')
+  })
+
+  test('start/green/finish still permissive — any signature is better than empty', () => {
+    // Non-category-strict slots keep the old broad fallback: "any veg" is
+    // plausible enough for start/green/finish that empty would be worse.
+    const sigs = [sig({ id: 'l1', name: 'Lamb Chops', slot: 'land', tags: ['meat'] })]
+    expect(draftCourse('start', noGuests, sigs, []).origin).toBe('fallback')
+    expect(draftCourse('green', noGuests, sigs, []).origin).toBe('fallback')
+    expect(draftCourse('finish', noGuests, sigs, []).origin).toBe('fallback')
   })
 
   test('genuinely empty signature list still returns empty (only truly-empty state)', () => {
@@ -641,5 +676,177 @@ describe('per-guest substitutions — strict-diet preferences become side plates
     // Panna Cotta (0 allergy) beats Walnut Tart (1 allergy). Sam is served.
     const course = draftCourse('finish', intel, sigs, [])
     expect(course.dishName).toBe('Panna Cotta')
+  })
+})
+
+describe('inferSlot — preset-name fallback for legacy DB rows', () => {
+  // Existing DB rows (added before dish-presets gained the `role` field)
+  // have tags like ['veg'] with no 'side'/'starter' tag. Without a fallback,
+  // Mac and Cheese would infer to 'green' via the isVeg path and end up as
+  // "Main — Green". The preset-name lookup keeps it out of the mains.
+  test('Mac and Cheese with legacy [veg] tags routes to start via preset lookup', () => {
+    expect(inferSlot('Mac and Cheese', ['veg'])).toBe('start')
+  })
+  test('Greek Salad (preset side) with legacy [veg] tags routes to start', () => {
+    expect(inferSlot('Greek Salad', ['veg'])).toBe('start')
+  })
+  test('Tzatziki (preset starter) with legacy [veg] tags routes to start', () => {
+    expect(inferSlot('Tzatziki', ['veg'])).toBe('start')
+  })
+  test('Gyoza (preset starter, tagged meat) routes to start not land', () => {
+    // Even 'meat' as a tag doesn't win against the preset-known starter role.
+    expect(inferSlot('Gyoza', ['meat'])).toBe('start')
+  })
+  test('unknown-name dish falls through to tag/keyword scoring', () => {
+    expect(inferSlot('Chef Special Beef Stew', ['meat'])).toBe('land')
+  })
+})
+
+describe('deriveCourse — composed dish re-scoring from component_ids', () => {
+  // The silent-9/9 bug: an AI-composed pantry dish is persisted with
+  // source=null. Without component_ids, deriveCourse can't reconstruct which
+  // pantry items backed the dish, so excludes come back empty and the UI
+  // shows "safe for 9/9 guests" even when the untagged components should
+  // fail-closed on the 3 vegetarians. component_ids fixes this.
+  const vegIntel = buildIntel([
+    { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+  ])
+
+  test('pantry-composed with component_ids re-scores against live pantry (untagged fails closed)', () => {
+    const pantry = [
+      pantryItem('p-miso', 'Miso paste'),
+      pantryItem('p-orzo', 'Orzo'),
+      pantryItem('p-bell', 'Bell peppers'),
+    ]
+    const persisted: PersistedCourseLike = {
+      slot: 'sea',
+      dish_name: 'Creamy Miso Orzo with Charred Bell Peppers',
+      dish_origin: 'pantry-composed',
+      source: null,
+      component_ids: ['p-miso', 'p-orzo', 'p-bell'],
+    }
+    const derived = deriveCourse(persisted, [], pantry, vegIntel)
+    // At least one exclusion for Nadia — untagged pantry items fail closed
+    // on vegetarian, and the composed dish inherits the union of its
+    // components' exclusions.
+    expect(derived.excludes.some(e => e.guest === 'Nadia')).toBe(true)
+  })
+
+  test('pantry-composed with tagged veg components has no vegetarian exclusion', () => {
+    const pantry = [
+      pantryItem('p1', 'Aubergine', { tags: ['veg', 'vegan'] }),
+      pantryItem('p2', 'Tahini',    { tags: ['veg', 'vegan'] }),
+    ]
+    const persisted: PersistedCourseLike = {
+      slot: 'start',
+      dish_name: 'Aubergine Tahini Dip',
+      dish_origin: 'pantry-composed',
+      source: null,
+      component_ids: ['p1', 'p2'],
+    }
+    const derived = deriveCourse(persisted, [], pantry, vegIntel)
+    expect(derived.excludes).toEqual([])
+  })
+
+  test('pantry-composed without component_ids stays backward-compatible (empty excludes)', () => {
+    const persisted: PersistedCourseLike = {
+      slot: 'sea',
+      dish_name: 'Legacy Composed Dish',
+      dish_origin: 'pantry-composed',
+      source: null,
+    }
+    const derived = deriveCourse(persisted, [], [], vegIntel)
+    expect(derived.origin).toBe('pantry-composed')
+    expect(derived.excludes).toEqual([])
+  })
+
+  test('pantry-composed with all components deleted shows source-deleted placeholder', () => {
+    const persisted: PersistedCourseLike = {
+      slot: 'sea',
+      dish_name: 'Ephemeral Dish',
+      dish_origin: 'pantry-composed',
+      source: null,
+      component_ids: ['gone-1', 'gone-2'],
+    }
+    const derived = deriveCourse(persisted, [], [], vegIntel)
+    expect(derived.dishName).toBe('— source deleted, swap or lock —')
+    expect(derived.origin).toBe('empty')
+  })
+})
+
+describe('deriveMenu — cross-course substitute dedup', () => {
+  // Bug repro: Duck Confit on Land needs a veg substitute; the isolated
+  // per-course derive picks Baba Ganoush, which is already the Start main.
+  // deriveMenu threads shared used-ids/used-names so the substitute pool
+  // for Land can't reuse Baba Ganoush.
+  test("Land's veg substitute cannot reuse Start's main dish", () => {
+    const intel = buildIntel([
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+    ])
+    const signatures: Signature[] = [
+      { id: 'bg', name: 'Baba Ganoush', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'start' },
+      { id: 'dc', name: 'Duck Confit',  tags: ['meat'],         contains_allergens: [], slot: 'land' },
+      { id: 'ch', name: 'Chana Masala', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'green' },
+    ]
+    const persisted: PersistedCourseLike[] = [
+      { slot: 'start',  dish_name: 'Baba Ganoush', dish_origin: 'signature', source: 'bg' },
+      { slot: 'land',   dish_name: 'Duck Confit',  dish_origin: 'signature', source: 'dc' },
+    ]
+    const derived = deriveMenu(persisted, signatures, [], intel)
+    const land = derived.find(c => c.slot === 'land')!
+    const babaAsSub = land.substitutions?.some(s => s.dishName === 'Baba Ganoush')
+    expect(babaAsSub).toBeFalsy()
+    // And a valid alternative was picked instead.
+    expect(land.substitutions?.[0]?.dishName).toBe('Chana Masala')
+  })
+
+  test("composed main's name blocks a later slot's substitute of the same name", () => {
+    // Course 1: pantry-composed "Chana Masala" (source=null, but named same
+    // as signature 'ch'). Course 2: Duck Confit needs veg sub; sourceId
+    // dedup misses because course 1 has no sourceId — the name dedup catches.
+    const intel = buildIntel([
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+    ])
+    const signatures: Signature[] = [
+      { id: 'ch', name: 'Chana Masala',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'green' },
+      { id: 'bg', name: 'Baba Ganoush',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'start' },
+      { id: 'dc', name: 'Duck Confit',   tags: ['meat'],         contains_allergens: [], slot: 'land' },
+    ]
+    const pantry = [pantryItem('p-veg', 'Aubergine', { tags: ['vegan'] })]
+    const persisted: PersistedCourseLike[] = [
+      { slot: 'start', dish_name: 'Chana Masala', dish_origin: 'pantry-composed', source: null, component_ids: ['p-veg'] },
+      { slot: 'land',  dish_name: 'Duck Confit',  dish_origin: 'signature',       source: 'dc' },
+    ]
+    const derived = deriveMenu(persisted, signatures, pantry, intel)
+    const land = derived.find(c => c.slot === 'land')!
+    // Chana Masala the signature must NOT be handed as a substitute even
+    // though the composed main shares its name (sourceId=null → name dedup).
+    expect(land.substitutions?.some(s => s.dishName === 'Chana Masala')).toBeFalsy()
+    // Baba Ganoush is next-best veg option.
+    expect(land.substitutions?.[0]?.dishName).toBe('Baba Ganoush')
+  })
+})
+
+describe('assignSubstitutions — usedNames filter', () => {
+  test('busyNames blocks a substitute name even when its id is not in busyIds', () => {
+    const intel = buildIntel([
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+    ])
+    const sigs = [
+      sig({ id: 'bg', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] }),
+      sig({ id: 'ch', name: 'Chana Masala', slot: 'green', tags: ['veg', 'vegan'] }),
+    ]
+    const main: Course = {
+      slot: 'land',
+      slotLabel: SLOT_LABELS.land,
+      dishName: 'Osso Buco',
+      origin: 'signature',
+      sourceId: 'ob',
+      excludes: [{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }],
+    }
+    // Baba Ganoush isn't in busyIds, but its name is in usedNames — must skip.
+    const subs = assignSubstitutions(main, intel, sigs, new Set(), new Set(['baba ganoush']))
+    expect(subs).toHaveLength(1)
+    expect(subs[0].dishName).toBe('Chana Masala')
   })
 })

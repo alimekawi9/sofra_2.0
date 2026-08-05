@@ -30,9 +30,20 @@ function buildMenuHtml(
           ? 'Signature'
           : c.origin === 'pantry-composed'
           ? 'Composed for this table'
+          : c.origin === 'fallback'
+          ? 'Chef’s adaptation'
           : ''
-      const alternativeHtml =
-        c.excludes.length > 0
+      const substitutionsHtml =
+        c.substitutions && c.substitutions.length > 0
+          ? `<div class="subs"><div class="subs-h">Guest alternates</div>${c.substitutions
+              .map(
+                (s) =>
+                  `<div class="sub"><span class="sub-g">${escHtml(s.guests.join(', '))}</span> get instead: ${escHtml(s.dishName)}</div>`
+              )
+              .join('')}</div>`
+          : ''
+      const unmetHtml =
+        c.excludes.length > 0 && (!c.substitutions || c.substitutions.length === 0)
           ? `<div class="alt">Alternative required for: ${c.excludes
               .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
               .join(', ')}</div>`
@@ -47,7 +58,8 @@ function buildMenuHtml(
           <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
           ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
           ${portionHtml}
-          ${alternativeHtml}
+          ${substitutionsHtml}
+          ${unmetHtml}
         </div>`
     })
     .join('')
@@ -72,6 +84,10 @@ function buildMenuHtml(
       .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
       .portion{color:#8A6A4E;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-family:system-ui,sans-serif;}
       .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
+      .subs{margin-top:10px;padding-top:8px;border-top:1px dashed #C9A96E;font-family:system-ui,sans-serif;}
+      .subs-h{color:#8A6A4E;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+      .sub{color:#2A1A1C;font-size:12px;line-height:1.5;}
+      .sub-g{color:#5C1A1B;font-style:italic;}
       .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
       .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
       @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;border:none;max-width:none;}}
@@ -138,7 +154,11 @@ describe('buildMenuHtml', () => {
     expect(html).toContain('— TBD —')
   })
 
-  test('includes alternative note when course has exclusions', () => {
+  // "Alternative required for …" is the honest-failure line: it should
+  // ONLY render when there are excluded guests AND no substitute was found
+  // for them. Before this feature it fired on every exclusion, which would
+  // incorrectly override the successful-substitute case.
+  test('includes alternative note when exclusions have no substitutions', () => {
     const c = course({
       excludes: [
         { guest: 'Ali', reason: 'contains nuts', kind: 'allergy' },
@@ -156,14 +176,61 @@ describe('buildMenuHtml', () => {
     expect(html).not.toContain('Alternative required for')
   })
 
+  test('renders "Guest alternates … get instead: <dish>" block when substitutions present', () => {
+    const c = course({
+      excludes: [
+        { guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' },
+        { guest: 'Priya', reason: 'not vegetarian', kind: 'preference' },
+      ],
+      substitutions: [
+        { guests: ['Nadia', 'Priya'], dishName: 'Baba Ganoush', origin: 'signature', sourceId: 'bg' },
+      ],
+    })
+    const html = buildMenuHtml([c], 8, EVENT)
+    expect(html).toContain('Guest alternates')
+    expect(html).toContain('Nadia, Priya')
+    expect(html).toContain('get instead: Baba Ganoush')
+    // Explicit "instead" phrasing means the substitute reads as a REPLACEMENT
+    // for the main, not an addition to the plate — the ambiguity the old
+    // "Plated on the side" wording introduced.
+    expect(html).not.toContain('Plated on the side')
+    // And the honest-failure "Alternative required for" line must NOT fire
+    // when a substitute was found — the two blocks are mutually exclusive.
+    expect(html).not.toContain('Alternative required for')
+  })
+
+  test('mutual exclusivity: substitutions render only the Guest alternates block; unmet-exclusions render only Alternative required for', () => {
+    const withSubs = course({
+      excludes: [{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }],
+      substitutions: [
+        { guests: ['Nadia'], dishName: 'Ratatouille', origin: 'signature', sourceId: 'r1' },
+      ],
+    })
+    const htmlWith = buildMenuHtml([withSubs], 4, EVENT)
+    expect(htmlWith).toContain('Guest alternates')
+    expect(htmlWith).not.toContain('Alternative required for')
+
+    const noSubs = course({
+      excludes: [{ guest: 'Sam', reason: 'contains nuts', kind: 'allergy' }],
+    })
+    const htmlNoSubs = buildMenuHtml([noSubs], 4, EVENT)
+    expect(htmlNoSubs).not.toContain('Guest alternates')
+    expect(htmlNoSubs).toContain('Alternative required for')
+  })
+
+  test('fallback origin renders as "Chef’s adaptation"', () => {
+    const html = buildMenuHtml([course({ origin: 'fallback' })], 4, EVENT)
+    expect(html).toContain('Chef’s adaptation')
+  })
+
   test('includes portion guidance for each non-empty course', () => {
     const courses: Course[] = [
       course({ slot: 'start', slotLabel: 'To Start', dishName: 'Amuse Bouche' }),
       course({ slot: 'finish', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
     ]
     const html = buildMenuHtml(courses, 6, EVENT)
-    expect(html).toContain('Portion: feeds ~6') // start slot yield
-    expect(html).toContain('Portion: feeds ~8') // finish slot yield
+    expect(html).toContain('Enough for ~6 bellies') // start slot yield
+    expect(html).toContain('Enough for ~8 bellies') // finish slot yield
   })
 
   test('omits portion guidance for empty courses', () => {
@@ -172,7 +239,7 @@ describe('buildMenuHtml', () => {
       6,
       EVENT
     )
-    expect(html).not.toContain('Portion: feeds')
+    expect(html).not.toContain('Enough for')
   })
 
   test('includes cream background and gold border in styles', () => {
