@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { C, THEMES, DIETARY, NOGOS, DRINKS } from '@/lib/theme'
+import { C, THEMES, DIETARY, NOGOS, PROTEIN_ANCHOR, FLAVOR_PREFERENCE } from '@/lib/theme'
 
 type Step = 'status' | 'profile'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
@@ -18,7 +18,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [status, setStatus] = useState<RsvpStatus | null>(null)
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
-  const [drinks, setDrinks] = useState<string[]>([])
+  const [proteinAnchor, setProteinAnchor] = useState<string | null>(null)
+  const [flavorPreference, setFlavorPreference] = useState<string[]>([])
+  const [flavorHint, setFlavorHint] = useState(false)
   const [adventurousness, setAdventurousness] = useState(50)
   const [prefilled, setPrefilled] = useState(false)
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
@@ -57,7 +59,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         const p = profileRow as Record<string, unknown>
         setDietary((p.dietary as string[]) ?? [])
         setAvoid((p.avoid as string[]) ?? [])
-        setDrinks((p.drinks as string[]) ?? [])
+        setProteinAnchor((p.protein_anchor as string | null) ?? null)
+        setFlavorPreference((p.flavor_preference as string[]) ?? [])
         setAdventurousness((p.adventurousness as number) ?? 50)
         setPrefilled(true)
       }
@@ -100,7 +103,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           user_id: uidRef.current,
           dietary,
           avoid,
-          drinks,
+          protein_anchor: proteinAnchor,
+          flavor_preference: flavorPreference,
           adventurousness,
           updated_at: new Date().toISOString(),
         },
@@ -117,6 +121,19 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
   function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
     setArr(arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value])
+  }
+
+  function toggleFlavor(value: string) {
+    if (flavorPreference.includes(value)) {
+      setFlavorPreference(flavorPreference.filter((v) => v !== value))
+      return
+    }
+    if (flavorPreference.length >= 3) {
+      setFlavorHint(true)
+      setTimeout(() => setFlavorHint(false), 2000)
+      return
+    }
+    setFlavorPreference([...flavorPreference, value])
   }
 
   const theme = THEMES[0]
@@ -418,20 +435,48 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                     ))}
                   </div>
 
-                  <SubLabel>What are you drinking?</SubLabel>
+                  <SubLabel>Protein anchor</SubLabel>
                   <div style={chipWrap}>
-                    {DRINKS.map((it) => (
+                    {PROTEIN_ANCHOR.map((it) => (
                       <button
                         key={it}
                         className="chip"
-                        aria-pressed={drinks.includes(it)}
-                        onClick={() => toggleChip(drinks, setDrinks, it)}
-                        style={chipClass(drinks.includes(it))}
+                        aria-pressed={proteinAnchor === it}
+                        onClick={() => setProteinAnchor(it)}
+                        style={chipClass(proteinAnchor === it)}
                       >
                         {it}
                       </button>
                     ))}
                   </div>
+
+                  <SubLabel>Flavor preference (pick up to 3)</SubLabel>
+                  <div style={chipWrap}>
+                    {FLAVOR_PREFERENCE.map((it) => (
+                      <button
+                        key={it}
+                        className="chip"
+                        aria-pressed={flavorPreference.includes(it)}
+                        onClick={() => toggleFlavor(it)}
+                        style={chipClass(flavorPreference.includes(it))}
+                      >
+                        {it}
+                      </button>
+                    ))}
+                  </div>
+                  {flavorHint && (
+                    <p
+                      data-testid="flavor-hint"
+                      style={{
+                        color: C.gold,
+                        fontSize: 12,
+                        marginTop: 6,
+                        fontFamily: 'system-ui, sans-serif',
+                      }}
+                    >
+                      Pick up to 3
+                    </p>
+                  )}
 
                   <SubLabel>How brave is your palate?</SubLabel>
                   <div

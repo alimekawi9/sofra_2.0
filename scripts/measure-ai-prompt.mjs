@@ -96,7 +96,7 @@ async function loadGuestProfiles() {
   const userIds = rsvps.map(r => r.user_id)
   const { data: profiles, error: pErr } = await supabase
     .from('taste_profiles')
-    .select('user_id, dietary, avoid, drinks, adventurousness')
+    .select('user_id, dietary, avoid, protein_anchor, flavor_preference, adventurousness')
     .in('user_id', userIds)
   if (pErr) throw new Error(`select taste_profiles: ${pErr.message}`)
 
@@ -108,7 +108,8 @@ async function loadGuestProfiles() {
       name: r.users?.name ?? '?',
       dietary: p.dietary ?? [],
       avoid: p.avoid ?? [],
-      drinks: p.drinks ?? [],
+      proteinAnchor: p.protein_anchor ?? null,
+      flavorPreference: p.flavor_preference ?? [],
       adventurousness: p.adventurousness ?? 50,
     })
   }

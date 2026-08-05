@@ -2,7 +2,8 @@ export type TasteProfile = {
   name: string
   dietary: string[]
   avoid: string[]
-  drinks: string[]
+  proteinAnchor?: string | null
+  flavorPreference?: string[]
   adventurousness: number
 }
 
@@ -16,7 +17,8 @@ export type HardLimit = {
 export type TableIntel = {
   hardLimits: HardLimit[]
   dietMix: { label: string; count: number }[]
-  drinksCounts: { label: string; count: number }[]
+  proteinCounts: { label: string; count: number }[]
+  flavorCounts: { label: string; count: number }[]
   avgAdventurousness: number
   adventurousnessLabel: 'cautious' | 'balanced' | 'adventurous' | 'daring'
   brief: string
@@ -34,10 +36,21 @@ export const STRICT_DIET_LIST = [
 ] as const
 const STRICT_DIETS: Set<string> = new Set(STRICT_DIET_LIST)
 
+// Lean phrasing for the brief when a table majority (>50%) shares a protein
+// anchor or flavor preference. "No preference" is never announced as a lean.
+const PROTEIN_LEAN_PHRASE: Record<string, string> = {
+  Beef: 'beef-forward',
+  Chicken: 'chicken-forward',
+  Fish: 'fish-forward',
+  Pork: 'pork-forward',
+  Lamb: 'lamb-forward',
+  Vegetarian: 'vegetarian-forward',
+}
+
 export function buildIntel(guests: TasteProfile[]): TableIntel {
   if (guests.length === 0) {
     return {
-      hardLimits: [], dietMix: [], drinksCounts: [],
+      hardLimits: [], dietMix: [], proteinCounts: [], flavorCounts: [],
       avgAdventurousness: 0,
       // 'cautious' is a safe sentinel — the brief returns 'No guest data yet.' for this case,
       // so adventurousnessLabel is never surfaced to users when guestCount is 0.
@@ -85,14 +98,24 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
-  // drinksCounts — descending
-  const drinksMap = new Map<string, number>()
+  // proteinCounts — descending; guests with no anchor set are omitted
+  const proteinMap = new Map<string, number>()
   for (const g of guests) {
-    for (const d of g.drinks) {
-      drinksMap.set(d, (drinksMap.get(d) ?? 0) + 1)
+    if (!g.proteinAnchor) continue
+    proteinMap.set(g.proteinAnchor, (proteinMap.get(g.proteinAnchor) ?? 0) + 1)
+  }
+  const proteinCounts = Array.from(proteinMap.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+
+  // flavorCounts — descending; each guest can contribute up to 3 flavors
+  const flavorMap = new Map<string, number>()
+  for (const g of guests) {
+    for (const f of g.flavorPreference ?? []) {
+      flavorMap.set(f, (flavorMap.get(f) ?? 0) + 1)
     }
   }
-  const drinksCounts = Array.from(drinksMap.entries())
+  const flavorCounts = Array.from(flavorMap.entries())
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
 
@@ -107,11 +130,11 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
     : 'daring'
 
   const brief = buildBrief(
-    guests.length, hardLimits, drinksCounts, avgAdventurousness, adventurousnessLabel
+    guests.length, hardLimits, proteinCounts, flavorCounts, avgAdventurousness, adventurousnessLabel
   )
 
   return {
-    hardLimits, dietMix, drinksCounts,
+    hardLimits, dietMix, proteinCounts, flavorCounts,
     avgAdventurousness, adventurousnessLabel,
     brief, guestCount: guests.length,
   }
@@ -120,7 +143,8 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
 function buildBrief(
   guestCount: number,
   hardLimits: HardLimit[],
-  drinksCounts: { label: string; count: number }[],
+  proteinCounts: { label: string; count: number }[],
+  flavorCounts: { label: string; count: number }[],
   avg: number,
   label: TableIntel['adventurousnessLabel']
 ): string {
@@ -143,11 +167,33 @@ function buildBrief(
 
   if (hardLimits.length === 0) parts.push('no hard limits')
 
-  if (drinksCounts.length > 0) {
-    parts.push(`${drinksCounts[0].label.toLowerCase()} dominant`)
-  }
+  const lean = leanPart(proteinCounts, flavorCounts, guestCount)
+  if (lean) parts.push(lean)
 
   parts.push(`${label} table (avg ${avg})`)
 
   return `${guestCount} guest${guestCount !== 1 ? 's' : ''} — ${parts.join(', ')}.`
+}
+
+function leanPart(
+  proteinCounts: { label: string; count: number }[],
+  flavorCounts: { label: string; count: number }[],
+  guestCount: number
+): string | null {
+  const topProtein = proteinCounts[0]
+  const proteinLean =
+    topProtein && topProtein.label !== 'No preference' && topProtein.count > guestCount / 2
+      ? PROTEIN_LEAN_PHRASE[topProtein.label] ?? topProtein.label.toLowerCase()
+      : null
+
+  const topFlavor = flavorCounts[0]
+  const flavorLean =
+    topFlavor && topFlavor.count > guestCount / 2
+      ? `${topFlavor.label.toLowerCase()} flavors`
+      : null
+
+  if (proteinLean && flavorLean) return `leans ${proteinLean} with ${flavorLean}`
+  if (proteinLean) return `leans ${proteinLean}`
+  if (flavorLean) return `leans toward ${flavorLean}`
+  return null
 }

@@ -235,57 +235,117 @@ async function navigateToStep2() {
 describe('Step 2 — chip groups', () => {
   it('renders all dietary chips', async () => {
     await navigateToStep2()
+    // 'Vegetarian' and 'Pescatarian' appear only in dietary; 'Vegan' also unique.
+    // getAllByRole to tolerate the intentional label overlap with the new
+    // PROTEIN_ANCHOR chips (Vegetarian appears in both).
     for (const chip of ['Vegetarian','Vegan','No pork/alcohol','Kosher','Gluten-free','No dairy','Pescatarian']) {
-      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: chip }).length).toBeGreaterThan(0)
     }
   })
 
   it('renders all avoid chips', async () => {
     await navigateToStep2()
+    // 'Pork' overlaps with PROTEIN_ANCHOR; use getAllByRole.
     for (const chip of ['Nuts','Shellfish','Pork','Eggs','Cilantro','Mushrooms']) {
+      expect(screen.getAllByRole('button', { name: chip }).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('renders all protein anchor chips', async () => {
+    await navigateToStep2()
+    // 'Vegetarian' overlaps DIETARY and 'Pork' overlaps NOGOS; getAllByRole
+    // tolerates the collision.
+    for (const chip of ['Beef','Chicken','Fish','Pork','Lamb','Vegetarian','No preference']) {
+      expect(screen.getAllByRole('button', { name: chip }).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('renders all flavor preference chips', async () => {
+    await navigateToStep2()
+    for (const chip of ['Fresh','Acidic','Rich','Creamy','Spicy','Smoky','Umami','Crispy','Soft','Grilled','Fried','Raw']) {
       expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
     }
   })
 
-  it('renders all drinks chips', async () => {
+  it('protein anchor is single-select: choosing one deselects the other', async () => {
     await navigateToStep2()
-    for (const chip of ['Cocktails','Wine','Beer','Alcohol-free']) {
-      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
-    }
+    await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
+    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'Chicken' }))
+    expect(screen.getByRole('button', { name: 'Chicken' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'false')
   })
+
+  it('flavor preference is multi-select up to 3', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Fresh' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Rich' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Spicy' }))
+    expect(screen.getByRole('button', { name: 'Fresh' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Rich' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Spicy' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('tapping a 4th flavor does not select it and shows a "pick up to 3" hint', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Fresh' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Rich' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Spicy' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Smoky' }))
+    expect(screen.getByRole('button', { name: 'Smoky' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('flavor-hint')).toBeInTheDocument()
+  })
+
+  it('deselecting a flavor and selecting a 4th works normally', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Fresh' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Rich' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Spicy' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Fresh' })) // deselect
+    await userEvent.click(screen.getByRole('button', { name: 'Smoky' }))
+    expect(screen.getByRole('button', { name: 'Fresh' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Rich' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Spicy' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Smoky' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  // Dietary 'Vegetarian' is the first-rendered chip with that name (DIETARY
+  // section renders before PROTEIN_ANCHOR). Grabbing index 0 targets the
+  // dietary chip; index 1 would be the protein-anchor chip.
+  const getDietVegetarian = () => screen.getAllByRole('button', { name: 'Vegetarian' })[0]
 
   it('toggles a dietary chip on', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(getDietVegetarian())
+    expect(getDietVegetarian()).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('toggles a dietary chip off again', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(getDietVegetarian())
+    await userEvent.click(getDietVegetarian())
+    expect(getDietVegetarian()).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('chips are multi-select: selecting one does not deselect another', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
+    await userEvent.click(getDietVegetarian())
     await userEvent.click(screen.getByRole('button', { name: 'Vegan' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
+    expect(getDietVegetarian()).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('avoid chips are independent of dietary chips', async () => {
     await navigateToStep2()
     await userEvent.click(screen.getByRole('button', { name: 'Nuts' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+    expect(getDietVegetarian()).toHaveAttribute('aria-pressed', 'false')
   })
 })
 
 describe('adventurousness slider', () => {
   async function goToStep2WithAdventurousness(value: number) {
     makeSupabase({
-      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], drinks: [], adventurousness: value },
+      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: value },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
@@ -367,7 +427,25 @@ describe('going/maybe submit', () => {
     )
     expect(sb.profileUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        user_id: 'uid-1', dietary: [], avoid: [], drinks: [], adventurousness: 50,
+        user_id: 'uid-1', dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50,
+      }),
+      { onConflict: 'user_id' }
+    )
+  })
+
+  it('includes protein_anchor and flavor_preference in the taste_profiles upsert', async () => {
+    const sb = makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Fresh' }))
+    await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protein_anchor: 'Fish', flavor_preference: ['Fresh'],
       }),
       { onConflict: 'user_id' }
     )
@@ -407,7 +485,9 @@ describe('prefill from existing data', () => {
   it('prefills chip selections from an existing taste_profiles row', async () => {
     makeSupabase({
       profileRow: {
-        user_id: 'uid-1', dietary: ['Vegan'], avoid: ['Nuts'], drinks: ['Wine'], adventurousness: 75,
+        user_id: 'uid-1', dietary: ['Vegan'], avoid: ['Nuts'],
+        protein_anchor: 'Fish', flavor_preference: ['Fresh', 'Rich'],
+        adventurousness: 75,
       },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
@@ -416,12 +496,14 @@ describe('prefill from existing data', () => {
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Nuts' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Wine' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Fresh' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Rich' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('shows "Pulled from your profile" badge when a taste_profiles row exists', async () => {
     makeSupabase({
-      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
@@ -432,7 +514,7 @@ describe('prefill from existing data', () => {
 
   it('badge persists after the user edits a chip', async () => {
     makeSupabase({
-      profileRow: { user_id: 'uid-1', dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 },
+      profileRow: { user_id: 'uid-1', dietary: ['Vegan'], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))

@@ -4,7 +4,6 @@ import type { TasteProfile } from '@/lib/intel'
 const guest = (overrides: Partial<TasteProfile> & { name: string }): TasteProfile => ({
   dietary: [],
   avoid: [],
-  drinks: [],
   adventurousness: 50,
   ...overrides,
 })
@@ -14,6 +13,8 @@ describe('buildIntel', () => {
     const intel = buildIntel([])
     expect(intel.guestCount).toBe(0)
     expect(intel.hardLimits).toEqual([])
+    expect(intel.proteinCounts).toEqual([])
+    expect(intel.flavorCounts).toEqual([])
     expect(intel.avgAdventurousness).toBe(0)
     expect(intel.brief).toBe('No guest data yet.')
   })
@@ -35,10 +36,6 @@ describe('buildIntel', () => {
   })
 
   test('creates diet HardLimit for every strict diet the guest declared', () => {
-    // All strict diets — Vegetarian, Vegan, No pork/alcohol, Kosher,
-    // Gluten-free, No dairy, Pescatarian — now become substitution-case
-    // hardLimits (not soft dietMix), so a majority-preferred dish that
-    // doesn't satisfy the diet gets the guest a labeled substitute.
     const intel = buildIntel([
       guest({ name: 'Sara', dietary: ['Vegetarian', 'Gluten-free'] }),
     ])
@@ -55,24 +52,40 @@ describe('buildIntel', () => {
     expect(firstAllergyIdx).toBeLessThan(firstDietIdx)
   })
 
-  test('dietMix excludes STRICT_DIETS (all now including Gluten-free, No dairy, Pescatarian)', () => {
+  test('dietMix excludes STRICT_DIETS', () => {
     const intel = buildIntel([
       guest({ name: 'A', dietary: ['Gluten-free'] }),
-      guest({ name: 'B', dietary: ['Halal'] }),  // not strict — soft dietMix
-      guest({ name: 'C', dietary: ['Vegan'] }),  // strict — excluded from dietMix
+      guest({ name: 'B', dietary: ['Halal'] }),
+      guest({ name: 'C', dietary: ['Vegan'] }),
     ])
     expect(intel.dietMix.some(d => d.label === 'Gluten-free')).toBe(false)
     expect(intel.dietMix.some(d => d.label === 'Vegan')).toBe(false)
     expect(intel.dietMix.some(d => d.label === 'Halal')).toBe(true)
   })
 
-  test('drinksCounts sorted descending', () => {
+  test('proteinCounts groups guest protein anchors, sorted descending', () => {
     const intel = buildIntel([
-      guest({ name: 'A', drinks: ['Wine', 'Beer'] }),
-      guest({ name: 'B', drinks: ['Wine'] }),
+      guest({ name: 'A', proteinAnchor: 'Fish' }),
+      guest({ name: 'B', proteinAnchor: 'Fish' }),
+      guest({ name: 'C', proteinAnchor: 'Chicken' }),
     ])
-    expect(intel.drinksCounts[0]).toEqual({ label: 'Wine', count: 2 })
-    expect(intel.drinksCounts[1]).toEqual({ label: 'Beer', count: 1 })
+    expect(intel.proteinCounts[0]).toEqual({ label: 'Fish', count: 2 })
+    expect(intel.proteinCounts[1]).toEqual({ label: 'Chicken', count: 1 })
+  })
+
+  test('proteinCounts omits guests with no anchor set', () => {
+    const intel = buildIntel([guest({ name: 'A' })])
+    expect(intel.proteinCounts).toEqual([])
+  })
+
+  test('flavorCounts counts each guest once per selected flavor, sorted descending', () => {
+    const intel = buildIntel([
+      guest({ name: 'A', flavorPreference: ['Fresh', 'Rich', 'Spicy'] }),
+      guest({ name: 'B', flavorPreference: ['Fresh'] }),
+    ])
+    expect(intel.flavorCounts[0]).toEqual({ label: 'Fresh', count: 2 })
+    expect(intel.flavorCounts.find(f => f.label === 'Rich')).toEqual({ label: 'Rich', count: 1 })
+    expect(intel.flavorCounts.find(f => f.label === 'Spicy')).toEqual({ label: 'Spicy', count: 1 })
   })
 
   test('avgAdventurousness is rounded mean', () => {
@@ -90,15 +103,14 @@ describe('buildIntel', () => {
     expect(buildIntel([guest({ name: 'A', adventurousness: 90 })]).adventurousnessLabel).toBe('daring')
   })
 
-  test('brief includes guestCount, diet, allergy, drink, adventurousness', () => {
+  test('brief includes guestCount, diet, allergy, and adventurousness', () => {
     const intel = buildIntel([
-      guest({ name: 'Ali', avoid: ['Nuts'], drinks: ['Wine'], adventurousness: 54 }),
-      guest({ name: 'Sara', dietary: ['Vegan'], drinks: ['Wine'], adventurousness: 54 }),
+      guest({ name: 'Ali', avoid: ['Nuts'], adventurousness: 54 }),
+      guest({ name: 'Sara', dietary: ['Vegan'], adventurousness: 54 }),
     ])
     expect(intel.brief).toContain('2 guests')
     expect(intel.brief).toContain('vegan')
     expect(intel.brief).toContain('nuts')
-    expect(intel.brief).toContain('wine dominant')
     expect(intel.brief).toContain('balanced')
     expect(intel.brief).toContain('54')
   })
@@ -106,5 +118,48 @@ describe('buildIntel', () => {
   test('brief says "no hard limits" when there are none', () => {
     const intel = buildIntel([guest({ name: 'A', adventurousness: 50 })])
     expect(intel.brief).toContain('no hard limits')
+  })
+
+  test('brief mentions dominant protein lean when >50% of guests share it', () => {
+    const intel = buildIntel([
+      guest({ name: 'A', proteinAnchor: 'Fish' }),
+      guest({ name: 'B', proteinAnchor: 'Fish' }),
+      guest({ name: 'C', proteinAnchor: 'Chicken' }),
+    ])
+    expect(intel.brief).toContain('fish-forward')
+  })
+
+  test('brief does not mention a protein lean when no majority exists', () => {
+    const intel = buildIntel([
+      guest({ name: 'A', proteinAnchor: 'Fish' }),
+      guest({ name: 'B', proteinAnchor: 'Chicken' }),
+    ])
+    expect(intel.brief).not.toContain('-forward')
+  })
+
+  test('brief never announces "No preference" as a protein lean', () => {
+    const intel = buildIntel([
+      guest({ name: 'A', proteinAnchor: 'No preference' }),
+      guest({ name: 'B', proteinAnchor: 'No preference' }),
+      guest({ name: 'C', proteinAnchor: 'No preference' }),
+    ])
+    expect(intel.brief).not.toContain('-forward')
+  })
+
+  test('brief mentions dominant flavor lean when >50% of guests share it', () => {
+    const intel = buildIntel([
+      guest({ name: 'A', flavorPreference: ['Fresh'] }),
+      guest({ name: 'B', flavorPreference: ['Fresh'] }),
+      guest({ name: 'C', flavorPreference: ['Rich'] }),
+    ])
+    expect(intel.brief).toContain('fresh flavors')
+  })
+
+  test('brief combines protein and flavor lean when both are dominant', () => {
+    const intel = buildIntel([
+      guest({ name: 'A', proteinAnchor: 'Fish', flavorPreference: ['Fresh'] }),
+      guest({ name: 'B', proteinAnchor: 'Fish', flavorPreference: ['Fresh'] }),
+    ])
+    expect(intel.brief).toContain('leans fish-forward with fresh flavors')
   })
 })

@@ -736,6 +736,63 @@ export function deriveMenu(
   })
 }
 
+// Pantry items don't have a stored slot — infer strength via declared tags
+// (seafood/meat/veg/vegan/dessert/side/starter) first, then fall back to the
+// slot's name-keyword list. Rough by design: this is a ranking heuristic for
+// prompt trimming, not a placement decision.
+function pantrySlotAffinity(item: PantryItem, slot: Slot): number {
+  const tagset = new Set(item.tags.map(t => t.toLowerCase()))
+  if (slot === 'sea'    && tagset.has('seafood')) return 3
+  if (slot === 'land'   && tagset.has('meat')) return 3
+  if (slot === 'green'  && (tagset.has('veg') || tagset.has('vegan') || tagset.has('vegetarian'))) return 2
+  if (slot === 'finish' && tagset.has('dessert')) return 3
+  if (slot === 'start'  && (tagset.has('side') || tagset.has('starter'))) return 2
+  if (nameMatchesSlot(item.name, slot)) return 1
+  return 0
+}
+
+// Top-K pantry items per slot, unioned into one deduped list. Same intent as
+// shortlistSignaturesForAI: a large weekly pantry inflates the AI prompt
+// without helping the model — a composed dish only uses 3-6 components, so
+// the shortlist just has to include enough strong per-slot anchors (fish for
+// sea, meat for land, etc.) plus accents that ranked well by name-keyword or
+// alphabetical fallback. Items with affinity=0 for every slot (e.g. Miso
+// paste, plain oils) can still make the list if there's room within perSlot
+// via the alphabetical tail. `perSlot` defaults to 5 — smaller than the
+// signature default (3) because pantry items compose in groups, so the AI
+// needs a slightly larger palette per slot.
+export function shortlistPantryForAI(
+  pantry: PantryItem[],
+  intel: TableIntel,
+  perSlot: number = 5,
+): PantryItem[] {
+  const seen = new Set<string>()
+  const out: PantryItem[] = []
+  for (const slot of SLOTS) {
+    const scored = pantry.map(p => {
+      const exclusions = scoreDish(p, intel)
+      return {
+        item: p,
+        allergies: exclusions.filter(e => e.kind === 'allergy').length,
+        affinity: pantrySlotAffinity(p, slot),
+        fit: tableFitScore(p, intel),
+      }
+    })
+    scored.sort((a, b) => {
+      if (a.allergies !== b.allergies) return a.allergies - b.allergies
+      if (a.affinity !== b.affinity) return b.affinity - a.affinity
+      if (a.fit !== b.fit) return b.fit - a.fit
+      return a.item.name.localeCompare(b.item.name)
+    })
+    for (const s of scored.slice(0, perSlot)) {
+      if (seen.has(s.item.id)) continue
+      seen.add(s.item.id)
+      out.push(s.item)
+    }
+  }
+  return out
+}
+
 // Top-K signatures per slot, unioned across all 5 slots into one deduped list.
 // Used to trim the AI prompt: sending the entire signature catalog on a large
 // chef inflates prompt size (and Gemini latency) without changing outcomes,

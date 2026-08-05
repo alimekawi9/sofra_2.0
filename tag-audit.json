@@ -1,0 +1,237 @@
+{
+  "signatures": [
+    {
+      "name": "Baba Ganoush",
+      "tags": [
+        "veg",
+        "vegan",
+        "starter"
+      ],
+      "contains_allergens": []
+    },
+    {
+      "name": "BBQ Pulled Pork",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": [
+        "pork"
+      ]
+    },
+    {
+      "name": "Chana Masala",
+      "tags": [
+        "veg",
+        "vegan"
+      ],
+      "contains_allergens": []
+    },
+    {
+      "name": "Classic Burger",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Duck Confit",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": []
+    },
+    {
+      "name": "Greek Salad",
+      "tags": [
+        "veg",
+        "side"
+      ],
+      "contains_allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "name": "Gulab Jamun",
+      "tags": [
+        "dessert",
+        "veg"
+      ],
+      "contains_allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "name": "Knafeh",
+      "tags": [
+        "dessert",
+        "veg"
+      ],
+      "contains_allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "name": "Lamb Rogan Josh",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "name": "Mac and Cheese",
+      "tags": [
+        "veg",
+        "side"
+      ],
+      "contains_allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "name": "Moussaka",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": [
+        "dairy",
+        "eggs"
+      ]
+    },
+    {
+      "name": "Muhammara",
+      "tags": [
+        "veg",
+        "vegan",
+        "starter"
+      ],
+      "contains_allergens": [
+        "nuts"
+      ]
+    },
+    {
+      "name": "Osso Buco",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": []
+    },
+    {
+      "name": "Risotto ai Funghi",
+      "tags": [
+        "veg"
+      ],
+      "contains_allergens": [
+        "dairy",
+        "mushrooms"
+      ]
+    },
+    {
+      "name": "Steak frites",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Steak frites",
+      "tags": [
+        "meat"
+      ],
+      "contains_allergens": []
+    },
+    {
+      "name": "Tabbouleh",
+      "tags": [
+        "veg",
+        "vegan",
+        "side"
+      ],
+      "contains_allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "name": "Tzatziki",
+      "tags": [
+        "veg",
+        "starter"
+      ],
+      "contains_allergens": [
+        "dairy"
+      ]
+    }
+  ],
+  "pantry_items": [
+    {
+      "name": "Baladi bread",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Beef tenderloin",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Bell peppers",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Butternut squash",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Chickpeas",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Duck breast",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Heavy cream",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Lamb shoulder",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Miso paste",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Orzo",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Parsley",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Polenta",
+      "tags": [],
+      "contains_allergens": []
+    },
+    {
+      "name": "Scallops",
+      "tags": [],
+      "contains_allergens": []
+    }
+  ]
+}

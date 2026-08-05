@@ -36,4 +36,5 @@ export const getTheme = (id?: string | null): Theme =>
 
 export const DIETARY = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
 export const NOGOS = ['Nuts', 'Shellfish', 'Pork', 'Eggs', 'Cilantro', 'Mushrooms']
-export const DRINKS = ['Cocktails', 'Wine', 'Beer', 'Alcohol-free']
+export const PROTEIN_ANCHOR = ['Beef', 'Chicken', 'Fish', 'Pork', 'Lamb', 'Vegetarian', 'No preference']
+export const FLAVOR_PREFERENCE = ['Fresh', 'Acidic', 'Rich', 'Creamy', 'Spicy', 'Smoky', 'Umami', 'Crispy', 'Soft', 'Grilled', 'Fried', 'Raw']

@@ -23,7 +23,8 @@ type ProfileRow = {
   user_id: string
   dietary: string[]
   avoid: string[]
-  drinks: string[]
+  protein_anchor: string | null
+  flavor_preference: string[]
   adventurousness: number
 }
 
@@ -34,7 +35,8 @@ function mergeGuests(rsvps: RsvpRow[], profiles: ProfileRow[]): TasteProfile[] {
       name: r.users?.name ?? 'Unknown',
       dietary: p?.dietary ?? [],
       avoid: p?.avoid ?? [],
-      drinks: p?.drinks ?? [],
+      proteinAnchor: p?.protein_anchor ?? null,
+      flavorPreference: p?.flavor_preference ?? [],
       adventurousness: p?.adventurousness ?? 50,
     }
   })
@@ -271,7 +273,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            {/* Diet mix + drinks grid */}
+            {/* Diet mix + protein anchor grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div style={card}>
                 <div style={cardTitle}>Diet Mix</div>
@@ -300,9 +302,9 @@ export default function TablePage({ params }: { params: { id: string } }) {
                 </div>
               </div>
               <div style={card}>
-                <div style={cardTitle}>Drinks</div>
+                <div style={cardTitle}>Protein Anchor</div>
                 <div style={{ marginTop: 12 }}>
-                  {intel.drinksCounts.length === 0 ? (
+                  {intel.proteinCounts.length === 0 ? (
                     <div
                       style={{
                         color: C.faint,
@@ -310,20 +312,48 @@ export default function TablePage({ params }: { params: { id: string } }) {
                         fontFamily: 'system-ui, sans-serif',
                       }}
                     >
-                      No drink preferences on record
+                      No protein anchor on record
                     </div>
                   ) : (
-                    intel.drinksCounts.map((d) => (
+                    intel.proteinCounts.map((d) => (
                       <Bar
                         key={d.label}
                         label={d.label}
                         n={d.count}
                         total={intel.guestCount}
-                        tint={C.rose}
+                        tint={C.sage}
                       />
                     ))
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Flavor preference */}
+            <div style={card}>
+              <div style={cardTitle}>Flavor Preference</div>
+              <div style={{ marginTop: 12 }}>
+                {intel.flavorCounts.length === 0 ? (
+                  <div
+                    style={{
+                      color: C.faint,
+                      fontSize: 13,
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    No flavor preferences on record
+                  </div>
+                ) : (
+                  intel.flavorCounts.map((d) => (
+                    <Bar
+                      key={d.label}
+                      label={d.label}
+                      n={d.count}
+                      total={intel.guestCount}
+                      tint={C.rose}
+                    />
+                  ))
+                )}
               </div>
             </div>
 

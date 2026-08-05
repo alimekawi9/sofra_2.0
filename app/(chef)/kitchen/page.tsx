@@ -19,15 +19,30 @@ type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
 // diet matching — they tell inferSlot this dish isn't eligible for a Main
 // slot even if it's also tagged 'meat'/'veg' (see lib/menu.ts inferSlot).
 //
+// TAG_GROUPS is the source of truth for the chef-side tag picker. Storage
+// stays a flat string[] on each dish/pantry item; grouping is display-only.
+// The Role/Diet group carries the original legacy vocab — do not rename or
+// remove those values, since existing signatures + inferSlot in lib/menu.ts
+// depend on them.
+const TAG_GROUPS: readonly { label: string; tags: readonly string[] }[] = [
+  { label: 'Role',           tags: ['starter', 'side', 'dessert'] },
+  { label: 'Diet',           tags: ['veg', 'vegan', 'pescatarian', 'no pork/alcohol', 'meat', 'seafood'] },
+  { label: 'Protein',        tags: ['beef', 'lamb', 'chicken', 'turkey', 'pork', 'duck', 'fish', 'shellfish', 'egg', 'dairy', 'legume', 'tofu', 'mushroom', 'grain', 'pasta', 'vegetable', 'fruit', 'mixed', 'none'] },
+  { label: 'Texture',        tags: ['crunchy', 'tender', 'chewy', 'juicy', 'silky', 'flaky', 'firm', 'mild', 'bitter', 'savory', 'herbal', 'crispy', 'soft', 'creamy'] },
+  { label: 'Cooking Method', tags: ['braised', 'baked', 'steamed', 'boiled', 'seared', 'smoked', 'stewed', 'pickled', 'raw', 'grilled', 'roasted', 'fried'] },
+  { label: 'Temperature',    tags: ['chilled', 'hot', 'cold', 'room_temperature'] },
+  { label: 'Flavor',         tags: ['fresh', 'rich', 'spicy', 'sweet', 'smoky', 'acidic', 'earthy', 'umami'] },
+]
+
 // ALLERGEN_VOCAB must cover every value in NOGOS (lib/theme.ts) — otherwise
 // a guest's avoid label has no chef-side chip to declare against, and the
 // exclusion silently misses. It ALSO carries dairy/gluten/soy, which aren't
 // in NOGOS but are true medical allergens (TRUE_ALLERGENS in lib/menu.ts)
 // the chef must be able to declare. Cilantro/Mushrooms/Pork are preferences
 // (not TRUE_ALLERGENS) and score as kind='preference' → labeled substitute
-// rather than hard block.
-const TAG_VOCAB = ['veg', 'vegan', 'meat', 'seafood', 'dessert', 'pescatarian', 'no pork/alcohol', 'side', 'starter'] as const
-const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork', 'mushrooms', 'cilantro'] as const
+// rather than hard block. sesame/mustard/celery/sulfites/lupin/molluscs are
+// standard EU/UK regulated allergens added alongside the existing set.
+const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork', 'mushrooms', 'cilantro', 'sesame', 'mustard', 'celery', 'sulfites', 'lupin', 'molluscs'] as const
 
 function dishKey(p: DishPreset): string {
   return `${p.cuisine}::${p.name}`
@@ -703,40 +718,18 @@ function KitchenPageInner() {
                     {sigAdding ? '…' : 'Add'}
                   </button>
                 </div>
+                <TagGroupsPicker selected={sigTagsList} onToggle={toggleTag} />
                 <div
                   style={{
                     color: C.faint,
                     fontSize: 11,
                     fontFamily: 'system-ui, sans-serif',
-                  }}
-                >
-                  Tags
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {TAG_VOCAB.map((t) => {
-                    const on = sigTagsList.includes(t)
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => toggleTag(t)}
-                        style={vocabChip(on, false)}
-                        aria-pressed={on}
-                      >
-                        {t}
-                      </button>
-                    )
-                  })}
-                </div>
-                <div
-                  style={{
-                    color: C.faint,
-                    fontSize: 11,
-                    fontFamily: 'system-ui, sans-serif',
+                    marginTop: 10,
                   }}
                 >
                   Contains allergens
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {ALLERGEN_VOCAB.map((a) => {
                     const on = sigAllergensList.includes(a)
                     return (
@@ -943,30 +936,8 @@ function KitchenPageInner() {
               {/* Tag/allergen chips apply to whichever pantry insert fires next —
                   the manual "Add" button OR the preset "Add selected" batch —
                   and clear on success. Same UX pattern as signatures. */}
-              <div
-                style={{
-                  color: C.faint,
-                  fontSize: 11,
-                  fontFamily: 'system-ui, sans-serif',
-                  marginTop: 12,
-                }}
-              >
-                Tags
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                {TAG_VOCAB.map((t) => {
-                  const on = pantryTagsList.includes(t)
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => togglePantryTag(t)}
-                      style={vocabChip(on, false)}
-                      aria-pressed={on}
-                    >
-                      {t}
-                    </button>
-                  )
-                })}
+              <div style={{ marginTop: 12 }}>
+                <TagGroupsPicker selected={pantryTagsList} onToggle={togglePantryTag} />
               </div>
               <div
                 style={{
@@ -1115,6 +1086,48 @@ function presetChip(on: boolean, disabled: boolean = false): React.CSSProperties
     opacity: disabled ? 0.5 : 1,
     transition: 'all 0.18s',
   }
+}
+
+function TagGroupsPicker({
+  selected,
+  onToggle,
+}: {
+  selected: string[]
+  onToggle: (tag: string) => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {TAG_GROUPS.map((group) => (
+        <div key={group.label}>
+          <div
+            style={{
+              color: C.faint,
+              fontSize: 11,
+              fontFamily: 'system-ui, sans-serif',
+              marginBottom: 4,
+            }}
+          >
+            {group.label}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {group.tags.map((t) => {
+              const on = selected.includes(t)
+              return (
+                <button
+                  key={t}
+                  onClick={() => onToggle(t)}
+                  style={vocabChip(on, false)}
+                  aria-pressed={on}
+                >
+                  {t}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function vocabChip(on: boolean, danger: boolean): React.CSSProperties {

@@ -9,6 +9,7 @@ import {
   nameMatchesSlot,
   scoreDish,
   scoreComposedDish,
+  shortlistPantryForAI,
   shortlistSignaturesForAI,
   type Course,
   type PantryItem,
@@ -44,12 +45,14 @@ export function buildAIPrompt(
   signatures: Signature[],
   pantry: PantryItem[]
 ): string {
-  // Send only the top-K signatures per slot rather than the full catalog.
-  // On a large chef, the full list dominates prompt size and correlates with
-  // Gemini timeouts; the shortlist is exactly the pool the rule-based
-  // fallback would draw from, so we don't lose viable picks — see
-  // shortlistSignaturesForAI in ./menu.
+  // Send only the top-K signatures + pantry items per slot rather than the
+  // full catalog. On a large chef, the raw lists dominate prompt size and
+  // correlate with Gemini timeouts; the shortlists are exactly the pools the
+  // rule-based fallback would draw from, so we don't lose viable picks — see
+  // shortlistSignaturesForAI / shortlistPantryForAI in ./menu.
   const shortSignatures = shortlistSignaturesForAI(signatures, intel, 3)
+  const shortPantry = shortlistPantryForAI(pantry, intel, 5)
+
   const sigLines = shortSignatures.length
     ? shortSignatures.map(s => {
         const slot = s.slot ?? 'any'
@@ -59,8 +62,8 @@ export function buildAIPrompt(
       }).join('\n')
     : '(none)'
 
-  const pantryLines = pantry.length
-    ? pantry.map(p => {
+  const pantryLines = shortPantry.length
+    ? shortPantry.map(p => {
         const tags = p.tags.length ? p.tags.join(', ') : 'none'
         const allergens = p.contains_allergens.length ? p.contains_allergens.join(', ') : 'none'
         return `- id=${p.id} | "${p.name}" | tags=[${tags}] | contains_allergens=[${allergens}]`
@@ -92,8 +95,12 @@ export function buildAIPrompt(
     ? intel.dietMix.map(d => `${d.label}=${d.count}`).join(', ')
     : 'none'
 
-  const drinks = intel.drinksCounts.length
-    ? intel.drinksCounts.map(d => `${d.label}=${d.count}`).join(', ')
+  const proteinAnchors = intel.proteinCounts.length
+    ? intel.proteinCounts.map(d => `${d.label}=${d.count}`).join(', ')
+    : 'none'
+
+  const flavorPrefs = intel.flavorCounts.length
+    ? intel.flavorCounts.map(d => `${d.label}=${d.count}`).join(', ')
     : 'none'
 
   return `Compose a 5-course tasting menu. Slots, in order:
@@ -102,14 +109,16 @@ export function buildAIPrompt(
 SIGNATURE DISHES (chef's picks, pre-filtered to strong slot matches — reuse where they fit):
 ${sigLines}
 
-PANTRY (raw ingredients for NEW composed dishes; invent evocative dish names,
-never "Chef's <ingredient>"):
+PANTRY (raw ingredients, pre-filtered to strong slot-anchor candidates + accents
+— use to compose a NEW dish only if no signature above fits the slot; invent
+evocative dish names, never "Chef's <ingredient>"):
 ${pantryLines}
 
 GUEST INTEL:
 - ${intel.guestCount} guest${intel.guestCount === 1 ? '' : 's'}
 - Diet mix (soft): ${dietMix}
-- Drinks: ${drinks}
+- Protein anchor split: ${proteinAnchors}
+- Flavor preference split: ${flavorPrefs}
 - Adventurousness: ${intel.avgAdventurousness}/100 (${intel.adventurousnessLabel})
 - Brief: ${intel.brief}
 

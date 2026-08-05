@@ -123,6 +123,13 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     }
   }
 
+  function shareViaWhatsApp() {
+    if (!event) return
+    const url = window.location.href
+    const message = `You're invited to ${event.title}! ${url}`
+    window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank')
+  }
+
   const theme = getTheme(event?.theme)
   const pageBg = event?.cover_url ? '#140E10' : theme.bg
 
@@ -292,6 +299,9 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     <button onClick={copyInviteLink} style={hostBtnStyle}>
                       {copied ? 'Copied!' : 'Copy invite link'}
+                    </button>
+                    <button onClick={shareViaWhatsApp} style={hostBtnStyle}>
+                      Share via WhatsApp
                     </button>
                     <button
                       onClick={() => router.push('/events/' + params.id + '/table')}

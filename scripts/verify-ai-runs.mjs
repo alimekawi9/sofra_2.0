@@ -50,7 +50,8 @@ const guests = rsvps.map(r => {
     name: r.users?.name ?? 'Unknown',
     dietary: p?.dietary ?? [],
     avoid: p?.avoid ?? [],
-    drinks: p?.drinks ?? [],
+    proteinAnchor: p?.protein_anchor ?? null,
+    flavorPreference: p?.flavor_preference ?? [],
     adventurousness: p?.adventurousness ?? 50,
   }
 })

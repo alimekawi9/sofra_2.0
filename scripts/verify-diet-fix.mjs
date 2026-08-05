@@ -31,14 +31,14 @@ const { scoreDish, draftMenu, SLOT_LABELS } = await import('../lib/menu.ts')
 
 // --- Demo guests (copied verbatim from scripts/seed-demo-event.mjs) --------
 const guests = [
-  { name: 'Omar',  dietary: [],              avoid: ['Pork'],      drinks: ['Cocktails'],     adventurousness: 85 },
-  { name: 'Nadia', dietary: ['Vegetarian'],  avoid: ['Nuts'],      drinks: ['Wine'],          adventurousness: 55 },
-  { name: 'Sam',   dietary: [],              avoid: ['Nuts'],      drinks: ['Beer'],          adventurousness: 40 },
-  { name: 'Yara',  dietary: [],              avoid: ['Shellfish'], drinks: ['Wine'],          adventurousness: 75 },
-  { name: 'Tarek', dietary: ['Halal'],       avoid: [],            drinks: ['Cocktails'],     adventurousness: 90 },
-  { name: 'Mona',  dietary: ['Vegetarian'],  avoid: ['Mushrooms'], drinks: ['Alcohol-free'],  adventurousness: 35 },
-  { name: 'Dana',  dietary: [],              avoid: ['Nuts'],      drinks: ['Wine'],          adventurousness: 60 },
-  { name: 'Priya', dietary: ['Vegetarian'],  avoid: [],            drinks: ['Wine'],          adventurousness: 65 },
+  { name: 'Omar',  dietary: [],              avoid: ['Pork'],      proteinAnchor: 'Beef',       flavorPreference: ['Rich'],          adventurousness: 85 },
+  { name: 'Nadia', dietary: ['Vegetarian'],  avoid: ['Nuts'],      proteinAnchor: 'Vegetarian', flavorPreference: ['Fresh'],         adventurousness: 55 },
+  { name: 'Sam',   dietary: [],              avoid: ['Nuts'],      proteinAnchor: 'Chicken',    flavorPreference: ['Crispy'],        adventurousness: 40 },
+  { name: 'Yara',  dietary: [],              avoid: ['Shellfish'], proteinAnchor: 'Fish',       flavorPreference: ['Fresh'],         adventurousness: 75 },
+  { name: 'Tarek', dietary: ['Halal'],       avoid: [],            proteinAnchor: 'Lamb',       flavorPreference: ['Spicy'],         adventurousness: 90 },
+  { name: 'Mona',  dietary: ['Vegetarian'],  avoid: ['Mushrooms'], proteinAnchor: 'Vegetarian', flavorPreference: ['Creamy'],        adventurousness: 35 },
+  { name: 'Dana',  dietary: [],              avoid: ['Nuts'],      proteinAnchor: 'Chicken',    flavorPreference: ['Rich'],          adventurousness: 60 },
+  { name: 'Priya', dietary: ['Vegetarian'],  avoid: [],            proteinAnchor: 'No preference', flavorPreference: ['Spicy'],      adventurousness: 65 },
 ]
 
 // --- Signatures with the tag/allergen shapes from lib/dish-presets.ts -----

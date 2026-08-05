@@ -45,7 +45,8 @@ const guests = rsvps.map(r => {
   const p = profiles.find(x => x.user_id === r.user_id)
   return {
     name: r.users?.name ?? '?', dietary: p?.dietary ?? [], avoid: p?.avoid ?? [],
-    drinks: p?.drinks ?? [], adventurousness: p?.adventurousness ?? 50,
+    proteinAnchor: p?.protein_anchor ?? null, flavorPreference: p?.flavor_preference ?? [],
+    adventurousness: p?.adventurousness ?? 50,
   }
 })
 const intel = buildIntel(guests)

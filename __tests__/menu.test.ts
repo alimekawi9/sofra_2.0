@@ -38,25 +38,25 @@ describe('SLOT_LABELS', () => {
 
 describe('scoreDish — signature', () => {
   test('returns empty when dish has no conflicts', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const dish = sig({ id: '1', name: 'Bread', slot: 'start' })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('excludes guest when dish contains their allergen (case-insensitive)', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const dish = sig({ id: '1', name: 'Walnut Cake', slot: 'finish', contains_allergens: ['Nuts'] })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
   test('excludes guest whose strict diet is not in dish tags', () => {
-    const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '2', name: 'Beef Tartare', slot: 'land' })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Sara', reason: 'not vegetarian', kind: 'preference' }])
   })
 
   test('does not exclude guest when dish carries their required diet tag', () => {
-    const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '3', name: 'Risotto', slot: 'green', tags: ['vegetarian'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
@@ -66,25 +66,25 @@ describe('scoreDish — signature', () => {
   // "Vegetarian" wrongly rejected every one of these dishes for vegetarian
   // guests, cascading the whole menu to pantry-composed placeholders.
   test('"veg" tag satisfies a Vegetarian hard limit', () => {
-    const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '4', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('"vegan" tag alone satisfies a Vegetarian hard limit (vegan ⊂ vegetarian)', () => {
-    const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '5', name: 'Ratatouille', slot: 'green', tags: ['vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('"vegan" tag satisfies a No pork/alcohol hard limit (no pork / animal products)', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '6', name: 'Chana Masala', slot: 'green', tags: ['veg', 'vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('"vegan" tag satisfies a Kosher hard limit (no pork / shellfish / meat-dairy mixing)', () => {
-    const intel = buildIntel([{ name: 'Kal', dietary: ['Kosher'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Kal', dietary: ['Kosher'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '7', name: 'Falafel', slot: 'start', tags: ['vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
@@ -93,7 +93,7 @@ describe('scoreDish — signature', () => {
   // automatically no-pork/alcohol-safe. Only "vegan" is. Chef can still tag
   // "no pork/alcohol" explicitly on a non-vegan dish they know is safe.
   test('"veg" tag alone does NOT satisfy No pork/alcohol (may contain alcohol)', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '8', name: 'Coq au Something', slot: 'land', tags: ['veg'] })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Tarek', reason: 'contains pork or alcohol', kind: 'preference' }])
   })
@@ -103,30 +103,30 @@ describe('scoreDish — signature', () => {
   // "no pork/alcohol" tag rather than relying on the vegan⊂no-pork/alcohol
   // shortcut, and that explicit declaration must be trusted.
   test('explicit "no pork/alcohol" tag satisfies the hard limit for a non-vegan dish', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '10', name: 'Grilled Chicken Shawarma', slot: 'land', tags: ['meat', 'no pork/alcohol'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('"veg" tag alone does NOT satisfy Vegan', () => {
-    const intel = buildIntel([{ name: 'Vera', dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Vera', dietary: ['Vegan'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '9', name: 'Panna Cotta', slot: 'finish', tags: ['veg'] })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Vera', reason: 'not vegan', kind: 'preference' }])
   })
 
   test('reproduces the demo table bug: Baba Ganoush is safe for the whole vegetarian/no-pork-alcohol table', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Mona',  dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Priya', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Mona',  dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Priya', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 },
     ])
     const babaGanoush = sig({ id: 'bg', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] })
     expect(scoreDish(babaGanoush, intel)).toEqual([])
   })
 
   test('deduplicates guest hit by both allergen and diet — first reason wins', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: ['Vegan'], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: ['Vegan'], avoid: ['Nuts'], adventurousness: 50 }])
     const dish = sig({ id: '4', name: 'Nut Tart', slot: 'finish', contains_allergens: ['Nuts'] })
     const excludes = scoreDish(dish, intel)
     const aliEntries = excludes.filter(e => e.guest === 'Ali')
@@ -147,15 +147,15 @@ describe('scoreDish — signature', () => {
 // entirely (nut-avoiders who aren't vegetarian).
 describe('demo guest data — exclusion counts vary by allergen, not fixed', () => {
   const demoGuests = [
-    { name: 'Host',  dietary: [],              avoid: [],            drinks: [], adventurousness: 50 },
-    { name: 'Omar',  dietary: [],              avoid: ['Pork'],      drinks: [], adventurousness: 50 },
-    { name: 'Nadia', dietary: ['Vegetarian'],  avoid: ['Nuts'],      drinks: [], adventurousness: 50 },
-    { name: 'Sam',   dietary: [],              avoid: ['Nuts'],      drinks: [], adventurousness: 50 },
-    { name: 'Yara',  dietary: [],              avoid: ['Shellfish'], drinks: [], adventurousness: 50 },
-    { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [],        drinks: [], adventurousness: 50 },
-    { name: 'Mona',  dietary: ['Vegetarian'],  avoid: ['Mushrooms'], drinks: [], adventurousness: 50 },
-    { name: 'Dana',  dietary: [],              avoid: ['Nuts'],      drinks: [], adventurousness: 50 },
-    { name: 'Priya', dietary: ['Vegetarian'],  avoid: [],            drinks: [], adventurousness: 50 },
+    { name: 'Host',  dietary: [],              avoid: [],            adventurousness: 50 },
+    { name: 'Omar',  dietary: [],              avoid: ['Pork'],      adventurousness: 50 },
+    { name: 'Nadia', dietary: ['Vegetarian'],  avoid: ['Nuts'],      adventurousness: 50 },
+    { name: 'Sam',   dietary: [],              avoid: ['Nuts'],      adventurousness: 50 },
+    { name: 'Yara',  dietary: [],              avoid: ['Shellfish'], adventurousness: 50 },
+    { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [],        adventurousness: 50 },
+    { name: 'Mona',  dietary: ['Vegetarian'],  avoid: ['Mushrooms'], adventurousness: 50 },
+    { name: 'Dana',  dietary: [],              avoid: ['Nuts'],      adventurousness: 50 },
+    { name: 'Priya', dietary: ['Vegetarian'],  avoid: [],            adventurousness: 50 },
   ]
   const intel = buildIntel(demoGuests)
 
@@ -191,13 +191,13 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
 
 describe('scoreDish — pantry item', () => {
   test('excludes guest when avoid label is a substring of item name (case-insensitive)', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const item = pantryItem('p1', 'Mixed Nuts Brittle')
     expect(scoreDish(item, intel)).toEqual([{ guest: 'Ali', reason: 'may contain nuts', kind: 'allergy' }])
   })
 
   test('does not flag when avoid label is not in item name', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Shellfish'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Shellfish'], adventurousness: 50 }])
     const item = pantryItem('p2', 'Sourdough Bread')
     expect(scoreDish(item, intel)).toEqual([])
   })
@@ -207,31 +207,31 @@ describe('scoreDish — pantry item', () => {
   // reason is now the signature-parity "not vegan" rather than the special
   // "pantry dish — diet-safe status unknown".
   test('untagged pantry item fails closed on strict diet with signature-parity reason', () => {
-    const intel = buildIntel([{ name: 'Sara', dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Sara', dietary: ['Vegan'], avoid: [], adventurousness: 50 }])
     const item = pantryItem('p3', 'Seasonal Vegetable')
     expect(scoreDish(item, intel)).toEqual([{ guest: 'Sara', reason: 'not vegan', kind: 'preference' }])
   })
 
   test('tagged pantry item satisfies a matching strict diet (dishSatisfiesDiet)', () => {
-    const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
     const item = pantryItem('p4', 'Aubergine', { tags: ['veg', 'vegan'] })
     expect(scoreDish(item, intel)).toEqual([])
   })
 
   test('vegan-tagged pantry item satisfies No pork/alcohol (same semantics as signatures)', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
     const item = pantryItem('p5', 'Chickpeas', { tags: ['vegan'] })
     expect(scoreDish(item, intel)).toEqual([])
   })
 
   test('declared contains_allergens excludes allergic guest (parity with signatures)', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const item = pantryItem('p6', 'Pistachio Cream', { contains_allergens: ['Nuts'] })
     expect(scoreDish(item, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
   test('declared allergen and name-substring dedup to a single exclusion per guest', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     // Name substring AND declared allergen both hit — one exclusion, not two.
     const item = pantryItem('p7', 'Mixed Nuts', { contains_allergens: ['Nuts'] })
     const excludes = scoreDish(item, intel)
@@ -247,8 +247,8 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
   // dish is only as safe as its least-safe ingredient.
   test('Baba Ganoush case: an all-vegan set of components is safe for every diet-restricted guest', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 },
     ])
     const items = [
       pantryItem('p1', 'Aubergine', { tags: ['vegan'] }),
@@ -259,8 +259,8 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
 
   test('flags every guest whose diet a single non-compliant component violates', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 },
     ])
     // Lamb: violates vegetarian, but tagged safe for no-pork/alcohol.
     const items = [pantryItem('p1', 'Lamb', { tags: ['meat', 'no pork/alcohol'] })]
@@ -268,7 +268,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
   })
 
   test('flags guest when any component declares an allergen they avoid (case-insensitive)', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const items = [
       pantryItem('p1', 'Rice', { tags: ['vegan'] }),
       pantryItem('p2', 'Pistachio Cream', { tags: ['vegan'], contains_allergens: ['nuts'] }),
@@ -278,14 +278,14 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
 
   test('untagged component fails closed on strict diet (no free pass just for being pantry-composed)', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const items = [pantryItem('p1', 'Seasonal Vegetable')]
     expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }])
   })
 
   test('deduplicates a guest hit by multiple components — one exclusion per guest', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const items = [
       pantryItem('p1', 'Almond Cream', { contains_allergens: ['Nuts'] }),
       pantryItem('p2', 'Mixed Nuts', { contains_allergens: ['Nuts'] }),
@@ -297,7 +297,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
 
   test('empty component list is treated as safe (no ingredients = no violations)', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: ['Nuts'], adventurousness: 50 },
     ])
     expect(scoreComposedDish([], intel)).toEqual([])
   })
@@ -351,7 +351,7 @@ describe('nameMatchesSlot', () => {
 
 describe('draftCourse', () => {
   test('picks zero-exclusion signature over one with exclusions', () => {
-    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }])
+    const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const sigs = [
       sig({ id: '1', name: 'Walnut Tart', slot: 'finish', contains_allergens: ['Nuts'] }),
       sig({ id: '2', name: 'Panna Cotta', slot: 'finish' }),
@@ -604,9 +604,9 @@ describe('per-guest substitutions — strict-diet preferences become side plates
     // picked by the AI, or the only slotted candidate) — and the excluded
     // guests receive a labeled alt on the side.
     const intel = buildIntel([
-      { name: 'Omar', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Priya', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Omar', dietary: [], avoid: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Priya', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const sigs = [
       sig({ id: 'l1', name: 'Lamb Kofta',  slot: 'land',  tags: ['meat'] }),
@@ -629,8 +629,8 @@ describe('per-guest substitutions — strict-diet preferences become side plates
 
   test('guests with different exclusion reasons get different substitutes', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
-      { name: 'Sam',   dietary: [],             avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Sam',   dietary: [],             avoid: ['Nuts'], adventurousness: 50 },
     ])
     // Main dish excludes Sam (nuts) AND Nadia (not vegetarian). Alt pool
     // has two veg options + one nut-free meat option, so the assignment
@@ -667,7 +667,7 @@ describe('per-guest substitutions — strict-diet preferences become side plates
 
   test('true allergy blocks the main pick (dish with a nut-safe alt gets selected instead)', () => {
     const intel = buildIntel([
-      { name: 'Sam', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+      { name: 'Sam', dietary: [], avoid: ['Nuts'], adventurousness: 50 },
     ])
     const sigs = [
       sig({ id: 'f1', name: 'Walnut Tart', slot: 'finish', contains_allergens: ['Nuts'] }),
@@ -710,7 +710,7 @@ describe('deriveCourse — composed dish re-scoring from component_ids', () => {
   // shows "safe for 9/9 guests" even when the untagged components should
   // fail-closed on the 3 vegetarians. component_ids fixes this.
   const vegIntel = buildIntel([
-    { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+    { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
   ])
 
   test('pantry-composed with component_ids re-scores against live pantry (untagged fails closed)', () => {
@@ -782,7 +782,7 @@ describe('deriveMenu — cross-course substitute dedup', () => {
   // for Land can't reuse Baba Ganoush.
   test("Land's veg substitute cannot reuse Start's main dish", () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const signatures: Signature[] = [
       { id: 'bg', name: 'Baba Ganoush', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'start' },
@@ -806,7 +806,7 @@ describe('deriveMenu — cross-course substitute dedup', () => {
     // as signature 'ch'). Course 2: Duck Confit needs veg sub; sourceId
     // dedup misses because course 1 has no sourceId — the name dedup catches.
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const signatures: Signature[] = [
       { id: 'ch', name: 'Chana Masala',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'green' },
@@ -831,7 +831,7 @@ describe('deriveMenu — cross-course substitute dedup', () => {
 describe('shortlistSignaturesForAI — trims AI prompt while preserving strong picks', () => {
   test('unions top-K per slot into one deduped list, preserving slot-order encounters', () => {
     const intel = buildIntel([
-      { name: 'Ali', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Ali', dietary: [], avoid: [], adventurousness: 50 },
     ])
     const sigs = [
       sig({ id: 'oct',  name: 'Charred Octopus', slot: 'sea',    tags: ['seafood'] }),
@@ -851,7 +851,7 @@ describe('shortlistSignaturesForAI — trims AI prompt while preserving strong p
 
   test('drops weak candidates when catalog is bigger than K × slots', () => {
     const intel = buildIntel([
-      { name: 'Ali', dietary: [], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Ali', dietary: [], avoid: [], adventurousness: 50 },
     ])
     // 10 desserts and 10 meats — with K=1 and 5 slots (at most 5 wins), most
     // of the catalog is dropped. The strongest per-slot picks by affinity
@@ -874,7 +874,7 @@ describe('shortlistSignaturesForAI — trims AI prompt while preserving strong p
 
   test('demotes dishes with true allergies for affected guests', () => {
     const intel = buildIntel([
-      { name: 'Sam', dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 },
+      { name: 'Sam', dietary: [], avoid: ['Nuts'], adventurousness: 50 },
     ])
     const sigs = [
       sig({ id: 'nuts', name: 'Almond Cake',   slot: 'finish', tags: ['dessert'], contains_allergens: ['nuts'] }),
@@ -890,7 +890,7 @@ describe('shortlistSignaturesForAI — trims AI prompt while preserving strong p
 describe('assignSubstitutions — usedNames filter', () => {
   test('busyNames blocks a substitute name even when its id is not in busyIds', () => {
     const intel = buildIntel([
-      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], drinks: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const sigs = [
       sig({ id: 'bg', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] }),

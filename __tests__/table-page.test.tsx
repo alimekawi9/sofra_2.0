@@ -19,7 +19,14 @@ const SAMPLE_EVENT = {
 }
 
 type RsvpRow    = { user_id: string; users: { name: string } | null }
-type ProfileRow = { user_id: string; dietary: string[]; avoid: string[]; drinks: string[]; adventurousness: number }
+type ProfileRow = {
+  user_id: string
+  dietary: string[]
+  avoid: string[]
+  protein_anchor: string | null
+  flavor_preference: string[]
+  adventurousness: number
+}
 
 function makeSupabase({
   event      = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
@@ -155,7 +162,7 @@ describe('Hard Limits card', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Alice' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: ['Nuts'], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: ['Nuts'], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     // Exact-string match: the limit label renders as "Nuts", brief renders "nuts" (lowercase)
@@ -167,7 +174,7 @@ describe('Hard Limits card', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Bob' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: ['Vegan'], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: ['Vegan'], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     // Exact-string match: limit label is "Vegan", brief lowercases it
@@ -181,7 +188,7 @@ describe('Hard Limits card', () => {
     // into dietMix and doesn't create a hard limit.
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Carol' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: ['Halal'], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: ['Halal'], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
@@ -216,7 +223,7 @@ describe('Diet Mix section', () => {
     // Halal is a soft dietary — surfaces in the dietMix card.
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Dan' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: ['Halal'], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: ['Halal'], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
@@ -234,37 +241,67 @@ describe('Diet Mix section', () => {
   })
 })
 
-// ─── Drinks ───────────────────────────────────────────────────────────────────
+// ─── Protein Anchor ──────────────────────────────────────────────────────────
 
-describe('Drinks section', () => {
-  it('renders "Drinks" heading', async () => {
+describe('Protein Anchor section', () => {
+  it('renders "Protein Anchor" heading', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<TablePage params={PARAMS} />)
+    // Exact case: heading is "Protein Anchor", empty state is "No protein anchor on record".
     await waitFor(() =>
-      expect(screen.getByText(/drinks/i)).toBeInTheDocument()
+      expect(screen.getByText('Protein Anchor')).toBeInTheDocument()
     )
   })
 
-  it('shows a drink label when a guest has one', async () => {
+  it('shows the protein label when a guest has one', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
-      rsvps:    [{ user_id: GUEST_UID, users: { name: 'Eve' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], drinks: ['Wine'], adventurousness: 50 }],
+      rsvps:    [{ user_id: GUEST_UID, users: { name: 'Leo' } }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: 'Fish', flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
-    // Exact-string: bar label is "Wine" (title case); brief lowercases it to "wine"
-    await waitFor(() =>
-      expect(screen.getByText('Wine')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText('Fish')).toBeInTheDocument())
   })
 
-  it('shows empty-state text when no drink preferences present', async () => {
+  it('shows empty-state text when no protein anchor present', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
-      expect(screen.getByText(/no drink preferences/i)).toBeInTheDocument()
+      expect(screen.getByText(/no protein anchor/i)).toBeInTheDocument()
+    )
+  })
+})
+
+// ─── Flavor Preference ────────────────────────────────────────────────────────
+
+describe('Flavor Preference section', () => {
+  it('renders "Flavor Preference" heading', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase()
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() =>
+      expect(screen.getByText('Flavor Preference')).toBeInTheDocument()
+    )
+  })
+
+  it('shows a flavor label when a guest has one', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({
+      rsvps:    [{ user_id: GUEST_UID, users: { name: 'Mia' } }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, flavor_preference: ['Fresh'], adventurousness: 50 }],
+    })
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Fresh')).toBeInTheDocument())
+  })
+
+  it('shows empty-state text when no flavor preferences present', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase()
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() =>
+      expect(screen.getByText(/no flavor preferences/i)).toBeInTheDocument()
     )
   })
 })
@@ -285,7 +322,7 @@ describe('Adventurousness section', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Frank' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], drinks: [], adventurousness: 30 }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 30 }],
     })
     render(<TablePage params={PARAMS} />)
     // Exact-string: label <p> has text "cautious"; brief has "cautious table (avg 30)"
@@ -298,7 +335,7 @@ describe('Adventurousness section', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Grace' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
@@ -310,7 +347,7 @@ describe('Adventurousness section', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Hana' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], drinks: [], adventurousness: 70 }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 70 }],
     })
     render(<TablePage params={PARAMS} />)
     // Exact-string: label is "adventurous"; heading is "Adventurousness" (different)
@@ -323,7 +360,7 @@ describe('Adventurousness section', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Ivan' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], drinks: [], adventurousness: 80 }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 80 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
@@ -339,7 +376,7 @@ describe('brief text', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({
       rsvps:    [{ user_id: GUEST_UID, users: { name: 'Jade' } }],
-      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], drinks: [], adventurousness: 50 }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
