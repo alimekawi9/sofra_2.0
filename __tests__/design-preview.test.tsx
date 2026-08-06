@@ -335,10 +335,23 @@ describe('SignupForm', () => {
 
   it('renders one labeled phone field over the burgundy plate asset', () => {
     const { container } = render(<SignupForm {...baseProps} />)
-    expect(screen.getByLabelText('Phone number')).toHaveAttribute('type', 'tel')
-    expect(screen.getByLabelText('Phone number')).toHaveAttribute('autocomplete', 'tel')
+    const input = screen.getByLabelText('Phone number')
+    expect(input).toHaveAttribute('type', 'tel')
+    expect(input).toHaveAttribute('inputmode', 'tel')
+    expect(input).toHaveAttribute('autocomplete', 'tel')
+    expect(input).toHaveAttribute('placeholder', '_ _ _ _')
     expect(container.querySelector('.sv2-plate-art')).toHaveAttribute('src', expect.stringContaining('burgundy-plate.png'))
     expect(screen.queryByLabelText('Your name')).not.toBeInTheDocument()
+  })
+
+  it('shows only the new heading above a dedicated enlarged phone plate', () => {
+    render(<SignupForm {...baseProps} />)
+    expect(screen.getByRole('heading', { name: 'Enter your phone number' })).toBeInTheDocument()
+    expect(screen.getByTestId('phone-plate')).toHaveClass('sv2-phone-plate')
+    expect(screen.queryByText('EST. 2026')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sofra.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/No passwords/)).not.toBeInTheDocument()
+    expect(screen.queryByText('PHONE NUMBER')).not.toBeInTheDocument()
   })
 
   it('reports controlled phone changes', async () => {
@@ -350,20 +363,20 @@ describe('SignupForm', () => {
 
   it('disables submit for empty or whitespace-only values', () => {
     const { rerender } = render(<SignupForm {...baseProps} />)
-    expect(screen.getByRole('button', { name: 'YALLA' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'TAKE YOUR SEAT' })).toBeDisabled()
     rerender(<SignupForm {...baseProps} phone="   " />)
-    expect(screen.getByRole('button', { name: 'YALLA' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'TAKE YOUR SEAT' })).toBeDisabled()
   })
 
   it('enables submit when the controlled phone value is meaningful', () => {
     render(<SignupForm {...baseProps} phone="5551234567" />)
-    expect(screen.getByRole('button', { name: 'YALLA' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'TAKE YOUR SEAT' })).toBeEnabled()
   })
 
   it('prevents browser submission and calls onSubmit', () => {
     const onSubmit = jest.fn()
     render(<SignupForm {...baseProps} phone="5551234567" onSubmit={onSubmit} />)
-    fireEvent.submit(screen.getByRole('button', { name: 'YALLA' }).closest('form')!)
+    fireEvent.submit(screen.getByRole('button', { name: 'TAKE YOUR SEAT' }).closest('form')!)
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
@@ -434,7 +447,7 @@ describe('design preview routes', () => {
     const phone = screen.getByLabelText('Phone number')
     await user.type(phone, '5551234567')
     expect(phone).toHaveValue('5551234567')
-    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    await user.click(screen.getByRole('button', { name: 'TAKE YOUR SEAT' }))
     expect(mockPush).toHaveBeenCalledWith('/design-preview/name')
   })
 

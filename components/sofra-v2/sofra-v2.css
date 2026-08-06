@@ -147,13 +147,29 @@
 .sv2-yalla-btn:hover{opacity:.75;}
 .sv2-yalla-btn:focus-visible{outline:2px solid var(--sv2-gold);outline-offset:3px;}
 
-.sv2-signup-sub{
+.sv2-phone-page{
+  align-items:flex-start;
+  padding-top:max(28px, env(safe-area-inset-top));
+  padding-right:max(8px, env(safe-area-inset-right));
+  padding-left:max(8px, env(safe-area-inset-left));
+}
+
+.sv2-phone-card{
+  max-width:390px;
+  min-height:min(620px, calc(100dvh - 56px));
+  padding:42px 12px 32px;
+}
+
+.sv2-phone-heading{
+  position:relative;
+  z-index:1;
   font-family:var(--sv2-sans-family);
-  font-size:12px;
+  font-weight:500;
+  font-size:18px;
+  line-height:1.3;
+  text-align:center;
   color:var(--sv2-ink);
-  opacity:.7;
-  line-height:1.6;
-  margin:8px 0 28px;
+  margin:0 0 4px;
 }
 
 .sv2-name-heading{
@@ -210,6 +226,19 @@
 
 .sv2-plate-field--burgundy .sv2-plate-input{
   color:#E7DED0;
+}
+
+.sv2-phone-plate{
+  width:min(100%, 350px);
+  margin:-2px auto 0;
+}
+
+.sv2-phone-plate .sv2-plate-input{
+  width:58%;
+  max-width:190px;
+  border-bottom:0;
+  overflow:hidden;
+  white-space:nowrap;
 }
 
 .sv2-plate-input::placeholder{
