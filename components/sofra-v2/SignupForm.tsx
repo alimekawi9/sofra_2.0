@@ -1,26 +1,18 @@
 'use client'
 
+import Image from 'next/image'
 import type { FormEvent } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 
 export interface SignupFormProps {
-  name: string
   phone: string
-  onNameChange: (value: string) => void
   onPhoneChange: (value: string) => void
   onSubmit: () => void
   isSubmitting?: boolean
 }
 
-export function SignupForm({
-  name,
-  phone,
-  onNameChange,
-  onPhoneChange,
-  onSubmit,
-  isSubmitting = false,
-}: SignupFormProps) {
-  const submitDisabled = name.trim() === '' || phone.trim() === '' || isSubmitting
+export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = false }: SignupFormProps) {
+  const submitDisabled = phone.trim() === '' || isSubmitting
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,36 +25,16 @@ export function SignupForm({
         <div className="sv2-welcome-hairline" aria-hidden="true" />
         <p className="sv2-eyebrow">EST. 2026</p>
         <p className="sv2-welcome-title">Sofra.</p>
-        <p className="sv2-signup-sub">No passwords. Your name and number stay with your account.</p>
+        <p className="sv2-signup-sub">No passwords. We only need a number to remember your seat.</p>
 
-        <div className="sv2-signup-plate">
-          <div className="sv2-signup-plate-rim" aria-hidden="true" />
-          <div className="sv2-signup-plate-fields">
-            <label className="sv2-field-label" htmlFor="sv2-signup-name">Your name</label>
-            <input
-              id="sv2-signup-name"
-              className="sv2-field-input"
-              type="text"
-              value={name}
-              onChange={(event) => onNameChange(event.target.value)}
-              autoComplete="name"
-            />
-
-            <label className="sv2-field-label" htmlFor="sv2-signup-phone">Phone number</label>
-            <input
-              id="sv2-signup-phone"
-              className="sv2-field-input"
-              type="tel"
-              value={phone}
-              onChange={(event) => onPhoneChange(event.target.value)}
-              autoComplete="tel"
-              inputMode="tel"
-            />
-          </div>
+        <div className="sv2-plate-field sv2-plate-field--burgundy">
+          <Image className="sv2-plate-art" src="/design-preview/burgundy-plate.png" alt="" aria-hidden="true" width={1254} height={1254} priority />
+          <label className="sv2-visually-hidden" htmlFor="sv2-signup-phone">Phone number</label>
+          <input id="sv2-signup-phone" className="sv2-plate-input" type="tel" value={phone} placeholder="PHONE NUMBER" onChange={(event) => onPhoneChange(event.target.value)} autoComplete="tel" inputMode="tel" />
         </div>
 
         <button type="submit" className="sv2-yalla-btn" disabled={submitDisabled}>
-          {isSubmitting ? 'ENTERING…' : 'ENTER SOFRA'}
+          {isSubmitting ? 'ENTERING…' : 'YALLA'}
         </button>
       </form>
     </div>

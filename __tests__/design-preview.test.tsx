@@ -5,9 +5,11 @@ import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
 import { SignupForm } from '@/components/sofra-v2/SignupForm'
+import { NamePlateForm } from '@/components/sofra-v2/NamePlateForm'
 import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
 import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
 import DesignPreviewSignupPage from '@/app/design-preview/signup/page'
+import DesignPreviewNamePage from '@/app/design-preview/name/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -322,9 +324,7 @@ describe('PreferencesReceipt', () => {
 
 describe('SignupForm', () => {
   const baseProps = {
-    name: '',
     phone: '',
-    onNameChange: jest.fn(),
     onPhoneChange: jest.fn(),
     onSubmit: jest.fn(),
   }
@@ -333,44 +333,66 @@ describe('SignupForm', () => {
     jest.clearAllMocks()
   })
 
-  it('renders labeled name and phone fields with mobile-friendly attributes', () => {
-    render(<SignupForm {...baseProps} />)
-    expect(screen.getByLabelText('Your name')).toHaveAttribute('autocomplete', 'name')
+  it('renders one labeled phone field over the burgundy plate asset', () => {
+    const { container } = render(<SignupForm {...baseProps} />)
     expect(screen.getByLabelText('Phone number')).toHaveAttribute('type', 'tel')
     expect(screen.getByLabelText('Phone number')).toHaveAttribute('autocomplete', 'tel')
+    expect(container.querySelector('.sv2-plate-art')).toHaveAttribute('src', expect.stringContaining('burgundy-plate.png'))
+    expect(screen.queryByLabelText('Your name')).not.toBeInTheDocument()
   })
 
-  it('reports controlled name and phone changes', async () => {
+  it('reports controlled phone changes', async () => {
     const user = userEvent.setup()
     render(<SignupForm {...baseProps} />)
-    await user.type(screen.getByLabelText('Your name'), 'Layla')
     await user.type(screen.getByLabelText('Phone number'), '5')
-    expect(baseProps.onNameChange).toHaveBeenCalledWith('L')
     expect(baseProps.onPhoneChange).toHaveBeenCalledWith('5')
   })
 
   it('disables submit for empty or whitespace-only values', () => {
     const { rerender } = render(<SignupForm {...baseProps} />)
-    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeDisabled()
-    rerender(<SignupForm {...baseProps} name="   " phone="5551234567" />)
-    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'YALLA' })).toBeDisabled()
+    rerender(<SignupForm {...baseProps} phone="   " />)
+    expect(screen.getByRole('button', { name: 'YALLA' })).toBeDisabled()
   })
 
-  it('enables submit when both controlled values are meaningful', () => {
-    render(<SignupForm {...baseProps} name="Layla" phone="5551234567" />)
-    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeEnabled()
+  it('enables submit when the controlled phone value is meaningful', () => {
+    render(<SignupForm {...baseProps} phone="5551234567" />)
+    expect(screen.getByRole('button', { name: 'YALLA' })).toBeEnabled()
   })
 
   it('prevents browser submission and calls onSubmit', () => {
     const onSubmit = jest.fn()
-    render(<SignupForm {...baseProps} name="Layla" phone="5551234567" onSubmit={onSubmit} />)
-    fireEvent.submit(screen.getByRole('button', { name: 'ENTER SOFRA' }).closest('form')!)
+    render(<SignupForm {...baseProps} phone="5551234567" onSubmit={onSubmit} />)
+    fireEvent.submit(screen.getByRole('button', { name: 'YALLA' }).closest('form')!)
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
   it('contains no password field', () => {
     const { container } = render(<SignupForm {...baseProps} />)
     expect(container.querySelector('input[type="password"]')).toBeNull()
+  })
+})
+
+describe('NamePlateForm', () => {
+  const baseProps = { name: '', onNameChange: jest.fn(), onSubmit: jest.fn() }
+
+  beforeEach(() => jest.clearAllMocks())
+
+  it('renders one centered name input over the silver plate asset', () => {
+    const { container } = render(<NamePlateForm {...baseProps} />)
+    expect(screen.getByLabelText('Your name')).toHaveAttribute('autocomplete', 'name')
+    expect(container.querySelector('.sv2-plate-art')).toHaveAttribute('src', expect.stringContaining('silver-plate.png'))
+    expect(screen.queryByLabelText('Phone number')).not.toBeInTheDocument()
+  })
+
+  it('preserves controlled name behavior and only submits a meaningful name', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<NamePlateForm {...baseProps} />)
+    await user.type(screen.getByLabelText('Your name'), 'L')
+    expect(baseProps.onNameChange).toHaveBeenCalledWith('L')
+    expect(screen.getByRole('button', { name: 'YALLA' })).toBeDisabled()
+    rerender(<NamePlateForm {...baseProps} name="Layla" />)
+    expect(screen.getByRole('button', { name: 'YALLA' })).toBeEnabled()
   })
 })
 
@@ -404,18 +426,27 @@ describe('design preview routes', () => {
     expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
   })
 
-  it('renders the controlled SignupForm inside a plate without a visible theme control', async () => {
+  it('renders the phone-only signup on a burgundy plate and continues to the name route', async () => {
     const user = userEvent.setup()
     const { container } = render(<DesignPreviewSignupPage />)
-    expect(container.querySelector('.sv2-signup-plate')).toBeInTheDocument()
+    expect(container.querySelector('.sv2-plate-field--burgundy')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
-    const name = screen.getByLabelText('Your name')
     const phone = screen.getByLabelText('Phone number')
-    await user.type(name, 'Layla')
     await user.type(phone, '5551234567')
-    expect(name).toHaveValue('Layla')
     expect(phone).toHaveValue('5551234567')
-    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    expect(mockPush).toHaveBeenCalledWith('/design-preview/name')
+  })
+
+  it('renders the name-only silver plate and continues to preferences', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<DesignPreviewNamePage />)
+    expect(container.querySelector('.sv2-plate-field--silver')).toBeInTheDocument()
+    const name = screen.getByLabelText('Your name')
+    await user.type(name, 'Layla')
+    expect(name).toHaveValue('Layla')
+    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    expect(mockPush).toHaveBeenCalledWith('/design-preview/preferences')
   })
 
   it('owns and updates dietary, avoid, and flavor selections locally', async () => {
@@ -470,7 +501,9 @@ describe('design preview routes', () => {
     welcome.unmount()
     const preferences = render(<DesignPreviewPreferencesPage />)
     preferences.unmount()
-    render(<DesignPreviewSignupPage />)
+    const signup = render(<DesignPreviewSignupPage />)
+    signup.unmount()
+    render(<DesignPreviewNamePage />)
     expect(createClient).not.toHaveBeenCalled()
   })
 
