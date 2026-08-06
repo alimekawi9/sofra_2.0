@@ -860,24 +860,58 @@ git commit -m "Add WelcomeCard for design preview, ported from Figma frame 01"
 - Create: `components/sofra-v2/PreferencesReceipt.tsx`
 - Test: `__tests__/design-preview.test.tsx` (extended)
 
-Ports the Figma `06 — Preferences (Receipt)` card's layout and typography, but replaces its content with the real preference model: `DIETARY`, `NOGOS`, `FLAVORS` from `lib/theme.ts`, and `PROTEIN_PREFERENCE_OPTIONS` / `updateProteinPreferenceSelection` from `lib/protein-preferences.ts` (same max-two-selection behavior as the live RSVP page). No alcohol section, no standalone "Halal" chip. Local `useState` only — this is a preview, it does not read or write Supabase.
+Ports the Figma `06 — Preferences (Receipt)` card's layout and typography, but populates it with real content instead of the mockup's stale/conflicting copy (see the resolved content-conflict decision earlier in this plan): `DIETARY`, `NOGOS`, `FLAVORS` from `lib/theme.ts`, and `PROTEIN_PREFERENCE_OPTIONS` from `lib/protein-preferences.ts`. No alcohol section, no standalone "Halal" chip.
+
+Corrected during execution: the original draft below had this component own its values via internal `useState`, matching the pattern used for the RSVP page it draws content from. The project owner explicitly required a different design for this component specifically: **fully controlled by props, zero internal state** — every value (`dietary`, `avoid`, `proteinPreferences`, `flavors`, `adventurousness`) and every mutation (`onToggleDietary`, `onToggleAvoid`, `onToggleProtein`, `onToggleFlavor`, `onAdventurousnessChange`) is a prop; `proteinHintVisible` is a plain boolean prop with no business logic behind it inside this component. The "only two protein preferences, no-preference is exclusive" rule (`updateProteinPreferenceSelection` from `lib/protein-preferences.ts`) is entirely the *caller's* responsibility — `onToggleProtein` fires unconditionally on every click. This is a deliberate departure from `ThemeToggle` (Task 4) and `SignupForm` (Task 8), which both own internal state — not an inconsistency to reconcile.
+
+Two content corrections beyond the original draft, both requested explicitly:
+- The protein-preference section header reads **"WHAT SOUNDS BEST TONIGHT?"**, not Figma's own "WHAT YOU CAME FOR" (which described a different, no-longer-applicable option set — Red meat/Chicken/Seafood/Plant-based). This is the real, already-shipped RSVP page's exact copy, uppercased to match this card's all-caps section-header convention.
+- The sub-copy under that header reads **"Choose up to two."**, matching the real RSVP page verbatim. The separate hint text shown only when a third option is blocked ("Only two at a time — tap one to swap it out.") stays distinct wording so the two can never collide in a `getByText` query when both happen to be visible.
+
+The receipt has only a top perforation, matching the actual Figma source — there is no bottom-perforation asset or design anywhere in the Figma file, so none is fabricated here.
+
+`lang="ar"` (alongside `dir="auto"`) is set on the "سفرة" wordmark, matching the same fix applied to `WelcomeCard`'s Arabic subtitle in Task 5.
+
+The 7 decorative `<img>` tags (1 perforation + 6 dividers) each carry a `// eslint-disable-next-line @next/next/no-img-element` comment immediately above them, matching this repo's existing convention (see `app/(guest)/events/page.tsx` and similar) for deliberately-raw `<img>` usage on small non-LCP decorative assets.
 
 - [ ] **Step 1: Write the failing tests**
 
-Add these three imports to the top import block of `__tests__/design-preview.test.tsx`:
+Merge these into the top import block of `__tests__/design-preview.test.tsx` — add `fireEvent` to the existing `@testing-library/react` import (don't create a duplicate import line), and add the rest as new imports:
 
 ```tsx
+import { render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
-import { PROTEIN_PREFERENCE_OPTIONS } from '@/lib/protein-preferences'
+import {
+  PROTEIN_PREFERENCE_OPTIONS,
+  updateProteinPreferenceSelection,
+  type ProteinPreference,
+} from '@/lib/protein-preferences'
 ```
 
 Then append this `describe` block below the existing `WelcomeCard` one:
 
 ```tsx
 describe('PreferencesReceipt', () => {
-  it('renders every real preference option', () => {
-    render(<PreferencesReceipt />)
+  const noop = () => {}
+  const baseProps = {
+    dietary: [] as string[],
+    onToggleDietary: noop,
+    avoid: [] as string[],
+    onToggleAvoid: noop,
+    proteinPreferences: [] as ProteinPreference[],
+    onToggleProtein: noop,
+    proteinHintVisible: false,
+    flavors: [] as string[],
+    onToggleFlavor: noop,
+    adventurousness: 50,
+    onAdventurousnessChange: noop,
+    onSave: noop,
+  }
+
+  it('renders every real preference option using the raw stored values', () => {
+    render(<PreferencesReceipt {...baseProps} />)
     for (const item of [...DIETARY, ...NOGOS, ...FLAVORS]) {
       expect(screen.getAllByText(item).length).toBeGreaterThan(0)
     }
@@ -887,7 +921,7 @@ describe('PreferencesReceipt', () => {
   })
 
   it('does not render the Figma mockup alcohol section or a standalone Halal option', () => {
-    render(<PreferencesReceipt />)
+    render(<PreferencesReceipt {...baseProps} />)
     expect(screen.queryByText('POUR ME')).not.toBeInTheDocument()
     expect(screen.queryByText('Wine')).not.toBeInTheDocument()
     expect(screen.queryByText('Spirits')).not.toBeInTheDocument()
@@ -897,22 +931,120 @@ describe('PreferencesReceipt', () => {
     expect(screen.queryByText('Halal')).not.toBeInTheDocument()
   })
 
-  it('caps protein preference selection at two, matching production behavior', async () => {
+  it('calls onToggleDietary with the raw stored value when a dietary option is clicked', async () => {
     const user = userEvent.setup()
-    render(<PreferencesReceipt />)
-    const [first, second, third] = PROTEIN_PREFERENCE_OPTIONS.filter((o) => o.value !== 'no_preference')
-    await user.click(screen.getByRole('checkbox', { name: first.label }))
-    await user.click(screen.getByRole('checkbox', { name: second.label }))
-    await user.click(screen.getByRole('checkbox', { name: third.label }))
+    const onToggleDietary = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleDietary={onToggleDietary} />)
+    await user.click(screen.getByRole('checkbox', { name: 'No pork/alcohol' }))
+    expect(onToggleDietary).toHaveBeenCalledWith('No pork/alcohol')
+  })
+
+  it('calls onToggleAvoid with the raw stored value when an allergen is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleAvoid = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleAvoid={onToggleAvoid} />)
+    await user.click(screen.getByRole('checkbox', { name: 'Pork' }))
+    expect(onToggleAvoid).toHaveBeenCalledWith('Pork')
+  })
+
+  it('calls onToggleFlavor with the raw stored value when a flavor is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleFlavor = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleFlavor={onToggleFlavor} />)
+    await user.click(screen.getByRole('checkbox', { name: 'Sweet-savoury' }))
+    expect(onToggleFlavor).toHaveBeenCalledWith('Sweet-savoury')
+  })
+
+  it('calls onToggleProtein with the raw preference value when a protein option is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleProtein = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleProtein={onToggleProtein} />)
+    await user.click(screen.getByRole('checkbox', { name: 'Beef or lamb' }))
+    expect(onToggleProtein).toHaveBeenCalledWith('beef_lamb')
+  })
+
+  it('calls onAdventurousnessChange with a number when the slider moves', () => {
+    const onAdventurousnessChange = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onAdventurousnessChange={onAdventurousnessChange} />)
+    fireEvent.change(screen.getByLabelText('Adventurousness'), { target: { value: '80' } })
+    expect(onAdventurousnessChange).toHaveBeenCalledWith(80)
+  })
+
+  it('calls onSave when the save button is clicked', async () => {
+    const user = userEvent.setup()
+    const onSave = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onSave={onSave} />)
+    await user.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
+    expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('reflects a controlled proteinHintVisible prop', () => {
+    const { rerender } = render(<PreferencesReceipt {...baseProps} proteinHintVisible={false} />)
+    expect(screen.queryByText('Only two at a time — tap one to swap it out.')).not.toBeInTheDocument()
+    rerender(<PreferencesReceipt {...baseProps} proteinHintVisible />)
     expect(screen.getByText('Only two at a time — tap one to swap it out.')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: first.label })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: second.label })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: third.label })).not.toBeChecked()
+  })
+
+  describe('driven end-to-end with the real protein-preference utility', () => {
+    // Proves PreferencesReceipt's contract against the real
+    // updateProteinPreferenceSelection utility. Deliberately simpler than
+    // app/(guest)/events/[id]/rsvp/page.tsx's actual wiring (which also uses
+    // refs and a setTimeout auto-clear on the hint) — this only covers the
+    // component/utility contract, not that page's full state management.
+    function ControlledHarness() {
+      const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
+      const [hint, setHint] = useState(false)
+
+      function handleToggleProtein(value: ProteinPreference) {
+        const update = updateProteinPreferenceSelection(proteinPreferences, value)
+        if (update.blocked) {
+          setHint(true)
+          return
+        }
+        setHint(false)
+        setProteinPreferences(update.preferences)
+      }
+
+      return (
+        <PreferencesReceipt
+          {...baseProps}
+          proteinPreferences={proteinPreferences}
+          onToggleProtein={handleToggleProtein}
+          proteinHintVisible={hint}
+        />
+      )
+    }
+
+    it('caps protein preference selection at two', async () => {
+      const user = userEvent.setup()
+      const [first, second, third] = PROTEIN_PREFERENCE_OPTIONS.filter((o) => o.value !== 'no_preference')
+      render(<ControlledHarness />)
+      await user.click(screen.getByRole('checkbox', { name: first.label }))
+      await user.click(screen.getByRole('checkbox', { name: second.label }))
+      await user.click(screen.getByRole('checkbox', { name: third.label }))
+      expect(screen.getByText('Only two at a time — tap one to swap it out.')).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: first.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: second.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: third.label })).not.toBeChecked()
+    })
+
+    it('selecting "no preference" clears any specific selections (exclusivity)', async () => {
+      const user = userEvent.setup()
+      const beef = PROTEIN_PREFERENCE_OPTIONS.find((o) => o.value === 'beef_lamb')!
+      const noPreference = PROTEIN_PREFERENCE_OPTIONS.find((o) => o.value === 'no_preference')!
+      render(<ControlledHarness />)
+      await user.click(screen.getByRole('checkbox', { name: beef.label }))
+      expect(screen.getByRole('checkbox', { name: beef.label })).toBeChecked()
+
+      await user.click(screen.getByRole('checkbox', { name: noPreference.label }))
+      expect(screen.getByRole('checkbox', { name: noPreference.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: beef.label })).not.toBeChecked()
+    })
   })
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
 Expected: FAIL — `Cannot find module '@/components/sofra-v2/PreferencesReceipt'`
@@ -922,14 +1054,24 @@ Expected: FAIL — `Cannot find module '@/components/sofra-v2/PreferencesReceipt
 ```tsx
 'use client'
 
-import { useState } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
-import {
-  PROTEIN_PREFERENCE_OPTIONS,
-  updateProteinPreferenceSelection,
-  type ProteinPreference,
-} from '@/lib/protein-preferences'
+import { PROTEIN_PREFERENCE_OPTIONS, type ProteinPreference } from '@/lib/protein-preferences'
+
+export interface PreferencesReceiptProps {
+  dietary: string[]
+  onToggleDietary: (value: string) => void
+  avoid: string[]
+  onToggleAvoid: (value: string) => void
+  proteinPreferences: ProteinPreference[]
+  onToggleProtein: (value: ProteinPreference) => void
+  proteinHintVisible: boolean
+  flavors: string[]
+  onToggleFlavor: (value: string) => void
+  adventurousness: number
+  onAdventurousnessChange: (value: number) => void
+  onSave: () => void
+}
 
 function CheckboxRow({
   label,
@@ -949,28 +1091,20 @@ function CheckboxRow({
   )
 }
 
-export function PreferencesReceipt() {
-  const [dietary, setDietary] = useState<string[]>([])
-  const [avoid, setAvoid] = useState<string[]>([])
-  const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
-  const [proteinHint, setProteinHint] = useState(false)
-  const [flavors, setFlavors] = useState<string[]>([])
-  const [adventurousness, setAdventurousness] = useState(50)
-
-  function toggleChip(list: string[], setList: (v: string[]) => void, value: string) {
-    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
-  }
-
-  function toggleProtein(value: ProteinPreference) {
-    const update = updateProteinPreferenceSelection(proteinPreferences, value)
-    if (update.blocked) {
-      setProteinHint(true)
-      setTimeout(() => setProteinHint(false), 2000)
-      return
-    }
-    setProteinPreferences(update.preferences)
-  }
-
+export function PreferencesReceipt({
+  dietary,
+  onToggleDietary,
+  avoid,
+  onToggleAvoid,
+  proteinPreferences,
+  onToggleProtein,
+  proteinHintVisible,
+  flavors,
+  onToggleFlavor,
+  adventurousness,
+  onAdventurousnessChange,
+  onSave,
+}: PreferencesReceiptProps) {
   const adventurousnessLabel =
     adventurousness < 25
       ? 'Keep it familiar'
@@ -983,14 +1117,16 @@ export function PreferencesReceipt() {
   return (
     <div className={`sv2-root sv2-receipt-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <div className="sv2-receipt-card">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/perforation-top.svg" alt="" className="sv2-perforation" />
-        <p className="sv2-receipt-wordmark" dir="auto">سفرة</p>
+        <p className="sv2-receipt-wordmark" dir="auto" lang="ar">سفرة</p>
         <p className="sv2-receipt-headline">
           WHAT&apos;S ON YOUR MIND,
           <br />
           BEFORE IT&apos;S ON YOUR PLATE
         </p>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">DEAL BREAKERS</h3>
         <div className="sv2-checkbox-grid">
@@ -999,11 +1135,12 @@ export function PreferencesReceipt() {
               key={item}
               label={item}
               checked={dietary.includes(item)}
-              onChange={() => toggleChip(dietary, setDietary, item)}
+              onChange={() => onToggleDietary(item)}
             />
           ))}
         </div>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">ANYTHING YOU AVOID?</h3>
         <div className="sv2-checkbox-grid">
@@ -1012,28 +1149,30 @@ export function PreferencesReceipt() {
               key={item}
               label={item}
               checked={avoid.includes(item)}
-              onChange={() => toggleChip(avoid, setAvoid, item)}
+              onChange={() => onToggleAvoid(item)}
             />
           ))}
         </div>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">WHAT YOU CAME FOR</h3>
-        <p className="sv2-section-sub">Pick up to two.</p>
+        <h3 className="sv2-section-label">WHAT SOUNDS BEST TONIGHT?</h3>
+        <p className="sv2-section-sub">Choose up to two.</p>
         <div className="sv2-checkbox-grid">
           {PROTEIN_PREFERENCE_OPTIONS.map((option) => (
             <CheckboxRow
               key={option.value}
               label={option.label}
               checked={proteinPreferences.includes(option.value)}
-              onChange={() => toggleProtein(option.value)}
+              onChange={() => onToggleProtein(option.value)}
             />
           ))}
         </div>
-        {proteinHint && (
+        {proteinHintVisible && (
           <p className="sv2-hint">Only two at a time — tap one to swap it out.</p>
         )}
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">FLAVOURS YOU LEAN TOWARDS</h3>
         <div className="sv2-checkbox-grid">
@@ -1042,11 +1181,12 @@ export function PreferencesReceipt() {
               key={item}
               label={item}
               checked={flavors.includes(item)}
-              onChange={() => toggleChip(flavors, setFlavors, item)}
+              onChange={() => onToggleFlavor(item)}
             />
           ))}
         </div>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">HOW BRAVE IS YOUR PALATE?</h3>
         <input
@@ -1055,7 +1195,7 @@ export function PreferencesReceipt() {
           max={100}
           step={1}
           value={adventurousness}
-          onChange={(e) => setAdventurousness(Number(e.target.value))}
+          onChange={(e) => onAdventurousnessChange(Number(e.target.value))}
           aria-label="Adventurousness"
           className="sv2-slider"
         />
@@ -1065,8 +1205,9 @@ export function PreferencesReceipt() {
         </div>
         <p className="sv2-slider-value">{adventurousnessLabel}</p>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <button type="button" className="sv2-save-btn">
+        <button type="button" className="sv2-save-btn" onClick={onSave}>
           SAVE MY SEAT
         </button>
       </div>
@@ -1075,16 +1216,16 @@ export function PreferencesReceipt() {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
-Expected: PASS (all `PreferencesReceipt` tests, plus the earlier `ThemeToggle` and `WelcomeCard` tests, still pass)
+Expected: PASS — all 23 tests in the file (12 pre-existing `ThemeToggle`/`WelcomeCard` + 11 new `PreferencesReceipt`)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add components/sofra-v2/PreferencesReceipt.tsx __tests__/design-preview.test.tsx
-git commit -m "Add PreferencesReceipt: Figma receipt shell wired to real preference data"
+git commit -m "Add PreferencesReceipt for design preview, fully controlled by props with real survey data"
 ```
 
 ---
@@ -1101,6 +1242,8 @@ These are the actual pages reachable at `/design-preview/welcome` and `/design-p
 `app/design-preview/` has no route group wrapper, so it does not inherit the `(auth)`/`(guest)`/`(chef)`/`(host)` layouts — each page renders standalone against the root `app/layout.tsx` only.
 
 Corrected during execution: `WelcomeCard` now requires an `onYalla` prop (Task 5). The welcome page supplies real navigation behavior — pressing YALLA routes to `/design-preview/signup`, a separate signup screen built in the new Task 8 below (`WelcomeCard` itself has no routing knowledge; the page component owns that). This makes `app/design-preview/welcome/page.tsx` a client component (`useRouter` requires it) and its test needs `next/navigation` mocked, following the same pattern already used in `__tests__/rsvp-page.test.tsx`.
+
+Also corrected: `PreferencesReceipt` (Task 6) is now fully controlled by props — it has zero internal state, so the page that renders it has to own all six pieces of state (`dietary`, `avoid`, `proteinPreferences`, `proteinHintVisible`, `flavors`, `adventurousness`) itself and wire the real `updateProteinPreferenceSelection` utility to `onToggleProtein`, exactly like the `ControlledHarness` test helper in Task 6 does. This makes `app/design-preview/preferences/page.tsx` a client component too (it wasn't in the original draft). `onSave` is a console-log placeholder — per this plan's explicit scope, the preview isn't connected to Supabase.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1184,15 +1327,61 @@ export default function DesignPreviewWelcomePage() {
 `app/design-preview/preferences/page.tsx`:
 
 ```tsx
+'use client'
+
+import { useState } from 'react'
 import '@/components/sofra-v2/sofra-v2.css'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
+import { updateProteinPreferenceSelection, type ProteinPreference } from '@/lib/protein-preferences'
 
 export default function DesignPreviewPreferencesPage() {
+  const [dietary, setDietary] = useState<string[]>([])
+  const [avoid, setAvoid] = useState<string[]>([])
+  const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
+  const [proteinHintVisible, setProteinHintVisible] = useState(false)
+  const [flavors, setFlavors] = useState<string[]>([])
+  const [adventurousness, setAdventurousness] = useState(50)
+
+  function toggle(list: string[], setList: (v: string[]) => void, value: string) {
+    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
+  }
+
+  function handleToggleProtein(value: ProteinPreference) {
+    const update = updateProteinPreferenceSelection(proteinPreferences, value)
+    if (update.blocked) {
+      setProteinHintVisible(true)
+      return
+    }
+    setProteinHintVisible(false)
+    setProteinPreferences(update.preferences)
+  }
+
   return (
     <>
       <ThemeToggle />
-      <PreferencesReceipt />
+      <PreferencesReceipt
+        dietary={dietary}
+        onToggleDietary={(value) => toggle(dietary, setDietary, value)}
+        avoid={avoid}
+        onToggleAvoid={(value) => toggle(avoid, setAvoid, value)}
+        proteinPreferences={proteinPreferences}
+        onToggleProtein={handleToggleProtein}
+        proteinHintVisible={proteinHintVisible}
+        flavors={flavors}
+        onToggleFlavor={(value) => toggle(flavors, setFlavors, value)}
+        adventurousness={adventurousness}
+        onAdventurousnessChange={setAdventurousness}
+        onSave={() =>
+          console.log('preview save — not connected to Supabase yet', {
+            dietary,
+            avoid,
+            proteinPreferences,
+            flavors,
+            adventurousness,
+          })
+        }
+      />
     </>
   )
 }
@@ -1207,7 +1396,7 @@ Expected: PASS — all tests in the file pass
 
 Run: `npm run dev`
 Visit `http://localhost:3000/design-preview/welcome` — confirm the card renders, the Light/Dark toggle in the top-right switches the background and card colors. Pressing YALLA will attempt to navigate to `/design-preview/signup`, which 404s until Task 8 below builds it — that's expected at this stage, not a bug.
-Visit `http://localhost:3000/design-preview/preferences` — confirm the receipt renders with all five real sections (Deal Breakers, Anything You Avoid?, What You Came For, Flavours You Lean Towards, How Brave Is Your Palate?), no Pour Me / alcohol section, no Halal chip, and that selecting a third protein option shows the "Only two at a time" hint instead of selecting it.
+Visit `http://localhost:3000/design-preview/preferences` — confirm the receipt renders with all five real sections (Deal Breakers, Anything You Avoid?, What Sounds Best Tonight?, Flavours You Lean Towards, How Brave Is Your Palate?), no Pour Me / alcohol section, no Halal chip, and that selecting a third protein option shows the "Only two at a time" hint instead of selecting it.
 
 - [ ] **Step 6: Commit**
 
