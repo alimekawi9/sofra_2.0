@@ -23,6 +23,8 @@ type GuestRow = {
   users: { id: string; name: string } | null
 }
 
+type LoadState = 'checking-identity' | 'redirecting' | 'loading' | 'loaded' | 'invalid' | 'error'
+
 const TINTS = ['#7A2324', '#8A5A2B', '#4A5240', '#6E3B45', '#8A6A2B', '#3A4A5A', '#6A3A5A']
 
 function formatDate(iso: string): string {
@@ -37,8 +39,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [loadState, setLoadState] = useState<LoadState>('checking-identity')
   const [event, setEvent] = useState<EventRow | null>(null)
   const [myRsvp, setMyRsvp] = useState<string | null>(null)
   const [hasRsvpRow, setHasRsvpRow] = useState(false)
@@ -49,15 +50,16 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
 
   async function loadData() {
-    setLoading(true)
-    setError('')
+    const stored = localStorage.getItem('sofra_user_id')
+    if (!stored) {
+      setLoadState('redirecting')
+      router.replace('/login?next=' + encodeURIComponent('/events/' + params.id))
+      return
+    }
+
+    uidRef.current = stored
+    setLoadState('loading')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
-      if (!stored) {
-        router.push('/login?next=' + encodeURIComponent('/events/' + params.id))
-        return
-      }
-      uidRef.current = stored
 
       const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }] = await Promise.all([
         supabase
@@ -73,7 +75,11 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           .maybeSingle(),
       ])
 
-      if (e1) throw new Error('event not found')
+      if (e1?.code === 'PGRST116') {
+        setLoadState('invalid')
+        return
+      }
+      if (e1) throw new Error('event load failed')
       if (e2) throw new Error('rsvp fetch failed')
 
       setEvent(ev as EventRow)
@@ -102,17 +108,16 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           )
         }
       }
+      setLoadState('loaded')
     } catch {
-      setError("Couldn't load this event. Try again.")
-    } finally {
-      setLoading(false)
+      setLoadState('error')
     }
   }
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function copyInviteLink() {
-    const url = window.location.href
+    const url = new URL(`/events/${params.id}`, window.location.origin).toString()
     try {
       await navigator.clipboard.writeText(url)
       setCopyFallbackUrl('')
@@ -125,7 +130,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
   function shareViaWhatsApp() {
     if (!event) return
-    const url = window.location.href
+    const url = new URL(`/events/${params.id}`, window.location.origin).toString()
     const message = `You're invited to ${event.title}! ${url}`
     window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank')
   }
@@ -165,7 +170,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
             </button>
           </div>
 
-          {loading && (
+          {(loadState === 'checking-identity' || loadState === 'loading') && (
             <div data-testid="skeleton">
               {[220, 40, 72, 200].map((h, i) => (
                 <div
@@ -182,9 +187,17 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
             </div>
           )}
 
-          {!loading && error && (
+          {loadState === 'invalid' && (
             <div style={{ textAlign: 'center', paddingTop: 40 }}>
-              <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{error}</p>
+              <p style={{ color: C.rose, fontSize: 14 }}>This invitation is invalid or unavailable.</p>
+            </div>
+          )}
+
+          {loadState === 'error' && (
+            <div style={{ textAlign: 'center', paddingTop: 40 }}>
+              <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>
+                Couldn&apos;t load this event. Try again.
+              </p>
               <button
                 onClick={loadData}
                 style={{
@@ -203,7 +216,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
             </div>
           )}
 
-          {!loading && !error && event && (
+          {loadState === 'loaded' && event && (
             <div>
               {/* Cover */}
               <div

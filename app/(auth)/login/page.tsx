@@ -4,17 +4,12 @@ import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C, THEMES } from '@/lib/theme'
+import { safeNext } from '@/lib/navigation'
 
 const STORAGE_KEY = 'sofra_user_id'
 
 // Only permit relative paths within this app — reject absolute URLs, protocol
 // links, and scheme-relative "//host" targets to prevent open redirects.
-function safeNext(raw: string | null): string {
-  if (!raw) return '/events'
-  if (!raw.startsWith('/') || raw.startsWith('//')) return '/events'
-  return raw
-}
-
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -67,7 +62,7 @@ function LoginInner() {
 
     if (existing) {
       localStorage.setItem(STORAGE_KEY, existing.id)
-      router.push(next)
+      router.replace(next)
       return
     }
 
@@ -83,7 +78,7 @@ function LoginInner() {
     }
 
     localStorage.setItem(STORAGE_KEY, newId)
-    router.push('/events')
+    router.replace(next)
   }
 
   const disabled = loading || !name.trim() || !phone.trim()

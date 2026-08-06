@@ -8,6 +8,7 @@ jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
 const mockPush = jest.fn()
+const mockReplace = jest.fn()
 const HOST_UID  = 'uid-host'
 const GUEST_UID = 'uid-guest'
 
@@ -59,8 +60,9 @@ function makeSupabase({
 
 beforeEach(() => {
   jest.clearAllMocks()
-  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
+  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
   mockPush.mockReset()
+  mockReplace.mockReset()
   localStorage.clear()
 
   Object.defineProperty(navigator, 'clipboard', {
@@ -71,6 +73,20 @@ beforeEach(() => {
 })
 
 const PARAMS = { id: 'ev-1' }
+
+describe('fresh-browser initialization', () => {
+  it('redirects to login with the original event as next without querying or showing an error', async () => {
+    const sb = makeSupabase()
+    render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith('/login?next=%2Fevents%2Fev-1')
+    )
+    expect(sb.from).not.toHaveBeenCalled()
+    expect(screen.queryByText(/couldn't load this event/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/invalid or unavailable/i)).not.toBeInTheDocument()
+  })
+})
 
 // ─── Copy invite link ───────────────────────────────────────────────────────
 
@@ -92,13 +108,15 @@ describe('Copy invite link button', () => {
     expect(screen.queryByRole('button', { name: /copy invite link/i })).not.toBeInTheDocument()
   })
 
-  it('copies window.location.href to clipboard when clicked', async () => {
+  it('copies the canonical event URL without query or hash state', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.href)
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      new URL('/events/ev-1', window.location.origin).toString()
+    )
   })
 
   it('changes button text to "Copied!" immediately after click', async () => {
@@ -150,7 +168,26 @@ describe('Copy invite link button', () => {
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
     await waitFor(() =>
-      expect(screen.getByDisplayValue(window.location.href)).toBeInTheDocument()
+      expect(
+        screen.getByDisplayValue(new URL('/events/ev-1', window.location.origin).toString())
+      ).toBeInTheDocument()
     )
+  })
+
+  it('opens WhatsApp with the complete canonical invitation message encoded', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    const open = jest.spyOn(window, 'open').mockImplementation(() => null)
+    makeSupabase()
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: /share via whatsapp/i }))
+    await userEvent.click(screen.getByRole('button', { name: /share via whatsapp/i }))
+
+    const eventUrl = new URL('/events/ev-1', window.location.origin).toString()
+    const message = `You're invited to ${SAMPLE_EVENT.title}! ${eventUrl}`
+    expect(open).toHaveBeenCalledWith(
+      `https://wa.me/?text=${encodeURIComponent(message)}`,
+      '_blank'
+    )
+    open.mockRestore()
   })
 })

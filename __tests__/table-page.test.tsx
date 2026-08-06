@@ -177,8 +177,8 @@ describe('Hard Limits card', () => {
       profiles: [{ user_id: GUEST_UID, dietary: ['Vegan'], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50 }],
     })
     render(<TablePage params={PARAMS} />)
-    // Exact-string match: limit label is "Vegan", brief lowercases it
-    await waitFor(() => expect(screen.getByText('Vegan')).toBeInTheDocument())
+    // The recorded value appears in both Hard Limits and Diet Mix.
+    await waitFor(() => expect(screen.getAllByText('Vegan')).toHaveLength(2))
     expect(screen.getByText('Bob')).toBeInTheDocument()
   })
 

@@ -52,15 +52,38 @@ describe('buildIntel', () => {
     expect(firstAllergyIdx).toBeLessThan(firstDietIdx)
   })
 
-  test('dietMix excludes STRICT_DIETS', () => {
+  test('dietMix includes strict diets as recorded preferences while hard limits remain', () => {
     const intel = buildIntel([
       guest({ name: 'A', dietary: ['Gluten-free'] }),
       guest({ name: 'B', dietary: ['Halal'] }),
       guest({ name: 'C', dietary: ['Vegan'] }),
     ])
-    expect(intel.dietMix.some(d => d.label === 'Gluten-free')).toBe(false)
-    expect(intel.dietMix.some(d => d.label === 'Vegan')).toBe(false)
+    expect(intel.dietMix.some(d => d.label === 'Gluten-free')).toBe(true)
+    expect(intel.dietMix.some(d => d.label === 'Vegan')).toBe(true)
     expect(intel.dietMix.some(d => d.label === 'Halal')).toBe(true)
+    expect(intel.hardLimits.some(d => d.label === 'Gluten-free')).toBe(true)
+    expect(intel.hardLimits.some(d => d.label === 'Vegan')).toBe(true)
+  })
+
+  test('aggregates diet, protein, and flavor values across multiple guests and ignores empty values', () => {
+    const rawProtein = 'Fish'
+    const rawFlavor = 'Fresh'
+    const intel = buildIntel([
+      guest({ name: 'A', dietary: ['Vegetarian'], proteinAnchor: rawProtein, flavorPreference: [rawFlavor], adventurousness: 40 }),
+      guest({ name: 'B', dietary: ['Vegetarian'], proteinAnchor: rawProtein, flavorPreference: [rawFlavor, 'Rich'], adventurousness: 60 }),
+      guest({ name: 'C', dietary: [], proteinAnchor: null, flavorPreference: [], adventurousness: 50 }),
+    ])
+
+    expect(intel.dietMix).toContainEqual({ label: 'Vegetarian', count: 2 })
+    expect(intel.proteinCounts).toContainEqual({ label: rawProtein, count: 2 })
+    expect(intel.flavorCounts).toEqual(expect.arrayContaining([
+      { label: rawFlavor, count: 2 },
+      { label: 'Rich', count: 1 },
+    ]))
+    expect(intel.avgAdventurousness).toBe(50)
+    expect(intel.hardLimits.some((limit) => limit.label === 'Vegetarian')).toBe(true)
+    expect(rawProtein).toBe('Fish')
+    expect(rawFlavor).toBe('Fresh')
   })
 
   test('proteinCounts groups guest protein anchors, sorted descending', () => {

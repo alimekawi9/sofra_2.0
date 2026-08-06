@@ -83,7 +83,10 @@ export default function TablePage({ params }: { params: { id: string } }) {
       const userIds = ((rsvps ?? []) as unknown as RsvpRow[]).map((r) => r.user_id)
 
       const { data: profiles } = userIds.length
-        ? await supabase.from('taste_profiles').select('*').in('user_id', userIds)
+        ? await supabase
+            .from('taste_profiles')
+            .select('user_id, dietary, avoid, protein_anchor, flavor_preference, adventurousness')
+            .in('user_id', userIds)
         : { data: [] as ProfileRow[] }
 
       const merged = mergeGuests(

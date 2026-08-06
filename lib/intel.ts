@@ -86,11 +86,12 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
 
   const hardLimits = [...allergyLimits, ...dietLimits]
 
-  // dietMix — soft dietary values, descending count
+  // dietMix is a descriptive breakdown of every recorded dietary preference.
+  // Strict diets also appear in hardLimits; excluding them here made a table
+  // with real Vegetarian/No pork data incorrectly render the empty state.
   const dietMixMap = new Map<string, number>()
   for (const g of guests) {
     for (const d of g.dietary) {
-      if (STRICT_DIETS.has(d)) continue
       dietMixMap.set(d, (dietMixMap.get(d) ?? 0) + 1)
     }
   }
