@@ -63,6 +63,7 @@ export function PreferencesReceipt({
   return (
     <div className={`sv2-root sv2-receipt-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <div className="sv2-receipt-card">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/perforation-top.svg" alt="" className="sv2-perforation" />
         <p className="sv2-receipt-wordmark" dir="auto" lang="ar">سفرة</p>
         <p className="sv2-receipt-headline">
@@ -71,6 +72,7 @@ export function PreferencesReceipt({
           BEFORE IT&apos;S ON YOUR PLATE
         </p>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">DEAL BREAKERS</h3>
         <div className="sv2-checkbox-grid">
@@ -84,6 +86,7 @@ export function PreferencesReceipt({
           ))}
         </div>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">ANYTHING YOU AVOID?</h3>
         <div className="sv2-checkbox-grid">
@@ -97,6 +100,7 @@ export function PreferencesReceipt({
           ))}
         </div>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">WHAT SOUNDS BEST TONIGHT?</h3>
         <p className="sv2-section-sub">Choose up to two.</p>
@@ -114,6 +118,7 @@ export function PreferencesReceipt({
           <p className="sv2-hint">Only two at a time — tap one to swap it out.</p>
         )}
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">FLAVOURS YOU LEAN TOWARDS</h3>
         <div className="sv2-checkbox-grid">
@@ -127,6 +132,7 @@ export function PreferencesReceipt({
           ))}
         </div>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">HOW BRAVE IS YOUR PALATE?</h3>
         <input
@@ -145,6 +151,7 @@ export function PreferencesReceipt({
         </div>
         <p className="sv2-slider-value">{adventurousnessLabel}</p>
 
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <button type="button" className="sv2-save-btn" onClick={onSave}>
           SAVE MY SEAT

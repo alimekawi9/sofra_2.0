@@ -233,6 +233,11 @@ describe('PreferencesReceipt', () => {
   })
 
   describe('driven end-to-end with the real protein-preference utility', () => {
+    // Proves PreferencesReceipt's contract against the real
+    // updateProteinPreferenceSelection utility. Deliberately simpler than
+    // app/(guest)/events/[id]/rsvp/page.tsx's actual wiring (which also uses
+    // refs and a setTimeout auto-clear on the hint) — this only covers the
+    // component/utility contract, not that page's full state management.
     function ControlledHarness() {
       const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
       const [hint, setHint] = useState(false)
