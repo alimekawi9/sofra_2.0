@@ -28,6 +28,8 @@
   --sv2-toggle-fg:#F4EFE4;
   --sv2-line:rgba(92,21,21,0.4);
   --sv2-muted:rgba(92,21,21,0.6);
+  --sv2-toggle-bg:rgba(0,0,0,0.18);
+  --sv2-on-fg:#2C1000;
 
   font-variation-settings:"opsz" 14;
 }
@@ -223,7 +225,7 @@
   user-select:none;
 }
 
-.sv2-checkbox-row input{
+.sv2-root .sv2-checkbox-row input{
   position:absolute;
   inset:0;
   width:16px;
@@ -241,10 +243,10 @@
   border:1px solid var(--sv2-ink);
 }
 
-.sv2-checkbox-row input:checked ~ .sv2-checkbox-box{
+.sv2-root .sv2-checkbox-row input:checked ~ .sv2-checkbox-box{
   background:var(--sv2-ink);
 }
-.sv2-checkbox-row input:checked ~ .sv2-checkbox-box::after{
+.sv2-root .sv2-checkbox-row input:checked ~ .sv2-checkbox-box::after{
   content:"";
   position:absolute;
   left:3px;
@@ -255,7 +257,7 @@
   border-width:0 2px 2px 0;
   transform:rotate(40deg);
 }
-.sv2-checkbox-row input:focus-visible ~ .sv2-checkbox-box{
+.sv2-root .sv2-checkbox-row input:focus-visible ~ .sv2-checkbox-box{
   outline:2px solid var(--sv2-gold);
   outline-offset:2px;
 }
@@ -354,7 +356,7 @@
   display:inline-flex;
   gap:2px;
   border:1px solid var(--sv2-gold);
-  background:rgba(0,0,0,0.18);
+  background:var(--sv2-toggle-bg);
   border-radius:999px;
   padding:3px;
 }
@@ -374,6 +376,6 @@
 
 .sv2-theme-toggle-btn.sv2-on{
   background:var(--sv2-gold);
-  color:#2c1000;
+  color:var(--sv2-on-fg);
   font-weight:700;
 }
