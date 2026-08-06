@@ -1,7 +1,15 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
+import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
+import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
+import {
+  PROTEIN_PREFERENCE_OPTIONS,
+  updateProteinPreferenceSelection,
+  type ProteinPreference,
+} from '@/lib/protein-preferences'
 
 const PREVIEW_KEY = 'sofra-v2-preview-theme'
 const APP_KEY = 'sofra_theme'
@@ -129,5 +137,150 @@ describe('WelcomeCard', () => {
     expect(screen.getByRole('button', { name: 'YALLA' })).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(onYalla).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('PreferencesReceipt', () => {
+  const noop = () => {}
+  const baseProps = {
+    dietary: [] as string[],
+    onToggleDietary: noop,
+    avoid: [] as string[],
+    onToggleAvoid: noop,
+    proteinPreferences: [] as ProteinPreference[],
+    onToggleProtein: noop,
+    proteinHintVisible: false,
+    flavors: [] as string[],
+    onToggleFlavor: noop,
+    adventurousness: 50,
+    onAdventurousnessChange: noop,
+    onSave: noop,
+  }
+
+  it('renders every real preference option using the raw stored values', () => {
+    render(<PreferencesReceipt {...baseProps} />)
+    for (const item of [...DIETARY, ...NOGOS, ...FLAVORS]) {
+      expect(screen.getAllByText(item).length).toBeGreaterThan(0)
+    }
+    for (const option of PROTEIN_PREFERENCE_OPTIONS) {
+      expect(screen.getAllByText(option.label).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('does not render the Figma mockup alcohol section or a standalone Halal option', () => {
+    render(<PreferencesReceipt {...baseProps} />)
+    expect(screen.queryByText('POUR ME')).not.toBeInTheDocument()
+    expect(screen.queryByText('Wine')).not.toBeInTheDocument()
+    expect(screen.queryByText('Spirits')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cocktails')).not.toBeInTheDocument()
+    expect(screen.queryByText('Non-alcoholic')).not.toBeInTheDocument()
+    expect(screen.queryByText('Beer')).not.toBeInTheDocument()
+    expect(screen.queryByText('Halal')).not.toBeInTheDocument()
+  })
+
+  it('calls onToggleDietary with the raw stored value when a dietary option is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleDietary = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleDietary={onToggleDietary} />)
+    await user.click(screen.getByRole('checkbox', { name: 'No pork/alcohol' }))
+    expect(onToggleDietary).toHaveBeenCalledWith('No pork/alcohol')
+  })
+
+  it('calls onToggleAvoid with the raw stored value when an allergen is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleAvoid = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleAvoid={onToggleAvoid} />)
+    await user.click(screen.getByRole('checkbox', { name: 'Pork' }))
+    expect(onToggleAvoid).toHaveBeenCalledWith('Pork')
+  })
+
+  it('calls onToggleFlavor with the raw stored value when a flavor is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleFlavor = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleFlavor={onToggleFlavor} />)
+    await user.click(screen.getByRole('checkbox', { name: 'Sweet-savoury' }))
+    expect(onToggleFlavor).toHaveBeenCalledWith('Sweet-savoury')
+  })
+
+  it('calls onToggleProtein with the raw preference value when a protein option is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleProtein = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onToggleProtein={onToggleProtein} />)
+    await user.click(screen.getByRole('checkbox', { name: 'Beef or lamb' }))
+    expect(onToggleProtein).toHaveBeenCalledWith('beef_lamb')
+  })
+
+  it('calls onAdventurousnessChange with a number when the slider moves', () => {
+    const onAdventurousnessChange = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onAdventurousnessChange={onAdventurousnessChange} />)
+    fireEvent.change(screen.getByLabelText('Adventurousness'), { target: { value: '80' } })
+    expect(onAdventurousnessChange).toHaveBeenCalledWith(80)
+  })
+
+  it('calls onSave when the save button is clicked', async () => {
+    const user = userEvent.setup()
+    const onSave = jest.fn()
+    render(<PreferencesReceipt {...baseProps} onSave={onSave} />)
+    await user.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
+    expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('reflects a controlled proteinHintVisible prop', () => {
+    const { rerender } = render(<PreferencesReceipt {...baseProps} proteinHintVisible={false} />)
+    expect(screen.queryByText('Only two at a time — tap one to swap it out.')).not.toBeInTheDocument()
+    rerender(<PreferencesReceipt {...baseProps} proteinHintVisible />)
+    expect(screen.getByText('Only two at a time — tap one to swap it out.')).toBeInTheDocument()
+  })
+
+  describe('driven end-to-end with the real protein-preference utility', () => {
+    function ControlledHarness() {
+      const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
+      const [hint, setHint] = useState(false)
+
+      function handleToggleProtein(value: ProteinPreference) {
+        const update = updateProteinPreferenceSelection(proteinPreferences, value)
+        if (update.blocked) {
+          setHint(true)
+          return
+        }
+        setHint(false)
+        setProteinPreferences(update.preferences)
+      }
+
+      return (
+        <PreferencesReceipt
+          {...baseProps}
+          proteinPreferences={proteinPreferences}
+          onToggleProtein={handleToggleProtein}
+          proteinHintVisible={hint}
+        />
+      )
+    }
+
+    it('caps protein preference selection at two', async () => {
+      const user = userEvent.setup()
+      const [first, second, third] = PROTEIN_PREFERENCE_OPTIONS.filter((o) => o.value !== 'no_preference')
+      render(<ControlledHarness />)
+      await user.click(screen.getByRole('checkbox', { name: first.label }))
+      await user.click(screen.getByRole('checkbox', { name: second.label }))
+      await user.click(screen.getByRole('checkbox', { name: third.label }))
+      expect(screen.getByText('Only two at a time — tap one to swap it out.')).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: first.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: second.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: third.label })).not.toBeChecked()
+    })
+
+    it('selecting "no preference" clears any specific selections (exclusivity)', async () => {
+      const user = userEvent.setup()
+      const beef = PROTEIN_PREFERENCE_OPTIONS.find((o) => o.value === 'beef_lamb')!
+      const noPreference = PROTEIN_PREFERENCE_OPTIONS.find((o) => o.value === 'no_preference')!
+      render(<ControlledHarness />)
+      await user.click(screen.getByRole('checkbox', { name: beef.label }))
+      expect(screen.getByRole('checkbox', { name: beef.label })).toBeChecked()
+
+      await user.click(screen.getByRole('checkbox', { name: noPreference.label }))
+      expect(screen.getByRole('checkbox', { name: noPreference.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: beef.label })).not.toBeChecked()
+    })
   })
 })
