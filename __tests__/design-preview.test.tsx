@@ -339,19 +339,21 @@ describe('SignupForm', () => {
     expect(input).toHaveAttribute('type', 'tel')
     expect(input).toHaveAttribute('inputmode', 'tel')
     expect(input).toHaveAttribute('autocomplete', 'tel')
-    expect(input).toHaveAttribute('placeholder', '_ _ _ _')
-    expect(container.querySelector('.sv2-plate-art')).toHaveAttribute('src', expect.stringContaining('burgundy-plate.png'))
+    expect(input).toHaveAttribute('placeholder', '+20 10 1234 5678')
+    expect(input).toHaveClass('sv2-plate-input')
+    expect(container.querySelector('.sv2-plate-image')).toHaveAttribute('src', expect.stringContaining('burgundy-plate.png'))
     expect(screen.queryByLabelText('Your name')).not.toBeInTheDocument()
   })
 
   it('shows only the new heading above a dedicated enlarged phone plate', () => {
     render(<SignupForm {...baseProps} />)
     expect(screen.getByRole('heading', { name: 'Enter your phone number' })).toBeInTheDocument()
-    expect(screen.getByTestId('phone-plate')).toHaveClass('sv2-phone-plate')
+    expect(screen.getByTestId('phone-plate')).toHaveClass('sv2-plate-wrap')
     expect(screen.queryByText('EST. 2026')).not.toBeInTheDocument()
     expect(screen.queryByText('Sofra.')).not.toBeInTheDocument()
     expect(screen.queryByText(/No passwords/)).not.toBeInTheDocument()
     expect(screen.queryByText('PHONE NUMBER')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('_ _ _ _')).not.toBeInTheDocument()
   })
 
   it('reports controlled phone changes', async () => {
@@ -393,9 +395,27 @@ describe('NamePlateForm', () => {
 
   it('renders one centered name input over the silver plate asset', () => {
     const { container } = render(<NamePlateForm {...baseProps} />)
-    expect(screen.getByLabelText('Your name')).toHaveAttribute('autocomplete', 'name')
-    expect(container.querySelector('.sv2-plate-art')).toHaveAttribute('src', expect.stringContaining('silver-plate.png'))
+    const input = screen.getByLabelText('Your name')
+    expect(input).toHaveAttribute('autocomplete', 'name')
+    expect(input).toHaveAttribute('placeholder', 'Alia')
+    expect(input).toHaveClass('sv2-plate-input')
+    expect(container.querySelector('.sv2-plate-image')).toHaveAttribute('src', expect.stringContaining('silver-plate.png'))
     expect(screen.queryByLabelText('Phone number')).not.toBeInTheDocument()
+  })
+
+  it('shares the plate-step structure with the phone form', () => {
+    const name = render(<NamePlateForm {...baseProps} />)
+    expect(name.container.querySelector('.sv2-plate-step')).toBeInTheDocument()
+    expect(name.container.querySelector('.sv2-plate-heading')).toHaveTextContent('Enter your name')
+    expect(name.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
+    expect(name.container.querySelector('.sv2-plate-action')).toHaveTextContent('JOIN THE TABLE')
+    name.unmount()
+
+    const phone = render(<SignupForm phone="" onPhoneChange={jest.fn()} onSubmit={jest.fn()} />)
+    expect(phone.container.querySelector('.sv2-plate-step')).toBeInTheDocument()
+    expect(phone.container.querySelector('.sv2-plate-heading')).toHaveTextContent('Enter your phone number')
+    expect(phone.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
+    expect(phone.container.querySelector('.sv2-plate-action')).toHaveTextContent('TAKE YOUR SEAT')
   })
 
   it('preserves controlled name behavior and only submits a meaningful name', async () => {
@@ -403,9 +423,9 @@ describe('NamePlateForm', () => {
     const { rerender } = render(<NamePlateForm {...baseProps} />)
     await user.type(screen.getByLabelText('Your name'), 'L')
     expect(baseProps.onNameChange).toHaveBeenCalledWith('L')
-    expect(screen.getByRole('button', { name: 'YALLA' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'JOIN THE TABLE' })).toBeDisabled()
     rerender(<NamePlateForm {...baseProps} name="Layla" />)
-    expect(screen.getByRole('button', { name: 'YALLA' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'JOIN THE TABLE' })).toBeEnabled()
   })
 })
 
@@ -442,7 +462,7 @@ describe('design preview routes', () => {
   it('renders the phone-only signup on a burgundy plate and continues to the name route', async () => {
     const user = userEvent.setup()
     const { container } = render(<DesignPreviewSignupPage />)
-    expect(container.querySelector('.sv2-plate-field--burgundy')).toBeInTheDocument()
+    expect(container.querySelector('.sv2-plate-wrap--burgundy')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
     const phone = screen.getByLabelText('Phone number')
     await user.type(phone, '5551234567')
@@ -454,11 +474,11 @@ describe('design preview routes', () => {
   it('renders the name-only silver plate and continues to preferences', async () => {
     const user = userEvent.setup()
     const { container } = render(<DesignPreviewNamePage />)
-    expect(container.querySelector('.sv2-plate-field--silver')).toBeInTheDocument()
+    expect(container.querySelector('.sv2-plate-wrap--silver')).toBeInTheDocument()
     const name = screen.getByLabelText('Your name')
     await user.type(name, 'Layla')
     expect(name).toHaveValue('Layla')
-    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    await user.click(screen.getByRole('button', { name: 'JOIN THE TABLE' }))
     expect(mockPush).toHaveBeenCalledWith('/design-preview/preferences')
   })
 

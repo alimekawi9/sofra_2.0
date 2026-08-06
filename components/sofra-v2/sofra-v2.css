@@ -147,52 +147,46 @@
 .sv2-yalla-btn:hover{opacity:.75;}
 .sv2-yalla-btn:focus-visible{outline:2px solid var(--sv2-gold);outline-offset:3px;}
 
-.sv2-phone-page{
-  align-items:flex-start;
-  padding-top:max(28px, env(safe-area-inset-top));
-  padding-right:max(8px, env(safe-area-inset-right));
-  padding-left:max(8px, env(safe-area-inset-left));
+.sv2-plate-step-page{
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
 }
 
-.sv2-phone-card{
+.sv2-plate-step{
   max-width:390px;
-  min-height:min(620px, calc(100dvh - 56px));
-  padding:42px 12px 32px;
+  min-height:min(680px, calc(100dvh - 32px));
+  padding:48px 14px 40px;
+  justify-content:center;
+  gap:18px;
 }
 
-.sv2-phone-heading{
+.sv2-plate-heading{
   position:relative;
   z-index:1;
-  font-family:var(--sv2-sans-family);
-  font-weight:500;
-  font-size:18px;
-  line-height:1.3;
+  font-family:var(--sv2-display-family);
+  font-weight:400;
+  font-size:clamp(26px, 7vw, 32px);
+  line-height:1.2;
   text-align:center;
   color:var(--sv2-ink);
-  margin:0 0 4px;
+  margin:0;
 }
 
-.sv2-name-heading{
-  font-family:var(--sv2-sans-family);
-  font-weight:500;
-  font-size:13px;
-  letter-spacing:1.4px;
-  line-height:1.5;
-  text-align:center;
-  color:var(--sv2-ink);
-  margin:8px 0 16px;
-}
-
-.sv2-plate-field{
+.sv2-plate-wrap{
   position:relative;
-  width:100%;
+  width:min(100%, 350px);
   aspect-ratio:1;
+  margin:0 auto;
   display:flex;
   align-items:center;
   justify-content:center;
+  flex:0 1 auto;
 }
 
-.sv2-plate-art{
+.sv2-plate-image{
   position:absolute;
   inset:0;
   width:100%;
@@ -204,41 +198,33 @@
 .sv2-plate-input{
   position:relative;
   z-index:1;
-  width:48%;
+  width:58%;
+  max-width:190px;
   min-height:44px;
-  padding:7px 2px;
+  padding:7px 0;
   border:0;
-  border-bottom:1px solid currentColor;
   border-radius:0;
-  background:transparent;
+  background:transparent !important;
   outline:none;
+  box-shadow:none;
+  appearance:none;
+  -webkit-appearance:none;
   font-family:var(--sv2-sans-family);
   font-weight:500;
-  font-size:clamp(12px, 3.5vw, 15px);
-  letter-spacing:1.2px;
+  font-size:clamp(14px, 4vw, 17px);
+  letter-spacing:.4px;
   text-align:center;
   text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow:hidden;
 }
 
-.sv2-plate-field--silver .sv2-plate-input{
+.sv2-plate-wrap--silver .sv2-plate-input{
   color:var(--sv2-ink);
 }
 
-.sv2-plate-field--burgundy .sv2-plate-input{
+.sv2-plate-wrap--burgundy .sv2-plate-input{
   color:#E7DED0;
-}
-
-.sv2-phone-plate{
-  width:min(100%, 350px);
-  margin:-2px auto 0;
-}
-
-.sv2-phone-plate .sv2-plate-input{
-  width:58%;
-  max-width:190px;
-  border-bottom:0;
-  overflow:hidden;
-  white-space:nowrap;
 }
 
 .sv2-plate-input::placeholder{
@@ -246,10 +232,30 @@
   opacity:.82;
 }
 
-.sv2-plate-input:focus-visible{
-  outline:2px solid currentColor;
-  outline-offset:4px;
-  border-bottom-color:transparent;
+.sv2-plate-input:focus,
+.sv2-plate-input:focus-visible,
+.sv2-plate-input:active{
+  background:transparent !important;
+  border:0;
+  outline:none;
+  box-shadow:none;
+  text-shadow:0 0 7px currentColor;
+}
+
+.sv2-plate-input:-webkit-autofill,
+.sv2-plate-input:-webkit-autofill:hover,
+.sv2-plate-input:-webkit-autofill:focus{
+  border:0;
+  border-radius:0;
+  outline:none;
+  -webkit-text-fill-color:currentColor;
+  -webkit-box-shadow:0 0 0 1000px transparent inset !important;
+  box-shadow:0 0 0 1000px transparent inset !important;
+  transition:background-color 9999s ease-out 0s;
+}
+
+.sv2-plate-action{
+  margin-top:0;
 }
 
 .sv2-visually-hidden{
