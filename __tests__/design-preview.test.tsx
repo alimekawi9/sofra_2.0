@@ -163,6 +163,7 @@ describe('PreferencesReceipt', () => {
     proteinHintVisible: false,
     flavors: [] as string[],
     onToggleFlavor: noop,
+    flavorHintVisible: false,
     adventurousness: 50,
     onAdventurousnessChange: noop,
     onSave: noop,
@@ -502,6 +503,28 @@ describe('design preview routes', () => {
     expect(dietary).toBeChecked()
     expect(avoid).toBeChecked()
     expect(flavor).toBeChecked()
+  })
+
+  it('uses the shared max-three flavor rule and clears the hint after a removal', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewPreferencesPage />)
+    const [first, second, third, fourth] = FLAVORS
+
+    await user.click(screen.getByRole('checkbox', { name: first }))
+    await user.click(screen.getByRole('checkbox', { name: second }))
+    await user.click(screen.getByRole('checkbox', { name: third }))
+    await user.click(screen.getByRole('checkbox', { name: fourth }))
+
+    expect(screen.getByRole('checkbox', { name: first })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: second })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: third })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: fourth })).not.toBeChecked()
+    expect(screen.getByText('Choose up to three.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: second }))
+    expect(screen.queryByText('Choose up to three.')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: fourth }))
+    expect(screen.getByRole('checkbox', { name: fourth })).toBeChecked()
   })
 
   it('owns and updates adventurousness locally', () => {

@@ -288,14 +288,21 @@ describe('Step 2 — chip groups', () => {
     expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('flavor chips are multi-select with no cap', async () => {
+  it('allows three flavors, blocks a fourth, and permits replacement after removal', async () => {
     await navigateToStep2()
-    for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky']) {
+    for (const chip of ['Umami', 'Spicy', 'Plain & clean']) {
       await userEvent.click(screen.getByRole('button', { name: chip }))
     }
-    for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky']) {
-      expect(screen.getByRole('button', { name: chip })).toHaveAttribute('aria-pressed', 'true')
-    }
+    await userEvent.click(screen.getByRole('button', { name: 'Saucy' }))
+    expect(screen.getByRole('button', { name: 'Saucy' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('flavor-hint')).toHaveTextContent('Choose up to three.')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Spicy' }))
+    expect(screen.getByRole('button', { name: 'Spicy' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByTestId('flavor-hint')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Saucy' }))
+    expect(screen.getByRole('button', { name: 'Saucy' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('toggles a dietary chip on', async () => {
@@ -437,6 +444,28 @@ describe('going/maybe submit', () => {
       expect.objectContaining({
         flavor_preference: ['Umami', 'Smoky'],
       }),
+      { onConflict: 'user_id' }
+    )
+  })
+
+  it('preserves legacy flavor hydration but submits only the first three valid canonical values', async () => {
+    const sb = makeSupabase({
+      rsvpRow: { status: 'going' },
+      profileRow: {
+        user_id: 'uid-1', dietary: [], avoid: [], protein_preferences: [],
+        flavor_preference: ['legacy-value', 'Umami', 'Spicy', 'Smoky', 'Herby'],
+        adventurousness: 50,
+      },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    expect(sb.profileUpsert).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(screen.getByRole('button', { name: 'Herby' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: /update rsvp/i }))
+    await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ flavor_preference: ['Umami', 'Spicy', 'Smoky'] }),
       { onConflict: 'user_id' }
     )
   })

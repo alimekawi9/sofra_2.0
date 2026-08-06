@@ -3,6 +3,7 @@
 import { sv2Display, sv2Sans } from './fonts'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
 import { PROTEIN_PREFERENCE_OPTIONS, type ProteinPreference } from '@/lib/protein-preferences'
+import type { FlavorPreference } from '@/lib/flavor-preferences'
 
 export interface PreferencesReceiptProps {
   dietary: string[]
@@ -13,7 +14,8 @@ export interface PreferencesReceiptProps {
   onToggleProtein: (value: ProteinPreference) => void
   proteinHintVisible: boolean
   flavors: string[]
-  onToggleFlavor: (value: string) => void
+  onToggleFlavor: (value: FlavorPreference) => void
+  flavorHintVisible: boolean
   adventurousness: number
   onAdventurousnessChange: (value: number) => void
   onSave: () => void
@@ -47,6 +49,7 @@ export function PreferencesReceipt({
   proteinHintVisible,
   flavors,
   onToggleFlavor,
+  flavorHintVisible,
   adventurousness,
   onAdventurousnessChange,
   onSave,
@@ -84,7 +87,6 @@ export function PreferencesReceipt({
             />
           ))}
         </div>
-
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">ANYTHING YOU AVOID?</h3>
@@ -130,6 +132,7 @@ export function PreferencesReceipt({
             />
           ))}
         </div>
+        {flavorHintVisible && <p className="sv2-hint">Choose up to three.</p>}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />

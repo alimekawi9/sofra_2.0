@@ -10,6 +10,11 @@ import {
   updateProteinPreferenceSelection,
   type ProteinPreference,
 } from '@/lib/protein-preferences'
+import {
+  normalizeFlavorPreferencesForSubmission,
+  updateFlavorPreferenceSelection,
+  type FlavorPreference,
+} from '@/lib/flavor-preferences'
 
 type Step = 'status' | 'profile'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
@@ -20,6 +25,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const uidRef = useRef<string | null>(null)
   const proteinPreferencesRef = useRef<ProteinPreference[]>([])
   const proteinPreferencesDirtyRef = useRef(false)
+  const flavorsRef = useRef<string[]>([])
 
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<Step>('status')
@@ -29,6 +35,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
   const [proteinHint, setProteinHint] = useState(false)
   const [flavors, setFlavors] = useState<string[]>([])
+  const [flavorHint, setFlavorHint] = useState(false)
   const [adventurousness, setAdventurousness] = useState(50)
   const [prefilled, setPrefilled] = useState(false)
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
@@ -75,7 +82,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           proteinPreferencesRef.current = hydratedPreferences
           setProteinPreferences(hydratedPreferences)
         }
-        setFlavors((p.flavor_preference as string[]) ?? [])
+        const hydratedFlavors = Array.isArray(p.flavor_preference)
+          ? p.flavor_preference.filter((value): value is string => typeof value === 'string')
+          : []
+        flavorsRef.current = hydratedFlavors
+        setFlavors(hydratedFlavors)
         setAdventurousness((p.adventurousness as number) ?? 50)
         setPrefilled(true)
       }
@@ -107,6 +118,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   async function handleProfileSubmit() {
     if (!uidRef.current || submitting) return
     const proteinPreferencesForSubmit = [...proteinPreferencesRef.current]
+    const flavorsForSubmit = normalizeFlavorPreferencesForSubmission(flavorsRef.current)
     if (process.env.NODE_ENV === 'development') {
       console.log('protein_preferences submit', proteinPreferencesForSubmit)
     }
@@ -123,7 +135,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           dietary,
           avoid,
           protein_preferences: proteinPreferencesForSubmit,
-          flavor_preference: flavors,
+          flavor_preference: flavorsForSubmit,
           adventurousness,
           updated_at: new Date().toISOString(),
         },
@@ -152,6 +164,14 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     proteinPreferencesDirtyRef.current = true
     proteinPreferencesRef.current = update.preferences
     setProteinPreferences(update.preferences)
+  }
+
+  function toggleFlavor(value: FlavorPreference) {
+    const update = updateFlavorPreferenceSelection(flavorsRef.current, value)
+    setFlavorHint(update.blocked)
+    if (update.blocked) return
+    flavorsRef.current = update.preferences
+    setFlavors(update.preferences)
   }
 
   const theme = THEMES[0]
@@ -483,13 +503,18 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                         key={it}
                         className="chip"
                         aria-pressed={flavors.includes(it)}
-                        onClick={() => toggleChip(flavors, setFlavors, it)}
+                        onClick={() => toggleFlavor(it)}
                         style={chipClass(flavors.includes(it))}
                       >
                         {it}
                       </button>
                     ))}
                   </div>
+                  {flavorHint && (
+                    <p data-testid="flavor-hint" style={{ color: C.gold, fontSize: 12, marginTop: 6, fontFamily: 'system-ui, sans-serif' }}>
+                      Choose up to three.
+                    </p>
+                  )}
 
                   <SubLabel>How brave is your palate?</SubLabel>
                   <div

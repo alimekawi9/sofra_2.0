@@ -7,6 +7,7 @@ import {
   updateProteinPreferenceSelection,
   type ProteinPreference,
 } from '@/lib/protein-preferences'
+import { updateFlavorPreferenceSelection, type FlavorPreference } from '@/lib/flavor-preferences'
 
 function toggleValue(current: readonly string[], value: string): string[] {
   return current.includes(value)
@@ -20,6 +21,7 @@ export default function DesignPreviewPreferencesPage() {
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
   const [proteinHintVisible, setProteinHintVisible] = useState(false)
   const [flavors, setFlavors] = useState<string[]>([])
+  const [flavorHintVisible, setFlavorHintVisible] = useState(false)
   const [adventurousness, setAdventurousness] = useState(50)
 
   function handleToggleProtein(value: ProteinPreference) {
@@ -32,6 +34,12 @@ export default function DesignPreviewPreferencesPage() {
     setProteinPreferences(update.preferences)
   }
 
+  function handleToggleFlavor(value: FlavorPreference) {
+    const update = updateFlavorPreferenceSelection(flavors, value)
+    setFlavorHintVisible(update.blocked)
+    if (!update.blocked) setFlavors(update.preferences)
+  }
+
   return (
     <PreferencesReceipt
       dietary={dietary}
@@ -42,7 +50,8 @@ export default function DesignPreviewPreferencesPage() {
       onToggleProtein={handleToggleProtein}
       proteinHintVisible={proteinHintVisible}
       flavors={flavors}
-      onToggleFlavor={(value) => setFlavors((current) => toggleValue(current, value))}
+      onToggleFlavor={handleToggleFlavor}
+      flavorHintVisible={flavorHintVisible}
       adventurousness={adventurousness}
       onAdventurousnessChange={setAdventurousness}
       onSave={() => undefined}
