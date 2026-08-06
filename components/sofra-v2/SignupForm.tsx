@@ -27,8 +27,10 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
 
         <div className="sv2-plate-wrap sv2-plate-wrap--burgundy" data-testid="phone-plate">
           <Image className="sv2-plate-image" src="/design-preview/burgundy-plate.png" alt="" aria-hidden="true" width={1254} height={1254} priority />
-          <label className="sv2-visually-hidden" htmlFor="sv2-signup-phone">Phone number</label>
-          <input id="sv2-signup-phone" className="sv2-plate-input" type="tel" value={phone} placeholder="+20 10 1234 5678" onChange={(event) => onPhoneChange(event.target.value)} autoComplete="tel" inputMode="tel" />
+          <div className="sv2-plate-input-region">
+            <label className="sv2-visually-hidden" htmlFor="sv2-signup-phone">Phone number</label>
+            <input id="sv2-signup-phone" className="sv2-plate-input" type="tel" value={phone} placeholder="e.g. +20 10 1234 5678" onChange={(event) => onPhoneChange(event.target.value)} autoComplete="tel" inputMode="tel" />
+          </div>
         </div>
 
         <button type="submit" className="sv2-yalla-btn sv2-plate-action" disabled={submitDisabled}>

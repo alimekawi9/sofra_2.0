@@ -27,8 +27,10 @@ export function NamePlateForm({ name, onNameChange, onSubmit, isSubmitting = fal
 
         <div className="sv2-plate-wrap sv2-plate-wrap--silver">
           <Image className="sv2-plate-image" src="/design-preview/silver-plate.png" alt="" aria-hidden="true" width={1254} height={1254} priority />
-          <label className="sv2-visually-hidden" htmlFor="sv2-name">Your name</label>
-          <input id="sv2-name" className="sv2-plate-input" type="text" value={name} placeholder="Alia" onChange={(event) => onNameChange(event.target.value)} autoComplete="name" />
+          <div className="sv2-plate-input-region">
+            <label className="sv2-visually-hidden" htmlFor="sv2-name">Your name</label>
+            <input id="sv2-name" className="sv2-plate-input" type="text" value={name} placeholder="e.g. Alia" onChange={(event) => onNameChange(event.target.value)} autoComplete="name" />
+          </div>
         </div>
 
         <button type="submit" className="sv2-yalla-btn sv2-plate-action" disabled={submitDisabled}>

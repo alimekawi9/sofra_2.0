@@ -195,11 +195,31 @@
   pointer-events:none;
 }
 
-.sv2-plate-input{
+.sv2-plate-input-region{
   position:relative;
   z-index:1;
-  width:58%;
-  max-width:190px;
+  width:68%;
+}
+
+.sv2-plate-input-region::after{
+  content:"";
+  position:absolute;
+  left:0;
+  bottom:1px;
+  width:34%;
+  height:1px;
+  background:currentColor;
+  opacity:0;
+  transition:opacity .18s ease;
+}
+
+.sv2-plate-input-region:focus-within::after{
+  opacity:.3;
+}
+
+.sv2-plate-input{
+  display:block;
+  width:100%;
   min-height:44px;
   padding:7px 0;
   border:0;
@@ -211,12 +231,16 @@
   -webkit-appearance:none;
   font-family:var(--sv2-sans-family);
   font-weight:500;
-  font-size:clamp(14px, 4vw, 17px);
-  letter-spacing:.4px;
-  text-align:center;
+  font-size:clamp(1.15rem, 4.5vw, 1.6rem);
+  line-height:1.2;
+  letter-spacing:.02em;
+  text-align:left;
+  direction:ltr;
+  unicode-bidi:plaintext;
   text-overflow:ellipsis;
   white-space:nowrap;
   overflow:hidden;
+  opacity:1;
 }
 
 .sv2-plate-wrap--silver .sv2-plate-input{
@@ -229,7 +253,10 @@
 
 .sv2-plate-input::placeholder{
   color:currentColor;
-  opacity:.82;
+  font-family:var(--sv2-sans-family);
+  font-style:normal;
+  font-weight:400;
+  opacity:.4;
 }
 
 .sv2-plate-input:focus,
@@ -237,9 +264,8 @@
 .sv2-plate-input:active{
   background:transparent !important;
   border:0;
-  outline:none;
+  outline:0;
   box-shadow:none;
-  text-shadow:0 0 7px currentColor;
 }
 
 .sv2-plate-input:-webkit-autofill,
