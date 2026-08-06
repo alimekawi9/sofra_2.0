@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
+import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
 
 const PREVIEW_KEY = 'sofra-v2-preview-theme'
 const APP_KEY = 'sofra_theme'
@@ -94,5 +95,39 @@ describe('ThemeToggle', () => {
 
     unmount()
     expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBeNull()
+  })
+})
+
+describe('WelcomeCard', () => {
+  it('renders the welcome copy and eyebrow', () => {
+    render(<WelcomeCard onYalla={jest.fn()} />)
+    expect(screen.getByText('EST. 2026')).toBeInTheDocument()
+    expect(screen.getByText('اتفضلوا على السفرة')).toBeInTheDocument()
+    expect(screen.getByText('Sofra.')).toBeInTheDocument()
+  })
+
+  it('renders an accessible YALLA button', () => {
+    render(<WelcomeCard onYalla={jest.fn()} />)
+    const button = screen.getByRole('button', { name: 'YALLA' })
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveAttribute('type', 'button')
+  })
+
+  it('calls onYalla when the button is clicked', async () => {
+    const user = userEvent.setup()
+    const onYalla = jest.fn()
+    render(<WelcomeCard onYalla={onYalla} />)
+    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    expect(onYalla).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onYalla when activated via keyboard', async () => {
+    const user = userEvent.setup()
+    const onYalla = jest.fn()
+    render(<WelcomeCard onYalla={onYalla} />)
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'YALLA' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onYalla).toHaveBeenCalledTimes(1)
   })
 })
