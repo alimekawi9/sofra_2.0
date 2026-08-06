@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Port the two existing Figma frames (`01 — Welcome / Auth`, `06 — Preferences (Receipt)`) into two real, isolated Next.js pages at `/design-preview/welcome` and `/design-preview/preferences`, reachable in dev, with zero changes to any existing route, component, or stylesheet.
+**Goal:** Port the two existing Figma frames (`01 — Welcome / Auth`, `06 — Preferences (Receipt)`) into real, isolated Next.js pages at `/design-preview/welcome` and `/design-preview/preferences`, reachable in dev, with zero changes to any existing route, component, or stylesheet. Extended per project owner direction after Task 5: the welcome screen's "YALLA" button needs a real destination, so a third screen — `/design-preview/signup`, a name/phone form with no Figma source, content pulled from the real login page instead — completes the preview flow (`welcome` → `signup`).
 
 **Architecture:** New, self-contained `components/sofra-v2/` folder (components + one scoped stylesheet) and two new `app/design-preview/*/page.tsx` routes. The Preferences screen reuses the Figma receipt's visual shell but is wired to the app's real preference data (`lib/theme.ts`, `lib/protein-preferences.ts`) instead of the mockup's alcohol section / "Halal" chip. Light/dark is a self-contained preview-only mechanism (own `sofra-v2-preview-theme` localStorage key) — corrected during execution to not couple to the app's existing `useAppearance()` hook (`lib/sofra/appearance.ts`), so toggling the preview theme can never read or write the app's real appearance state. See Task 4 for the full rationale.
 
@@ -25,11 +25,13 @@ components/sofra-v2/
   fonts.ts                 — next/font/google loaders (Playfair Display, DM Sans)
   sofra-v2.css              — all scoped styles (dark values + [data-sv2-theme="light"] overrides)
   ThemeToggle.tsx           — Dark/Light toggle, self-contained (own localStorage key, isolated from lib/sofra/appearance.ts)
-  WelcomeCard.tsx           — Figma frame 01, presentational
+  WelcomeCard.tsx           — Figma frame 01, presentational, onYalla callback prop
   PreferencesReceipt.tsx    — Figma frame 06 shell, real data from lib/theme.ts + lib/protein-preferences.ts
+  SignupForm.tsx            — no Figma source; content from app/(auth)/login/page.tsx, onSubmit callback prop
 
 app/design-preview/
   welcome/page.tsx
+  signup/page.tsx
   preferences/page.tsx
 
 __tests__/
@@ -754,24 +756,51 @@ git commit -m "Add ThemeToggle for design preview, isolated from the app's real 
 - Create: `components/sofra-v2/WelcomeCard.tsx`
 - Test: `__tests__/design-preview.test.tsx` (extended)
 
-Ports Figma frame `01 — Welcome / Auth` (node `1:2`) directly — no content conflicts to reconcile. The "YALLA" button has no destination yet (frames 02–05 don't exist in Figma), so it's a no-op that logs to the console rather than navigating anywhere.
+Ports Figma frame `01 — Welcome / Auth` (node `1:2`) directly — no content conflicts to reconcile. The Figma source has no form fields at all (no name/phone inputs) — just the eyebrow, Arabic subtitle, headline, and a single "YALLA" button.
 
-- [ ] **Step 1: Write the failing test**
+Corrected during execution: the original draft below made the YALLA button a no-op that only logged to the console, on the assumption there was nowhere for it to go yet. The project owner clarified the actual product flow: `/design-preview/welcome` → press YALLA → a separate signup screen (name + phone form) at `/design-preview/signup`, built in a later task (see the new Task 8, inserted after Task 7). `WelcomeCard` stays purely presentational and knows nothing about navigation — it exposes the button as an `onYalla: () => void` prop, and the page component that renders it (Task 7) supplies the actual navigation behavior. This keeps the component reusable and trivially testable without mocking routing.
 
-Add `import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'` to the top import block of `__tests__/design-preview.test.tsx` (alongside the existing imports from Task 4), then append this new `describe` block below the existing `ThemeToggle` one:
+- [ ] **Step 1: Write the failing tests**
+
+Add `import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'` to the top import block of `__tests__/design-preview.test.tsx` (alongside the existing imports), then append this new `describe` block below the existing `ThemeToggle` one:
 
 ```tsx
 describe('WelcomeCard', () => {
-  it('renders the welcome copy and the Yalla button', () => {
-    render(<WelcomeCard />)
+  it('renders the welcome copy and eyebrow', () => {
+    render(<WelcomeCard onYalla={jest.fn()} />)
     expect(screen.getByText('EST. 2026')).toBeInTheDocument()
+    expect(screen.getByText('اتفضلوا على السفرة')).toBeInTheDocument()
     expect(screen.getByText('Sofra.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'YALLA' })).toBeInTheDocument()
+  })
+
+  it('renders an accessible YALLA button', () => {
+    render(<WelcomeCard onYalla={jest.fn()} />)
+    const button = screen.getByRole('button', { name: 'YALLA' })
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveAttribute('type', 'button')
+  })
+
+  it('calls onYalla when the button is clicked', async () => {
+    const user = userEvent.setup()
+    const onYalla = jest.fn()
+    render(<WelcomeCard onYalla={onYalla} />)
+    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    expect(onYalla).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onYalla when activated via keyboard', async () => {
+    const user = userEvent.setup()
+    const onYalla = jest.fn()
+    render(<WelcomeCard onYalla={onYalla} />)
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'YALLA' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onYalla).toHaveBeenCalledTimes(1)
   })
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
 Expected: FAIL — `Cannot find module '@/components/sofra-v2/WelcomeCard'`
@@ -783,24 +812,24 @@ Expected: FAIL — `Cannot find module '@/components/sofra-v2/WelcomeCard'`
 
 import { sv2Display, sv2Sans } from './fonts'
 
-export function WelcomeCard() {
+export interface WelcomeCardProps {
+  onYalla: () => void
+}
+
+export function WelcomeCard({ onYalla }: WelcomeCardProps) {
   return (
     <div className={`sv2-root sv2-welcome-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <div className="sv2-welcome-card">
         <div className="sv2-welcome-hairline" aria-hidden="true" />
         <p className="sv2-eyebrow">EST. 2026</p>
-        <p className="sv2-arabic" dir="auto">اتفضلوا على السفرة</p>
+        <p className="sv2-arabic" dir="auto" lang="ar">اتفضلوا على السفرة</p>
         <p className="sv2-welcome-kicker">
           WELCOME TO
           <br />
           THE
         </p>
         <p className="sv2-welcome-title">Sofra.</p>
-        <button
-          type="button"
-          className="sv2-yalla-btn"
-          onClick={() => console.log('YALLA clicked — next screen not yet designed in Figma')}
-        >
+        <button type="button" className="sv2-yalla-btn" onClick={onYalla}>
           YALLA
         </button>
       </div>
@@ -809,16 +838,18 @@ export function WelcomeCard() {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+Note: `lang="ar"` was added to the Arabic subtitle after code quality review flagged that `dir="auto"` alone doesn't hint screen readers or font selection toward Arabic pronunciation/shaping — the only Arabic text in the codebase, so no existing convention was being violated, but worth getting right from the start.
+
+- [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
-Expected: PASS
+Expected: PASS — all 12 tests (8 `ThemeToggle` + 4 `WelcomeCard`)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add components/sofra-v2/WelcomeCard.tsx __tests__/design-preview.test.tsx
-git commit -m "Add WelcomeCard, ported from Figma frame 01"
+git commit -m "Add WelcomeCard for design preview, ported from Figma frame 01"
 ```
 
 ---
@@ -1069,28 +1100,48 @@ These are the actual pages reachable at `/design-preview/welcome` and `/design-p
 
 `app/design-preview/` has no route group wrapper, so it does not inherit the `(auth)`/`(guest)`/`(chef)`/`(host)` layouts — each page renders standalone against the root `app/layout.tsx` only.
 
+Corrected during execution: `WelcomeCard` now requires an `onYalla` prop (Task 5). The welcome page supplies real navigation behavior — pressing YALLA routes to `/design-preview/signup`, a separate signup screen built in the new Task 8 below (`WelcomeCard` itself has no routing knowledge; the page component owns that). This makes `app/design-preview/welcome/page.tsx` a client component (`useRouter` requires it) and its test needs `next/navigation` mocked, following the same pattern already used in `__tests__/rsvp-page.test.tsx`.
+
 - [ ] **Step 1: Write the failing tests**
 
-Add these two imports to the top import block of `__tests__/design-preview.test.tsx`:
+Add these imports to the top import block of `__tests__/design-preview.test.tsx`:
 
 ```tsx
+import { useRouter } from 'next/navigation'
 import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
 import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
+```
+
+Add this mock near the top of the file too (alongside the other imports, before any `describe` block — Jest hoists `jest.mock` calls automatically, but keeping it near the top matches this repo's existing convention in `__tests__/rsvp-page.test.tsx`):
+
+```tsx
+jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 ```
 
 Then append this `describe` block below the existing `PreferencesReceipt` one. Note it needs its own `beforeEach` (Task 4 scoped `ThemeToggle`'s reset to its own `describe` block, and these route tests render `ThemeToggle` too via the page components, so leftover `localStorage`/`data-sv2-theme` state from earlier suites in this file must be cleared here as well — the preview attribute is `data-sv2-theme`, not `data-theme`, per Task 4's hardening pass). Also note the toggle's buttons no longer have a static "Light"/"Dark" accessible name — their `aria-label` changes with state (see Task 4) — so these tests check for the toggle's stable `role="group"` wrapper instead of guessing which button is currently labeled which way:
 
 ```tsx
 describe('design preview routes', () => {
+  const mockPush = jest.fn()
+
   beforeEach(() => {
     localStorage.clear()
     document.documentElement.removeAttribute('data-sv2-theme')
+    mockPush.mockClear()
+    ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   })
 
   it('welcome route renders the WelcomeCard and a theme toggle', () => {
     render(<DesignPreviewWelcomePage />)
     expect(screen.getByText('Sofra.')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+  })
+
+  it('welcome route navigates to the signup screen when YALLA is clicked', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewWelcomePage />)
+    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    expect(mockPush).toHaveBeenCalledWith('/design-preview/signup')
   })
 
   it('preferences route renders the PreferencesReceipt and a theme toggle', () => {
@@ -1111,15 +1162,20 @@ Expected: FAIL — `Cannot find module '@/app/design-preview/welcome/page'`
 `app/design-preview/welcome/page.tsx`:
 
 ```tsx
+'use client'
+
 import '@/components/sofra-v2/sofra-v2.css'
+import { useRouter } from 'next/navigation'
 import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 
 export default function DesignPreviewWelcomePage() {
+  const router = useRouter()
+
   return (
     <>
       <ThemeToggle />
-      <WelcomeCard />
+      <WelcomeCard onYalla={() => router.push('/design-preview/signup')} />
     </>
   )
 }
@@ -1150,7 +1206,7 @@ Expected: PASS — all tests in the file pass
 - [ ] **Step 5: Manually verify in the browser**
 
 Run: `npm run dev`
-Visit `http://localhost:3000/design-preview/welcome` — confirm the card renders, the Light/Dark toggle in the top-right switches the background and card colors.
+Visit `http://localhost:3000/design-preview/welcome` — confirm the card renders, the Light/Dark toggle in the top-right switches the background and card colors. Pressing YALLA will attempt to navigate to `/design-preview/signup`, which 404s until Task 8 below builds it — that's expected at this stage, not a bug.
 Visit `http://localhost:3000/design-preview/preferences` — confirm the receipt renders with all five real sections (Deal Breakers, Anything You Avoid?, What You Came For, Flavours You Lean Towards, How Brave Is Your Palate?), no Pour Me / alcohol section, no Halal chip, and that selecting a third protein option shows the "Only two at a time" hint instead of selecting it.
 
 - [ ] **Step 6: Commit**
@@ -1162,7 +1218,258 @@ git commit -m "Add /design-preview routes for the Figma welcome and preferences 
 
 ---
 
-### Task 8: Full verification
+### Task 8: SignupForm component and /design-preview/signup route
+
+**Files:**
+- Modify: `components/sofra-v2/sofra-v2.css` (add field/label styles)
+- Create: `components/sofra-v2/SignupForm.tsx`
+- Create: `app/design-preview/signup/page.tsx`
+- Test: `__tests__/design-preview.test.tsx` (extended)
+
+Added per project owner direction after Task 5: pressing YALLA on the welcome screen needs somewhere real to go. There is no Figma frame for a signup/name-phone screen (the Figma file only ever had two designed frames — see Task 1's notes) — this screen's content and behavior are pulled directly from the real, already-shipped login page (`app/(auth)/login/page.tsx`: "Your name" / "Phone number" fields, "No passwords. Your name and number stay with your account." footer copy, submit disabled until both fields are non-empty), re-skinned with the existing `sv2-*` design tokens and the same card container `WelcomeCard` already uses, rather than inventing new unreviewed visual design. This mirrors how Task 6's `PreferencesReceipt` pulls its real option data from `lib/theme.ts` rather than the Figma mockup's stale content.
+
+Like `WelcomeCard`, this stays purely presentational: no Supabase, no real authentication, no localStorage. It exposes one `onSubmit: (values: SignupFormValues) => void` callback prop. There's no further screen designed yet after signup, so the page component's `onSubmit` handler is a console-log placeholder — the same "no destination yet" pattern `WelcomeCard`'s button originally used before Task 5 added a real destination.
+
+- [ ] **Step 1: Add the new CSS classes**
+
+Add these rules to `components/sofra-v2/sofra-v2.css`, immediately after the existing `.sv2-yalla-btn:focus-visible{outline:2px solid var(--sv2-gold);outline-offset:3px;}` line (still within the "01 — Welcome / Auth" section, since this screen extends that same flow):
+
+```css
+.sv2-signup-sub{
+  font-family:var(--sv2-sans-family);
+  font-size:12px;
+  color:var(--sv2-ink);
+  opacity:0.7;
+  line-height:1.6;
+  margin:8px 0 28px;
+}
+
+.sv2-field-label{
+  display:block;
+  font-family:var(--sv2-sans-family);
+  font-weight:500;
+  font-size:10px;
+  letter-spacing:1.5px;
+  color:var(--sv2-ink);
+  opacity:0.75;
+  margin:16px 0 6px;
+}
+
+.sv2-field-input{
+  display:block;
+  width:100%;
+  background:transparent;
+  border:none;
+  border-bottom:1px dashed var(--sv2-ink);
+  color:var(--sv2-ink);
+  font-family:var(--sv2-sans-family);
+  font-size:14px;
+  padding:6px 2px;
+  outline:none;
+}
+.sv2-field-input:focus-visible{
+  border-bottom-style:solid;
+  border-bottom-color:var(--sv2-gold);
+}
+
+.sv2-yalla-btn:disabled{
+  opacity:0.4;
+  cursor:not-allowed;
+}
+.sv2-yalla-btn:disabled:hover{
+  opacity:0.4;
+}
+```
+
+These reuse existing tokens (`--sv2-sans-family`, `--sv2-ink`, `--sv2-gold`) — no new colors introduced, so light/dark mode work automatically without separate overrides. `.sv2-welcome-card` (the card container) and `.sv2-yalla-btn` (the submit button) are reused as-is from Task 3/5 — this task adds only the label/input/disabled-state rules that don't already exist.
+
+- [ ] **Step 2: Run existing tests to confirm nothing broke**
+
+Run: `npx jest __tests__/design-preview.test.tsx --verbose`
+Expected: PASS — all existing tests still pass (pure CSS addition, no existing selectors changed)
+
+- [ ] **Step 3: Write the failing tests**
+
+Add `import { SignupForm } from '@/components/sofra-v2/SignupForm'` to the top import block of `__tests__/design-preview.test.tsx`, then append this `describe` block below the existing `PreferencesReceipt` one (as a sibling to it, before the `design preview routes` block — order among sibling `describe` blocks doesn't matter, but keeping component tests grouped together above route tests matches the file's existing organization):
+
+```tsx
+describe('SignupForm', () => {
+  it('renders labeled name and phone inputs', () => {
+    render(<SignupForm onSubmit={jest.fn()} />)
+    expect(screen.getByLabelText('Your name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Phone number')).toBeInTheDocument()
+  })
+
+  it('updates input values as the user types', async () => {
+    const user = userEvent.setup()
+    render(<SignupForm onSubmit={jest.fn()} />)
+    const nameInput = screen.getByLabelText('Your name')
+    await user.type(nameInput, 'Layla')
+    expect(nameInput).toHaveValue('Layla')
+  })
+
+  it('disables submit until both fields are filled', async () => {
+    const user = userEvent.setup()
+    render(<SignupForm onSubmit={jest.fn()} />)
+    const submit = screen.getByRole('button', { name: 'ENTER SOFRA' })
+    expect(submit).toBeDisabled()
+    await user.type(screen.getByLabelText('Your name'), 'Layla')
+    expect(submit).toBeDisabled()
+    await user.type(screen.getByLabelText('Phone number'), '5551234567')
+    expect(submit).toBeEnabled()
+  })
+
+  it('calls onSubmit with trimmed values when submitted', async () => {
+    const user = userEvent.setup()
+    const onSubmit = jest.fn()
+    render(<SignupForm onSubmit={onSubmit} />)
+    await user.type(screen.getByLabelText('Your name'), '  Layla  ')
+    await user.type(screen.getByLabelText('Phone number'), ' 5551234567 ')
+    await user.click(screen.getByRole('button', { name: 'ENTER SOFRA' }))
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'Layla', phone: '5551234567' })
+  })
+})
+```
+
+- [ ] **Step 4: Run tests to verify they fail**
+
+Run: `npx jest __tests__/design-preview.test.tsx --verbose`
+Expected: FAIL — `Cannot find module '@/components/sofra-v2/SignupForm'`
+
+- [ ] **Step 5: Write the component**
+
+```tsx
+'use client'
+
+import { useState, type FormEvent } from 'react'
+import { sv2Display, sv2Sans } from './fonts'
+
+export interface SignupFormValues {
+  name: string
+  phone: string
+}
+
+export interface SignupFormProps {
+  onSubmit: (values: SignupFormValues) => void
+}
+
+export function SignupForm({ onSubmit }: SignupFormProps) {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+
+  const disabled = name.trim() === '' || phone.trim() === ''
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (disabled) return
+    onSubmit({ name: name.trim(), phone: phone.trim() })
+  }
+
+  return (
+    <div className={`sv2-root sv2-welcome-page ${sv2Display.variable} ${sv2Sans.variable}`}>
+      <form className="sv2-welcome-card" onSubmit={handleSubmit}>
+        <p className="sv2-eyebrow">EST. 2026</p>
+        <p className="sv2-welcome-title">Sofra.</p>
+        <p className="sv2-signup-sub">No passwords. Your name and number stay with your account.</p>
+
+        <label className="sv2-field-label" htmlFor="sv2-signup-name">Your name</label>
+        <input
+          id="sv2-signup-name"
+          className="sv2-field-input"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+        />
+
+        <label className="sv2-field-label" htmlFor="sv2-signup-phone">Phone number</label>
+        <input
+          id="sv2-signup-phone"
+          className="sv2-field-input"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          autoComplete="tel"
+          inputMode="tel"
+        />
+
+        <button type="submit" className="sv2-yalla-btn" disabled={disabled}>
+          ENTER SOFRA
+        </button>
+      </form>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `npx jest __tests__/design-preview.test.tsx --verbose`
+Expected: PASS — all `SignupForm` tests plus every previously-passing test in the file
+
+- [ ] **Step 7: Write the failing route test**
+
+Add `import DesignPreviewSignupPage from '@/app/design-preview/signup/page'` to the top import block, then extend the `design preview routes` describe block (added in Task 7) with one more test, appended after the existing `preferences route renders the PreferencesReceipt and a theme toggle` test:
+
+```tsx
+  it('signup route renders the SignupForm and a theme toggle', () => {
+    render(<DesignPreviewSignupPage />)
+    expect(screen.getByLabelText('Your name')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+  })
+```
+
+- [ ] **Step 8: Run test to verify it fails**
+
+Run: `npx jest __tests__/design-preview.test.tsx --verbose`
+Expected: FAIL — `Cannot find module '@/app/design-preview/signup/page'`
+
+- [ ] **Step 9: Write the route**
+
+`app/design-preview/signup/page.tsx`:
+
+```tsx
+'use client'
+
+import '@/components/sofra-v2/sofra-v2.css'
+import { SignupForm, type SignupFormValues } from '@/components/sofra-v2/SignupForm'
+import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
+
+export default function DesignPreviewSignupPage() {
+  function handleSubmit(values: SignupFormValues) {
+    console.log('signup submitted — no destination screen designed yet', values)
+  }
+
+  return (
+    <>
+      <ThemeToggle />
+      <SignupForm onSubmit={handleSubmit} />
+    </>
+  )
+}
+```
+
+- [ ] **Step 10: Run test to verify it passes**
+
+Run: `npx jest __tests__/design-preview.test.tsx --verbose`
+Expected: PASS — every test in the file
+
+- [ ] **Step 11: Manually verify in the browser**
+
+Run: `npm run dev`
+Visit `http://localhost:3000/design-preview/welcome`, press YALLA — confirm it now navigates to `/design-preview/signup` instead of 404ing.
+On `/design-preview/signup` — confirm both fields are labeled and typeable, the submit button is disabled until both are filled, and submitting logs the trimmed values to the browser console (no navigation, no network request).
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add components/sofra-v2/sofra-v2.css components/sofra-v2/SignupForm.tsx app/design-preview/signup/ __tests__/design-preview.test.tsx
+git commit -m "Add SignupForm and /design-preview/signup route, completing the welcome-to-signup preview flow"
+```
+
+---
+
+### Task 9: Full verification
 
 **Files:** none (verification only)
 
@@ -1179,7 +1486,7 @@ Expected: no new errors in any file under `components/sofra-v2/`, `app/design-pr
 - [ ] **Step 3: Run a production build**
 
 Run: `npm run build`
-Expected: build succeeds; `/design-preview/welcome` and `/design-preview/preferences` appear in the route output
+Expected: build succeeds; `/design-preview/welcome`, `/design-preview/signup`, and `/design-preview/preferences` all appear in the route output
 
 - [ ] **Step 4: Final commit if any fixes were needed**
 
