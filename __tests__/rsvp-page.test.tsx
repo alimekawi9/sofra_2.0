@@ -290,6 +290,7 @@ describe('Step 2 — chip groups', () => {
 
   it('allows three flavors, blocks a fourth, and permits replacement after removal', async () => {
     await navigateToStep2()
+    expect(screen.getByText('Choose up to three.')).toBeInTheDocument()
     for (const chip of ['Umami', 'Spicy', 'Plain & clean']) {
       await userEvent.click(screen.getByRole('button', { name: chip }))
     }
@@ -300,6 +301,7 @@ describe('Step 2 — chip groups', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Spicy' }))
     expect(screen.getByRole('button', { name: 'Spicy' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByTestId('flavor-hint')).not.toBeInTheDocument()
+    expect(screen.getByText('Choose up to three.')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Saucy' }))
     expect(screen.getByRole('button', { name: 'Saucy' })).toHaveAttribute('aria-pressed', 'true')

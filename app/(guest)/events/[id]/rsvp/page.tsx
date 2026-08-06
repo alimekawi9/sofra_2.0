@@ -497,6 +497,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                   )}
 
                   <SubLabel>What flavours do you lean towards?</SubLabel>
+                  {!flavorHint && (
+                    <p style={{ color: C.faint, fontSize: 12, margin: '-5px 0 10px', fontFamily: 'system-ui, sans-serif' }}>
+                      Choose up to three.
+                    </p>
+                  )}
                   <div style={chipWrap}>
                     {FLAVORS.map((it) => (
                       <button

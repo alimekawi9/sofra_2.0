@@ -235,6 +235,13 @@ describe('PreferencesReceipt', () => {
     expect(onToggleFlavor).toHaveBeenCalledWith('Sweet-savoury')
   })
 
+  it('always explains the maximum flavor selection count', () => {
+    const { rerender } = render(<PreferencesReceipt {...baseProps} />)
+    expect(screen.getByText('Choose up to three.')).toHaveClass('sv2-section-sub')
+    rerender(<PreferencesReceipt {...baseProps} flavorHintVisible />)
+    expect(screen.getByText('Choose up to three.')).toHaveClass('sv2-hint')
+  })
+
   it('calls onToggleProtein with the raw preference value when a protein option is clicked', async () => {
     const user = userEvent.setup()
     const onToggleProtein = jest.fn()
@@ -535,7 +542,7 @@ describe('design preview routes', () => {
     expect(screen.getByText('Choose up to three.')).toBeInTheDocument()
 
     await user.click(screen.getByRole('checkbox', { name: second }))
-    expect(screen.queryByText('Choose up to three.')).not.toBeInTheDocument()
+    expect(screen.getByText('Choose up to three.')).toHaveClass('sv2-section-sub')
     await user.click(screen.getByRole('checkbox', { name: fourth }))
     expect(screen.getByRole('checkbox', { name: fourth })).toBeChecked()
   })
