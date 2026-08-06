@@ -18,7 +18,12 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<PreviewTheme>('dark')
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
+    let stored: string | null = null
+    try {
+      stored = window.localStorage.getItem(STORAGE_KEY)
+    } catch {
+      // Storage unavailable (e.g. private browsing) — fall back to the default.
+    }
     const initial: PreviewTheme = stored === 'light' ? 'light' : 'dark'
     setTheme(initial)
     applyPreviewTheme(initial)
@@ -26,7 +31,11 @@ export function ThemeToggle() {
 
   function selectTheme(next: PreviewTheme) {
     setTheme(next)
-    window.localStorage.setItem(STORAGE_KEY, next)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // Storage unavailable — the in-memory theme still applies for this session.
+    }
     applyPreviewTheme(next)
   }
 

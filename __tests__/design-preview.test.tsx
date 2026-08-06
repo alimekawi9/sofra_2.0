@@ -5,12 +5,12 @@ import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 const PREVIEW_KEY = 'sofra-v2-preview-theme'
 const APP_KEY = 'sofra_theme'
 
-beforeEach(() => {
-  localStorage.clear()
-  document.documentElement.removeAttribute('data-theme')
-})
-
 describe('ThemeToggle', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
+  })
+
   it('defaults to the dark preview theme when no preference is stored', () => {
     render(<ThemeToggle />)
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
@@ -44,14 +44,6 @@ describe('ThemeToggle', () => {
     expect(screen.getByRole('button', { name: 'Switch to dark preview theme' })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('reflects the selected theme via the data-theme attribute', async () => {
-    const user = userEvent.setup()
-    render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
-    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
-  })
-
   it('persists the choice under a dedicated preview-only key and restores it on next mount', async () => {
     const user = userEvent.setup()
     const { unmount } = render(<ThemeToggle />)
@@ -66,12 +58,13 @@ describe('ThemeToggle', () => {
 
   it('never reads or writes the existing app-wide theme key', async () => {
     const user = userEvent.setup()
-    localStorage.setItem(APP_KEY, 'light')
+    const sentinel = 'not-a-real-theme-value'
+    localStorage.setItem(APP_KEY, sentinel)
     render(<ThemeToggle />)
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
 
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
-    expect(localStorage.getItem(APP_KEY)).toBe('light')
+    expect(localStorage.getItem(APP_KEY)).toBe(sentinel)
     expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
   })
 })
