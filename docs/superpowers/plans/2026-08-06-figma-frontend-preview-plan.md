@@ -106,15 +106,35 @@ git commit -m "Add scoped Playfair Display / DM Sans loaders for design preview"
 **Files:**
 - Create: `components/sofra-v2/sofra-v2.css`
 
-All classes are prefixed `sv2-` so they can never collide with the existing (unused) `app/sofra.css` classes. Every component that needs these tokens must carry the `sv2-root` class — it's what defines the CSS custom properties. Dark values are the default (matching Figma, and matching how `app/sofra.css` already treats dark as the base case); `[data-theme="light"] .sv2-root` overrides them, using the same hex values the existing `[data-theme="light"]` rules in `app/sofra.css` already use for equivalent surfaces (page bg `#FBF8F1`, card surface `#FFFDF8`, darkened gold `#9A7620`).
+All classes are prefixed `sv2-` so they can never collide with the existing (unused) `app/sofra.css` classes. Every selector is either a `.sv2-*` class or explicitly nested under `.sv2-root` (e.g. `.sv2-root *`, `.sv2-root .sv2-checkbox-row input`) — no bare element selectors anywhere. Dark values are the default (matching Figma); `[data-theme="light"] .sv2-root` overrides them, using the same hex values the existing `[data-theme="light"]` rules in `app/sofra.css` already use for equivalent surfaces (page bg `#FBF8F1`, card surface `#FFFDF8`, darkened gold `#9A7620`).
+
+Corrected during execution, against a precise per-node re-audit of the actual Figma design-context output (the version below reflects two rounds of correction — an initial fidelity pass, then a spec-compliance review that caught two remaining scoping/tokenization gaps):
+
+- Welcome title (`.sv2-welcome-title`) is `font-size:18px`, not the original draft's `32px`.
+- Receipt card (`.sv2-receipt-card`) and save button (`.sv2-save-btn`) have `border-radius:0` — the Figma source has no rounding on either node, unlike the Welcome card (28px) and Yalla button (20px), which genuinely are rounded.
+- The "سفرة" wordmark uses its own token, `--sv2-wordmark` (`#C6AB88` dark / `#8A6B3D` light derived), distinct from `--sv2-gold` (`#C4A35A` / `#9A7620`) — two different exact hex values from two different Figma nodes, not one value reused.
+- Receipt headline is `font-size:14px; line-height:22px` (not `13px`/`1.6`).
+- Yalla button padding is `12px 32px` (not `13px 34px`).
+- Perforation image straddles the card's top edge with `margin:-7px -26px 22px` (matching Figma's `top:-7px` offset — half above the card, half below), not sitting fully inside it.
+- Slider labels are `font-size:10px` with `color:var(--sv2-muted)` (`rgba(92,21,21,0.6)`, matching Figma's 60%-opacity ink), not `9px` with a generic opacity.
+- `font-variation-settings:"opsz" 14` is set once at `.sv2-root` (inherited by all descendants) because every DM Sans node in the Figma source carries this setting explicitly.
+- No `text-transform: uppercase` is applied anywhere content-related — Figma achieves all-caps via literal uppercase characters in the text content, not a CSS transform, so the stylesheet doesn't fabricate a rule Figma doesn't have. (The one exception, `.sv2-theme-toggle-btn`, is a new control with no Figma source at all, so a CSS transform there is a legitimate original choice, not a fidelity claim.)
+- `env(safe-area-inset-*)` handling on the page shell and the fixed theme toggle is a deliberate addition with no Figma source — Figma has no concept of device safe areas.
+- No gradients and no box-shadows anywhere — confirmed against the Figma source, neither frame uses either.
+- The four `.sv2-checkbox-row input` selectors are prefixed `.sv2-root ` (spec-compliance review caught these as unscoped bare-element selectors).
+- `--sv2-toggle-bg` (`rgba(0,0,0,0.18)`) and `--sv2-on-fg` (`#2C1000`) are tokens, not literals — same review caught two hardcoded colors in the theme-toggle block. Both are declared once in the base `.sv2-root` block only (no light-mode override) since they're new UI mechanics identical in both themes, not Figma-sourced values that differ by theme.
 
 - [ ] **Step 1: Write the stylesheet**
 
 ```css
 /* ============================================================
-   Sofra v2 — Figma preview screens. Scoped via the `sv2-` prefix.
-   Every element using these tokens must be a descendant of, or
-   itself carry, the `sv2-root` class.
+   Sofra v2 — Figma design-preview screens only.
+   Every rule in this file is scoped under `.sv2-root`; nothing
+   here targets a bare element selector, so it cannot affect any
+   existing Sofra page even if this stylesheet were ever loaded
+   alongside them (in practice it is only ever imported by the
+   two app/design-preview/*/page.tsx routes, so it is never
+   fetched on any other route at all).
    ============================================================ */
 
 .sv2-root,
@@ -123,21 +143,39 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
 }
 
 .sv2-root{
+  /* font stacks — fallbacks live here once, referenced everywhere below */
+  --sv2-display-family: var(--sv2-font-display), Georgia, serif;
+  --sv2-sans-family: var(--sv2-font-sans), system-ui, sans-serif;
+
+  /* color tokens — dark values, matching the Figma source exactly */
   --sv2-page-bg:#5C1515;
   --sv2-card-bg:#F4EFE4;
   --sv2-receipt-bg:#D9C69C;
   --sv2-gold:#C4A35A;
   --sv2-ink:#5C1515;
+  --sv2-wordmark:#C6AB88;
   --sv2-toggle-fg:#F4EFE4;
+  --sv2-line:rgba(92,21,21,0.4);
+  --sv2-muted:rgba(92,21,21,0.6);
+  --sv2-toggle-bg:rgba(0,0,0,0.18);
+  --sv2-on-fg:#2C1000;
+
+  font-variation-settings:"opsz" 14;
 }
 
 [data-theme="light"] .sv2-root{
+  /* derived — Figma has no light variant. Matches the values the
+     rest of the app already uses for equivalent light-mode surfaces
+     (see the [data-theme="light"] rules in app/sofra.css). */
   --sv2-page-bg:#FBF8F1;
   --sv2-card-bg:#FFFDF8;
   --sv2-receipt-bg:#FFFDF8;
   --sv2-gold:#9A7620;
   --sv2-ink:#5C1515;
+  --sv2-wordmark:#8A6B3D;
   --sv2-toggle-fg:#5C1515;
+  --sv2-line:rgba(92,21,21,0.4);
+  --sv2-muted:rgba(92,21,21,0.6);
 }
 
 /* ---- shared page shell ---- */
@@ -149,12 +187,16 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:48px 20px;
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  padding:
+    max(48px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right))
+    max(48px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  font-family:var(--sv2-sans-family);
   transition:background-color .3s ease;
 }
 
-/* ---- 01 — Welcome / Auth ---- */
+/* ---- 01 — Welcome / Auth (Figma node 1:2) ---- */
 
 .sv2-welcome-card{
   position:relative;
@@ -173,14 +215,14 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
 
 .sv2-welcome-hairline{
   position:absolute;
-  inset:12px;
+  inset:11px;
   border:1px dashed var(--sv2-gold);
   border-radius:20px;
   pointer-events:none;
 }
 
 .sv2-eyebrow{
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-weight:500;
   font-size:10px;
   letter-spacing:1.5px;
@@ -189,27 +231,26 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
 }
 
 .sv2-arabic{
-  font-family:var(--sv2-font-display), Georgia, serif;
+  font-family:var(--sv2-display-family);
   font-size:15px;
   color:var(--sv2-ink);
   margin:0 0 18px;
 }
 
 .sv2-welcome-kicker{
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-weight:500;
   font-size:11px;
   letter-spacing:1px;
   line-height:15px;
   color:var(--sv2-ink);
   margin:0;
-  text-transform:uppercase;
 }
 
 .sv2-welcome-title{
-  font-family:var(--sv2-font-display), Georgia, serif;
+  font-family:var(--sv2-display-family);
   font-style:italic;
-  font-size:32px;
+  font-size:18px;
   color:var(--sv2-ink);
   margin:2px 0 0;
 }
@@ -221,25 +262,25 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   border-radius:20px;
   background:transparent;
   color:var(--sv2-ink);
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-weight:500;
   font-size:13px;
   letter-spacing:2px;
-  padding:13px 34px;
+  padding:12px 32px;
   cursor:pointer;
   transition:opacity .2s ease;
 }
 .sv2-yalla-btn:hover{opacity:.75;}
 .sv2-yalla-btn:focus-visible{outline:2px solid var(--sv2-gold);outline-offset:3px;}
 
-/* ---- 06 — Preferences (Receipt) ---- */
+/* ---- 06 — Preferences / Receipt (Figma node 2:2) ---- */
 
 .sv2-receipt-card{
   position:relative;
   width:100%;
   max-width:380px;
   background:var(--sv2-receipt-bg);
-  border-radius:6px;
+  border-radius:0;
   padding:26px 26px 32px;
   overflow:hidden;
   transition:background-color .3s ease;
@@ -249,24 +290,24 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   display:block;
   width:calc(100% + 52px);
   height:14px;
-  margin:0 -26px 22px;
+  margin:-7px -26px 22px;
 }
 
 .sv2-receipt-wordmark{
-  font-family:var(--sv2-font-display), Georgia, serif;
+  font-family:var(--sv2-display-family);
   font-style:italic;
   font-size:40px;
   text-align:center;
-  color:var(--sv2-gold);
+  color:var(--sv2-wordmark);
   margin:0 0 12px;
 }
 
 .sv2-receipt-headline{
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-weight:500;
-  font-size:13px;
+  font-size:14px;
   letter-spacing:0.5px;
-  line-height:1.6;
+  line-height:22px;
   color:var(--sv2-ink);
   margin:0 0 18px;
 }
@@ -275,21 +316,20 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   display:block;
   width:100%;
   height:1px;
-  margin:18px 0;
+  margin:20px 0;
 }
 
 .sv2-section-label{
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-weight:500;
-  font-size:12px;
+  font-size:13px;
   letter-spacing:1.5px;
   color:var(--sv2-ink);
-  text-transform:uppercase;
   margin:0 0 12px;
 }
 
 .sv2-section-sub{
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-size:11px;
   color:var(--sv2-ink);
   opacity:0.65;
@@ -307,14 +347,14 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   display:flex;
   align-items:center;
   gap:10px;
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-size:13px;
   color:var(--sv2-ink);
   cursor:pointer;
   user-select:none;
 }
 
-.sv2-checkbox-row input{
+.sv2-root .sv2-checkbox-row input{
   position:absolute;
   inset:0;
   width:16px;
@@ -332,10 +372,10 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   border:1px solid var(--sv2-ink);
 }
 
-.sv2-checkbox-row input:checked ~ .sv2-checkbox-box{
+.sv2-root .sv2-checkbox-row input:checked ~ .sv2-checkbox-box{
   background:var(--sv2-ink);
 }
-.sv2-checkbox-row input:checked ~ .sv2-checkbox-box::after{
+.sv2-root .sv2-checkbox-row input:checked ~ .sv2-checkbox-box::after{
   content:"";
   position:absolute;
   left:3px;
@@ -346,37 +386,70 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   border-width:0 2px 2px 0;
   transform:rotate(40deg);
 }
-.sv2-checkbox-row input:focus-visible ~ .sv2-checkbox-box{
+.sv2-root .sv2-checkbox-row input:focus-visible ~ .sv2-checkbox-box{
   outline:2px solid var(--sv2-gold);
   outline-offset:2px;
 }
 
 .sv2-hint{
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-size:11px;
   color:var(--sv2-gold);
   margin:8px 0 0;
 }
 
 .sv2-slider{
+  -webkit-appearance:none;
+  appearance:none;
   width:100%;
+  height:14px;
+  background:transparent;
   margin:6px 0 8px;
-  accent-color:var(--sv2-ink);
+  cursor:pointer;
+}
+.sv2-slider::-webkit-slider-runnable-track{
+  height:1px;
+  background:var(--sv2-line);
+}
+.sv2-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  background:var(--sv2-ink);
+  margin-top:-6.5px;
+  cursor:pointer;
+}
+.sv2-slider::-moz-range-track{
+  height:1px;
+  background:var(--sv2-line);
+}
+.sv2-slider::-moz-range-thumb{
+  width:14px;
+  height:14px;
+  border:none;
+  border-radius:50%;
+  background:var(--sv2-ink);
+  cursor:pointer;
+}
+.sv2-slider:focus-visible{
+  outline:2px solid var(--sv2-gold);
+  outline-offset:4px;
 }
 
 .sv2-slider-labels{
   display:flex;
   justify-content:space-between;
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
-  font-size:9px;
+  font-family:var(--sv2-sans-family);
+  font-weight:500;
+  font-size:10px;
   letter-spacing:1px;
-  text-transform:uppercase;
-  color:var(--sv2-ink);
-  opacity:0.6;
+  color:var(--sv2-muted);
 }
 
 .sv2-slider-value{
-  font-family:var(--sv2-font-display), Georgia, serif;
+  font-family:var(--sv2-display-family);
   font-style:italic;
   font-size:13px;
   text-align:center;
@@ -388,10 +461,10 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   display:block;
   width:100%;
   border:1px solid var(--sv2-ink);
-  border-radius:4px;
+  border-radius:0;
   background:transparent;
   color:var(--sv2-ink);
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-weight:500;
   font-size:13px;
   letter-spacing:2px;
@@ -402,17 +475,17 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
 .sv2-save-btn:hover{opacity:.75;}
 .sv2-save-btn:focus-visible{outline:2px solid var(--sv2-gold);outline-offset:3px;}
 
-/* ---- shared theme toggle ---- */
+/* ---- shared theme toggle (not in Figma — new, functional control) ---- */
 
 .sv2-theme-toggle{
   position:fixed;
-  top:16px;
-  right:16px;
+  top:max(16px, env(safe-area-inset-top));
+  right:max(16px, env(safe-area-inset-right));
   z-index:20;
   display:inline-flex;
   gap:2px;
   border:1px solid var(--sv2-gold);
-  background:rgba(0,0,0,0.18);
+  background:var(--sv2-toggle-bg);
   border-radius:999px;
   padding:3px;
 }
@@ -421,7 +494,7 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
   border:none;
   background:transparent;
   color:var(--sv2-toggle-fg);
-  font-family:var(--sv2-font-sans), system-ui, sans-serif;
+  font-family:var(--sv2-sans-family);
   font-size:10px;
   letter-spacing:0.06em;
   text-transform:uppercase;
@@ -432,7 +505,7 @@ All classes are prefixed `sv2-` so they can never collide with the existing (unu
 
 .sv2-theme-toggle-btn.sv2-on{
   background:var(--sv2-gold);
-  color:#2c1000;
+  color:var(--sv2-on-fg);
   font-weight:700;
 }
 ```
