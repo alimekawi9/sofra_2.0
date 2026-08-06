@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
+import { SignupForm } from '@/components/sofra-v2/SignupForm'
 import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
 import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
+import DesignPreviewSignupPage from '@/app/design-preview/signup/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -297,6 +299,60 @@ describe('PreferencesReceipt', () => {
   })
 })
 
+describe('SignupForm', () => {
+  const baseProps = {
+    name: '',
+    phone: '',
+    onNameChange: jest.fn(),
+    onPhoneChange: jest.fn(),
+    onSubmit: jest.fn(),
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('renders labeled name and phone fields with mobile-friendly attributes', () => {
+    render(<SignupForm {...baseProps} />)
+    expect(screen.getByLabelText('Your name')).toHaveAttribute('autocomplete', 'name')
+    expect(screen.getByLabelText('Phone number')).toHaveAttribute('type', 'tel')
+    expect(screen.getByLabelText('Phone number')).toHaveAttribute('autocomplete', 'tel')
+  })
+
+  it('reports controlled name and phone changes', async () => {
+    const user = userEvent.setup()
+    render(<SignupForm {...baseProps} />)
+    await user.type(screen.getByLabelText('Your name'), 'Layla')
+    await user.type(screen.getByLabelText('Phone number'), '5')
+    expect(baseProps.onNameChange).toHaveBeenCalledWith('L')
+    expect(baseProps.onPhoneChange).toHaveBeenCalledWith('5')
+  })
+
+  it('disables submit for empty or whitespace-only values', () => {
+    const { rerender } = render(<SignupForm {...baseProps} />)
+    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeDisabled()
+    rerender(<SignupForm {...baseProps} name="   " phone="5551234567" />)
+    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeDisabled()
+  })
+
+  it('enables submit when both controlled values are meaningful', () => {
+    render(<SignupForm {...baseProps} name="Layla" phone="5551234567" />)
+    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeEnabled()
+  })
+
+  it('prevents browser submission and calls onSubmit', () => {
+    const onSubmit = jest.fn()
+    render(<SignupForm {...baseProps} name="Layla" phone="5551234567" onSubmit={onSubmit} />)
+    fireEvent.submit(screen.getByRole('button', { name: 'ENTER SOFRA' }).closest('form')!)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('contains no password field', () => {
+    const { container } = render(<SignupForm {...baseProps} />)
+    expect(container.querySelector('input[type="password"]')).toBeNull()
+  })
+})
+
 describe('design preview routes', () => {
   const mockPush = jest.fn()
 
@@ -325,6 +381,19 @@ describe('design preview routes', () => {
     render(<DesignPreviewPreferencesPage />)
     expect(screen.getByText('DEAL BREAKERS')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+  })
+
+  it('renders the controlled SignupForm and ThemeToggle on the signup route', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewSignupPage />)
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+    const name = screen.getByLabelText('Your name')
+    const phone = screen.getByLabelText('Phone number')
+    await user.type(name, 'Layla')
+    await user.type(phone, '5551234567')
+    expect(name).toHaveValue('Layla')
+    expect(phone).toHaveValue('5551234567')
+    expect(screen.getByRole('button', { name: 'ENTER SOFRA' })).toBeEnabled()
   })
 
   it('owns and updates dietary, avoid, and flavor selections locally', async () => {
@@ -374,10 +443,22 @@ describe('design preview routes', () => {
     expect(screen.getByRole('checkbox', { name: /no preference/i })).toBeChecked()
   })
 
-  it('does not create a Supabase client in either preview route', () => {
+  it('does not create a Supabase client in any preview route', () => {
     const welcome = render(<DesignPreviewWelcomePage />)
     welcome.unmount()
-    render(<DesignPreviewPreferencesPage />)
+    const preferences = render(<DesignPreviewPreferencesPage />)
+    preferences.unmount()
+    render(<DesignPreviewSignupPage />)
     expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('keeps signup theme state isolated from the production theme contract', async () => {
+    const user = userEvent.setup()
+    document.documentElement.setAttribute(APP_ATTR, 'dark')
+    render(<DesignPreviewSignupPage />)
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('dark')
+    expect(localStorage.getItem(APP_KEY)).toBeNull()
   })
 })
