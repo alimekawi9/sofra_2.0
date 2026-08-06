@@ -4,7 +4,7 @@
 
 **Goal:** Port the two existing Figma frames (`01 — Welcome / Auth`, `06 — Preferences (Receipt)`) into two real, isolated Next.js pages at `/design-preview/welcome` and `/design-preview/preferences`, reachable in dev, with zero changes to any existing route, component, or stylesheet.
 
-**Architecture:** New, self-contained `components/sofra-v2/` folder (components + one scoped stylesheet) and two new `app/design-preview/*/page.tsx` routes. The Preferences screen reuses the Figma receipt's visual shell but is wired to the app's real preference data (`lib/theme.ts`, `lib/protein-preferences.ts`) instead of the mockup's alcohol section / "Halal" chip. Light/dark is wired through the app's existing, currently-unused `useAppearance()` hook (`lib/sofra/appearance.ts`).
+**Architecture:** New, self-contained `components/sofra-v2/` folder (components + one scoped stylesheet) and two new `app/design-preview/*/page.tsx` routes. The Preferences screen reuses the Figma receipt's visual shell but is wired to the app's real preference data (`lib/theme.ts`, `lib/protein-preferences.ts`) instead of the mockup's alcohol section / "Halal" chip. Light/dark is a self-contained preview-only mechanism (own `sofra-v2-preview-theme` localStorage key) — corrected during execution to not couple to the app's existing `useAppearance()` hook (`lib/sofra/appearance.ts`), so toggling the preview theme can never read or write the app's real appearance state. See Task 4 for the full rationale.
 
 **Tech Stack:** Next.js 14 App Router, React 18, TypeScript, plain scoped CSS (no Tailwind, matching the existing `app/sofra.css` convention), `next/font/google`, Jest + React Testing Library.
 
@@ -24,7 +24,7 @@ public/design-preview/
 components/sofra-v2/
   fonts.ts                 — next/font/google loaders (Playfair Display, DM Sans)
   sofra-v2.css              — all scoped styles (dark values + [data-theme="light"] overrides)
-  ThemeToggle.tsx           — Dark/Light toggle, wired to lib/sofra/appearance.ts
+  ThemeToggle.tsx           — Dark/Light toggle, self-contained (own localStorage key, isolated from lib/sofra/appearance.ts)
   WelcomeCard.tsx           — Figma frame 01, presentational
   PreferencesReceipt.tsx    — Figma frame 06 shell, real data from lib/theme.ts + lib/protein-preferences.ts
 
@@ -525,35 +525,90 @@ git commit -m "Add scoped stylesheet for design preview screens"
 - Create: `components/sofra-v2/ThemeToggle.tsx`
 - Test: `__tests__/design-preview.test.tsx` (created in this task, extended in later tasks)
 
-Wires to the app's existing `useAppearance()` hook (`lib/sofra/appearance.ts`) — this hook and its `data-theme` mechanism already exist and are already used by the (currently dormant) light-mode rules in `app/sofra.css`; this is the first place in the codebase that actually renders a control for it. Note the toggle's own root `<div>` must carry the `sv2-root` class itself (not just be nested under one) so its CSS variables resolve, since it's meant to be rendered standalone on a page.
+Corrected during execution: the project owner required this control to be fully isolated from the app's real (currently dormant) theme system — a dedicated `sofra-v2-preview-theme` localStorage key, no import of `lib/sofra/appearance.ts`, and no React Context/Provider. The original draft below (reusing `useAppearance()`) was superseded before implementation; the version actually built is self-contained. It still applies `data-theme` to `document.documentElement`, since Task 3's CSS contract (`[data-theme="light"] .sv2-root`) requires an ancestor element to carry that attribute — this is a lightweight `useEffect` DOM side-effect, not a Context/Provider, and is currently inert everywhere except the not-yet-built `/design-preview/*` pages, since no live route reads `data-theme` or renders any class gated by `[data-theme="light"]` in `app/sofra.css`. (Known follow-up, not addressed in this task: because the attribute name itself is shared with `lib/sofra/appearance.ts`, a future page using the real appearance system could theoretically inherit a leftover preview theme value across a client-side navigation. Low risk today since nothing reads it yet, but worth reconciling — e.g. a distinct `data-sv2-theme` attribute — before the real appearance system and this preview ever coexist on live routes.)
 
-- [ ] **Step 1: Write the failing test**
+There is no theme-toggle control anywhere in the Figma source file — this is a new, functional, non-Figma-sourced control, styled by the `.sv2-theme-toggle` / `.sv2-theme-toggle-btn` classes already committed in Task 3.
 
-Create `__tests__/design-preview.test.tsx` with this first test:
+The toggle's own root `<div>` must carry the `sv2-root` class itself (not just be nested under one) so its CSS variables resolve, since it's meant to be rendered standalone on a page.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `__tests__/design-preview.test.tsx`:
 
 ```tsx
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 
-beforeEach(() => {
-  localStorage.clear()
-  document.documentElement.removeAttribute('data-theme')
-})
+const PREVIEW_KEY = 'sofra-v2-preview-theme'
+const APP_KEY = 'sofra_theme'
 
 describe('ThemeToggle', () => {
-  it('sets data-theme to light when Light is clicked, and back to dark when Dark is clicked', async () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
+  })
+
+  it('defaults to the dark preview theme when no preference is stored', () => {
+    render(<ThemeToggle />)
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(screen.getByRole('button', { name: 'Dark preview theme (current)' })).toBeInTheDocument()
+  })
+
+  it('switches from dark to light when Light is clicked', async () => {
     const user = userEvent.setup()
     render(<ThemeToggle />)
-    await user.click(screen.getByRole('button', { name: 'Light' }))
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
     expect(document.documentElement.getAttribute('data-theme')).toBe('light')
-    await user.click(screen.getByRole('button', { name: 'Dark' }))
+  })
+
+  it('switches from light back to dark when Dark is clicked', async () => {
+    const user = userEvent.setup()
+    render(<ThemeToggle />)
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    await user.click(screen.getByRole('button', { name: 'Switch to dark preview theme' }))
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+  })
+
+  it('updates aria-label and aria-pressed on both buttons as the state changes', async () => {
+    const user = userEvent.setup()
+    render(<ThemeToggle />)
+    expect(screen.getByRole('button', { name: 'Dark preview theme (current)' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Switch to light preview theme' })).toHaveAttribute('aria-pressed', 'false')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+
+    expect(screen.getByRole('button', { name: 'Light preview theme (current)' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Switch to dark preview theme' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('persists the choice under a dedicated preview-only key and restores it on next mount', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<ThemeToggle />)
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
+    unmount()
+
+    document.documentElement.removeAttribute('data-theme')
+    render(<ThemeToggle />)
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+  })
+
+  it('never reads or writes the existing app-wide theme key', async () => {
+    const user = userEvent.setup()
+    const sentinel = 'not-a-real-theme-value'
+    localStorage.setItem(APP_KEY, sentinel)
+    render(<ThemeToggle />)
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(localStorage.getItem(APP_KEY)).toBe(sentinel)
+    expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
   })
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
 Expected: FAIL — `Cannot find module '@/components/sofra-v2/ThemeToggle'`
@@ -563,26 +618,62 @@ Expected: FAIL — `Cannot find module '@/components/sofra-v2/ThemeToggle'`
 ```tsx
 'use client'
 
-import { useAppearance } from '@/lib/sofra/appearance'
+import { useEffect, useState } from 'react'
+
+type PreviewTheme = 'light' | 'dark'
+
+const STORAGE_KEY = 'sofra-v2-preview-theme'
+
+function applyPreviewTheme(theme: PreviewTheme) {
+  document.documentElement.setAttribute('data-theme', theme)
+}
 
 export function ThemeToggle() {
-  const [appearance, setAppearance] = useAppearance()
+  // Deterministic for SSR and first client paint: always 'dark', matching
+  // the Figma-sourced screens' default. Browser storage is read only after
+  // mount (below), never during render, so server and first-paint markup
+  // always match — no hydration mismatch.
+  const [theme, setTheme] = useState<PreviewTheme>('dark')
+
+  useEffect(() => {
+    let stored: string | null = null
+    try {
+      stored = window.localStorage.getItem(STORAGE_KEY)
+    } catch {
+      // Storage unavailable (e.g. private browsing) — fall back to the default.
+    }
+    const initial: PreviewTheme = stored === 'light' ? 'light' : 'dark'
+    setTheme(initial)
+    applyPreviewTheme(initial)
+  }, [])
+
+  function selectTheme(next: PreviewTheme) {
+    setTheme(next)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // Storage unavailable — the in-memory theme still applies for this session.
+    }
+    applyPreviewTheme(next)
+  }
 
   return (
-    <div className="sv2-root sv2-theme-toggle" role="group" aria-label="Appearance">
+    <div className="sv2-root sv2-theme-toggle" role="group" aria-label="Preview appearance">
       <button
         type="button"
-        className={appearance === 'dark' ? 'sv2-theme-toggle-btn sv2-on' : 'sv2-theme-toggle-btn'}
-        aria-pressed={appearance === 'dark'}
-        onClick={() => setAppearance('dark')}
+        className={theme === 'dark' ? 'sv2-theme-toggle-btn sv2-on' : 'sv2-theme-toggle-btn'}
+        aria-pressed={theme === 'dark'}
+        aria-label={theme === 'dark' ? 'Dark preview theme (current)' : 'Switch to dark preview theme'}
+        onClick={() => selectTheme('dark')}
       >
         Dark
       </button>
       <button
         type="button"
-        className={appearance === 'light' ? 'sv2-theme-toggle-btn sv2-on' : 'sv2-theme-toggle-btn'}
-        aria-pressed={appearance === 'light'}
-        onClick={() => setAppearance('light')}
+        className={theme === 'light' ? 'sv2-theme-toggle-btn sv2-on' : 'sv2-theme-toggle-btn'}
+        aria-pressed={theme === 'light'}
+        aria-label={theme === 'light' ? 'Light preview theme (current)' : 'Switch to light preview theme'}
+        onClick={() => selectTheme('light')}
       >
         Light
       </button>
@@ -591,16 +682,16 @@ export function ThemeToggle() {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
-Expected: PASS
+Expected: PASS — all 6 tests
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add components/sofra-v2/ThemeToggle.tsx __tests__/design-preview.test.tsx
-git commit -m "Add ThemeToggle for design preview, wired to existing appearance system"
+git commit -m "Add ThemeToggle for design preview, isolated from the app's real theme system"
 ```
 
 ---
@@ -935,20 +1026,25 @@ import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
 import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
 ```
 
-Then append this `describe` block below the existing `PreferencesReceipt` one:
+Then append this `describe` block below the existing `PreferencesReceipt` one. Note it needs its own `beforeEach` (Task 4 scoped `ThemeToggle`'s reset to its own `describe` block, and these route tests render `ThemeToggle` too via the page components, so leftover `localStorage`/`data-theme` state from earlier suites in this file must be cleared here as well). Also note the toggle's buttons no longer have a static "Light"/"Dark" accessible name — their `aria-label` changes with state (see Task 4) — so these tests check for the toggle's stable `role="group"` wrapper instead of guessing which button is currently labeled which way:
 
 ```tsx
 describe('design preview routes', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
+  })
+
   it('welcome route renders the WelcomeCard and a theme toggle', () => {
     render(<DesignPreviewWelcomePage />)
     expect(screen.getByText('Sofra.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
   })
 
   it('preferences route renders the PreferencesReceipt and a theme toggle', () => {
     render(<DesignPreviewPreferencesPage />)
     expect(screen.getByText('DEAL BREAKERS')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
   })
 })
 ```
