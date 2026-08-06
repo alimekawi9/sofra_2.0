@@ -12,7 +12,9 @@ export class GeminiError extends Error {
   }
 }
 
-const MODEL = 'gemini-2.5-pro'
+const MODEL = 'gemini-2.5-flash-lite'
+
+// 'gemini-2.5-pro'
 // Timeout calibration:
 //   At ~5966-char prompt (commit b6975b5): 44194ms, 44343ms, 45020ms — moved
 //   45s → 60s to clear the tail with ~35% headroom.

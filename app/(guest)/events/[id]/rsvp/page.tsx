@@ -7,11 +7,13 @@ import { C, THEMES, DIETARY, NOGOS, PROTEIN_ANCHOR, FLAVOR_PREFERENCE } from '@/
 
 type Step = 'status' | 'profile'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
+type SubmissionStage = 'idle' | 'validating' | 'resolving_user' | 'resolving_rsvp' | 'saving_preferences' | 'finalizing_rsvp' | 'navigating' | 'complete' | 'error'
 
 export default function RSVPPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
+  const submitLockRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<Step>('status')
@@ -26,6 +28,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [submissionStage, setSubmissionStage] = useState<SubmissionStage>('idle')
+  const [errorCode, setErrorCode] = useState('')
+  const [errorStage, setErrorStage] = useState<SubmissionStage | ''>('')
 
   async function loadData() {
     setLoading(true)
@@ -82,7 +87,12 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       { onConflict: 'event_id,user_id' }
     )
     if (upsertErr) {
-      setError('Something went wrong. Please try again.')
+      console.error(JSON.stringify({
+        scope: 'rsvp_submission_client',
+        stage: 'finalizing_rsvp',
+        code: upsertErr.code ?? 'SUPABASE_ERROR',
+      }))
+      setError('Could not update your RSVP. Please try again.')
       setSubmitting(false)
       return
     }
@@ -90,33 +100,75 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   }
 
   async function handleProfileSubmit() {
-    if (!uidRef.current || submitting) return
+    if (submitLockRef.current || submitting) return
+    submitLockRef.current = true
     setSubmitting(true)
     setError('')
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from('rsvps').upsert(
-        { event_id: params.id, user_id: uidRef.current, status },
-        { onConflict: 'event_id,user_id' }
-      ),
-      supabase.from('taste_profiles').upsert(
-        {
-          user_id: uidRef.current,
-          dietary,
-          avoid,
-          protein_anchor: proteinAnchor,
-          flavor_preference: flavorPreference,
-          adventurousness,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      ),
-    ])
-    if (e1 || e2) {
-      setError('Something went wrong. Please try again.')
+    setErrorCode('')
+    setErrorStage('')
+    setSubmissionStage('validating')
+
+    if (!uidRef.current || (status !== 'going' && status !== 'maybe')) {
+      setSubmissionStage('error')
+      setErrorCode('INVALID_SUBMISSION')
+      setErrorStage('validating')
+      setError('Please reopen the invitation and try again.')
       setSubmitting(false)
+      submitLockRef.current = false
       return
     }
-    router.push('/events/' + params.id)
+
+    setSubmissionStage('saving_preferences')
+    try {
+      const response = await fetch('/api/rsvp/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({
+          eventId: params.id,
+          userId: uidRef.current,
+          status,
+          dietary,
+          avoid,
+          proteinAnchor,
+          flavorPreference,
+          adventurousness,
+        }),
+      })
+      const result = await response.json() as {
+        success?: boolean
+        nextPath?: string
+        stage?: SubmissionStage
+        code?: string
+        message?: string
+      }
+      if (!response.ok || !result.success || !result.nextPath) {
+        setSubmissionStage('error')
+        setErrorCode(result.code ?? `HTTP_${response.status}`)
+        setErrorStage(result.stage ?? 'saving_preferences')
+        setError(result.message ?? 'Could not save your preferences. Please try again.')
+        setSubmitting(false)
+        submitLockRef.current = false
+        return
+      }
+
+      setSubmissionStage('navigating')
+      router.replace(result.nextPath)
+      setSubmissionStage('complete')
+    } catch (submissionError) {
+      console.error(JSON.stringify({
+        scope: 'rsvp_submission_client',
+        stage: 'saving_preferences',
+        code: 'NETWORK_ERROR',
+        message: submissionError instanceof Error ? submissionError.message : 'Request failed',
+      }))
+      setSubmissionStage('error')
+      setErrorCode('NETWORK_ERROR')
+      setErrorStage('saving_preferences')
+      setError('Unable to connect. Check your connection and try again.')
+      setSubmitting(false)
+      submitLockRef.current = false
+    }
   }
 
   function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
@@ -241,7 +293,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
             </div>
           )}
 
-          {!loading && error && (
+          {!loading && error && submissionStage === 'idle' && (
             <div style={{ textAlign: 'center', paddingTop: 40 }}>
               <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{error}</p>
               <button
@@ -262,7 +314,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
             </div>
           )}
 
-          {!loading && !error && (
+          {!loading && (!error || submissionStage !== 'idle') && (
             <div data-testid="rsvp-content">
               {step === 'status' && (
                 <>
@@ -339,9 +391,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                   </button>
 
                   {error && (
-                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                      {error}
-                    </p>
+                    <div data-testid="submission-error" data-stage={errorStage} data-code={errorCode}>
+                      <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                        {error}
+                      </p>
+                    </div>
                   )}
                 </>
               )}
@@ -536,9 +590,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                   </button>
 
                   {error && (
-                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                      {error}
-                    </p>
+                    <div data-testid="submission-error" data-stage={errorStage} data-code={errorCode}>
+                      <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                        {error}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

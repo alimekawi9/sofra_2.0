@@ -8,11 +8,18 @@ jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
 const mockPush = jest.fn()
+const mockReplace = jest.fn()
 
 beforeEach(() => {
   jest.clearAllMocks()
-  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
+  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
   mockPush.mockReset()
+  mockReplace.mockReset()
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: jest.fn().mockResolvedValue({ success: true, nextPath: '/events/event-1' }),
+  }) as jest.Mock
   localStorage.clear()
   localStorage.setItem('sofra_user_id', 'uid-1')
 })
@@ -60,6 +67,16 @@ it('renders without crashing', () => {
   makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
   expect(document.body).toBeTruthy()
+})
+
+it('redirects a missing local identity before querying RSVP data', async () => {
+  localStorage.clear()
+  const sb = makeSupabase()
+  render(<RSVPPage params={{ id: 'event-1' }} />)
+  await waitFor(() =>
+    expect(mockPush).toHaveBeenCalledWith('/login?next=%2Fevents%2Fevent-1%2Frsvp')
+  )
+  expect(sb.from).not.toHaveBeenCalled()
 })
 
 describe('loading state', () => {
@@ -406,35 +423,33 @@ describe('cant submit', () => {
     await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
     await userEvent.click(screen.getByRole('button', { name: /^submit$/i }))
     await waitFor(() =>
-      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+      expect(screen.getByText(/could not update your rsvp/i)).toBeInTheDocument()
     )
     expect(mockPush).not.toHaveBeenCalled()
   })
 })
 
 describe('going/maybe submit', () => {
-  it('upserts both rsvps and taste_profiles and redirects', async () => {
-    const sb = makeSupabase()
+  it('submits the production field names and navigates only after confirmed persistence', async () => {
+    makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
-    expect(sb.rsvpUpsert).toHaveBeenCalledWith(
-      { event_id: 'event-1', user_id: 'uid-1', status: 'going' },
-      { onConflict: 'event_id,user_id' }
-    )
-    expect(sb.profileUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: 'uid-1', dietary: [], avoid: [], protein_anchor: null, flavor_preference: [], adventurousness: 50,
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1'))
+    expect(fetch).toHaveBeenCalledWith('/api/rsvp/submit', expect.objectContaining({
+      method: 'POST',
+      cache: 'no-store',
+      body: JSON.stringify({
+        eventId: 'event-1', userId: 'uid-1', status: 'going', dietary: [], avoid: [],
+        proteinAnchor: null, flavorPreference: [], adventurousness: 50,
       }),
-      { onConflict: 'user_id' }
-    )
+    }))
   })
 
   it('includes protein_anchor and flavor_preference in the taste_profiles upsert', async () => {
-    const sb = makeSupabase()
+    makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
@@ -442,26 +457,65 @@ describe('going/maybe submit', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
     await userEvent.click(screen.getByRole('button', { name: 'Fresh' }))
     await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
-    expect(sb.profileUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        protein_anchor: 'Fish', flavor_preference: ['Fresh'],
-      }),
-      { onConflict: 'user_id' }
-    )
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1'))
+    const request = (fetch as jest.Mock).mock.calls[0][1]
+    expect(JSON.parse(request.body)).toEqual(expect.objectContaining({
+      proteinAnchor: 'Fish', flavorPreference: ['Fresh'],
+    }))
   })
 
-  it('shows error and does not redirect when either upsert fails', async () => {
-    makeSupabase({ upsertError: { message: 'db error' } })
+  it('shows a friendly stage-specific error and does not navigate on persistence failure', async () => {
+    makeSupabase()
+    ;(fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: jest.fn().mockResolvedValue({
+        success: false, stage: 'saving_preferences', code: '42703',
+        message: 'Could not save your preferences.',
+      }),
+    })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
     await waitFor(() =>
-      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+      expect(screen.getByText(/could not save your preferences/i)).toBeInTheDocument()
     )
-    expect(mockPush).not.toHaveBeenCalled()
+    expect(screen.getByTestId('submission-error')).toHaveAttribute('data-code', '42703')
+    expect(screen.getByTestId('submission-error')).toHaveAttribute('data-stage', 'saving_preferences')
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('allows retry after a failed submission', async () => {
+    makeSupabase()
+    ;(fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ success: false, code: 'DB_ERROR', message: 'Could not save your preferences.' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, nextPath: '/events/event-1' }) })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
+    await waitFor(() => screen.getByText(/could not save/i))
+    await userEvent.click(screen.getByRole('button', { name: /rsvp/i }))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1'))
+  })
+
+  it('prevents duplicate requests from a double submit', async () => {
+    makeSupabase()
+    let resolveRequest!: (value: unknown) => void
+    ;(fetch as jest.Mock).mockReturnValue(new Promise((resolve) => { resolveRequest = resolve }))
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /going/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    const submit = screen.getByRole('button', { name: /rsvp/i })
+    submit.click()
+    submit.click()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    resolveRequest({ ok: true, status: 200, json: async () => ({ success: true, nextPath: '/events/event-1' }) })
+    await waitFor(() => expect(mockReplace).toHaveBeenCalled())
   })
 
   it('submit button reads "Update RSVP →" when hasExistingRsvp is true', async () => {

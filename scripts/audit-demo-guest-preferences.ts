@@ -42,6 +42,23 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  const schemaProbeUrl = new URL('/rest/v1/taste_profiles', url)
+  schemaProbeUrl.searchParams.set(
+    'select',
+    'user_id,dietary,avoid,protein_anchor,flavor_preference,adventurousness'
+  )
+  schemaProbeUrl.searchParams.set('limit', '1')
+  const schemaProbeResponse = await fetch(schemaProbeUrl, {
+    method: 'GET',
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  })
+  const schemaProbeBody = await schemaProbeResponse.json() as {
+    code?: string
+    message?: string
+    details?: string | null
+    hint?: string | null
+  }
+
   const { data: event, error: eventError } = await supabase
     .from('events')
     .select('id, title')
@@ -103,6 +120,12 @@ async function main() {
     schema: {
       preference_columns_present: preferenceColumnsPresent,
       diagnostic_error: schemaError,
+      request: {
+        method: 'GET',
+        endpoint: `${schemaProbeUrl.origin}/rest/v1/taste_profiles?select=[redacted-field-list]&limit=1`,
+        status: schemaProbeResponse.status,
+        error: schemaProbeResponse.ok ? null : schemaProbeBody,
+      },
     },
     event: { title: event.title, guest_count: guests.length },
     guests,
