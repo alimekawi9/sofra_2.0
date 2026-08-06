@@ -12,7 +12,7 @@ export function WelcomeCard({ onYalla }: WelcomeCardProps) {
       <div className="sv2-welcome-card">
         <div className="sv2-welcome-hairline" aria-hidden="true" />
         <p className="sv2-eyebrow">EST. 2026</p>
-        <p className="sv2-arabic" dir="auto">اتفضلوا على السفرة</p>
+        <p className="sv2-arabic" dir="auto" lang="ar">اتفضلوا على السفرة</p>
         <p className="sv2-welcome-kicker">
           WELCOME TO
           <br />
