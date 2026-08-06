@@ -70,6 +70,10 @@
   transition:background-color .3s ease;
 }
 
+.sv2-receipt-page{
+  padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));
+}
+
 /* ---- 01 — Welcome / Auth (Figma node 1:2) ---- */
 
 .sv2-welcome-card{
@@ -177,6 +181,7 @@
   font-family:var(--sv2-sans-family);
   font-size:14px;
   padding:6px 2px;
+  min-height:44px;
   outline:none;
 }
 .sv2-field-input:focus-visible{
