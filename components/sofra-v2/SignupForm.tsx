@@ -35,26 +35,31 @@ export function SignupForm({
         <p className="sv2-welcome-title">Sofra.</p>
         <p className="sv2-signup-sub">No passwords. Your name and number stay with your account.</p>
 
-        <label className="sv2-field-label" htmlFor="sv2-signup-name">Your name</label>
-        <input
-          id="sv2-signup-name"
-          className="sv2-field-input"
-          type="text"
-          value={name}
-          onChange={(event) => onNameChange(event.target.value)}
-          autoComplete="name"
-        />
+        <div className="sv2-signup-plate">
+          <div className="sv2-signup-plate-rim" aria-hidden="true" />
+          <div className="sv2-signup-plate-fields">
+            <label className="sv2-field-label" htmlFor="sv2-signup-name">Your name</label>
+            <input
+              id="sv2-signup-name"
+              className="sv2-field-input"
+              type="text"
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              autoComplete="name"
+            />
 
-        <label className="sv2-field-label" htmlFor="sv2-signup-phone">Phone number</label>
-        <input
-          id="sv2-signup-phone"
-          className="sv2-field-input"
-          type="tel"
-          value={phone}
-          onChange={(event) => onPhoneChange(event.target.value)}
-          autoComplete="tel"
-          inputMode="tel"
-        />
+            <label className="sv2-field-label" htmlFor="sv2-signup-phone">Phone number</label>
+            <input
+              id="sv2-signup-phone"
+              className="sv2-field-input"
+              type="tel"
+              value={phone}
+              onChange={(event) => onPhoneChange(event.target.value)}
+              autoComplete="tel"
+              inputMode="tel"
+            />
+          </div>
+        </div>
 
         <button type="submit" className="sv2-yalla-btn" disabled={submitDisabled}>
           {isSubmitting ? 'ENTERING…' : 'ENTER SOFRA'}

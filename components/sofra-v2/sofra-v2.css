@@ -70,10 +70,6 @@
   transition:background-color .3s ease;
 }
 
-.sv2-receipt-page{
-  padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));
-}
-
 /* ---- 01 — Welcome / Auth (Figma node 1:2) ---- */
 
 .sv2-welcome-card{
@@ -158,6 +154,33 @@
   opacity:.7;
   line-height:1.6;
   margin:8px 0 28px;
+}
+
+.sv2-signup-plate{
+  position:relative;
+  width:100%;
+  aspect-ratio:1.08 / 1;
+  border:2px solid var(--sv2-gold);
+  border-radius:50%;
+  background:var(--sv2-card-bg);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:34px 32px;
+}
+
+.sv2-signup-plate-rim{
+  position:absolute;
+  inset:10px;
+  border:1px solid var(--sv2-line);
+  border-radius:50%;
+  pointer-events:none;
+}
+
+.sv2-signup-plate-fields{
+  position:relative;
+  z-index:1;
+  width:100%;
 }
 
 .sv2-field-label{
@@ -296,17 +319,6 @@
 
 .sv2-root .sv2-checkbox-row input:checked ~ .sv2-checkbox-box{
   background:var(--sv2-ink);
-}
-.sv2-root .sv2-checkbox-row input:checked ~ .sv2-checkbox-box::after{
-  content:"";
-  position:absolute;
-  left:3px;
-  top:0;
-  width:4px;
-  height:8px;
-  border:solid var(--sv2-receipt-bg);
-  border-width:0 2px 2px 0;
-  transform:rotate(40deg);
 }
 .sv2-root .sv2-checkbox-row input:focus-visible ~ .sv2-checkbox-box{
   outline:2px solid var(--sv2-gold);

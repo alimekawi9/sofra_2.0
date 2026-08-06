@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import '@/components/sofra-v2/sofra-v2.css'
 import { SignupForm } from '@/components/sofra-v2/SignupForm'
-import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 
 export default function DesignPreviewSignupPage() {
   const [name, setName] = useState('')
@@ -17,15 +16,12 @@ export default function DesignPreviewSignupPage() {
   }
 
   return (
-    <>
-      <ThemeToggle />
-      <SignupForm
-        name={name}
-        phone={phone}
-        onNameChange={setName}
-        onPhoneChange={setPhone}
-        onSubmit={handleSubmit}
-      />
-    </>
+    <SignupForm
+      name={name}
+      phone={phone}
+      onNameChange={setName}
+      onPhoneChange={setPhone}
+      onSubmit={handleSubmit}
+    />
   )
 }

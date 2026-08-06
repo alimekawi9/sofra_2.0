@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import '@/components/sofra-v2/sofra-v2.css'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
-import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 import {
   updateProteinPreferenceSelection,
   type ProteinPreference,
@@ -34,22 +33,19 @@ export default function DesignPreviewPreferencesPage() {
   }
 
   return (
-    <>
-      <ThemeToggle />
-      <PreferencesReceipt
-        dietary={dietary}
-        onToggleDietary={(value) => setDietary((current) => toggleValue(current, value))}
-        avoid={avoid}
-        onToggleAvoid={(value) => setAvoid((current) => toggleValue(current, value))}
-        proteinPreferences={proteinPreferences}
-        onToggleProtein={handleToggleProtein}
-        proteinHintVisible={proteinHintVisible}
-        flavors={flavors}
-        onToggleFlavor={(value) => setFlavors((current) => toggleValue(current, value))}
-        adventurousness={adventurousness}
-        onAdventurousnessChange={setAdventurousness}
-        onSave={() => undefined}
-      />
-    </>
+    <PreferencesReceipt
+      dietary={dietary}
+      onToggleDietary={(value) => setDietary((current) => toggleValue(current, value))}
+      avoid={avoid}
+      onToggleAvoid={(value) => setAvoid((current) => toggleValue(current, value))}
+      proteinPreferences={proteinPreferences}
+      onToggleProtein={handleToggleProtein}
+      proteinHintVisible={proteinHintVisible}
+      flavors={flavors}
+      onToggleFlavor={(value) => setFlavors((current) => toggleValue(current, value))}
+      adventurousness={adventurousness}
+      onAdventurousnessChange={setAdventurousness}
+      onSave={() => undefined}
+    />
   )
 }

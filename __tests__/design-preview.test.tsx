@@ -195,6 +195,18 @@ describe('PreferencesReceipt', () => {
     expect(onToggleDietary).toHaveBeenCalledWith('No pork/alcohol')
   })
 
+  it('renders selected options as functional icon-free boxes', () => {
+    const { container } = render(
+      <PreferencesReceipt {...baseProps} dietary={['Vegetarian']} />
+    )
+    const checkbox = screen.getByRole('checkbox', { name: 'Vegetarian' })
+    expect(checkbox).toBeChecked()
+    const selectedBox = checkbox.parentElement?.querySelector('.sv2-checkbox-box')
+    expect(selectedBox).toBeEmptyDOMElement()
+    expect(selectedBox?.querySelector('svg, img')).toBeNull()
+    expect(container.querySelector('.sv2-checkbox-box svg, .sv2-checkbox-box img')).toBeNull()
+  })
+
   it('calls onToggleAvoid with the raw stored value when an allergen is clicked', async () => {
     const user = userEvent.setup()
     const onToggleAvoid = jest.fn()
@@ -364,10 +376,10 @@ describe('design preview routes', () => {
     ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   })
 
-  it('renders WelcomeCard and ThemeToggle on the welcome route', () => {
+  it('renders WelcomeCard without a visible theme control on the welcome route', () => {
     render(<DesignPreviewWelcomePage />)
     expect(screen.getByText('Sofra.')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
   })
 
   it('navigates YALLA only to the isolated signup preview route', async () => {
@@ -377,16 +389,17 @@ describe('design preview routes', () => {
     expect(mockPush).toHaveBeenCalledWith('/design-preview/signup')
   })
 
-  it('renders PreferencesReceipt and ThemeToggle on the preferences route', () => {
+  it('renders PreferencesReceipt without a visible theme control on the preferences route', () => {
     render(<DesignPreviewPreferencesPage />)
     expect(screen.getByText('DEAL BREAKERS')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
   })
 
-  it('renders the controlled SignupForm and ThemeToggle on the signup route', async () => {
+  it('renders the controlled SignupForm inside a plate without a visible theme control', async () => {
     const user = userEvent.setup()
-    render(<DesignPreviewSignupPage />)
-    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+    const { container } = render(<DesignPreviewSignupPage />)
+    expect(container.querySelector('.sv2-signup-plate')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
     const name = screen.getByLabelText('Your name')
     const phone = screen.getByLabelText('Phone number')
     await user.type(name, 'Layla')
@@ -452,13 +465,10 @@ describe('design preview routes', () => {
     expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('keeps signup theme state isolated from the production theme contract', async () => {
-    const user = userEvent.setup()
+  it('uses dark defaults without changing either theme attribute', () => {
     document.documentElement.setAttribute(APP_ATTR, 'dark')
     render(<DesignPreviewSignupPage />)
-    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
-    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBeNull()
     expect(document.documentElement.getAttribute(APP_ATTR)).toBe('dark')
-    expect(localStorage.getItem(APP_KEY)).toBeNull()
   })
 })
