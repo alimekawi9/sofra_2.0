@@ -64,8 +64,8 @@ export function PreferencesReceipt({
       : 'Chef, surprise me'
 
   return (
-    <div className={`sv2-root sv2-receipt-page ${sv2Display.variable} ${sv2Sans.variable}`}>
-      <div className="sv2-receipt-card">
+    <div className={`sv2-root sv2-device-page sv2-receipt-page ${sv2Display.variable} ${sv2Sans.variable}`}>
+      <main className="sv2-device-shell sv2-receipt-card">
         <div className="sv2-perforation" data-testid="receipt-perforation" aria-hidden="true" />
         <p className="sv2-receipt-wordmark" dir="auto" lang="ar">سفرة</p>
         <p className="sv2-receipt-headline">
@@ -159,7 +159,7 @@ export function PreferencesReceipt({
         <button type="button" className="sv2-save-btn" onClick={onSave}>
           SAVE MY SEAT
         </button>
-      </div>
+      </main>
     </div>
   )
 }

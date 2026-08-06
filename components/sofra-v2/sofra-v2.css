@@ -30,6 +30,10 @@
   --sv2-muted:rgba(92,21,21,0.6);
   --sv2-toggle-bg:rgba(0,0,0,0.18);
   --sv2-on-fg:#2C1000;
+  --sv2-shell-max-width:640px;
+  --sv2-shell-radius:28px;
+  --sv2-shell-padding-x:clamp(24px, 6vw, 52px);
+  --sv2-page-gutter:16px;
 
   font-variation-settings:"opsz" 14;
 }
@@ -54,45 +58,59 @@
 
 /* ---- shared page shell ---- */
 
-.sv2-welcome-page,
-.sv2-receipt-page{
+.sv2-device-page{
   min-height:100dvh;
   background:var(--sv2-page-bg);
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:center;
-  padding:
-    max(48px, env(safe-area-inset-top))
-    max(20px, env(safe-area-inset-right))
-    max(48px, env(safe-area-inset-bottom))
-    max(20px, env(safe-area-inset-left));
+  padding:0;
   font-family:var(--sv2-sans-family);
   transition:background-color .3s ease;
+}
+
+.sv2-device-shell{
+  position:relative;
+  width:100%;
+  max-width:var(--sv2-shell-max-width);
+  min-height:100dvh;
+  margin-inline:auto;
+  padding:48px var(--sv2-shell-padding-x) 40px;
+  background:var(--sv2-receipt-bg);
+  border:1px solid var(--sv2-gold);
+  border-radius:0;
+  overflow:hidden;
+}
+
+.sv2-device-shell::before{
+  content:"";
+  position:absolute;
+  inset:11px;
+  z-index:2;
+  border:1px dashed var(--sv2-gold);
+  border-radius:0;
+  pointer-events:none;
+}
+
+@media (min-width:600px){
+  .sv2-device-page{
+    padding:var(--sv2-page-gutter);
+  }
+
+  .sv2-device-shell{
+    min-height:calc(100dvh - var(--sv2-page-gutter) - var(--sv2-page-gutter));
+    border-radius:var(--sv2-shell-radius);
+  }
+
+  .sv2-device-shell::before{border-radius:20px;}
 }
 
 /* ---- 01 — Welcome / Auth (Figma node 1:2) ---- */
 
 .sv2-welcome-card{
-  position:relative;
-  width:100%;
-  max-width:320px;
-  min-height:560px;
-  background:var(--sv2-card-bg);
-  border:1px solid var(--sv2-gold);
-  border-radius:28px;
-  padding:44px 28px 36px;
   display:flex;
   flex-direction:column;
-  overflow:hidden;
   transition:background-color .3s ease;
-}
-
-.sv2-welcome-hairline{
-  position:absolute;
-  inset:11px;
-  border:1px dashed var(--sv2-gold);
-  border-radius:20px;
-  pointer-events:none;
 }
 
 .sv2-eyebrow{
@@ -148,17 +166,11 @@
 .sv2-yalla-btn:focus-visible{outline:2px solid var(--sv2-gold);outline-offset:3px;}
 
 .sv2-plate-step-page{
-  padding:
-    max(16px, env(safe-area-inset-top))
-    max(8px, env(safe-area-inset-right))
-    max(16px, env(safe-area-inset-bottom))
-    max(8px, env(safe-area-inset-left));
+  padding-top:0;
 }
 
 .sv2-plate-step{
-  max-width:390px;
-  min-height:min(680px, calc(100dvh - 32px));
-  padding:38px 6px 30px;
+  padding:38px var(--sv2-shell-padding-x) 30px;
   justify-content:center;
   gap:0;
 }
@@ -181,7 +193,7 @@
 
 .sv2-plate-wrap{
   position:relative;
-  width:min(calc(100% + 12px), 380px);
+  width:min(calc(100% + var(--sv2-shell-padding-x) + var(--sv2-shell-padding-x)), 380px);
   aspect-ratio:1;
   margin:0 auto;
   display:flex;
@@ -313,21 +325,16 @@
 /* ---- 06 — Preferences / Receipt (Figma node 2:2) ---- */
 
 .sv2-receipt-card{
-  position:relative;
-  width:100%;
-  max-width:380px;
-  background:var(--sv2-receipt-bg);
-  border-radius:0;
-  padding:26px 26px 32px;
-  overflow:hidden;
+  padding-top:26px;
+  padding-bottom:40px;
   transition:background-color .3s ease;
 }
 
 .sv2-perforation{
   display:block;
-  width:calc(100% + 52px);
+  width:calc(100% + var(--sv2-shell-padding-x) + var(--sv2-shell-padding-x));
   height:14px;
-  margin:-7px -26px 22px;
+  margin:-7px calc(-1 * var(--sv2-shell-padding-x)) 22px;
   flex-shrink:0;
   background-image:radial-gradient(
     circle at center,

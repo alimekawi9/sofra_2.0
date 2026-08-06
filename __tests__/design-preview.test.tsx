@@ -380,20 +380,20 @@ describe('SignupForm', () => {
 
   it('disables submit for empty or whitespace-only values', () => {
     const { rerender } = render(<SignupForm {...baseProps} />)
-    expect(screen.getByRole('button', { name: 'TAKE YOUR SEAT' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeDisabled()
     rerender(<SignupForm {...baseProps} phone="   " />)
-    expect(screen.getByRole('button', { name: 'TAKE YOUR SEAT' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeDisabled()
   })
 
   it('enables submit when the controlled phone value is meaningful', () => {
     render(<SignupForm {...baseProps} phone="5551234567" />)
-    expect(screen.getByRole('button', { name: 'TAKE YOUR SEAT' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeEnabled()
   })
 
   it('prevents browser submission and calls onSubmit', () => {
     const onSubmit = jest.fn()
     render(<SignupForm {...baseProps} phone="5551234567" onSubmit={onSubmit} />)
-    fireEvent.submit(screen.getByRole('button', { name: 'TAKE YOUR SEAT' }).closest('form')!)
+    fireEvent.submit(screen.getByRole('button', { name: 'CONTINUE' }).closest('form')!)
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
@@ -435,7 +435,7 @@ describe('NamePlateForm', () => {
     expect(screen.getByRole('heading', { name: 'Enter your name' })).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-bowl .sv2-plate-input')).toBeInTheDocument()
-    expect(name.container.querySelector('.sv2-plate-action')).toHaveTextContent('JOIN THE TABLE')
+    expect(name.container.querySelector('.sv2-plate-action')).toHaveTextContent('CONTINUE')
     name.unmount()
 
     const phone = render(<SignupForm phone="" onPhoneChange={jest.fn()} onSubmit={jest.fn()} />)
@@ -443,7 +443,7 @@ describe('NamePlateForm', () => {
     expect(screen.getByRole('heading', { name: 'Enter your phone number' })).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-bowl .sv2-plate-input')).toBeInTheDocument()
-    expect(phone.container.querySelector('.sv2-plate-action')).toHaveTextContent('TAKE YOUR SEAT')
+    expect(phone.container.querySelector('.sv2-plate-action')).toHaveTextContent('CONTINUE')
   })
 
   it('preserves controlled name behavior and only submits a meaningful name', async () => {
@@ -451,9 +451,9 @@ describe('NamePlateForm', () => {
     const { rerender } = render(<NamePlateForm {...baseProps} />)
     await user.type(screen.getByLabelText('Your name'), 'L')
     expect(baseProps.onNameChange).toHaveBeenCalledWith('L')
-    expect(screen.getByRole('button', { name: 'JOIN THE TABLE' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeDisabled()
     rerender(<NamePlateForm {...baseProps} name="Layla" />)
-    expect(screen.getByRole('button', { name: 'JOIN THE TABLE' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeEnabled()
   })
 })
 
@@ -484,7 +484,26 @@ describe('design preview routes', () => {
   it('renders PreferencesReceipt without a visible theme control on the preferences route', () => {
     render(<DesignPreviewPreferencesPage />)
     expect(screen.getByText('DEAL BREAKERS')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'SAVE MY SEAT' })).toBeInTheDocument()
+    expect(screen.getByTestId('receipt-perforation')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
+  })
+
+  it('uses the same shared device shell for every preview route', () => {
+    const welcome = render(<DesignPreviewWelcomePage />)
+    expect(welcome.container.querySelector('.sv2-device-page .sv2-device-shell')).toBeInTheDocument()
+    welcome.unmount()
+
+    const signup = render(<DesignPreviewSignupPage />)
+    expect(signup.container.querySelector('.sv2-device-page .sv2-device-shell')).toBeInTheDocument()
+    signup.unmount()
+
+    const name = render(<DesignPreviewNamePage />)
+    expect(name.container.querySelector('.sv2-device-page .sv2-device-shell')).toBeInTheDocument()
+    name.unmount()
+
+    const preferences = render(<DesignPreviewPreferencesPage />)
+    expect(preferences.container.querySelector('.sv2-device-page .sv2-device-shell.sv2-receipt-card')).toBeInTheDocument()
   })
 
   it('renders the phone-only signup on a burgundy plate and continues to the name route', async () => {
@@ -495,7 +514,7 @@ describe('design preview routes', () => {
     const phone = screen.getByLabelText('Phone number')
     await user.type(phone, '+20 10 1234 5678')
     expect(phone).toHaveValue('+20 10 1234 5678')
-    await user.click(screen.getByRole('button', { name: 'TAKE YOUR SEAT' }))
+    await user.click(screen.getByRole('button', { name: 'CONTINUE' }))
     expect(mockPush).toHaveBeenCalledWith('/design-preview/name')
   })
 
@@ -506,7 +525,7 @@ describe('design preview routes', () => {
     const name = screen.getByLabelText('Your name')
     await user.type(name, 'Layla')
     expect(name).toHaveValue('Layla')
-    await user.click(screen.getByRole('button', { name: 'JOIN THE TABLE' }))
+    await user.click(screen.getByRole('button', { name: 'CONTINUE' }))
     expect(mockPush).toHaveBeenCalledWith('/design-preview/preferences')
   })
 

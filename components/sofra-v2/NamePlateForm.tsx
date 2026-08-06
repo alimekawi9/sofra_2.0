@@ -20,9 +20,8 @@ export function NamePlateForm({ name, onNameChange, onSubmit, isSubmitting = fal
   }
 
   return (
-    <div className={`sv2-root sv2-welcome-page sv2-plate-step-page ${sv2Display.variable} ${sv2Sans.variable}`}>
-      <form className="sv2-welcome-card sv2-plate-step sv2-receipt-surface" onSubmit={handleSubmit}>
-        <div className="sv2-welcome-hairline" aria-hidden="true" />
+    <div className={`sv2-root sv2-device-page sv2-welcome-page sv2-plate-step-page ${sv2Display.variable} ${sv2Sans.variable}`}>
+      <form className="sv2-device-shell sv2-welcome-card sv2-plate-step sv2-receipt-surface" onSubmit={handleSubmit}>
         <h1 className="sv2-plate-heading">
           <span>Enter your</span>
           <span>name</span>
@@ -37,7 +36,7 @@ export function NamePlateForm({ name, onNameChange, onSubmit, isSubmitting = fal
         </div>
 
         <button type="submit" className="sv2-yalla-btn sv2-plate-action" disabled={submitDisabled}>
-          {isSubmitting ? 'ENTERING…' : 'JOIN THE TABLE'}
+          {isSubmitting ? 'ENTERING…' : 'CONTINUE'}
         </button>
       </form>
     </div>
