@@ -63,8 +63,7 @@ export function PreferencesReceipt({
   return (
     <div className={`sv2-root sv2-receipt-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <div className="sv2-receipt-card">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/design-preview/perforation-top.svg" alt="" className="sv2-perforation" />
+        <div className="sv2-perforation" data-testid="receipt-perforation" aria-hidden="true" />
         <p className="sv2-receipt-wordmark" dir="auto" lang="ar">سفرة</p>
         <p className="sv2-receipt-headline">
           WHAT&apos;S ON YOUR MIND,

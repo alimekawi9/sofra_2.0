@@ -176,6 +176,15 @@ describe('PreferencesReceipt', () => {
     }
   })
 
+  it('uses a repeatable full-width perforation pattern instead of a finite image', () => {
+    const { container } = render(<PreferencesReceipt {...baseProps} />)
+    const perforation = screen.getByTestId('receipt-perforation')
+    expect(perforation).toHaveClass('sv2-perforation')
+    expect(perforation.tagName).toBe('DIV')
+    expect(container.querySelector('img[src="/design-preview/perforation-top.svg"]')).toBeNull()
+    expect(perforation).toBeEmptyDOMElement()
+  })
+
   it('does not render the Figma mockup alcohol section or a standalone Halal option', () => {
     render(<PreferencesReceipt {...baseProps} />)
     expect(screen.queryByText('POUR ME')).not.toBeInTheDocument()
