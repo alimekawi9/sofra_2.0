@@ -5,9 +5,10 @@ import { useEffect, useState } from 'react'
 type PreviewTheme = 'light' | 'dark'
 
 const STORAGE_KEY = 'sofra-v2-preview-theme'
+const PREVIEW_ATTR = 'data-sv2-theme'
 
 function applyPreviewTheme(theme: PreviewTheme) {
-  document.documentElement.setAttribute('data-theme', theme)
+  document.documentElement.setAttribute(PREVIEW_ATTR, theme)
 }
 
 export function ThemeToggle() {
@@ -27,6 +28,14 @@ export function ThemeToggle() {
     const initial: PreviewTheme = stored === 'light' ? 'light' : 'dark'
     setTheme(initial)
     applyPreviewTheme(initial)
+
+    // Preview-only attribute — distinct from the app's real `data-theme`
+    // attribute — so it must not outlive this component. Without this,
+    // leaving a /design-preview route would leave data-sv2-theme sitting
+    // on <html> indefinitely.
+    return () => {
+      document.documentElement.removeAttribute(PREVIEW_ATTR)
+    }
   }, [])
 
   function selectTheme(next: PreviewTheme) {

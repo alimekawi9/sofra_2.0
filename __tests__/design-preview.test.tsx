@@ -4,16 +4,19 @@ import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 
 const PREVIEW_KEY = 'sofra-v2-preview-theme'
 const APP_KEY = 'sofra_theme'
+const APP_ATTR = 'data-theme'
+const PREVIEW_ATTR = 'data-sv2-theme'
 
 describe('ThemeToggle', () => {
   beforeEach(() => {
     localStorage.clear()
-    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.removeAttribute(PREVIEW_ATTR)
+    document.documentElement.removeAttribute(APP_ATTR)
   })
 
   it('defaults to the dark preview theme when no preference is stored', () => {
     render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('dark')
     expect(screen.getByRole('button', { name: 'Dark preview theme (current)' })).toBeInTheDocument()
   })
 
@@ -21,7 +24,7 @@ describe('ThemeToggle', () => {
     const user = userEvent.setup()
     render(<ThemeToggle />)
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
   })
 
   it('switches from light back to dark when Dark is clicked', async () => {
@@ -29,7 +32,7 @@ describe('ThemeToggle', () => {
     render(<ThemeToggle />)
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
     await user.click(screen.getByRole('button', { name: 'Switch to dark preview theme' }))
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('dark')
   })
 
   it('updates aria-label and aria-pressed on both buttons as the state changes', async () => {
@@ -51,9 +54,8 @@ describe('ThemeToggle', () => {
     expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
     unmount()
 
-    document.documentElement.removeAttribute('data-theme')
     render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
   })
 
   it('never reads or writes the existing app-wide theme key', async () => {
@@ -61,10 +63,36 @@ describe('ThemeToggle', () => {
     const sentinel = 'not-a-real-theme-value'
     localStorage.setItem(APP_KEY, sentinel)
     render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('dark')
 
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
     expect(localStorage.getItem(APP_KEY)).toBe(sentinel)
     expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
+  })
+
+  it('never writes or removes the production data-theme attribute', async () => {
+    const user = userEvent.setup()
+    document.documentElement.setAttribute(APP_ATTR, 'light')
+    const { unmount } = render(<ThemeToggle />)
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to dark preview theme' }))
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+
+    unmount()
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+  })
+
+  it('removes the preview-only attribute from the document when unmounted', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<ThemeToggle />)
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
+
+    unmount()
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBeNull()
   })
 })

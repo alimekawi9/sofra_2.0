@@ -34,10 +34,13 @@
   font-variation-settings:"opsz" 14;
 }
 
-[data-theme="light"] .sv2-root{
+[data-sv2-theme="light"] .sv2-root{
   /* derived — Figma has no light variant. Matches the values the
      rest of the app already uses for equivalent light-mode surfaces
-     (see the [data-theme="light"] rules in app/sofra.css). */
+     (see the [data-theme="light"] rules in app/sofra.css — that's a
+     different, production attribute; this file intentionally uses its
+     own data-sv2-theme attribute instead, applied by ThemeToggle.tsx,
+     so the two systems can never share state). */
   --sv2-page-bg:#FBF8F1;
   --sv2-card-bg:#FFFDF8;
   --sv2-receipt-bg:#FFFDF8;
