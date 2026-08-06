@@ -21,13 +21,13 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
 
   return (
     <div className={`sv2-root sv2-welcome-page sv2-plate-step-page ${sv2Display.variable} ${sv2Sans.variable}`}>
-      <form className="sv2-welcome-card sv2-plate-step" onSubmit={handleSubmit}>
+      <form className="sv2-welcome-card sv2-plate-step sv2-receipt-surface" onSubmit={handleSubmit}>
         <div className="sv2-welcome-hairline" aria-hidden="true" />
         <h1 className="sv2-plate-heading">Enter your phone number</h1>
 
         <div className="sv2-plate-wrap sv2-plate-wrap--burgundy" data-testid="phone-plate">
           <Image className="sv2-plate-image" src="/design-preview/burgundy-plate.png" alt="" aria-hidden="true" width={1254} height={1254} priority />
-          <div className="sv2-plate-input-region">
+          <div className="sv2-plate-bowl">
             <label className="sv2-visually-hidden" htmlFor="sv2-signup-phone">Phone number</label>
             <input id="sv2-signup-phone" className="sv2-plate-input" type="tel" value={phone} placeholder="e.g. +20 10 1234 5678" onChange={(event) => onPhoneChange(event.target.value)} autoComplete="tel" inputMode="tel" />
           </div>
