@@ -23,7 +23,7 @@ public/design-preview/
 
 components/sofra-v2/
   fonts.ts                 — next/font/google loaders (Playfair Display, DM Sans)
-  sofra-v2.css              — all scoped styles (dark values + [data-theme="light"] overrides)
+  sofra-v2.css              — all scoped styles (dark values + [data-sv2-theme="light"] overrides)
   ThemeToggle.tsx           — Dark/Light toggle, self-contained (own localStorage key, isolated from lib/sofra/appearance.ts)
   WelcomeCard.tsx           — Figma frame 01, presentational
   PreferencesReceipt.tsx    — Figma frame 06 shell, real data from lib/theme.ts + lib/protein-preferences.ts
@@ -106,7 +106,9 @@ git commit -m "Add scoped Playfair Display / DM Sans loaders for design preview"
 **Files:**
 - Create: `components/sofra-v2/sofra-v2.css`
 
-All classes are prefixed `sv2-` so they can never collide with the existing (unused) `app/sofra.css` classes. Every selector is either a `.sv2-*` class or explicitly nested under `.sv2-root` (e.g. `.sv2-root *`, `.sv2-root .sv2-checkbox-row input`) — no bare element selectors anywhere. Dark values are the default (matching Figma); `[data-theme="light"] .sv2-root` overrides them, using the same hex values the existing `[data-theme="light"]` rules in `app/sofra.css` already use for equivalent surfaces (page bg `#FBF8F1`, card surface `#FFFDF8`, darkened gold `#9A7620`).
+All classes are prefixed `sv2-` so they can never collide with the existing (unused) `app/sofra.css` classes. Every selector is either a `.sv2-*` class or explicitly nested under `.sv2-root` (e.g. `.sv2-root *`, `.sv2-root .sv2-checkbox-row input`) — no bare element selectors anywhere. Dark values are the default (matching Figma); `[data-sv2-theme="light"] .sv2-root` overrides them, using the same hex values the existing `[data-theme="light"]` rules in `app/sofra.css` already use for equivalent surfaces (page bg `#FBF8F1`, card surface `#FFFDF8`, darkened gold `#9A7620`).
+
+Hardened after Task 4 review: this selector originally read `[data-theme="light"] .sv2-root`, sharing the generic `data-theme` attribute name with the production appearance system (`lib/sofra/appearance.ts`). The project owner required a dedicated attribute to guarantee the two systems can never share state or collide across a client-side navigation — `data-sv2-theme` — applied only by `ThemeToggle.tsx` (see Task 4). The block below reflects the final, hardened selector.
 
 Corrected during execution, against a precise per-node re-audit of the actual Figma design-context output (the version below reflects two rounds of correction — an initial fidelity pass, then a spec-compliance review that caught two remaining scoping/tokenization gaps):
 
@@ -163,10 +165,13 @@ Corrected during execution, against a precise per-node re-audit of the actual Fi
   font-variation-settings:"opsz" 14;
 }
 
-[data-theme="light"] .sv2-root{
+[data-sv2-theme="light"] .sv2-root{
   /* derived — Figma has no light variant. Matches the values the
      rest of the app already uses for equivalent light-mode surfaces
-     (see the [data-theme="light"] rules in app/sofra.css). */
+     (see the [data-theme="light"] rules in app/sofra.css — that's a
+     different, production attribute; this file intentionally uses its
+     own data-sv2-theme attribute instead, applied by ThemeToggle.tsx,
+     so the two systems can never share state). */
   --sv2-page-bg:#FBF8F1;
   --sv2-card-bg:#FFFDF8;
   --sv2-receipt-bg:#FFFDF8;
@@ -525,7 +530,13 @@ git commit -m "Add scoped stylesheet for design preview screens"
 - Create: `components/sofra-v2/ThemeToggle.tsx`
 - Test: `__tests__/design-preview.test.tsx` (created in this task, extended in later tasks)
 
-Corrected during execution: the project owner required this control to be fully isolated from the app's real (currently dormant) theme system — a dedicated `sofra-v2-preview-theme` localStorage key, no import of `lib/sofra/appearance.ts`, and no React Context/Provider. The original draft below (reusing `useAppearance()`) was superseded before implementation; the version actually built is self-contained. It still applies `data-theme` to `document.documentElement`, since Task 3's CSS contract (`[data-theme="light"] .sv2-root`) requires an ancestor element to carry that attribute — this is a lightweight `useEffect` DOM side-effect, not a Context/Provider, and is currently inert everywhere except the not-yet-built `/design-preview/*` pages, since no live route reads `data-theme` or renders any class gated by `[data-theme="light"]` in `app/sofra.css`. (Known follow-up, not addressed in this task: because the attribute name itself is shared with `lib/sofra/appearance.ts`, a future page using the real appearance system could theoretically inherit a leftover preview theme value across a client-side navigation. Low risk today since nothing reads it yet, but worth reconciling — e.g. a distinct `data-sv2-theme` attribute — before the real appearance system and this preview ever coexist on live routes.)
+Corrected during execution: the project owner required this control to be fully isolated from the app's real (currently dormant) theme system — a dedicated `sofra-v2-preview-theme` localStorage key, no import of `lib/sofra/appearance.ts`, and no React Context/Provider. The original draft (reusing `useAppearance()`) was superseded before implementation; the version actually built is self-contained.
+
+Hardened in a follow-up commit after this task's review: the component initially still applied the generic `data-theme` attribute to `document.documentElement` — the same attribute name the production appearance system (`lib/sofra/appearance.ts`) uses — because Task 3's CSS contract requires an ancestor element to carry the attribute. Sharing that name was flagged as a latent risk (a leftover preview value could theoretically bleed into a future page using the real appearance system across a client-side navigation). The project owner required a dedicated attribute instead, `data-sv2-theme`, plus cleanup on unmount so it never outlives the component. The code below reflects that final, hardened contract:
+
+- Applies `data-sv2-theme` (via a `PREVIEW_ATTR` constant), never `data-theme` — the production attribute is never read, written, or removed by this component.
+- Removes `data-sv2-theme` from `document.documentElement` when the component unmounts, so it can't linger after leaving a `/design-preview/*` route.
+- Still a lightweight `useEffect` DOM side-effect, not a Context/Provider — and still currently inert everywhere except the not-yet-built `/design-preview/*` pages, since no live route reads `data-sv2-theme` or renders any class gated by it.
 
 There is no theme-toggle control anywhere in the Figma source file — this is a new, functional, non-Figma-sourced control, styled by the `.sv2-theme-toggle` / `.sv2-theme-toggle-btn` classes already committed in Task 3.
 
@@ -542,16 +553,19 @@ import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 
 const PREVIEW_KEY = 'sofra-v2-preview-theme'
 const APP_KEY = 'sofra_theme'
+const APP_ATTR = 'data-theme'
+const PREVIEW_ATTR = 'data-sv2-theme'
 
 describe('ThemeToggle', () => {
   beforeEach(() => {
     localStorage.clear()
-    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.removeAttribute(PREVIEW_ATTR)
+    document.documentElement.removeAttribute(APP_ATTR)
   })
 
   it('defaults to the dark preview theme when no preference is stored', () => {
     render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('dark')
     expect(screen.getByRole('button', { name: 'Dark preview theme (current)' })).toBeInTheDocument()
   })
 
@@ -559,7 +573,7 @@ describe('ThemeToggle', () => {
     const user = userEvent.setup()
     render(<ThemeToggle />)
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
   })
 
   it('switches from light back to dark when Dark is clicked', async () => {
@@ -567,7 +581,7 @@ describe('ThemeToggle', () => {
     render(<ThemeToggle />)
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
     await user.click(screen.getByRole('button', { name: 'Switch to dark preview theme' }))
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('dark')
   })
 
   it('updates aria-label and aria-pressed on both buttons as the state changes', async () => {
@@ -589,9 +603,8 @@ describe('ThemeToggle', () => {
     expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
     unmount()
 
-    document.documentElement.removeAttribute('data-theme')
     render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
   })
 
   it('never reads or writes the existing app-wide theme key', async () => {
@@ -599,11 +612,37 @@ describe('ThemeToggle', () => {
     const sentinel = 'not-a-real-theme-value'
     localStorage.setItem(APP_KEY, sentinel)
     render(<ThemeToggle />)
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('dark')
 
     await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
     expect(localStorage.getItem(APP_KEY)).toBe(sentinel)
     expect(localStorage.getItem(PREVIEW_KEY)).toBe('light')
+  })
+
+  it('never writes or removes the production data-theme attribute', async () => {
+    const user = userEvent.setup()
+    document.documentElement.setAttribute(APP_ATTR, 'light')
+    const { unmount } = render(<ThemeToggle />)
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to dark preview theme' }))
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+
+    unmount()
+    expect(document.documentElement.getAttribute(APP_ATTR)).toBe('light')
+  })
+
+  it('removes the preview-only attribute from the document when unmounted', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<ThemeToggle />)
+    await user.click(screen.getByRole('button', { name: 'Switch to light preview theme' }))
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBe('light')
+
+    unmount()
+    expect(document.documentElement.getAttribute(PREVIEW_ATTR)).toBeNull()
   })
 })
 ```
@@ -623,9 +662,10 @@ import { useEffect, useState } from 'react'
 type PreviewTheme = 'light' | 'dark'
 
 const STORAGE_KEY = 'sofra-v2-preview-theme'
+const PREVIEW_ATTR = 'data-sv2-theme'
 
 function applyPreviewTheme(theme: PreviewTheme) {
-  document.documentElement.setAttribute('data-theme', theme)
+  document.documentElement.setAttribute(PREVIEW_ATTR, theme)
 }
 
 export function ThemeToggle() {
@@ -645,6 +685,14 @@ export function ThemeToggle() {
     const initial: PreviewTheme = stored === 'light' ? 'light' : 'dark'
     setTheme(initial)
     applyPreviewTheme(initial)
+
+    // Preview-only attribute — distinct from the app's real `data-theme`
+    // attribute — so it must not outlive this component. Without this,
+    // leaving a /design-preview route would leave data-sv2-theme sitting
+    // on <html> indefinitely.
+    return () => {
+      document.documentElement.removeAttribute(PREVIEW_ATTR)
+    }
   }, [])
 
   function selectTheme(next: PreviewTheme) {
@@ -682,10 +730,12 @@ export function ThemeToggle() {
 }
 ```
 
+Note: a single `ThemeToggle` instance is assumed per rendered page (each `/design-preview/*` route mounts exactly one, directly in its page component — see Task 7). The unmount cleanup unconditionally removes `PREVIEW_ATTR`; if a future change ever rendered two instances simultaneously on one page, one unmounting would clear the attribute out from under the other. Not a risk under the current one-per-page usage, but worth keeping in mind if this component is ever reused inside a shared layout.
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest __tests__/design-preview.test.tsx --verbose`
-Expected: PASS — all 6 tests
+Expected: PASS — all 8 tests
 
 - [ ] **Step 5: Commit**
 
@@ -693,6 +743,8 @@ Expected: PASS — all 6 tests
 git add components/sofra-v2/ThemeToggle.tsx __tests__/design-preview.test.tsx
 git commit -m "Add ThemeToggle for design preview, isolated from the app's real theme system"
 ```
+
+(As executed, this was committed as two commits: the version applying `data-theme` first, reviewed, then hardened to `data-sv2-theme` with unmount cleanup in a dedicated follow-up commit once the shared-attribute risk was identified. The code above is the final state either way.)
 
 ---
 
@@ -1026,13 +1078,13 @@ import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
 import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
 ```
 
-Then append this `describe` block below the existing `PreferencesReceipt` one. Note it needs its own `beforeEach` (Task 4 scoped `ThemeToggle`'s reset to its own `describe` block, and these route tests render `ThemeToggle` too via the page components, so leftover `localStorage`/`data-theme` state from earlier suites in this file must be cleared here as well). Also note the toggle's buttons no longer have a static "Light"/"Dark" accessible name — their `aria-label` changes with state (see Task 4) — so these tests check for the toggle's stable `role="group"` wrapper instead of guessing which button is currently labeled which way:
+Then append this `describe` block below the existing `PreferencesReceipt` one. Note it needs its own `beforeEach` (Task 4 scoped `ThemeToggle`'s reset to its own `describe` block, and these route tests render `ThemeToggle` too via the page components, so leftover `localStorage`/`data-sv2-theme` state from earlier suites in this file must be cleared here as well — the preview attribute is `data-sv2-theme`, not `data-theme`, per Task 4's hardening pass). Also note the toggle's buttons no longer have a static "Light"/"Dark" accessible name — their `aria-label` changes with state (see Task 4) — so these tests check for the toggle's stable `role="group"` wrapper instead of guessing which button is currently labeled which way:
 
 ```tsx
 describe('design preview routes', () => {
   beforeEach(() => {
     localStorage.clear()
-    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.removeAttribute('data-sv2-theme')
   })
 
   it('welcome route renders the WelcomeCard and a theme toggle', () => {
