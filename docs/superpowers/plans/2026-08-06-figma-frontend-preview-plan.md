@@ -69,6 +69,8 @@ git commit -m "Add Figma receipt decorative SVG assets for design preview"
 
 The Figma frames use Playfair Display (italic, display headlines) and DM Sans (body/labels/uppercase eyebrows). Load both via `next/font/google`, exporting CSS variable names that the stylesheet in Task 3 will reference. This is a pure config file — no test needed, it has no branching logic.
 
+Corrected during execution: a per-node audit of both Figma frames' design-context output found Playfair Display is only ever used at weight 400 (both `italic` and `normal` styles appear; no 500 or 600 weight appears anywhere in either frame). The weight array below reflects that finding rather than the original draft's `['400', '500', '600']`.
+
 - [ ] **Step 1: Write the module**
 
 ```ts
@@ -77,7 +79,7 @@ import { Playfair_Display, DM_Sans } from 'next/font/google'
 export const sv2Display = Playfair_Display({
   subsets: ['latin'],
   style: ['italic', 'normal'],
-  weight: ['400', '500', '600'],
+  weight: ['400'],
   variable: '--sv2-font-display',
   display: 'swap',
 })
