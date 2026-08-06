@@ -3,34 +3,37 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { C, THEMES, DIETARY, NOGOS, PROTEIN_ANCHOR, FLAVOR_PREFERENCE } from '@/lib/theme'
+import { C, THEMES, DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
+import {
+  PROTEIN_PREFERENCE_OPTIONS,
+  normalizeProteinPreferences,
+  updateProteinPreferenceSelection,
+  type ProteinPreference,
+} from '@/lib/protein-preferences'
 
 type Step = 'status' | 'profile'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
-type SubmissionStage = 'idle' | 'validating' | 'resolving_user' | 'resolving_rsvp' | 'saving_preferences' | 'finalizing_rsvp' | 'navigating' | 'complete' | 'error'
 
 export default function RSVPPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
-  const submitLockRef = useRef(false)
+  const proteinPreferencesRef = useRef<ProteinPreference[]>([])
+  const proteinPreferencesDirtyRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<Step>('status')
   const [status, setStatus] = useState<RsvpStatus | null>(null)
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
-  const [proteinAnchor, setProteinAnchor] = useState<string | null>(null)
-  const [flavorPreference, setFlavorPreference] = useState<string[]>([])
-  const [flavorHint, setFlavorHint] = useState(false)
+  const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
+  const [proteinHint, setProteinHint] = useState(false)
+  const [flavors, setFlavors] = useState<string[]>([])
   const [adventurousness, setAdventurousness] = useState(50)
   const [prefilled, setPrefilled] = useState(false)
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [submissionStage, setSubmissionStage] = useState<SubmissionStage>('idle')
-  const [errorCode, setErrorCode] = useState('')
-  const [errorStage, setErrorStage] = useState<SubmissionStage | ''>('')
 
   async function loadData() {
     setLoading(true)
@@ -64,8 +67,15 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         const p = profileRow as Record<string, unknown>
         setDietary((p.dietary as string[]) ?? [])
         setAvoid((p.avoid as string[]) ?? [])
-        setProteinAnchor((p.protein_anchor as string | null) ?? null)
-        setFlavorPreference((p.flavor_preference as string[]) ?? [])
+        if (!proteinPreferencesDirtyRef.current) {
+          const hydratedPreferences = normalizeProteinPreferences(
+            p.protein_preferences as string[] | null | undefined,
+            p.protein_anchor as string | null | undefined
+          )
+          proteinPreferencesRef.current = hydratedPreferences
+          setProteinPreferences(hydratedPreferences)
+        }
+        setFlavors((p.flavor_preference as string[]) ?? [])
         setAdventurousness((p.adventurousness as number) ?? 50)
         setPrefilled(true)
       }
@@ -87,12 +97,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       { onConflict: 'event_id,user_id' }
     )
     if (upsertErr) {
-      console.error(JSON.stringify({
-        scope: 'rsvp_submission_client',
-        stage: 'finalizing_rsvp',
-        code: upsertErr.code ?? 'SUPABASE_ERROR',
-      }))
-      setError('Could not update your RSVP. Please try again.')
+      setError('Something went wrong. Please try again.')
       setSubmitting(false)
       return
     }
@@ -100,92 +105,53 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   }
 
   async function handleProfileSubmit() {
-    if (submitLockRef.current || submitting) return
-    submitLockRef.current = true
+    if (!uidRef.current || submitting) return
+    const proteinPreferencesForSubmit = [...proteinPreferencesRef.current]
+    if (process.env.NODE_ENV === 'development') {
+      console.log('protein_preferences submit', proteinPreferencesForSubmit)
+    }
     setSubmitting(true)
     setError('')
-    setErrorCode('')
-    setErrorStage('')
-    setSubmissionStage('validating')
-
-    if (!uidRef.current || (status !== 'going' && status !== 'maybe')) {
-      setSubmissionStage('error')
-      setErrorCode('INVALID_SUBMISSION')
-      setErrorStage('validating')
-      setError('Please reopen the invitation and try again.')
-      setSubmitting(false)
-      submitLockRef.current = false
-      return
-    }
-
-    setSubmissionStage('saving_preferences')
-    try {
-      const response = await fetch('/api/rsvp/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({
-          eventId: params.id,
-          userId: uidRef.current,
-          status,
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from('rsvps').upsert(
+        { event_id: params.id, user_id: uidRef.current, status },
+        { onConflict: 'event_id,user_id' }
+      ),
+      supabase.from('taste_profiles').upsert(
+        {
+          user_id: uidRef.current,
           dietary,
           avoid,
-          proteinAnchor,
-          flavorPreference,
+          protein_preferences: proteinPreferencesForSubmit,
+          flavor_preference: flavors,
           adventurousness,
-        }),
-      })
-      const result = await response.json() as {
-        success?: boolean
-        nextPath?: string
-        stage?: SubmissionStage
-        code?: string
-        message?: string
-      }
-      if (!response.ok || !result.success || !result.nextPath) {
-        setSubmissionStage('error')
-        setErrorCode(result.code ?? `HTTP_${response.status}`)
-        setErrorStage(result.stage ?? 'saving_preferences')
-        setError(result.message ?? 'Could not save your preferences. Please try again.')
-        setSubmitting(false)
-        submitLockRef.current = false
-        return
-      }
-
-      setSubmissionStage('navigating')
-      router.replace(result.nextPath)
-      setSubmissionStage('complete')
-    } catch (submissionError) {
-      console.error(JSON.stringify({
-        scope: 'rsvp_submission_client',
-        stage: 'saving_preferences',
-        code: 'NETWORK_ERROR',
-        message: submissionError instanceof Error ? submissionError.message : 'Request failed',
-      }))
-      setSubmissionStage('error')
-      setErrorCode('NETWORK_ERROR')
-      setErrorStage('saving_preferences')
-      setError('Unable to connect. Check your connection and try again.')
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      ),
+    ])
+    if (e1 || e2) {
+      setError('Something went wrong. Please try again.')
       setSubmitting(false)
-      submitLockRef.current = false
+      return
     }
+    router.push('/events/' + params.id)
   }
 
   function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
     setArr(arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value])
   }
 
-  function toggleFlavor(value: string) {
-    if (flavorPreference.includes(value)) {
-      setFlavorPreference(flavorPreference.filter((v) => v !== value))
+  function toggleProtein(value: ProteinPreference) {
+    const update = updateProteinPreferenceSelection(proteinPreferencesRef.current, value)
+    if (update.blocked) {
+      setProteinHint(true)
+      setTimeout(() => setProteinHint(false), 2000)
       return
     }
-    if (flavorPreference.length >= 3) {
-      setFlavorHint(true)
-      setTimeout(() => setFlavorHint(false), 2000)
-      return
-    }
-    setFlavorPreference([...flavorPreference, value])
+    proteinPreferencesDirtyRef.current = true
+    proteinPreferencesRef.current = update.preferences
+    setProteinPreferences(update.preferences)
   }
 
   const theme = THEMES[0]
@@ -225,7 +191,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         style={{
           minHeight: '100vh',
           background: theme.bg,
-          fontFamily: 'Georgia, serif',
+          fontFamily: 'var(--font-display), Georgia, serif',
           paddingBottom: 120,
         }}
       >
@@ -293,7 +259,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
             </div>
           )}
 
-          {!loading && error && submissionStage === 'idle' && (
+          {!loading && error && (
             <div style={{ textAlign: 'center', paddingTop: 40 }}>
               <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{error}</p>
               <button
@@ -306,7 +272,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                   padding: '8px 20px',
                   cursor: 'pointer',
                   fontSize: 14,
-                  fontFamily: 'Georgia, serif',
+                  fontFamily: 'var(--font-display), Georgia, serif',
                 }}
               >
                 Retry
@@ -314,7 +280,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
             </div>
           )}
 
-          {!loading && (!error || submissionStage !== 'idle') && (
+          {!loading && !error && (
             <div data-testid="rsvp-content">
               {step === 'status' && (
                 <>
@@ -391,11 +357,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                   </button>
 
                   {error && (
-                    <div data-testid="submission-error" data-stage={errorStage} data-code={errorCode}>
-                      <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                        {error}
-                      </p>
-                    </div>
+                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                      {error}
+                    </p>
                   )}
                 </>
               )}
@@ -489,48 +453,43 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                     ))}
                   </div>
 
-                  <SubLabel>Protein anchor</SubLabel>
+                  <SubLabel>What sounds best tonight?</SubLabel>
+                  <p style={{ color: C.faint, fontSize: 12, margin: '-5px 0 10px', fontFamily: 'system-ui, sans-serif' }}>
+                    Choose up to two.
+                  </p>
                   <div style={chipWrap}>
-                    {PROTEIN_ANCHOR.map((it) => (
+                    {PROTEIN_PREFERENCE_OPTIONS.map((option) => (
                       <button
-                        key={it}
+                        key={option.value}
                         className="chip"
-                        aria-pressed={proteinAnchor === it}
-                        onClick={() => setProteinAnchor(it)}
-                        style={chipClass(proteinAnchor === it)}
+                        aria-pressed={proteinPreferences.includes(option.value)}
+                        onClick={() => toggleProtein(option.value)}
+                        style={chipClass(proteinPreferences.includes(option.value))}
                       >
-                        {it}
+                        {option.label}
                       </button>
                     ))}
                   </div>
-
-                  <SubLabel>Flavor preference (pick up to 3)</SubLabel>
-                  <div style={chipWrap}>
-                    {FLAVOR_PREFERENCE.map((it) => (
-                      <button
-                        key={it}
-                        className="chip"
-                        aria-pressed={flavorPreference.includes(it)}
-                        onClick={() => toggleFlavor(it)}
-                        style={chipClass(flavorPreference.includes(it))}
-                      >
-                        {it}
-                      </button>
-                    ))}
-                  </div>
-                  {flavorHint && (
-                    <p
-                      data-testid="flavor-hint"
-                      style={{
-                        color: C.gold,
-                        fontSize: 12,
-                        marginTop: 6,
-                        fontFamily: 'system-ui, sans-serif',
-                      }}
-                    >
-                      Pick up to 3
+                  {proteinHint && (
+                    <p data-testid="protein-hint" style={{ color: C.gold, fontSize: 12, marginTop: 6, fontFamily: 'system-ui, sans-serif' }}>
+                      Choose up to two.
                     </p>
                   )}
+
+                  <SubLabel>What flavours do you lean towards?</SubLabel>
+                  <div style={chipWrap}>
+                    {FLAVORS.map((it) => (
+                      <button
+                        key={it}
+                        className="chip"
+                        aria-pressed={flavors.includes(it)}
+                        onClick={() => toggleChip(flavors, setFlavors, it)}
+                        style={chipClass(flavors.includes(it))}
+                      >
+                        {it}
+                      </button>
+                    ))}
+                  </div>
 
                   <SubLabel>How brave is your palate?</SubLabel>
                   <div
@@ -590,11 +549,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                   </button>
 
                   {error && (
-                    <div data-testid="submission-error" data-stage={errorStage} data-code={errorCode}>
-                      <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                        {error}
-                      </p>
-                    </div>
+                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                      {error}
+                    </p>
                   )}
                 </div>
               )}

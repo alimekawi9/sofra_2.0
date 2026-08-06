@@ -46,14 +46,14 @@ const EVENT = {
 
 // Phone suffixes 02-09, assigned in this order per the spec.
 const GUESTS = [
-  { name: 'Omar', phone: '+10000000002', dietary: [], avoid: ['Pork'], protein_anchor: 'Beef', flavor_preference: ['Rich', 'Smoky'], adventurousness: 85 },
-  { name: 'Nadia', phone: '+10000000003', dietary: ['Vegetarian'], avoid: ['Nuts'], protein_anchor: 'Vegetarian', flavor_preference: ['Fresh', 'Acidic'], adventurousness: 55 },
-  { name: 'Sam', phone: '+10000000004', dietary: [], avoid: ['Nuts'], protein_anchor: 'Chicken', flavor_preference: ['Crispy'], adventurousness: 40 },
-  { name: 'Yara', phone: '+10000000005', dietary: [], avoid: ['Shellfish'], protein_anchor: 'Fish', flavor_preference: ['Fresh', 'Acidic'], adventurousness: 75 },
-  { name: 'Tarek', phone: '+10000000006', dietary: ['No pork/alcohol'], avoid: [], protein_anchor: 'Lamb', flavor_preference: ['Spicy', 'Grilled'], adventurousness: 90 },
-  { name: 'Mona', phone: '+10000000007', dietary: ['Vegetarian'], avoid: ['Mushrooms'], protein_anchor: 'Vegetarian', flavor_preference: ['Creamy'], adventurousness: 35 },
-  { name: 'Dana', phone: '+10000000008', dietary: [], avoid: ['Nuts'], protein_anchor: 'Chicken', flavor_preference: ['Rich'], adventurousness: 60 },
-  { name: 'Priya', phone: '+10000000009', dietary: ['Vegetarian'], avoid: [], protein_anchor: 'No preference', flavor_preference: ['Spicy', 'Umami'], adventurousness: 65 },
+  { name: 'Omar', phone: '+10000000002', dietary: [], avoid: ['Pork'], protein_anchor: 'Beef', protein_preferences: ['beef_lamb'], flavor_preference: ['Rich', 'Smoky'], adventurousness: 85 },
+  { name: 'Nadia', phone: '+10000000003', dietary: ['Vegetarian'], avoid: ['Nuts'], protein_anchor: 'Vegetarian', protein_preferences: ['vegetable'], flavor_preference: ['Fresh', 'Acidic'], adventurousness: 55 },
+  { name: 'Sam', phone: '+10000000004', dietary: [], avoid: ['Nuts'], protein_anchor: 'Chicken', protein_preferences: ['chicken'], flavor_preference: ['Crispy'], adventurousness: 40 },
+  { name: 'Yara', phone: '+10000000005', dietary: [], avoid: ['Shellfish'], protein_anchor: 'Fish', protein_preferences: ['fish'], flavor_preference: ['Fresh', 'Acidic'], adventurousness: 75 },
+  { name: 'Tarek', phone: '+10000000006', dietary: ['No pork/alcohol'], avoid: [], protein_anchor: 'Lamb', protein_preferences: ['beef_lamb'], flavor_preference: ['Spicy', 'Grilled'], adventurousness: 90 },
+  { name: 'Mona', phone: '+10000000007', dietary: ['Vegetarian'], avoid: ['Mushrooms'], protein_anchor: 'Vegetarian', protein_preferences: ['vegetable'], flavor_preference: ['Creamy'], adventurousness: 35 },
+  { name: 'Dana', phone: '+10000000008', dietary: [], avoid: ['Nuts'], protein_anchor: 'Chicken', protein_preferences: ['chicken'], flavor_preference: ['Rich'], adventurousness: 60 },
+  { name: 'Priya', phone: '+10000000009', dietary: ['Vegetarian'], avoid: [], protein_anchor: 'No preference', protein_preferences: ['no_preference'], flavor_preference: ['Spicy', 'Umami'], adventurousness: 65 },
 ]
 
 async function ensureUser(name, phone) {
@@ -80,6 +80,7 @@ async function ensureTasteProfile(userId, profile) {
         dietary: profile.dietary,
         avoid: profile.avoid,
         protein_anchor: profile.protein_anchor,
+        protein_preferences: profile.protein_preferences,
         flavor_preference: profile.flavor_preference,
         adventurousness: profile.adventurousness,
         updated_at: new Date().toISOString(),

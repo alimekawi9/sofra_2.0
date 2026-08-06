@@ -1,8 +1,11 @@
+import { normalizeProteinPreferences, type ProteinPreference } from './protein-preferences'
+
 export type TasteProfile = {
   name: string
   dietary: string[]
   avoid: string[]
   proteinAnchor?: string | null
+  proteinPreferences?: string[]
   flavorPreference?: string[]
   adventurousness: number
 }
@@ -18,6 +21,7 @@ export type TableIntel = {
   hardLimits: HardLimit[]
   dietMix: { label: string; count: number }[]
   proteinCounts: { label: string; count: number }[]
+  proteinPreferencesByGuest: ProteinPreference[][]
   flavorCounts: { label: string; count: number }[]
   avgAdventurousness: number
   adventurousnessLabel: 'cautious' | 'balanced' | 'adventurous' | 'daring'
@@ -39,6 +43,12 @@ const STRICT_DIETS: Set<string> = new Set(STRICT_DIET_LIST)
 // Lean phrasing for the brief when a table majority (>50%) shares a protein
 // anchor or flavor preference. "No preference" is never announced as a lean.
 const PROTEIN_LEAN_PHRASE: Record<string, string> = {
+  beef_lamb: 'beef-or-lamb-forward',
+  chicken: 'chicken-forward',
+  fish: 'fish-forward',
+  shellfish: 'shellfish-forward',
+  vegetable: 'vegetable-forward',
+  grain_pasta: 'grain-or-pasta-forward',
   Beef: 'beef-forward',
   Chicken: 'chicken-forward',
   Fish: 'fish-forward',
@@ -50,7 +60,7 @@ const PROTEIN_LEAN_PHRASE: Record<string, string> = {
 export function buildIntel(guests: TasteProfile[]): TableIntel {
   if (guests.length === 0) {
     return {
-      hardLimits: [], dietMix: [], proteinCounts: [], flavorCounts: [],
+      hardLimits: [], dietMix: [], proteinCounts: [], proteinPreferencesByGuest: [], flavorCounts: [],
       avgAdventurousness: 0,
       // 'cautious' is a safe sentinel — the brief returns 'No guest data yet.' for this case,
       // so adventurousnessLabel is never surfaced to users when guestCount is 0.
@@ -101,9 +111,14 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
 
   // proteinCounts — descending; guests with no anchor set are omitted
   const proteinMap = new Map<string, number>()
-  for (const g of guests) {
-    if (!g.proteinAnchor) continue
-    proteinMap.set(g.proteinAnchor, (proteinMap.get(g.proteinAnchor) ?? 0) + 1)
+  const proteinPreferencesByGuest = guests.map((guest) =>
+    normalizeProteinPreferences(guest.proteinPreferences, guest.proteinAnchor)
+  )
+  for (const preferences of proteinPreferencesByGuest) {
+    for (const preference of Array.from(new Set(preferences))) {
+      if (preference === 'no_preference') continue
+      proteinMap.set(preference, (proteinMap.get(preference) ?? 0) + 1)
+    }
   }
   const proteinCounts = Array.from(proteinMap.entries())
     .map(([label, count]) => ({ label, count }))
@@ -135,7 +150,7 @@ export function buildIntel(guests: TasteProfile[]): TableIntel {
   )
 
   return {
-    hardLimits, dietMix, proteinCounts, flavorCounts,
+    hardLimits, dietMix, proteinCounts, proteinPreferencesByGuest, flavorCounts,
     avgAdventurousness, adventurousnessLabel,
     brief, guestCount: guests.length,
   }
@@ -183,7 +198,7 @@ function leanPart(
 ): string | null {
   const topProtein = proteinCounts[0]
   const proteinLean =
-    topProtein && topProtein.label !== 'No preference' && topProtein.count > guestCount / 2
+    topProtein && topProtein.label !== 'no_preference' && topProtein.label !== 'No preference' && topProtein.count > guestCount / 2
       ? PROTEIN_LEAN_PHRASE[topProtein.label] ?? topProtein.label.toLowerCase()
       : null
 

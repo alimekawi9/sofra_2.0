@@ -11,7 +11,7 @@ const validBody = {
   status: 'going',
   dietary: ['Vegetarian'],
   avoid: ['Nuts'],
-  proteinAnchor: 'Fish',
+  proteinPreferences: ['fish', 'shellfish'],
   flavorPreference: ['Fresh', 'Rich'],
   adventurousness: 70,
 }
@@ -36,7 +36,7 @@ it('calls the atomic idempotent RPC with correctly serialized production fields'
     p_status: 'going',
     p_dietary: ['Vegetarian'],
     p_avoid: ['Nuts'],
-    p_protein_anchor: 'Fish',
+    p_protein_preferences: ['fish', 'shellfish'],
     p_flavor_preference: ['Fresh', 'Rich'],
     p_adventurousness: 70,
   })

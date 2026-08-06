@@ -75,7 +75,7 @@ describe('buildIntel', () => {
     ])
 
     expect(intel.dietMix).toContainEqual({ label: 'Vegetarian', count: 2 })
-    expect(intel.proteinCounts).toContainEqual({ label: rawProtein, count: 2 })
+    expect(intel.proteinCounts).toContainEqual({ label: 'fish', count: 2 })
     expect(intel.flavorCounts).toEqual(expect.arrayContaining([
       { label: rawFlavor, count: 2 },
       { label: 'Rich', count: 1 },
@@ -92,8 +92,8 @@ describe('buildIntel', () => {
       guest({ name: 'B', proteinAnchor: 'Fish' }),
       guest({ name: 'C', proteinAnchor: 'Chicken' }),
     ])
-    expect(intel.proteinCounts[0]).toEqual({ label: 'Fish', count: 2 })
-    expect(intel.proteinCounts[1]).toEqual({ label: 'Chicken', count: 1 })
+    expect(intel.proteinCounts[0]).toEqual({ label: 'fish', count: 2 })
+    expect(intel.proteinCounts[1]).toEqual({ label: 'chicken', count: 1 })
   })
 
   test('proteinCounts omits guests with no anchor set', () => {

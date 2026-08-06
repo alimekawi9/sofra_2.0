@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { withoutDishRoles } from '@/lib/dish-presets'
+import { normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
 import { draftCourse, draftMenu, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
@@ -133,6 +134,7 @@ function mergeGuests(
     dietary: string[]
     avoid: string[]
     protein_anchor: string | null
+    protein_preferences?: string[]
     flavor_preference: string[]
     adventurousness: number
   }>
@@ -144,6 +146,7 @@ function mergeGuests(
       dietary: p?.dietary ?? [],
       avoid: p?.avoid ?? [],
       proteinAnchor: p?.protein_anchor ?? null,
+      proteinPreferences: normalizeProteinPreferences(p?.protein_preferences, p?.protein_anchor),
       flavorPreference: p?.flavor_preference ?? [],
       adventurousness: p?.adventurousness ?? 50,
     }

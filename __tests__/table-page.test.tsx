@@ -24,6 +24,7 @@ type ProfileRow = {
   dietary: string[]
   avoid: string[]
   protein_anchor: string | null
+  protein_preferences?: string[]
   flavor_preference: string[]
   adventurousness: number
 }
@@ -244,13 +245,13 @@ describe('Diet Mix section', () => {
 // ─── Protein Anchor ──────────────────────────────────────────────────────────
 
 describe('Protein Anchor section', () => {
-  it('renders "Protein Anchor" heading', async () => {
+  it('renders the guest-facing table preference heading', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<TablePage params={PARAMS} />)
     // Exact case: heading is "Protein Anchor", empty state is "No protein anchor on record".
     await waitFor(() =>
-      expect(screen.getByText('Protein Anchor')).toBeInTheDocument()
+      expect(screen.getByText("Tonight's Picks")).toBeInTheDocument()
     )
   })
 
@@ -264,12 +265,24 @@ describe('Protein Anchor section', () => {
     await waitFor(() => expect(screen.getByText('Fish')).toBeInTheDocument())
   })
 
-  it('shows empty-state text when no protein anchor present', async () => {
+  it('renders readable labels for raw multi-select values', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({
+      rsvps: [{ user_id: GUEST_UID, users: { name: 'Leo' } }],
+      profiles: [{ user_id: GUEST_UID, dietary: [], avoid: [], protein_anchor: null, protein_preferences: ['beef_lamb', 'grain_pasta'], flavor_preference: [], adventurousness: 50 }],
+    })
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Beef or lamb')).toBeInTheDocument())
+    expect(screen.getByText('Grains or pasta')).toBeInTheDocument()
+    expect(screen.queryByText('beef_lamb')).not.toBeInTheDocument()
+  })
+
+  it('shows empty-state text when no preference is present', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
-      expect(screen.getByText(/no protein anchor/i)).toBeInTheDocument()
+      expect(screen.getByText(/no picks on record/i)).toBeInTheDocument()
     )
   })
 })

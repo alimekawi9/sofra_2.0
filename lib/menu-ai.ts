@@ -1,5 +1,6 @@
 import 'server-only'
 import type { TableIntel } from './intel'
+import { formatProteinPreferenceLabel } from './protein-preferences'
 import {
   SLOTS,
   SLOT_LABELS,
@@ -96,7 +97,7 @@ export function buildAIPrompt(
     : 'none'
 
   const proteinAnchors = intel.proteinCounts.length
-    ? intel.proteinCounts.map(d => `${d.label}=${d.count}`).join(', ')
+    ? intel.proteinCounts.map(d => `${formatProteinPreferenceLabel(d.label)}=${d.count}`).join(', ')
     : 'none'
 
   const flavorPrefs = intel.flavorCounts.length
@@ -117,7 +118,7 @@ ${pantryLines}
 GUEST INTEL:
 - ${intel.guestCount} guest${intel.guestCount === 1 ? '' : 's'}
 - Diet mix (soft): ${dietMix}
-- Protein anchor split: ${proteinAnchors}
+- Tonight's protein/base picks: ${proteinAnchors}
 - Flavor preference split: ${flavorPrefs}
 - Adventurousness: ${intel.avgAdventurousness}/100 (${intel.adventurousnessLabel})
 - Brief: ${intel.brief}

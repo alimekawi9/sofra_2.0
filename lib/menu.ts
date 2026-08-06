@@ -1,5 +1,6 @@
 import type { TableIntel } from './intel'
 import { dishRoleByName } from './dish-presets'
+import { proteinPreferenceWeightedScore } from './protein-preferences'
 
 export type Slot = 'start' | 'sea' | 'land' | 'green' | 'finish'
 // 'fallback' — last-resort signature that still had exclusions but was picked
@@ -376,6 +377,9 @@ function tableFitScore(dish: Signature | PantryItem, intel: TableIntel): number 
   for (const { label, count } of intel.dietMix) {
     if (tagsSatisfyLabel(dish.tags, label)) score += count
   }
+  // Protein/base fit retains the configured 45% weight. Each guest earns at
+  // most one match per dish even when they selected two options.
+  score += proteinPreferenceWeightedScore(intel.proteinPreferencesByGuest, dish.tags)
   // Adventurousness proxy: adventurous tables (>=60) get a small nudge for
   // signature dishes tagged 'seafood' or with less-mainstream keywords
   // (fermented/spiced/offal by name substring). Cautious tables (<40) get

@@ -36,5 +36,6 @@ export const getTheme = (id?: string | null): Theme =>
 
 export const DIETARY = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
 export const NOGOS = ['Nuts', 'Shellfish', 'Pork', 'Eggs', 'Cilantro', 'Mushrooms']
-export const PROTEIN_ANCHOR = ['Beef', 'Chicken', 'Fish', 'Pork', 'Lamb', 'Vegetarian', 'No preference']
-export const FLAVOR_PREFERENCE = ['Fresh', 'Acidic', 'Rich', 'Creamy', 'Spicy', 'Smoky', 'Umami', 'Crispy', 'Soft', 'Grilled', 'Fried', 'Raw']
+/** Flavour profile replaced the old drinks question — it feeds menu scoring,
+ *  never safety. Allergies live in NOGOS, diets in DIETARY. */
+export const FLAVORS = ['Umami', 'Spicy', 'Plain & clean', 'Saucy', 'Smoky', 'Bright & sour', 'Sweet-savoury', 'Herby']

@@ -18,7 +18,7 @@ type Body = {
   status?: unknown
   dietary?: unknown
   avoid?: unknown
-  proteinAnchor?: unknown
+  proteinPreferences?: unknown
   flavorPreference?: unknown
   adventurousness?: unknown
 }
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     (body.status === 'going' || body.status === 'maybe') &&
     stringArray(body.dietary) &&
     stringArray(body.avoid) &&
-    (body.proteinAnchor === null || typeof body.proteinAnchor === 'string') &&
+    stringArray(body.proteinPreferences, 2) &&
     stringArray(body.flavorPreference, 3) &&
     Number.isInteger(body.adventurousness) &&
     Number(body.adventurousness) >= 0 && Number(body.adventurousness) <= 100
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     p_status: body.status,
     p_dietary: body.dietary,
     p_avoid: body.avoid,
-    p_protein_anchor: body.proteinAnchor,
+    p_protein_preferences: body.proteinPreferences,
     p_flavor_preference: body.flavorPreference,
     p_adventurousness: body.adventurousness,
   })

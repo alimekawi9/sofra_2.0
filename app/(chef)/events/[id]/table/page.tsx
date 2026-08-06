@@ -11,6 +11,7 @@ import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 import { formatTagLabel } from '@/lib/tag-format'
 import { withoutDishRoles } from '@/lib/dish-presets'
+import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
 
 function currentMonday(): string {
   const d = new Date()
@@ -26,6 +27,7 @@ type ProfileRow = {
   dietary: string[]
   avoid: string[]
   protein_anchor: string | null
+  protein_preferences?: string[]
   flavor_preference: string[]
   adventurousness: number
 }
@@ -38,6 +40,7 @@ function mergeGuests(rsvps: RsvpRow[], profiles: ProfileRow[]): TasteProfile[] {
       dietary: p?.dietary ?? [],
       avoid: p?.avoid ?? [],
       proteinAnchor: p?.protein_anchor ?? null,
+      proteinPreferences: normalizeProteinPreferences(p?.protein_preferences, p?.protein_anchor),
       flavorPreference: p?.flavor_preference ?? [],
       adventurousness: p?.adventurousness ?? 50,
     }
@@ -85,7 +88,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
       const { data: profiles } = userIds.length
         ? await supabase
             .from('taste_profiles')
-            .select('user_id, dietary, avoid, protein_anchor, flavor_preference, adventurousness')
+            .select('user_id, dietary, avoid, protein_anchor, protein_preferences, flavor_preference, adventurousness')
             .in('user_id', userIds)
         : { data: [] as ProfileRow[] }
 
@@ -310,7 +313,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                 </div>
               </div>
               <div style={card}>
-                <div style={cardTitle}>Protein Anchor</div>
+                <div style={cardTitle}>Tonight&apos;s Picks</div>
                 <div style={{ marginTop: 12 }}>
                   {intel.proteinCounts.length === 0 ? (
                     <div
@@ -320,13 +323,14 @@ export default function TablePage({ params }: { params: { id: string } }) {
                         fontFamily: 'system-ui, sans-serif',
                       }}
                     >
-                      No protein anchor on record
+                      No picks on record
                     </div>
                   ) : (
                     intel.proteinCounts.map((d) => (
                       <Bar
                         key={d.label}
                         label={d.label}
+                        formatLabel={formatProteinPreferenceLabel}
                         n={d.count}
                         total={intel.guestCount}
                         tint={C.sage}
@@ -552,11 +556,13 @@ function Bar({
   n,
   total,
   tint,
+  formatLabel = formatTagLabel,
 }: {
   label: string
   n: number
   total: number
   tint: string
+  formatLabel?: (label: string) => string
 }) {
   const pct = total === 0 ? 0 : Math.round((n / total) * 100)
   return (
@@ -569,7 +575,7 @@ function Bar({
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {formatTagLabel(label)}
+        {formatLabel(label)}
       </span>
       <div
         style={{
