@@ -350,7 +350,11 @@ describe('SignupForm', () => {
 
   it('shows only the new heading above a dedicated enlarged phone plate', () => {
     render(<SignupForm {...baseProps} />)
-    expect(screen.getByRole('heading', { name: 'Enter your phone number' })).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { name: 'Enter your phone number' })
+    expect(Array.from(heading.querySelectorAll('span')).map((line) => line.textContent)).toEqual([
+      'Enter your',
+      'phone number',
+    ])
     expect(screen.getByTestId('phone-plate')).toHaveClass('sv2-plate-wrap')
     expect(screen.queryByText('EST. 2026')).not.toBeInTheDocument()
     expect(screen.queryByText('Sofra.')).not.toBeInTheDocument()
@@ -408,10 +412,19 @@ describe('NamePlateForm', () => {
     expect(screen.queryByLabelText('Phone number')).not.toBeInTheDocument()
   })
 
+  it('renders the name heading as the same explicit two-line structure', () => {
+    render(<NamePlateForm {...baseProps} />)
+    const heading = screen.getByRole('heading', { name: 'Enter your name' })
+    expect(Array.from(heading.querySelectorAll('span')).map((line) => line.textContent)).toEqual([
+      'Enter your',
+      'name',
+    ])
+  })
+
   it('shares the plate-step structure with the phone form', () => {
     const name = render(<NamePlateForm {...baseProps} />)
     expect(name.container.querySelector('.sv2-plate-step')).toHaveClass('sv2-receipt-surface')
-    expect(name.container.querySelector('.sv2-plate-heading')).toHaveTextContent('Enter your name')
+    expect(screen.getByRole('heading', { name: 'Enter your name' })).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-bowl .sv2-plate-input')).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-action')).toHaveTextContent('JOIN THE TABLE')
@@ -419,7 +432,7 @@ describe('NamePlateForm', () => {
 
     const phone = render(<SignupForm phone="" onPhoneChange={jest.fn()} onSubmit={jest.fn()} />)
     expect(phone.container.querySelector('.sv2-plate-step')).toHaveClass('sv2-receipt-surface')
-    expect(phone.container.querySelector('.sv2-plate-heading')).toHaveTextContent('Enter your phone number')
+    expect(screen.getByRole('heading', { name: 'Enter your phone number' })).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-bowl .sv2-plate-input')).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-action')).toHaveTextContent('TAKE YOUR SEAT')

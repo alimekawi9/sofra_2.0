@@ -160,7 +160,7 @@
   min-height:min(680px, calc(100dvh - 32px));
   padding:38px 6px 30px;
   justify-content:center;
-  gap:12px;
+  gap:0;
 }
 
 .sv2-receipt-surface{background:var(--sv2-receipt-bg);}
@@ -171,11 +171,13 @@
   font-family:var(--sv2-display-family);
   font-weight:400;
   font-size:clamp(26px, 7vw, 32px);
-  line-height:1.2;
+  line-height:1.08;
   text-align:center;
   color:var(--sv2-ink);
-  margin:0;
+  margin:-10px 0 24px;
 }
+
+.sv2-plate-heading span{display:block;}
 
 .sv2-plate-wrap{
   position:relative;
@@ -210,7 +212,7 @@
 .sv2-plate-bowl::after{
   content:"";
   position:absolute;
-  left:0;
+  left:33%;
   bottom:1px;
   width:34%;
   height:1px;
@@ -240,7 +242,7 @@
   font-size:clamp(.8rem, 3.6vw, 1.05rem);
   line-height:1.2;
   letter-spacing:.02em;
-  text-align:left;
+  text-align:center;
   direction:ltr;
   unicode-bidi:plaintext;
   text-overflow:ellipsis;
@@ -287,7 +289,7 @@
 }
 
 .sv2-plate-action{
-  margin-top:0;
+  margin-top:16px;
 }
 
 .sv2-visually-hidden{
