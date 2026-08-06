@@ -4,12 +4,19 @@ import userEvent from '@testing-library/user-event'
 import { ThemeToggle } from '@/components/sofra-v2/ThemeToggle'
 import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
+import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
+import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
 import {
   PROTEIN_PREFERENCE_OPTIONS,
   updateProteinPreferenceSelection,
   type ProteinPreference,
 } from '@/lib/protein-preferences'
+
+jest.mock('@/lib/supabase/client')
+jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
 const PREVIEW_KEY = 'sofra-v2-preview-theme'
 const APP_KEY = 'sofra_theme'
@@ -287,5 +294,90 @@ describe('PreferencesReceipt', () => {
       expect(screen.getByRole('checkbox', { name: noPreference.label })).toBeChecked()
       expect(screen.getByRole('checkbox', { name: beef.label })).not.toBeChecked()
     })
+  })
+})
+
+describe('design preview routes', () => {
+  const mockPush = jest.fn()
+
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute(PREVIEW_ATTR)
+    mockPush.mockClear()
+    ;(createClient as jest.Mock).mockClear()
+    ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
+  })
+
+  it('renders WelcomeCard and ThemeToggle on the welcome route', () => {
+    render(<DesignPreviewWelcomePage />)
+    expect(screen.getByText('Sofra.')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+  })
+
+  it('navigates YALLA only to the isolated signup preview route', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewWelcomePage />)
+    await user.click(screen.getByRole('button', { name: 'YALLA' }))
+    expect(mockPush).toHaveBeenCalledWith('/design-preview/signup')
+  })
+
+  it('renders PreferencesReceipt and ThemeToggle on the preferences route', () => {
+    render(<DesignPreviewPreferencesPage />)
+    expect(screen.getByText('DEAL BREAKERS')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+  })
+
+  it('owns and updates dietary, avoid, and flavor selections locally', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewPreferencesPage />)
+
+    const dietary = screen.getByRole('checkbox', { name: 'Vegetarian' })
+    const avoid = screen.getByRole('checkbox', { name: 'Nuts' })
+    const flavor = screen.getByRole('checkbox', { name: 'Umami' })
+    await user.click(dietary)
+    await user.click(avoid)
+    await user.click(flavor)
+
+    expect(dietary).toBeChecked()
+    expect(avoid).toBeChecked()
+    expect(flavor).toBeChecked()
+  })
+
+  it('owns and updates adventurousness locally', () => {
+    render(<DesignPreviewPreferencesPage />)
+    const slider = screen.getByLabelText('Adventurousness')
+    fireEvent.change(slider, { target: { value: '85' } })
+    expect(slider).toHaveValue('85')
+    expect(screen.getByText('Chef, surprise me')).toBeInTheDocument()
+  })
+
+  it('uses the shared max-two protein rule', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewPreferencesPage />)
+    await user.click(screen.getByRole('checkbox', { name: 'Beef or lamb' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Chicken' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Fish' }))
+
+    expect(screen.getByRole('checkbox', { name: 'Beef or lamb' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Chicken' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).not.toBeChecked()
+    expect(screen.getByText(/only two at a time/i)).toBeInTheDocument()
+  })
+
+  it('uses the shared no-preference exclusivity rule', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewPreferencesPage />)
+    await user.click(screen.getByRole('checkbox', { name: 'Fish' }))
+    await user.click(screen.getByRole('checkbox', { name: /no preference/i }))
+
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /no preference/i })).toBeChecked()
+  })
+
+  it('does not create a Supabase client in either preview route', () => {
+    const welcome = render(<DesignPreviewWelcomePage />)
+    welcome.unmount()
+    render(<DesignPreviewPreferencesPage />)
+    expect(createClient).not.toHaveBeenCalled()
   })
 })
