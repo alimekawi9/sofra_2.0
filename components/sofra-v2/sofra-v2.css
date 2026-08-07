@@ -837,7 +837,6 @@
 
 .sv2-back-link{display:inline-block;margin-bottom:22px;color:var(--sv2-ink);font-size:12px;text-underline-offset:4px;}
 .sv2-event-paper{padding:clamp(24px,6vw,42px);border:1px solid var(--sv2-line);background:#EEE8DC;}
-.sv2-event-paper .sv2-event-artwork.sv2-invitation-motif{place-items:end center;}
 .sv2-event-note{margin:18px 0 26px;font:400 14px/1.65 var(--sv2-sans-family);}
 .sv2-event-facts{margin:0 0 24px;}
 .sv2-event-facts div{display:grid;grid-template-columns:100px 1fr;gap:14px;padding:11px 0;border-top:1px solid var(--sv2-line);}

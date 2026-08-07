@@ -92,8 +92,13 @@ export function EventPaper({
               // eslint-disable-next-line @next/next/no-img-element
               <img className="sv2-event-artwork" src={coverUrl} alt="" />
             ) : (
-              <div className="sv2-event-artwork sv2-invitation-motif" aria-hidden="true">
-                <Image src="/design-preview/arabesque-ornament.png" alt="" width={1254} height={1254} />
+              <div className="sv2-event-artwork sv2-invitation-motif" aria-hidden="true" style={{ position: 'relative' }}>
+                <Image
+                  src="/design-preview/arabesque-ornament.png"
+                  alt=""
+                  fill
+                  style={{ objectFit: 'cover', objectPosition: 'center' }}
+                />
               </div>
             )}
 
