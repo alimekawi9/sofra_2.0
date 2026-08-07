@@ -225,13 +225,13 @@ describe('Step 1 — status selection', () => {
     expect(screen.queryByRole('button', { name: /continue/i })).not.toBeInTheDocument()
   })
 
-  it('clicking Continue advances to Step 2', async () => {
+  it('clicking Continue advances to the preferences step', async () => {
     makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
   })
 })
 
@@ -244,94 +244,92 @@ async function navigateToStep2() {
   await userEvent.click(screen.getByRole('button', { name: /continue/i }))
 }
 
-describe('Step 2 — chip groups', () => {
-  it('renders all dietary chips', async () => {
+describe('Step 2 — checkbox groups', () => {
+  it('renders all dietary checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Vegetarian','Vegan','No pork/alcohol','Kosher','Gluten-free','No dairy','Pescatarian']) {
-      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: chip })).toBeInTheDocument()
     }
   })
 
-  it('renders all avoid chips', async () => {
+  it('renders all avoid checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Nuts','Shellfish','Pork','Eggs','Cilantro','Mushrooms']) {
-      expect(screen.getAllByRole('button', { name: chip }).length).toBeGreaterThan(0)
+      expect(screen.getAllByRole('checkbox', { name: chip }).length).toBeGreaterThan(0)
     }
   })
 
-  it('renders all flavor chips', async () => {
+  it('renders all flavor checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky','Bright & sour','Sweet-savoury','Herby']) {
-      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: chip })).toBeInTheDocument()
     }
   })
 
   it('renders the natural protein question and permits two specifics but blocks a third', async () => {
     await navigateToStep2()
-    expect(screen.getByText('What sounds best tonight?')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Chicken' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
-    await userEvent.click(screen.getAllByRole('button', { name: 'Shellfish' })[1])
-    expect(screen.getByRole('button', { name: 'Chicken' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getAllByRole('button', { name: 'Shellfish' })[1]).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByText('WHAT SOUNDS BEST TONIGHT?')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Chicken' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fish' }))
+    await userEvent.click(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1])
+    expect(screen.getByRole('checkbox', { name: 'Chicken' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
+    expect(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1]).not.toBeChecked()
     expect(screen.getByTestId('protein-hint')).toBeInTheDocument()
   })
 
   it('no preference clears specifics and a specific choice clears no preference', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Chicken' }))
-    await userEvent.click(screen.getByRole('button', { name: 'No preference — surprise me' }))
-    expect(screen.getByRole('button', { name: 'Chicken' })).toHaveAttribute('aria-pressed', 'false')
-    await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
-    expect(screen.getByRole('button', { name: 'No preference — surprise me' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Chicken' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'No preference — surprise me' }))
+    expect(screen.getByRole('checkbox', { name: 'Chicken' })).not.toBeChecked()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fish' }))
+    expect(screen.getByRole('checkbox', { name: 'No preference — surprise me' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
   })
 
   it('allows three flavors, blocks a fourth, and permits replacement after removal', async () => {
     await navigateToStep2()
-    expect(screen.getByText('Choose up to three.')).toBeInTheDocument()
     for (const chip of ['Umami', 'Spicy', 'Plain & clean']) {
-      await userEvent.click(screen.getByRole('button', { name: chip }))
+      await userEvent.click(screen.getByRole('checkbox', { name: chip }))
     }
-    await userEvent.click(screen.getByRole('button', { name: 'Saucy' }))
-    expect(screen.getByRole('button', { name: 'Saucy' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Saucy' }))
+    expect(screen.getByRole('checkbox', { name: 'Saucy' })).not.toBeChecked()
     expect(screen.getByTestId('flavor-hint')).toHaveTextContent('Choose up to three.')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Spicy' }))
-    expect(screen.getByRole('button', { name: 'Spicy' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Spicy' }))
+    expect(screen.getByRole('checkbox', { name: 'Spicy' })).not.toBeChecked()
     expect(screen.queryByTestId('flavor-hint')).not.toBeInTheDocument()
-    expect(screen.getByText('Choose up to three.')).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Saucy' }))
-    expect(screen.getByRole('button', { name: 'Saucy' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Saucy' }))
+    expect(screen.getByRole('checkbox', { name: 'Saucy' })).toBeChecked()
   })
 
-  it('toggles a dietary chip on', async () => {
+  it('toggles a dietary checkbox on', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeChecked()
   })
 
-  it('toggles a dietary chip off again', async () => {
+  it('toggles a dietary checkbox off again', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).not.toBeChecked()
   })
 
-  it('chips are multi-select: selecting one does not deselect another', async () => {
+  it('checkboxes are multi-select: selecting one does not deselect another', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegan' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
   })
 
-  it('avoid chips are independent of dietary chips', async () => {
+  it('avoid checkboxes are independent of dietary checkboxes', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Nuts' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Nuts' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).not.toBeChecked()
   })
 })
 
@@ -412,7 +410,7 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
     expect(sb.rsvpUpsert).toHaveBeenCalledWith(
       { event_id: 'event-1', user_id: 'uid-1', status: 'going' },
@@ -438,9 +436,9 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Umami' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Smoky' }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Umami' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Smoky' }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
     expect(sb.profileUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -463,7 +461,7 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     expect(sb.profileUpsert).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByRole('button', { name: 'Herby' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('checkbox', { name: 'Herby' })).toBeChecked()
     await userEvent.click(screen.getByRole('button', { name: /update rsvp/i }))
     await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
     expect(sb.profileUpsert).toHaveBeenCalledWith(
@@ -478,9 +476,9 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Beef or lamb' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Grains or pasta' }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Beef or lamb' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Grains or pasta' }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
     expect(sb.profileUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ protein_preferences: ['beef_lamb', 'grain_pasta'] }),
@@ -496,8 +494,8 @@ describe('going/maybe submit', () => {
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
 
     act(() => {
-      screen.getByRole('button', { name: 'Fish' }).click()
-      screen.getByRole('button', { name: /^rsvp/i }).click()
+      screen.getByRole('checkbox', { name: 'Fish' }).click()
+      screen.getByRole('button', { name: /save my seat/i }).click()
     })
 
     await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
@@ -513,14 +511,14 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() =>
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
     )
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('submit button reads "Update RSVP →" when hasExistingRsvp is true', async () => {
+  it('submit button reads "UPDATE RSVP" when hasExistingRsvp is true', async () => {
     makeSupabase({ rsvpRow: { status: 'going' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
@@ -551,11 +549,11 @@ describe('prefill from existing data', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Nuts' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Umami' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Smoky' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Beef or lamb' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Nuts' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Umami' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Smoky' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Beef or lamb' })).toBeChecked()
   })
 
   it('hydrates an existing protein_preferences array without changing raw values', async () => {
@@ -570,8 +568,8 @@ describe('prefill from existing data', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Grains or pasta' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Grains or pasta' })).toBeChecked()
   })
 
   it('shows "Pulled from your profile" badge when a taste_profiles row exists', async () => {
@@ -593,7 +591,7 @@ describe('prefill from existing data', () => {
     await waitFor(() => screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /going/i }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegan' })) // deselect
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' })) // deselect
     expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
   })
 

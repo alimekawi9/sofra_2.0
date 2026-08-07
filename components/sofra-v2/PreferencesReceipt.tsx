@@ -19,6 +19,11 @@ export interface PreferencesReceiptProps {
   adventurousness: number
   onAdventurousnessChange: (value: number) => void
   onSave: () => void
+  prefilled?: boolean
+  saveLabel?: string
+  saving?: boolean
+  error?: string
+  onBack?: () => void
 }
 
 function CheckboxRow({
@@ -53,6 +58,11 @@ export function PreferencesReceipt({
   adventurousness,
   onAdventurousnessChange,
   onSave,
+  prefilled = false,
+  saveLabel = 'SAVE MY SEAT',
+  saving = false,
+  error = '',
+  onBack,
 }: PreferencesReceiptProps) {
   const adventurousnessLabel =
     adventurousness < 25
@@ -66,6 +76,11 @@ export function PreferencesReceipt({
   return (
     <div className={`sv2-root sv2-device-page sv2-receipt-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-receipt-card">
+        {onBack && (
+          <button type="button" className="sv2-back-link" onClick={onBack} style={{ border: 0, background: 'none', cursor: 'pointer', padding: 0 }}>
+            ← Back
+          </button>
+        )}
         <div className="sv2-perforation" data-testid="receipt-perforation" aria-hidden="true" />
         <p className="sv2-receipt-wordmark" dir="auto" lang="ar">سفرة</p>
         <p className="sv2-receipt-headline">
@@ -73,6 +88,7 @@ export function PreferencesReceipt({
           <br />
           BEFORE IT&apos;S ON YOUR PLATE
         </p>
+        {prefilled && <p className="sv2-hint" data-testid="prefilled-badge">✦ Pulled from your profile</p>}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
@@ -116,7 +132,7 @@ export function PreferencesReceipt({
           ))}
         </div>
         {proteinHintVisible && (
-          <p className="sv2-hint">Only two at a time — tap one to swap it out.</p>
+          <p className="sv2-hint" data-testid="protein-hint">Only two at a time — tap one to swap it out.</p>
         )}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -133,7 +149,7 @@ export function PreferencesReceipt({
             />
           ))}
         </div>
-        {flavorHintVisible && <p className="sv2-hint">Choose up to three.</p>}
+        {flavorHintVisible && <p className="sv2-hint" data-testid="flavor-hint">Choose up to three.</p>}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
@@ -156,9 +172,10 @@ export function PreferencesReceipt({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <button type="button" className="sv2-save-btn" onClick={onSave}>
-          SAVE MY SEAT
+        <button type="button" className="sv2-save-btn" onClick={onSave} disabled={saving}>
+          {saving ? 'SAVING…' : saveLabel}
         </button>
+        {error && <p className="sv2-hint" role="alert">{error}</p>}
       </main>
     </div>
   )

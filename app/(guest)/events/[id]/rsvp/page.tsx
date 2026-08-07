@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { C, THEMES, DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
+import { C, THEMES } from '@/lib/theme'
 import {
-  PROTEIN_PREFERENCE_OPTIONS,
   normalizeProteinPreferences,
   updateProteinPreferenceSelection,
   type ProteinPreference,
@@ -15,6 +14,8 @@ import {
   updateFlavorPreferenceSelection,
   type FlavorPreference,
 } from '@/lib/flavor-preferences'
+import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
+import '@/components/sofra-v2/sofra-v2.css'
 
 type Step = 'status' | 'profile'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
@@ -174,6 +175,31 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setFlavors(update.preferences)
   }
 
+  if (step === 'profile' && !loading && !error) {
+    return (
+      <PreferencesReceipt
+        dietary={dietary}
+        onToggleDietary={(it) => toggleChip(dietary, setDietary, it)}
+        avoid={avoid}
+        onToggleAvoid={(it) => toggleChip(avoid, setAvoid, it)}
+        proteinPreferences={proteinPreferences}
+        onToggleProtein={toggleProtein}
+        proteinHintVisible={proteinHint}
+        flavors={flavors}
+        onToggleFlavor={toggleFlavor}
+        flavorHintVisible={flavorHint}
+        adventurousness={adventurousness}
+        onAdventurousnessChange={setAdventurousness}
+        onSave={handleProfileSubmit}
+        prefilled={prefilled}
+        saveLabel={hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
+        saving={submitting}
+        error={error}
+        onBack={() => setStep('status')}
+      />
+    )
+  }
+
   const theme = THEMES[0]
   const accent = theme.accent
 
@@ -188,21 +214,6 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       : status !== null
       ? () => setStep('profile')
       : undefined
-
-  const adventLabel =
-    adventurousness < 25
-      ? 'Keep it familiar'
-      : adventurousness < 55
-      ? 'Open to a nudge'
-      : adventurousness < 82
-      ? 'Feed me something new'
-      : 'Chef, surprise me'
-
-  const chipClass = (on: boolean, danger?: boolean): React.CSSProperties => ({
-    background: on ? (danger ? '#4A1E1E' : C.burgundy) : 'transparent',
-    borderColor: on ? (danger ? C.rose : accent) : 'rgba(243,233,221,0.18)',
-    color: on ? C.cream : C.dim,
-  })
 
   return (
     <>
@@ -384,207 +395,6 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
                 </>
               )}
 
-              {step === 'profile' && (
-                <div data-testid="step2">
-                  <p
-                    style={{
-                      color: C.dim,
-                      fontSize: 13,
-                      textAlign: 'center',
-                      marginBottom: 8,
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
-                  >
-                    Step 2 of 2
-                  </p>
-
-                  <h2
-                    style={{
-                      color: C.cream,
-                      fontSize: 29,
-                      margin: 0,
-                      fontWeight: 400,
-                      letterSpacing: -0.4,
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    How do you eat?
-                  </h2>
-                  <p
-                    style={{
-                      color: C.dim,
-                      fontSize: 15,
-                      marginTop: 10,
-                      lineHeight: 1.5,
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
-                  >
-                    Sofra keeps this so you never fill it out again.
-                  </p>
-
-                  {prefilled && (
-                    <div
-                      data-testid="prefilled-badge"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        background: 'rgba(217,161,91,0.12)',
-                        border: '1px solid rgba(217,161,91,0.3)',
-                        borderRadius: 999,
-                        padding: '4px 12px',
-                        marginTop: 14,
-                        fontSize: 13,
-                        color: C.gold,
-                        fontFamily: 'system-ui, sans-serif',
-                      }}
-                    >
-                      ✦ Pulled from your profile
-                    </div>
-                  )}
-
-                  <SubLabel>Dietary</SubLabel>
-                  <div style={chipWrap}>
-                    {DIETARY.map((it) => (
-                      <button
-                        key={it}
-                        className="chip"
-                        aria-pressed={dietary.includes(it)}
-                        onClick={() => toggleChip(dietary, setDietary, it)}
-                        style={chipClass(dietary.includes(it))}
-                      >
-                        {it}
-                      </button>
-                    ))}
-                  </div>
-
-                  <SubLabel>Anything you avoid?</SubLabel>
-                  <div style={chipWrap}>
-                    {NOGOS.map((it) => (
-                      <button
-                        key={it}
-                        className="chip"
-                        aria-pressed={avoid.includes(it)}
-                        onClick={() => toggleChip(avoid, setAvoid, it)}
-                        style={chipClass(avoid.includes(it), true)}
-                      >
-                        {it}
-                      </button>
-                    ))}
-                  </div>
-
-                  <SubLabel>What sounds best tonight?</SubLabel>
-                  <p style={{ color: C.faint, fontSize: 12, margin: '-5px 0 10px', fontFamily: 'system-ui, sans-serif' }}>
-                    Choose up to two.
-                  </p>
-                  <div style={chipWrap}>
-                    {PROTEIN_PREFERENCE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        className="chip"
-                        aria-pressed={proteinPreferences.includes(option.value)}
-                        onClick={() => toggleProtein(option.value)}
-                        style={chipClass(proteinPreferences.includes(option.value))}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  {proteinHint && (
-                    <p data-testid="protein-hint" style={{ color: C.gold, fontSize: 12, marginTop: 6, fontFamily: 'system-ui, sans-serif' }}>
-                      Choose up to two.
-                    </p>
-                  )}
-
-                  <SubLabel>What flavours do you lean towards?</SubLabel>
-                  {!flavorHint && (
-                    <p style={{ color: C.faint, fontSize: 12, margin: '-5px 0 10px', fontFamily: 'system-ui, sans-serif' }}>
-                      Choose up to three.
-                    </p>
-                  )}
-                  <div style={chipWrap}>
-                    {FLAVORS.map((it) => (
-                      <button
-                        key={it}
-                        className="chip"
-                        aria-pressed={flavors.includes(it)}
-                        onClick={() => toggleFlavor(it)}
-                        style={chipClass(flavors.includes(it))}
-                      >
-                        {it}
-                      </button>
-                    ))}
-                  </div>
-                  {flavorHint && (
-                    <p data-testid="flavor-hint" style={{ color: C.gold, fontSize: 12, marginTop: 6, fontFamily: 'system-ui, sans-serif' }}>
-                      Choose up to three.
-                    </p>
-                  )}
-
-                  <SubLabel>How brave is your palate?</SubLabel>
-                  <div
-                    style={{
-                      background: 'rgba(0,0,0,0.24)',
-                      border: '1px solid rgba(243,233,221,0.1)',
-                      borderRadius: 20,
-                      padding: '22px 18px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: C.cream,
-                        fontSize: 20,
-                        textAlign: 'center',
-                        marginBottom: 20,
-                        fontStyle: 'italic',
-                      }}
-                    >
-                      {adventLabel}
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={adventurousness}
-                      onChange={(e) => setAdventurousness(Number(e.target.value))}
-                      aria-label="Adventurousness"
-                      className="slider"
-                      style={{
-                        background: `linear-gradient(90deg, ${accent} ${adventurousness}%, rgba(255,255,255,0.08) ${adventurousness}%)`,
-                      }}
-                    />
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        color: C.faint,
-                        fontSize: 12,
-                        marginTop: 13,
-                        fontFamily: 'system-ui, sans-serif',
-                      }}
-                    >
-                      <span>The usual</span>
-                      <span>Anything once</span>
-                    </div>
-                  </div>
-
-                  <button
-                    className="prim wide"
-                    style={{ marginTop: 22 }}
-                    onClick={handleProfileSubmit}
-                    disabled={submitting}
-                  >
-                    {hasExistingRsvp ? 'Update RSVP →' : 'RSVP →'}
-                  </button>
-
-                  {error && (
-                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                      {error}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -593,24 +403,3 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   )
 }
 
-const chipWrap: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 9,
-}
-
-function SubLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        color: C.dim,
-        fontSize: 14,
-        margin: '22px 0 11px',
-        letterSpacing: 0.3,
-        fontFamily: 'system-ui, sans-serif',
-      }}
-    >
-      {children}
-    </div>
-  )
-}
