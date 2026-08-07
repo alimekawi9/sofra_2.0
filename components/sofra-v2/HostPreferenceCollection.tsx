@@ -1,0 +1,5 @@
+import Link from 'next/link'
+import {DEMO_EVENT} from './events-fixtures'
+import {sv2Display,sv2Sans} from './fonts'
+import {PreviewBottomNav} from './PreviewBottomNav'
+export function HostPreferenceCollection(){return <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}><main className="sv2-device-shell sv2-app-shell sv2-preferences-shell"><Link className="sv2-back-link" href="/design-preview/events/demo?role=host">← Host event</Link><p className="sv2-event-kicker">LAYLA&apos;S SOFRA · HOST ONLY</p><h1>Preference Collection</h1><div className="sv2-preference-counts"><strong>3</strong><span>responses complete</span><strong>2</strong><span>responses pending</span></div><dl className="sv2-preference-collection-list">{Object.entries(DEMO_EVENT.preferenceSummary).filter(([key])=>key!=='completed').map(([key,value])=><div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl><p className="sv2-menu-readiness">Menu readiness: waiting on 2 responses.</p><PreviewBottomNav current="events"/></main></div>}
