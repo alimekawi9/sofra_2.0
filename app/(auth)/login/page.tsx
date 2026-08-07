@@ -3,10 +3,15 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { C, THEMES } from '@/lib/theme'
 import { safeNext } from '@/lib/navigation'
+import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
+import { SignupForm } from '@/components/sofra-v2/SignupForm'
+import { NamePlateForm } from '@/components/sofra-v2/NamePlateForm'
+import '@/components/sofra-v2/sofra-v2.css'
 
 const STORAGE_KEY = 'sofra_user_id'
+
+type Step = 'welcome' | 'phone' | 'name'
 
 // Only permit relative paths within this app — reject absolute URLs, protocol
 // links, and scheme-relative "//host" targets to prevent open redirects.
@@ -25,9 +30,11 @@ function LoginInner() {
 
   const next = safeNext(searchParams?.get('next') ?? null)
 
+  const [step, setStep] = useState<Step>('welcome')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -39,13 +46,13 @@ function LoginInner() {
     }
   }, [router, next])
 
-  async function handleSubmit() {
-    if (loading) return
-    const trimmedName = name.trim()
+  // Phone-first: an existing account (matched by phone) logs straight in.
+  // Only a genuinely new phone number continues to the name step.
+  async function handlePhoneSubmit() {
     const trimmedPhone = phone.trim()
-    if (!trimmedName || !trimmedPhone) return
+    if (!trimmedPhone || submitting) return
 
-    setLoading(true)
+    setSubmitting(true)
     setError('')
 
     const { data: existing, error: selectError } = await supabase
@@ -56,7 +63,7 @@ function LoginInner() {
 
     if (selectError) {
       setError(selectError.message)
-      setLoading(false)
+      setSubmitting(false)
       return
     }
 
@@ -66,14 +73,25 @@ function LoginInner() {
       return
     }
 
+    setSubmitting(false)
+    setStep('name')
+  }
+
+  async function handleNameSubmit() {
+    const trimmedName = name.trim()
+    if (!trimmedName || submitting) return
+
+    setSubmitting(true)
+    setError('')
+
     const newId = crypto.randomUUID()
     const { error: insertError } = await supabase
       .from('users')
-      .insert({ id: newId, name: trimmedName, phone: trimmedPhone })
+      .insert({ id: newId, name: trimmedName, phone: phone.trim() })
 
     if (insertError) {
       setError(insertError.message)
-      setLoading(false)
+      setSubmitting(false)
       return
     }
 
@@ -81,132 +99,31 @@ function LoginInner() {
     router.replace(next)
   }
 
-  const disabled = loading || !name.trim() || !phone.trim()
-
   if (loading) return null
 
-  const ember = THEMES[0]
+  if (step === 'welcome') {
+    return <WelcomeCard onYalla={() => setStep('phone')} />
+  }
+
+  if (step === 'name') {
+    return (
+      <>
+        <NamePlateForm name={name} onNameChange={setName} onSubmit={handleNameSubmit} isSubmitting={submitting} />
+        {error && <p className="sv2-hint" role="alert" style={{ textAlign: 'center' }}>{error}</p>}
+      </>
+    )
+  }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: ember.bg,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '48px 22px',
-        fontFamily: 'Georgia, serif',
-      }}
-    >
-      <div
-        className="fade"
-        style={{
-          width: '100%',
-          maxWidth: 360,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-        }}
+    <>
+      <SignupForm phone={phone} onPhoneChange={setPhone} onSubmit={handlePhoneSubmit} isSubmitting={submitting} />
+      {error && <p className="sv2-hint" role="alert" style={{ textAlign: 'center' }}>{error}</p>}
+      <a
+        href={`/name?next=${encodeURIComponent(next)}`}
+        style={{ display: 'block', textAlign: 'center', fontSize: 12, marginTop: -12, textDecoration: 'underline' }}
       >
-        <div
-          style={{
-            color: C.cream,
-            fontSize: 52,
-            fontStyle: 'italic',
-            letterSpacing: 0.5,
-          }}
-        >
-          Sofra
-        </div>
-        <div
-          style={{
-            color: C.dim,
-            fontSize: 15,
-            marginTop: 6,
-            fontFamily: 'system-ui, sans-serif',
-          }}
-        >
-          Dining, uninterrupted.
-        </div>
-
-        <div style={{ marginTop: 40, width: '100%', textAlign: 'left' }}>
-          <label style={lblStyle} htmlFor="sofra-name">
-            Your name
-          </label>
-          <input
-            id="sofra-name"
-            className="field"
-            placeholder="First name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !disabled && handleSubmit()}
-            autoFocus
-          />
-
-          <label style={lblStyle} htmlFor="sofra-phone">
-            Phone number
-          </label>
-          <input
-            id="sofra-phone"
-            className="field"
-            placeholder="(___) ___-____"
-            value={phone}
-            inputMode="tel"
-            onChange={(e) => setPhone(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !disabled && handleSubmit()}
-          />
-
-          <button
-            className="prim wide"
-            disabled={disabled}
-            onClick={handleSubmit}
-            style={{ marginTop: 18 }}
-          >
-            Enter Sofra
-          </button>
-
-          {error && (
-            <p
-              style={{
-                color: C.rose,
-                fontSize: 13,
-                textAlign: 'center',
-                marginTop: 12,
-                fontFamily: 'system-ui, sans-serif',
-              }}
-            >
-              {error}
-            </p>
-          )}
-
-          <p
-            style={{
-              color: '#5E5248',
-              fontSize: 12,
-              marginTop: 14,
-              fontFamily: 'system-ui, sans-serif',
-              lineHeight: 1.5,
-              textAlign: 'center',
-            }}
-          >
-            No passwords. Your name and number stay with your account.
-          </p>
-        </div>
-      </div>
-    </div>
+        Or continue with just your name
+      </a>
+    </>
   )
-}
-
-const lblStyle: React.CSSProperties = {
-  color: C.faint,
-  fontSize: 12,
-  letterSpacing: 1,
-  fontWeight: 600,
-  fontFamily: 'system-ui, sans-serif',
-  display: 'block',
-  margin: '18px 0 8px',
-  textTransform: 'uppercase',
 }

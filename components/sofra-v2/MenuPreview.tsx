@@ -1,0 +1,4 @@
+import Link from 'next/link'
+import { sv2Display,sv2Sans } from './fonts'
+import { PreviewBottomNav } from './PreviewBottomNav'
+export function MenuPreview(){return <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}><main className="sv2-device-shell sv2-app-shell sv2-menu-shell"><header className="sv2-menu-topline"><p>Sofra.</p></header><section className="sv2-menu-directory"><p className="sv2-event-kicker">YOUR FOOD WORLD</p><h1>Menus &amp; kitchen</h1><Link href="/design-preview/curated-menus"><strong>Curated Menus</strong><span>Menus made for each Sofra →</span></Link><Link href="/design-preview/my-kitchen"><strong>My Kitchen</strong><span>Signatures, pantry, and inspiration →</span></Link></section><PreviewBottomNav current="events"/></main></div>}

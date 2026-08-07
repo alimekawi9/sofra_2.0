@@ -1,0 +1,99 @@
+:root{
+  --sf-production-burgundy:#5c1515;
+  --sf-production-burgundy-deep:#3f0f12;
+  --sf-production-paper:#f7f4ed;
+  --sf-production-muted:#9b6662;
+  --sf-production-gold:#d5a940;
+  --sf-production-line:rgba(92,21,21,.28);
+  --sf-production-display:var(--sv2-font-display),Georgia,serif;
+  --sf-production-sans:var(--sv2-font-sans),Arial,sans-serif;
+}
+
+.sf-production-app{
+  min-height:100dvh;
+  background:var(--sf-production-burgundy-deep);
+  color:var(--sf-production-burgundy);
+  font-family:var(--sf-production-sans);
+}
+
+.sf-production-content{
+  min-height:100dvh;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  background:var(--sf-production-paper);
+}
+
+.sf-production-nav{
+  position:fixed;
+  right:0;
+  bottom:0;
+  left:0;
+  z-index:100;
+  padding-bottom:env(safe-area-inset-bottom);
+  border-top:1px solid var(--sf-production-line);
+  background:rgba(247,244,237,.96);
+  color:var(--sf-production-burgundy);
+  box-shadow:0 -8px 26px rgba(63,15,18,.08);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+
+.sf-production-nav-inner{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  width:min(100%,640px);
+  min-height:76px;
+  margin-inline:auto;
+}
+
+.sf-production-nav a{
+  position:relative;
+  display:grid;
+  min-width:0;
+  min-height:56px;
+  place-items:center;
+  padding:10px 8px;
+  color:var(--sf-production-muted);
+  font-family:var(--sf-production-sans);
+  font-size:clamp(12px,3.4vw,15px);
+  font-weight:500;
+  line-height:1;
+  letter-spacing:.09em;
+  text-decoration:none;
+  transition:color .16s ease,background-color .16s ease;
+}
+
+.sf-production-nav a::before{
+  position:absolute;
+  top:9px;
+  width:28px;
+  height:2px;
+  background:transparent;
+  content:"";
+}
+
+.sf-production-nav a:hover,
+.sf-production-nav a:focus-visible,
+.sf-production-nav a.sf-production-nav-current{
+  color:var(--sf-production-burgundy);
+}
+
+.sf-production-nav a:focus-visible{
+  outline:2px solid var(--sf-production-gold);
+  outline-offset:-5px;
+}
+
+.sf-production-nav a.sf-production-nav-current::before{
+  background:var(--sf-production-burgundy);
+}
+
+@media(min-width:768px){
+  .sf-production-content{
+    width:min(100%,720px);
+    margin-inline:auto;
+    border-inline:1px solid rgba(213,169,64,.45);
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .sf-production-nav a{transition:none}
+}

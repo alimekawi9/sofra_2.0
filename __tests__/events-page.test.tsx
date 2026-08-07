@@ -15,7 +15,6 @@ type EventRow = {
   event_date: string
   venue: string | null
   theme: string
-  cover_url: string | null
 }
 
 const SAMPLE_EVENT: EventRow = {
@@ -24,12 +23,11 @@ const SAMPLE_EVENT: EventRow = {
   event_date: '2026-09-01T19:00:00Z',
   venue: 'The Garden Room',
   theme: 'ember',
-  cover_url: null,
 }
 
 function makeSupabase({
   hostingEvents = [] as EventRow[],
-  invitedRsvps  = [] as { status: string; events: EventRow }[],
+  invitedRsvps  = [] as { status: string; events: (EventRow & { host?: { name: string } }) }[],
   fetchError    = null as { message: string } | null,
 } = {}) {
   const sb = {
@@ -38,6 +36,15 @@ function makeSupabase({
         return {
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockResolvedValue({ data: hostingEvents, error: fetchError }),
+          }),
+        }
+      }
+      if (table === 'users') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({ data: { name: 'Demo Host' }, error: null }),
+            }),
           }),
         }
       }
@@ -69,12 +76,6 @@ it('renders without crashing', () => {
   expect(document.body).toBeTruthy()
 })
 
-it('renders the Sofra wordmark', () => {
-  makeSupabase()
-  render(<EventsPage />)
-  expect(screen.getByRole('heading', { name: 'Sofra' })).toBeInTheDocument()
-})
-
 describe('auth guard', () => {
   it('redirects to /login when sofra_user_id is absent', async () => {
     localStorage.clear()
@@ -86,24 +87,8 @@ describe('auth guard', () => {
   it('does not redirect when sofra_user_id is present', async () => {
     makeSupabase()
     render(<EventsPage />)
-    await waitFor(() => expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument())
     expect(mockPush).not.toHaveBeenCalledWith('/login')
-  })
-})
-
-describe('loading state', () => {
-  it('shows skeleton while fetching', () => {
-    makeSupabase()
-    render(<EventsPage />)
-    expect(screen.getByTestId('skeleton')).toBeInTheDocument()
-  })
-
-  it('skeleton disappears after fetch completes', async () => {
-    makeSupabase()
-    render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
-    )
   })
 })
 
@@ -111,20 +96,10 @@ describe('fetch error state', () => {
   it('shows error message on fetch failure', async () => {
     makeSupabase({ fetchError: { message: 'db error' } })
     render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText(/couldn't load/i)).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText(/couldn't load/i)).toBeInTheDocument())
   })
 
-  it('shows a Retry button on fetch failure', async () => {
-    makeSupabase({ fetchError: { message: 'db error' } })
-    render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
-    )
-  })
-
-  it('clicking Retry clears the error and re-fetches', async () => {
+  it('shows a Retry button on fetch failure and clears the error when clicked', async () => {
     let calls = 0
     ;(createClient as jest.Mock).mockReturnValue({
       from: jest.fn((table: string) => {
@@ -136,6 +111,15 @@ describe('fetch error state', () => {
                 return calls === 1
                   ? Promise.resolve({ data: null, error: { message: 'fail' } })
                   : Promise.resolve({ data: [], error: null })
+              }),
+            }),
+          }
+        }
+        if (table === 'users') {
+          return {
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockResolvedValue({ data: { name: 'Demo Host' }, error: null }),
               }),
             }),
           }
@@ -153,71 +137,37 @@ describe('fetch error state', () => {
     render(<EventsPage />)
     await waitFor(() => screen.getByRole('button', { name: /retry/i }))
     await userEvent.click(screen.getByRole('button', { name: /retry/i }))
-    await waitFor(() =>
-      expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument())
   })
 })
 
 describe('empty state', () => {
-  it('shows empty message when both lists are empty', async () => {
+  it('shows empty message and a Host an event button linking to /host/new', async () => {
     makeSupabase()
     render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText(/no events yet/i)).toBeInTheDocument()
-    )
-  })
-
-  it('shows a Host an event button linking to /host/new', async () => {
-    makeSupabase()
-    render(<EventsPage />)
-    await waitFor(() => screen.getByRole('button', { name: /host an event/i }))
+    await waitFor(() => expect(screen.getByText(/no events yet/i)).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: /host an event/i }))
     expect(mockPush).toHaveBeenCalledWith('/host/new')
   })
 })
 
-describe('Hosting section', () => {
-  it('shows Hosting section heading when user has hosted events', async () => {
+describe('Hosting events', () => {
+  it('shows a HOSTING filter and the hosted event under it', async () => {
     makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
     render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText('Hosting')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
+    expect(screen.getByText('Casa Mekawi')).toBeInTheDocument()
+    expect(screen.getByText('The Garden Room')).toBeInTheDocument()
   })
 
-  it('shows event title in hosting section', async () => {
-    makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
-    render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText('Casa Mekawi')).toBeInTheDocument()
-    )
-  })
-
-  it('shows event venue in hosting section', async () => {
-    makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
-    render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText('The Garden Room')).toBeInTheDocument()
-    )
-  })
-
-  it('does not show Hosting heading when user has no hosted events', async () => {
-    makeSupabase()
-    render(<EventsPage />)
-    await waitFor(() => expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument())
-    expect(screen.queryByText('Hosting')).not.toBeInTheDocument()
-  })
-
-  it('clicking a hosting card navigates to /events/[id]', async () => {
+  it('clicking View event navigates to /events/[id]', async () => {
     makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
     render(<EventsPage />)
     await waitFor(() => screen.getByText('Casa Mekawi'))
-    await userEvent.click(screen.getByText('Casa Mekawi'))
-    expect(mockPush).toHaveBeenCalledWith('/events/ev-1')
+    expect(screen.getByRole('link', { name: /view event/i })).toHaveAttribute('href', '/events/ev-1')
   })
 
-  it('queries events table', async () => {
+  it('queries events table scoped to host_id', async () => {
     const sb = makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
     render(<EventsPage />)
     await waitFor(() => screen.getByText('Casa Mekawi'))
@@ -225,58 +175,62 @@ describe('Hosting section', () => {
   })
 })
 
-describe('Your invites section', () => {
-  const INVITED_RSVP = { status: 'going', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night' } }
-
-  it('shows Your invites heading when user has rsvped events', async () => {
-    makeSupabase({ invitedRsvps: [INVITED_RSVP] })
+describe('Invited events', () => {
+  it('a going RSVP for a future event shows a GOING filter with the event and host name', async () => {
+    makeSupabase({
+      invitedRsvps: [{ status: 'going', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night', host: { name: 'Layla' } } }],
+    })
     render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText('Your invites')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'GOING' })).toBeInTheDocument())
+    expect(screen.getByText('Rooftop Night')).toBeInTheDocument()
+    expect(screen.getByText('Hosted by Layla')).toBeInTheDocument()
   })
 
-  it('shows invited event title', async () => {
-    makeSupabase({ invitedRsvps: [INVITED_RSVP] })
+  it('a maybe RSVP for a future event is categorized as INVITED', async () => {
+    makeSupabase({
+      invitedRsvps: [{ status: 'maybe', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night' } }],
+    })
     render(<EventsPage />)
-    await waitFor(() =>
-      expect(screen.getByText('Rooftop Night')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'INVITED' })).toBeInTheDocument())
   })
 
-  it('does not show Your invites heading when no rsvps', async () => {
-    makeSupabase()
+  it('an RSVP for a past event is categorized as WENT', async () => {
+    makeSupabase({
+      invitedRsvps: [{ status: 'going', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Old Dinner', event_date: '2020-01-01T19:00:00Z' } }],
+    })
     render(<EventsPage />)
-    await waitFor(() => expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument())
-    expect(screen.queryByText('Your invites')).not.toBeInTheDocument()
-  })
-
-  it('clicking an invited card navigates to /events/[id]', async () => {
-    makeSupabase({ invitedRsvps: [INVITED_RSVP] })
-    render(<EventsPage />)
-    await waitFor(() => screen.getByText('Rooftop Night'))
-    await userEvent.click(screen.getByText('Rooftop Night'))
-    expect(mockPush).toHaveBeenCalledWith('/events/ev-2')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'WENT' })).toBeInTheDocument())
   })
 
   it('queries rsvps table scoped to the user id', async () => {
-    const sb = makeSupabase({ invitedRsvps: [INVITED_RSVP] })
+    const sb = makeSupabase({
+      invitedRsvps: [{ status: 'going', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night' } }],
+    })
     render(<EventsPage />)
     await waitFor(() => screen.getByText('Rooftop Night'))
     expect(sb.from).toHaveBeenCalledWith('rsvps')
   })
 })
 
-describe('both sections visible simultaneously', () => {
-  it('shows both Hosting and Your invites when user has both', async () => {
-    makeSupabase({
-      hostingEvents: [SAMPLE_EVENT],
-      invitedRsvps: [{ status: 'maybe', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night' } }],
-    })
-    render(<EventsPage />)
-    await waitFor(() => {
-      expect(screen.getByText('Hosting')).toBeInTheDocument()
-      expect(screen.getByText('Your invites')).toBeInTheDocument()
-    })
+it('shows both HOSTING and GOING filters when the user has both', async () => {
+  makeSupabase({
+    hostingEvents: [SAMPLE_EVENT],
+    invitedRsvps: [{ status: 'going', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night' } }],
   })
+  render(<EventsPage />)
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'GOING' })).toBeInTheDocument()
+  })
+})
+
+it('a host who also RSVPed to their own event only shows it under HOSTING, not GOING', async () => {
+  makeSupabase({
+    hostingEvents: [SAMPLE_EVENT],
+    invitedRsvps: [{ status: 'going', events: SAMPLE_EVENT }],
+  })
+  render(<EventsPage />)
+  await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: 'GOING' })).not.toBeInTheDocument()
+  expect(screen.getAllByText('Casa Mekawi')).toHaveLength(1)
 })

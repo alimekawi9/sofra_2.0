@@ -1,0 +1,44 @@
+'use client'
+
+import Image from 'next/image'
+import type { FormEvent } from 'react'
+import { sv2Display, sv2Sans } from './fonts'
+
+export interface SignupFormProps {
+  phone: string
+  onPhoneChange: (value: string) => void
+  onSubmit: () => void
+  isSubmitting?: boolean
+}
+
+export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = false }: SignupFormProps) {
+  const submitDisabled = phone.trim() === '' || isSubmitting
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!submitDisabled) onSubmit()
+  }
+
+  return (
+    <div className={`sv2-root sv2-device-page sv2-welcome-page sv2-plate-step-page ${sv2Display.variable} ${sv2Sans.variable}`}>
+      <form className="sv2-device-shell sv2-welcome-card sv2-plate-step sv2-receipt-surface" onSubmit={handleSubmit}>
+        <h1 className="sv2-plate-heading">
+          <span>Enter your</span>
+          <span>phone number</span>
+        </h1>
+
+        <div className="sv2-plate-wrap sv2-plate-wrap--burgundy" data-testid="phone-plate">
+          <Image className="sv2-plate-image" src="/design-preview/burgundy-plate.png" alt="" aria-hidden="true" width={1254} height={1254} priority />
+          <div className="sv2-plate-bowl">
+            <label className="sv2-visually-hidden" htmlFor="sv2-signup-phone">Phone number</label>
+            <input id="sv2-signup-phone" className="sv2-plate-input" type="tel" value={phone} placeholder="e.g. +20 10 1234 5678" onChange={(event) => onPhoneChange(event.target.value)} autoComplete="tel" inputMode="numeric" pattern="[0-9+ ]*" />
+          </div>
+        </div>
+
+        <button type="submit" className="sv2-yalla-btn sv2-plate-action" disabled={submitDisabled}>
+          {isSubmitting ? 'ENTERING…' : 'CONTINUE'}
+        </button>
+      </form>
+    </div>
+  )
+}

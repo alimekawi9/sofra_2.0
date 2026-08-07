@@ -43,16 +43,10 @@ it('renders without crashing', () => {
   expect(document.body).toBeTruthy()
 })
 
-it('renders the Sofra wordmark', () => {
+it('renders the create-a-sofra heading', () => {
   makeSupabase()
   render(<HostNewPage />)
-  expect(screen.getByRole('heading', { name: 'Sofra' })).toBeInTheDocument()
-})
-
-it('renders the back link', () => {
-  makeSupabase()
-  render(<HostNewPage />)
-  expect(screen.getByRole('button', { name: /← Events/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument()
 })
 
 it('redirects to /login when sofra_user_id is absent', async () => {
@@ -62,70 +56,73 @@ it('redirects to /login when sofra_user_id is absent', async () => {
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
 })
 
-describe('cover button', () => {
-  it('shows "Upload cover photo" initially', () => {
+describe('cover image', () => {
+  it('shows the empty drop zone initially', () => {
     makeSupabase()
     render(<HostNewPage />)
-    expect(screen.getByText('Upload cover photo')).toBeInTheDocument()
+    expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
   })
 
-  it('shows "Recommended 1:1" badge initially', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.getByText('Recommended 1:1')).toBeInTheDocument()
-  })
-
-  it('shows "Change photo" badge and hides upload prompt after file is picked', async () => {
+  it('shows a preview with REPLACE/REMOVE after a file is picked', async () => {
     makeSupabase()
     render(<HostNewPage />)
     const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const input = screen.getByLabelText(/choose cover image/i)
     await userEvent.upload(input, file)
-    expect(screen.getByText('Change photo')).toBeInTheDocument()
-    expect(screen.queryByText('Upload cover photo')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /remove/i })).toBeInTheDocument()
+    expect(screen.queryByText('Choose a cover image')).not.toBeInTheDocument()
   })
 
   it('calls URL.createObjectURL with the picked file', async () => {
     makeSupabase()
     render(<HostNewPage />)
     const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const input = screen.getByLabelText(/choose cover image/i)
     await userEvent.upload(input, file)
     expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
+  })
+
+  it('REMOVE clears the preview back to the empty drop zone', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
+    await userEvent.click(screen.getByRole('button', { name: /remove/i }))
+    expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
   })
 })
 
 describe('theme swatches', () => {
-  it('renders all five theme names', () => {
+  it('renders all five theme options', () => {
     makeSupabase()
     render(<HostNewPage />)
     for (const name of ['Ember', 'Olive', 'Midnight', 'Saffron', 'Plum']) {
-      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name })).toBeInTheDocument()
     }
   })
 
-  it('Ember swatch is pre-selected on first render', () => {
+  it('Ember is pre-selected on first render', () => {
     makeSupabase()
     render(<HostNewPage />)
-    expect(screen.getByRole('button', { name: 'Ember' })).toHaveAttribute('data-selected', 'true')
+    expect(screen.getByRole('radio', { name: 'Ember' })).toBeChecked()
   })
 
-  it('clicking Olive makes it selected and deselects Ember', async () => {
+  it('clicking Olive selects it and deselects Ember', async () => {
     makeSupabase()
     render(<HostNewPage />)
-    await userEvent.click(screen.getByRole('button', { name: 'Olive' }))
-    expect(screen.getByRole('button', { name: 'Olive' })).toHaveAttribute('data-selected', 'true')
-    expect(screen.getByRole('button', { name: 'Ember' })).toHaveAttribute('data-selected', 'false')
+    await userEvent.click(screen.getByRole('radio', { name: 'Olive' }))
+    expect(screen.getByRole('radio', { name: 'Olive' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Ember' })).not.toBeChecked()
   })
 })
 
 describe('form fields', () => {
-  it('renders title, tagline, venue, and dress code text inputs', () => {
+  it('renders title, tagline, location, and dress code text inputs', () => {
     makeSupabase()
     render(<HostNewPage />)
-    expect(screen.getByRole('textbox', { name: /title/i })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /event name/i })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /tagline/i })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: /venue/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /location/i })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /dress code/i })).toBeInTheDocument()
   })
 
@@ -135,39 +132,22 @@ describe('form fields', () => {
     expect(screen.getByTestId('date-input')).toBeInTheDocument()
   })
 
-  it('Publish invite button is disabled when title and date are empty', () => {
+  it('Publish invite is always enabled and validates on submit instead', async () => {
     makeSupabase()
     render(<HostNewPage />)
-    expect(screen.getByRole('button', { name: /publish invite/i })).toBeDisabled()
-  })
-
-  it('Publish invite button is disabled when only title is filled', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
-    expect(screen.getByRole('button', { name: /publish invite/i })).toBeDisabled()
-  })
-
-  it('Publish invite button is disabled when only date is filled', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
-    expect(screen.getByRole('button', { name: /publish invite/i })).toBeDisabled()
-  })
-
-  it('Publish invite button is enabled when title and date are both filled', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
-    fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
     expect(screen.getByRole('button', { name: /publish invite/i })).not.toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    expect(
+      screen.getByText(/add an event name, date and time, and location/i)
+    ).toBeInTheDocument()
   })
 })
 
-// Helper: fill required fields so the Publish invite button is enabled
+// Helper: fill required fields so submission proceeds past validation
 async function fillRequired() {
-  await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
+  await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Test Dinner')
   fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
+  await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
 }
 
 describe('submit handler', () => {
@@ -183,9 +163,8 @@ describe('submit handler', () => {
   it('calls storage.upload when a cover file was picked', async () => {
     const sb = makeSupabase()
     render(<HostNewPage />)
-    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await userEvent.upload(input, file)
+    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
@@ -198,9 +177,8 @@ describe('submit handler', () => {
   it('shows upload error and does not call insert when upload fails', async () => {
     const sb = makeSupabase({ uploadError: { message: 'network error' } })
     render(<HostNewPage />)
-    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await userEvent.upload(input, file)
+    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
     await waitFor(() =>
@@ -213,10 +191,10 @@ describe('submit handler', () => {
   it('inserts event row with correct column values and redirects on success', async () => {
     const sb = makeSupabase()
     render(<HostNewPage />)
-    await userEvent.type(screen.getByRole('textbox', { name: /title/i }), 'Test Dinner')
+    await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Test Dinner')
     await userEvent.type(screen.getByRole('textbox', { name: /tagline/i }), 'A cozy evening')
     fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
-    await userEvent.type(screen.getByRole('textbox', { name: /venue/i }), 'The Garden Room')
+    await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
     await userEvent.type(screen.getByRole('textbox', { name: /dress code/i }), 'Smart casual')
     await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
@@ -248,9 +226,8 @@ describe('submit handler', () => {
   it('uses the storage public URL as cover_url when a cover is uploaded', async () => {
     const sb = makeSupabase()
     render(<HostNewPage />)
-    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await userEvent.upload(input, file)
+    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
@@ -268,7 +245,6 @@ describe('submit handler', () => {
     expect(sb.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         tagline:    null,
-        venue:      null,
         dress_code: null,
       })
     )

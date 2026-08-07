@@ -8,21 +8,30 @@ jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
 const mockPush = jest.fn()
-const mockReplace = jest.fn()
+
+const SAMPLE_EVENT = {
+  title: 'Casa Mekawi',
+  tagline: 'An intimate gathering',
+  event_date: '2026-09-01T19:00:00Z',
+  venue: 'The Garden Room',
+  dress_code: 'Smart casual',
+  host: { name: 'Layla' },
+}
 
 beforeEach(() => {
   jest.clearAllMocks()
-  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
+  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   mockPush.mockReset()
-  mockReplace.mockReset()
   localStorage.clear()
   localStorage.setItem('sofra_user_id', 'uid-1')
 })
 
 // Shared mock factory — call at the start of each test that needs Supabase
 function makeSupabase({
+  event = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
   rsvpRow = null as { status: string } | null,
   profileRow = null as Record<string, unknown> | null,
+  guestRows = [] as { status: string; users: { id: string; name: string } | null }[],
   fetchError = null as { message: string } | null,
   upsertError = null as { message: string } | null,
 } = {}) {
@@ -31,15 +40,35 @@ function makeSupabase({
 
   const sb = {
     from: jest.fn((table: string) => {
-      if (table === 'rsvps') return {
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
+      if (table === 'events') {
+        return {
+          select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({ data: rsvpRow, error: fetchError }),
+              single: jest.fn().mockResolvedValue({ data: event, error: fetchError }),
             }),
           }),
-        }),
-        upsert: rsvpUpsert,
+        }
+      }
+      if (table === 'rsvps') {
+        return {
+          select: jest.fn((cols: string) => {
+            if (cols === 'status') {
+              return {
+                eq: jest.fn().mockReturnValue({
+                  eq: jest.fn().mockReturnValue({
+                    maybeSingle: jest.fn().mockResolvedValue({ data: rsvpRow, error: fetchError }),
+                  }),
+                }),
+              }
+            }
+            return {
+              eq: jest.fn().mockReturnValue({
+                in: jest.fn().mockResolvedValue({ data: guestRows, error: null }),
+              }),
+            }
+          }),
+          upsert: rsvpUpsert,
+        }
       }
       // taste_profiles
       return {
@@ -69,34 +98,9 @@ it('redirects a missing local identity before querying RSVP data', async () => {
   const sb = makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
   await waitFor(() =>
-    expect(mockPush).toHaveBeenCalledWith('/login?next=%2Fevents%2Fevent-1%2Frsvp')
+    expect(mockPush).toHaveBeenCalledWith('/name?next=%2Fevents%2Fevent-1%2Frsvp')
   )
   expect(sb.from).not.toHaveBeenCalled()
-})
-
-describe('loading state', () => {
-  it('shows skeleton while fetching', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    expect(screen.getByTestId('skeleton')).toBeInTheDocument()
-    await waitFor(() => screen.queryByTestId('skeleton'))
-  })
-
-  it('skeleton contains no status buttons', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    // The back button is always visible, so we only check for content buttons
-    expect(screen.queryByRole('button', { name: /going/i })).not.toBeInTheDocument()
-    await waitFor(() => screen.queryByTestId('skeleton'))
-  })
-
-  it('skeleton disappears after fetch completes', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() =>
-      expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
-    )
-  })
 })
 
 describe('fetch error state', () => {
@@ -115,214 +119,150 @@ describe('fetch error state', () => {
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
     )
   })
+})
 
-  it('clicking Retry re-runs loadData and clears the error', async () => {
-    // Each query independently fails on first call, succeeds on retry
-    let rsvpAttempts = 0
-    let profileAttempts = 0
-    ;(createClient as jest.Mock).mockReturnValue({
-      from: jest.fn((table: string) => {
-        if (table === 'rsvps') return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                maybeSingle: jest.fn().mockImplementation(() => {
-                  rsvpAttempts++
-                  return rsvpAttempts === 1
-                    ? Promise.resolve({ data: null, error: { message: 'fail' } })
-                    : Promise.resolve({ data: null, error: null })
-                }),
-              }),
-            }),
-          }),
-          upsert: jest.fn().mockResolvedValue({ error: null }),
-        }
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockImplementation(() => {
-                profileAttempts++
-                return profileAttempts === 1
-                  ? Promise.resolve({ data: null, error: { message: 'fail' } })
-                  : Promise.resolve({ data: null, error: null })
-              }),
-            }),
-          }),
-          upsert: jest.fn().mockResolvedValue({ error: null }),
-        }
-      }),
+describe('Step 1 — the invite', () => {
+  it('shows real event details and the three response choices', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByText('Casa Mekawi'))
+    expect(screen.getByText('Layla')).toBeInTheDocument()
+    expect(screen.getByText('The Garden Room')).toBeInTheDocument()
+    expect(screen.getByText('Smart casual')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save me a seat/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /think about it/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /maybe next time/i })).toBeInTheDocument()
+  })
+
+  it('the guest list is not revealed before responding', async () => {
+    makeSupabase({ guestRows: [{ status: 'going', users: { id: 'g1', name: 'Omar' } }] })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByText('Casa Mekawi'))
+    expect(screen.getByText(/rsvp to meet the rest of the table/i)).toBeInTheDocument()
+    expect(screen.queryByText('Omar')).not.toBeInTheDocument()
+  })
+
+  it('reveals the guest list when the user already has an RSVP', async () => {
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      guestRows: [{ status: 'going', users: { id: 'g1', name: 'Omar' } }],
     })
-
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /retry/i }))
-    await userEvent.click(screen.getByRole('button', { name: /retry/i }))
-    await waitFor(() =>
-      expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument()
-    )
-    expect(screen.getByTestId('rsvp-content')).toBeInTheDocument()
+    await waitFor(() => screen.getByText('Casa Mekawi'))
+    expect(screen.queryByText(/rsvp to meet the rest of the table/i)).not.toBeInTheDocument()
+  })
+
+  it('clicking "Save me a seat" advances directly to the preferences step', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
+  })
+
+  it('clicking "I\'ll think about it" also advances to preferences', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /think about it/i }))
+    await userEvent.click(screen.getByRole('button', { name: /think about it/i }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
   })
 })
 
-describe('Step 1 — status selection', () => {
-  it('renders three status cards after loading', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    expect(screen.getByRole('button', { name: /going/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /maybe/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /can't make it/i })).toBeInTheDocument()
-  })
-
-  it('step indicator reads "Step 1" before any selection', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    expect(screen.getByText('Step 1')).toBeInTheDocument()
-    expect(screen.queryByText('Step 1 of 2')).not.toBeInTheDocument()
-  })
-
-  it('step indicator upgrades to "Step 1 of 2" when going is selected', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
-  })
-
-  it('step indicator stays "Step 1" when cant is selected', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
-    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
-    expect(screen.queryByText('Step 1 of 2')).not.toBeInTheDocument()
-    expect(screen.getByText('Step 1')).toBeInTheDocument()
-  })
-
-  it('primary button reads "Continue →" when going is selected', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument()
-  })
-
-  it('primary button reads "Submit" when cant is selected', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
-    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
-    expect(screen.getByRole('button', { name: /^submit$/i })).toBeInTheDocument()
-  })
-
-  it('button label updates when selection changes from going to cant', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
-    expect(screen.getByRole('button', { name: /^submit$/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /continue/i })).not.toBeInTheDocument()
-  })
-
-  it('clicking Continue advances to Step 2', async () => {
-    makeSupabase()
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
-  })
-})
-
-// Helper: renders the page, waits for Step 1, selects going, advances to Step 2
+// Helper: renders the page, waits for the invite, responds going, advances to preferences
 async function navigateToStep2() {
   makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
-  await waitFor(() => screen.getByRole('button', { name: /going/i }))
-  await userEvent.click(screen.getByRole('button', { name: /going/i }))
-  await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+  await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+  await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
 }
 
-describe('Step 2 — chip groups', () => {
-  it('renders all dietary chips', async () => {
+describe('Step 2 — checkbox groups', () => {
+  it('renders all dietary checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Vegetarian','Vegan','No pork/alcohol','Kosher','Gluten-free','No dairy','Pescatarian']) {
-      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: chip })).toBeInTheDocument()
     }
   })
 
-  it('renders all avoid chips', async () => {
+  it('renders all avoid checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Nuts','Shellfish','Pork','Eggs','Cilantro','Mushrooms']) {
-      expect(screen.getAllByRole('button', { name: chip }).length).toBeGreaterThan(0)
+      expect(screen.getAllByRole('checkbox', { name: chip }).length).toBeGreaterThan(0)
     }
   })
 
-  it('renders all flavor chips', async () => {
+  it('renders all flavor checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky','Bright & sour','Sweet-savoury','Herby']) {
-      expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: chip })).toBeInTheDocument()
     }
   })
 
   it('renders the natural protein question and permits two specifics but blocks a third', async () => {
     await navigateToStep2()
-    expect(screen.getByText('What sounds best tonight?')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Chicken' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
-    await userEvent.click(screen.getAllByRole('button', { name: 'Shellfish' })[1])
-    expect(screen.getByRole('button', { name: 'Chicken' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getAllByRole('button', { name: 'Shellfish' })[1]).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByText('WHAT SOUNDS BEST TONIGHT?')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Chicken' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fish' }))
+    await userEvent.click(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1])
+    expect(screen.getByRole('checkbox', { name: 'Chicken' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
+    expect(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1]).not.toBeChecked()
     expect(screen.getByTestId('protein-hint')).toBeInTheDocument()
   })
 
   it('no preference clears specifics and a specific choice clears no preference', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Chicken' }))
-    await userEvent.click(screen.getByRole('button', { name: 'No preference — surprise me' }))
-    expect(screen.getByRole('button', { name: 'Chicken' })).toHaveAttribute('aria-pressed', 'false')
-    await userEvent.click(screen.getByRole('button', { name: 'Fish' }))
-    expect(screen.getByRole('button', { name: 'No preference — surprise me' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Chicken' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'No preference — surprise me' }))
+    expect(screen.getByRole('checkbox', { name: 'Chicken' })).not.toBeChecked()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fish' }))
+    expect(screen.getByRole('checkbox', { name: 'No preference — surprise me' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
   })
 
-  it('flavor chips are multi-select with no cap', async () => {
+  it('allows three flavors, blocks a fourth, and permits replacement after removal', async () => {
     await navigateToStep2()
-    for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky']) {
-      await userEvent.click(screen.getByRole('button', { name: chip }))
+    for (const chip of ['Umami', 'Spicy', 'Plain & clean']) {
+      await userEvent.click(screen.getByRole('checkbox', { name: chip }))
     }
-    for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky']) {
-      expect(screen.getByRole('button', { name: chip })).toHaveAttribute('aria-pressed', 'true')
-    }
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Saucy' }))
+    expect(screen.getByRole('checkbox', { name: 'Saucy' })).not.toBeChecked()
+    expect(screen.getByTestId('flavor-hint')).toHaveTextContent('Choose up to three.')
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Spicy' }))
+    expect(screen.getByRole('checkbox', { name: 'Spicy' })).not.toBeChecked()
+    expect(screen.queryByTestId('flavor-hint')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Saucy' }))
+    expect(screen.getByRole('checkbox', { name: 'Saucy' })).toBeChecked()
   })
 
-  it('toggles a dietary chip on', async () => {
+  it('toggles a dietary checkbox on', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeChecked()
   })
 
-  it('toggles a dietary chip off again', async () => {
+  it('toggles a dietary checkbox off again', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).not.toBeChecked()
   })
 
-  it('chips are multi-select: selecting one does not deselect another', async () => {
+  it('checkboxes are multi-select: selecting one does not deselect another', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Vegetarian' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegan' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetarian' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
   })
 
-  it('avoid chips are independent of dietary chips', async () => {
+  it('avoid checkboxes are independent of dietary checkboxes', async () => {
     await navigateToStep2()
-    await userEvent.click(screen.getByRole('button', { name: 'Nuts' }))
-    expect(screen.getByRole('button', { name: 'Vegetarian' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Nuts' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).not.toBeChecked()
   })
 })
 
@@ -332,9 +272,8 @@ describe('adventurousness slider', () => {
       profileRow: { user_id: 'uid-1', dietary: [], avoid: [], flavor_preference: [], adventurousness: value },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
   }
 
   it('shows "Keep it familiar" for adventurousness 0', async () => {
@@ -369,30 +308,39 @@ describe('adventurousness slider', () => {
   })
 })
 
-describe('cant submit', () => {
-  it('upserts rsvps with status cant and redirects', async () => {
+describe('declining', () => {
+  it('upserts rsvps with status cant and shows the missing-out screen', async () => {
     const sb = makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
-    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^submit$/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    await waitFor(() => screen.getByRole('button', { name: /maybe next time/i }))
+    await userEvent.click(screen.getByRole('button', { name: /maybe next time/i }))
+    await waitFor(() => expect(screen.getByText(/you'll be missed/i)).toBeInTheDocument())
     expect(sb.rsvpUpsert).toHaveBeenCalledWith(
       { event_id: 'event-1', user_id: 'uid-1', status: 'cant' },
       { onConflict: 'event_id,user_id' }
     )
+    expect(mockPush).not.toHaveBeenCalledWith('/events/event-1')
   })
 
-  it('shows error and does not redirect on cant upsert failure', async () => {
+  it('shows error and stays on the invite on cant upsert failure', async () => {
     makeSupabase({ upsertError: { message: 'db error' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /can't make it/i }))
-    await userEvent.click(screen.getByRole('button', { name: /can't make it/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^submit$/i }))
+    await waitFor(() => screen.getByRole('button', { name: /maybe next time/i }))
+    await userEvent.click(screen.getByRole('button', { name: /maybe next time/i }))
     await waitFor(() =>
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
     )
-    expect(mockPush).not.toHaveBeenCalled()
+    expect(screen.queryByText(/you'll be missed/i)).not.toBeInTheDocument()
+  })
+
+  it('"Return to invitation" goes back to the invite screen', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /maybe next time/i }))
+    await userEvent.click(screen.getByRole('button', { name: /maybe next time/i }))
+    await waitFor(() => screen.getByText(/you'll be missed/i))
+    await userEvent.click(screen.getByRole('button', { name: /return to invitation/i }))
+    expect(screen.getByRole('button', { name: /save me a seat/i })).toBeInTheDocument()
   })
 })
 
@@ -400,10 +348,9 @@ describe('going/maybe submit', () => {
   it('upserts rsvps and taste_profiles with production field names, then redirects', async () => {
     const sb = makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
     expect(sb.rsvpUpsert).toHaveBeenCalledWith(
       { event_id: 'event-1', user_id: 'uid-1', status: 'going' },
@@ -426,12 +373,11 @@ describe('going/maybe submit', () => {
   it('sends selected flavors as flavor_preference in the taste_profiles upsert', async () => {
     const sb = makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Umami' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Smoky' }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Umami' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Smoky' }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
     expect(sb.profileUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -441,15 +387,36 @@ describe('going/maybe submit', () => {
     )
   })
 
+  it('preserves legacy flavor hydration but submits only the first three valid canonical values', async () => {
+    const sb = makeSupabase({
+      rsvpRow: { status: 'going' },
+      profileRow: {
+        user_id: 'uid-1', dietary: [], avoid: [], protein_preferences: [],
+        flavor_preference: ['legacy-value', 'Umami', 'Spicy', 'Smoky', 'Herby'],
+        adventurousness: 50,
+      },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    expect(sb.profileUpsert).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    expect(screen.getByRole('checkbox', { name: 'Herby' })).toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: /update rsvp/i }))
+    await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ flavor_preference: ['Umami', 'Spicy', 'Smoky'] }),
+      { onConflict: 'user_id' }
+    )
+  })
+
   it('persists selected protein preferences as unchanged raw values', async () => {
     const sb = makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Beef or lamb' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Grains or pasta' }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Beef or lamb' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Grains or pasta' }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
     expect(sb.profileUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ protein_preferences: ['beef_lamb', 'grain_pasta'] }),
@@ -460,13 +427,12 @@ describe('going/maybe submit', () => {
   it('submits the latest protein click even before React commits a rerender', async () => {
     const sb = makeSupabase()
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
 
     act(() => {
-      screen.getByRole('button', { name: 'Fish' }).click()
-      screen.getByRole('button', { name: /^rsvp/i }).click()
+      screen.getByRole('checkbox', { name: 'Fish' }).click()
+      screen.getByRole('button', { name: /save my seat/i }).click()
     })
 
     await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
@@ -479,34 +445,25 @@ describe('going/maybe submit', () => {
   it('shows error and does not redirect on profile upsert failure', async () => {
     makeSupabase({ upsertError: { message: 'db error' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^rsvp/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
     await waitFor(() =>
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
     )
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('submit button reads "Update RSVP →" when hasExistingRsvp is true', async () => {
+  it('submit button reads "UPDATE RSVP" when hasExistingRsvp is true', async () => {
     makeSupabase({ rsvpRow: { status: 'going' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
     expect(screen.getByRole('button', { name: /update rsvp/i })).toBeInTheDocument()
   })
 })
 
 describe('prefill from existing data', () => {
-  it('prefills status from an existing rsvp row', async () => {
-    makeSupabase({ rsvpRow: { status: 'maybe' } })
-    render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    // 'maybe' prefilled → step indicator upgrades to "Step 1 of 2"
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
-  })
-
   it('prefills chip selections from an existing taste_profiles row', async () => {
     makeSupabase({
       profileRow: {
@@ -517,14 +474,13 @@ describe('prefill from existing data', () => {
       },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByRole('button', { name: 'Vegan' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Nuts' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Umami' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Smoky' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Beef or lamb' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Nuts' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Umami' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Smoky' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Beef or lamb' })).toBeChecked()
   })
 
   it('hydrates an existing protein_preferences array without changing raw values', async () => {
@@ -536,11 +492,10 @@ describe('prefill from existing data', () => {
       },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(screen.getByRole('button', { name: 'Fish' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Grains or pasta' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Grains or pasta' })).toBeChecked()
   })
 
   it('shows "Pulled from your profile" badge when a taste_profiles row exists', async () => {
@@ -548,9 +503,8 @@ describe('prefill from existing data', () => {
       profileRow: { user_id: 'uid-1', dietary: [], avoid: [], flavor_preference: [], adventurousness: 50 },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
     expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
   })
 
@@ -559,10 +513,9 @@ describe('prefill from existing data', () => {
       profileRow: { user_id: 'uid-1', dietary: ['Vegan'], avoid: [], flavor_preference: [], adventurousness: 50 },
     })
     render(<RSVPPage params={{ id: 'event-1' }} />)
-    await waitFor(() => screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /going/i }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Vegan' })) // deselect
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' })) // deselect
     expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
   })
 

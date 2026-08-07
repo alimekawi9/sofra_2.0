@@ -1,18 +1,8 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { sv2Display, sv2Sans } from "@/components/sofra-v2/fonts";
 import "./globals.css";
 import "./sofra.css";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+import "./production-shell.css";
 
 export const metadata: Metadata = {
   title: "Sofra",
@@ -27,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${sv2Display.variable} ${sv2Sans.variable} antialiased`}
       >
         {children}
       </body>
