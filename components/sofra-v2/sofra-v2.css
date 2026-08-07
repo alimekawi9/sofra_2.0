@@ -13,6 +13,16 @@
   box-sizing:border-box;
 }
 
+.sv2-root .sv2-device-shell,
+.sv2-root .sv2-welcome-card,
+.sv2-root .sv2-invite-shell,
+.sv2-root .sv2-menu-shell,
+.sv2-root .sv2-profile-shell,
+.sv2-root .sv2-event-paper,
+.sv2-root .sv2-app-nav{
+  background-color:var(--sv2-off-white);
+}
+
 .sv2-root{
   /* font stacks — fallbacks live here once, referenced everywhere below */
   --sv2-display-family: var(--sv2-font-display), Georgia, serif;
@@ -20,8 +30,9 @@
 
   /* color tokens — dark values, matching the Figma source exactly */
   --sv2-page-bg:#5C1515;
-  --sv2-card-bg:#F4EFE4;
-  --sv2-receipt-bg:#D9C69C;
+  --sv2-off-white:#F7F4ED;
+  --sv2-card-bg:var(--sv2-off-white);
+  --sv2-receipt-bg:var(--sv2-off-white);
   --sv2-gold:#C4A35A;
   --sv2-ink:#5C1515;
   --sv2-wordmark:#C6AB88;
@@ -34,6 +45,7 @@
   --sv2-shell-radius:28px;
   --sv2-shell-padding-x:clamp(24px, 6vw, 52px);
   --sv2-page-gutter:16px;
+  --sv2-bottom-nav-height:76px;
   --sv2-plate-step-heading-size:clamp(32px, 8.5vw, 40px);
   --sv2-plate-step-heading-gap:40px;
   --sv2-plate-size:clamp(346px, 108vw, 420px);
@@ -709,8 +721,8 @@
 .sv2-app-page{color:var(--sv2-ink);}
 
 .sv2-app-shell{
-  padding-bottom:92px;
-  background:#F4EFE4;
+  padding-bottom:calc(var(--sv2-bottom-nav-height) + 32px + env(safe-area-inset-bottom));
+  background:var(--sv2-off-white);
   overflow:visible;
 }
 
@@ -818,9 +830,9 @@
   grid-template-columns:repeat(3,1fr);
   align-items:center;
   border-top:1px solid var(--sv2-line);
-  background:#F4EFE4;
+  background:var(--sv2-off-white);
 }
-.sv2-app-nav a{padding:16px 8px;color:var(--sv2-muted);text-align:center;font-size:14px;letter-spacing:.8px;text-decoration:none;}
+.sv2-app-nav a{padding:16px 8px;color:var(--sv2-muted);text-align:center;font-size:15px;letter-spacing:.9px;text-decoration:none;}
 .sv2-app-nav .sv2-app-nav-current{color:var(--sv2-ink);font-weight:500;}
 
 .sv2-back-link{display:inline-block;margin-bottom:22px;color:var(--sv2-ink);font-size:12px;text-underline-offset:4px;}
