@@ -10,6 +10,7 @@ import DesignPreviewWelcomePage from '@/app/design-preview/welcome/page'
 import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
 import DesignPreviewSignupPage from '@/app/design-preview/signup/page'
 import DesignPreviewNamePage from '@/app/design-preview/name/page'
+import DesignPreviewIndexPage from '@/app/design-preview/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -472,6 +473,31 @@ describe('design preview routes', () => {
     render(<DesignPreviewWelcomePage />)
     expect(screen.getByText('Sofra.')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
+  })
+
+  it('lists every requested preview destination and labels missing pages honestly', () => {
+    const { container } = render(<DesignPreviewIndexPage />)
+    const routes = [
+      '/design-preview/welcome',
+      '/design-preview/signup',
+      '/design-preview/code',
+      '/design-preview/name',
+      '/design-preview/events',
+      '/design-preview/events/demo',
+      '/design-preview/preferences',
+      '/design-preview/invite',
+      '/design-preview/invite/templates',
+      '/design-preview/customization',
+      '/design-preview/menu',
+      '/design-preview/profile',
+    ]
+
+    for (const route of routes) {
+      expect(screen.getByText(route)).toBeInTheDocument()
+      expect(container.querySelector(`a[href="${route}"]`)).toBeInTheDocument()
+    }
+    expect(screen.getAllByText('Available')).toHaveLength(4)
+    expect(screen.getAllByText('Planned — not implemented')).toHaveLength(8)
   })
 
   it('navigates YALLA only to the isolated signup preview route', async () => {

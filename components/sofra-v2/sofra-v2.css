@@ -575,3 +575,105 @@
   color:var(--sv2-on-fg);
   font-weight:700;
 }
+
+/* ---- design-preview gallery ---- */
+
+.sv2-gallery-page{
+  min-height:100dvh;
+  padding:clamp(24px, 5vw, 64px);
+  background:var(--sv2-page-bg);
+  color:var(--sv2-ink);
+  font-family:var(--sv2-sans-family);
+}
+
+.sv2-gallery-shell{
+  width:min(1120px, 100%);
+  margin-inline:auto;
+  padding:clamp(28px, 5vw, 64px);
+  background:var(--sv2-receipt-bg);
+  border:1px solid var(--sv2-gold);
+}
+
+.sv2-gallery-header{
+  max-width:700px;
+  margin-bottom:48px;
+}
+
+.sv2-gallery-eyebrow,
+.sv2-gallery-status{
+  margin:0 0 10px;
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:1.5px;
+}
+
+.sv2-gallery-header h1{
+  margin:0 0 12px;
+  font-family:var(--sv2-display-family);
+  font-size:clamp(34px, 6vw, 64px);
+  font-style:italic;
+  font-weight:400;
+  line-height:1;
+}
+
+.sv2-gallery-header > p:last-child{
+  max-width:620px;
+  margin:0;
+  line-height:1.6;
+}
+
+.sv2-gallery-section + .sv2-gallery-section{margin-top:42px;}
+
+.sv2-gallery-section h2{
+  margin:0 0 16px;
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+}
+
+.sv2-gallery-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap:14px;
+}
+
+.sv2-gallery-card{
+  min-height:210px;
+  padding:20px;
+  border:1px solid var(--sv2-line);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:28px;
+}
+
+.sv2-gallery-status[data-available="true"]{color:#38633d;}
+.sv2-gallery-status[data-available="false"]{color:var(--sv2-muted);}
+
+.sv2-gallery-card h3{
+  margin:0 0 8px;
+  font-family:var(--sv2-display-family);
+  font-size:24px;
+  font-style:italic;
+  font-weight:400;
+}
+
+.sv2-gallery-card code{
+  font-family:var(--sv2-sans-family);
+  font-size:11px;
+  overflow-wrap:anywhere;
+}
+
+.sv2-gallery-card a{
+  color:var(--sv2-ink);
+  font-size:12px;
+  font-weight:500;
+  letter-spacing:1px;
+  text-underline-offset:4px;
+}
+
+.sv2-gallery-card a[aria-disabled="true"]{
+  opacity:.55;
+  pointer-events:none;
+}
