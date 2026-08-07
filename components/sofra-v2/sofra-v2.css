@@ -971,6 +971,8 @@
 .sv2-profile-appearance p{margin:0;color:var(--sv2-muted);font-size:11px;}
 .sv2-profile-appearance .sv2-theme-toggle{position:static;flex-shrink:0;background:transparent;}
 .sv2-profile-appearance .sv2-theme-toggle-btn{color:var(--sv2-ink);}
+.sv2-profile-preferences{margin-bottom:26px;padding:18px;border:1px solid var(--sv2-line)}.sv2-profile-preferences h2{margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase}.sv2-profile-preferences p{margin:0;font:italic 15px/1.5 var(--sv2-display-family)}
+.sv2-profile-logout{width:100%;min-height:48px;margin:24px 0 8px;border:1px solid var(--sv2-ink);background:transparent;color:inherit;font:500 12px var(--sv2-sans-family);letter-spacing:1.2px;cursor:pointer}
 .sv2-profile-history > div{margin-top:14px;border:1px solid var(--sv2-line);}
 .sv2-profile-history article{min-height:88px;padding:14px;display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;}
 .sv2-profile-history article + article{border-top:1px solid var(--sv2-line);}
