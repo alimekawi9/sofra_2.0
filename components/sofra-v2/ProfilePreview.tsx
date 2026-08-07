@@ -1,14 +1,7 @@
 'use client'
-import { sv2Display, sv2Sans } from './fonts'
-import { PREVIEW_EVENTS } from './events-fixtures'
-import { PreviewBottomNav } from './PreviewBottomNav'
-import { ThemeToggle } from './ThemeToggle'
-
-export function ProfilePreview(){return <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}><main className="sv2-device-shell sv2-app-shell sv2-profile-shell">
-  <header className="sv2-profile-topline"><p>Sofra.</p></header>
-  <section className="sv2-profile-identity" aria-labelledby="sv2-profile-name"><span className="sv2-profile-photo" aria-label="Alia profile initials">AK</span><h1 id="sv2-profile-name">Alia</h1><p>+20 10 1234 5678 · 4 Sofras since 2025</p></section>
-  <section className="sv2-profile-appearance" aria-label="Preview appearance control"><ThemeToggle/></section>
-  <section className="sv2-profile-preferences" aria-labelledby="sv2-profile-preferences-heading"><h2 id="sv2-profile-preferences-heading">My preferences</h2><p>Vegetarian friendly · avoids nuts · bright and herbal · bravery 72</p></section>
-  <section className="sv2-profile-history" aria-labelledby="sv2-profile-history-heading"><h2 id="sv2-profile-history-heading">Your Sofras</h2><div>{PREVIEW_EVENTS.map(event=><article key={event.id}><span className="sv2-profile-history-icon" aria-hidden="true">◇</span><div><h3>{event.title}</h3><p>{event.date} · {event.location}</p></div><p><strong>{event.rsvpStatus}</strong><br/>{event.seats}</p></article>)}</div></section>
-  <button className="sv2-profile-logout" type="button">LOG OUT</button><PreviewBottomNav current="profile"/>
-  </main></div>}
+import {useEffect,useState} from 'react'
+import {sv2Display,sv2Sans} from './fonts'
+import {PREVIEW_EVENTS} from './events-fixtures'
+import {PreviewBottomNav} from './PreviewBottomNav'
+import {ThemeToggle} from './ThemeToggle'
+export function ProfilePreview(){const [photo,setPhoto]=useState<string|null>(null);useEffect(()=>()=>{if(photo)URL.revokeObjectURL(photo)},[photo]);function select(file?:File){if(!file)return;if(photo)URL.revokeObjectURL(photo);setPhoto(URL.createObjectURL(file))}return <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}><main className="sv2-device-shell sv2-app-shell sv2-profile-shell"><header className="sv2-profile-topline"><p>Sofra.</p><ThemeToggle/></header><section className="sv2-profile-identity" aria-labelledby="sv2-profile-name"><label className="sv2-profile-photo" tabIndex={0}>{photo?<img src={photo} alt="Selected local profile preview"/>:<><span>AK</span><small aria-hidden="true">📷</small></>}<span className="sv2-sr-only">Choose a profile photo</span><input aria-label="Choose a profile photo" type="file" accept="image/*" onChange={e=>select(e.target.files?.[0])}/></label><h1 id="sv2-profile-name">Alia</h1><p>+20 10 1234 5678 · 4 Sofras since 2025</p></section><section className="sv2-profile-preferences"><h2>My preferences</h2><p>Vegetarian friendly · avoids nuts · bright and herbal · bravery 72</p></section><section className="sv2-profile-history"><h2>Your Sofras</h2><div>{PREVIEW_EVENTS.map(e=><article key={e.id}><span className="sv2-profile-history-icon">◇</span><div><h3>{e.title}</h3><p>{e.date} · {e.location}</p></div></article>)}</div></section><button className="sv2-profile-logout" type="button">LOG OUT</button><PreviewBottomNav current="profile"/></main></div>}
