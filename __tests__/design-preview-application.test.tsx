@@ -21,6 +21,7 @@ import { MyKitchenPreview } from "@/components/sofra-v2/MyKitchenPreview";
 import { CuratedMenusPreview } from "@/components/sofra-v2/CuratedMenusPreview";
 import { HostLocationAutocomplete } from "@/components/sofra-v2/HostLocationAutocomplete";
 import { HostPreferenceCollection } from "@/components/sofra-v2/HostPreferenceCollection";
+import { writePreviewInvitation } from "@/components/sofra-v2/invitation-preview-state";
 import { PreviewDevControls } from "@/components/sofra-v2/PreviewDevControls";
 import {
   PREVIEW_SESSION_KEY,
@@ -469,6 +470,43 @@ it("validates and publishes the local host preview into host event details", asy
       theme: "arabesque",
     }),
   );
+});
+it("hydrates every saved invitation field in edit mode without resetting it", () => {
+  writePreviewInvitation({
+    title: "Saved Sofra",
+    dateTime: "2026-09-12T19:00",
+    location: "The Courtyard",
+    dressCode: "Silver",
+    theme: "pomegranate",
+    imageDataUrl: "data:image/png;base64,saved",
+    imageName: "saved.png",
+  });
+  render(<HostPage searchParams={{ mode: "edit" }} />);
+  expect(screen.getByDisplayValue("Saved Sofra")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("2026-09-12T19:00")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("The Courtyard")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("Silver")).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "Pomegranate evening" })).toBeChecked();
+  expect(screen.getByAltText("Selected invitation inspiration preview")).toHaveAttribute("src", "data:image/png;base64,saved");
+  expect(screen.getByRole("button", { name: "UPDATE INVITE" })).toBeInTheDocument();
+});
+it("lets only the host replace and remove the shared event header image", async () => {
+  const user = userEvent.setup();
+  class Reader {
+    result = "data:image/png;base64,replacement";
+    onload: null | (() => void) = null;
+    readAsDataURL() { this.onload?.(); }
+  }
+  Object.defineProperty(global, "FileReader", { configurable: true, value: Reader });
+  const guest = render(<EventDetailPreview role="guest" />);
+  expect(screen.queryByLabelText("Change event header image")).not.toBeInTheDocument();
+  guest.unmount();
+  render(<EventDetailPreview role="host" />);
+  await user.upload(screen.getByLabelText("Change event header image"), new File(["image"], "new.png", { type: "image/png" }));
+  expect(screen.getByAltText("Host-selected invitation inspiration")).toHaveAttribute("src", "data:image/png;base64,replacement");
+  expect(JSON.parse(sessionStorage.getItem("sofra-preview-invitation") ?? "{}").imageName).toBe("new.png");
+  await user.click(screen.getByRole("button", { name: "REMOVE IMAGE" }));
+  expect(screen.queryByAltText("Host-selected invitation inspiration")).not.toBeInTheDocument();
 });
 it("connects gallery starts and the phone and name onboarding journey", async () => {
   const user = userEvent.setup();
