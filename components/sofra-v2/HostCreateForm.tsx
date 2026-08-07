@@ -6,6 +6,7 @@ import { sv2Display, sv2Sans } from './fonts'
 import { THEMES } from '@/lib/theme'
 
 export interface HostCreateFormProps {
+  mode?: 'create' | 'edit'
   title: string
   onTitleChange: (value: string) => void
   tagline: string
@@ -28,6 +29,7 @@ export interface HostCreateFormProps {
 }
 
 export function HostCreateForm({
+  mode = 'create',
   title,
   onTitleChange,
   tagline,
@@ -52,11 +54,13 @@ export function HostCreateForm({
     if (file) onImageChange(file)
   }
 
+  const isEdit = mode === 'edit'
+
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-host-shell">
-        <p className="sv2-event-kicker">HOST A GATHERING</p>
-        <h1>Create a Sofra</h1>
+        <p className="sv2-event-kicker">{isEdit ? 'EDIT YOUR GATHERING' : 'HOST A GATHERING'}</p>
+        <h1>{isEdit ? 'Edit your Sofra' : 'Create a Sofra'}</h1>
         <form noValidate onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
           <label>
             Event name
@@ -169,7 +173,9 @@ export function HostCreateForm({
           </fieldset>
 
           {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
-          <button type="submit" disabled={submitting}>{submitting ? 'PUBLISHING…' : 'PUBLISH INVITE'}</button>
+          <button type="submit" disabled={submitting}>
+            {submitting ? (isEdit ? 'SAVING…' : 'PUBLISHING…') : isEdit ? 'UPDATE INVITE' : 'PUBLISH INVITE'}
+          </button>
         </form>
       </main>
     </div>

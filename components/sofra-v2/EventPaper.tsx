@@ -34,6 +34,7 @@ export interface EventPaperProps {
   onViewTable: () => void
   onEditRsvp: () => void
   onRsvp: () => void
+  onEditEvent: () => void
   photos: string[]
   uploadingPhoto: boolean
   onPhotoUpload: (file: File) => void
@@ -73,6 +74,7 @@ export function EventPaper({
   onViewTable,
   onEditRsvp,
   onRsvp,
+  onEditEvent,
   photos,
   uploadingPhoto,
   onPhotoUpload,
@@ -226,6 +228,12 @@ export function EventPaper({
                   <Link href="#" onClick={(e) => { e.preventDefault(); onRsvp() }}>RSVP</Link>
                 )}
               </div>
+            )}
+
+            {isHost && !isPast && (
+              <Link className="sv2-edit-event-bottom" href="#" onClick={(e) => { e.preventDefault(); onEditEvent() }}>
+                EDIT EVENT
+              </Link>
             )}
           </article>
         )}

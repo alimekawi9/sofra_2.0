@@ -187,6 +187,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       onViewTable={() => router.push('/events/' + params.id + '/table')}
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
+      onEditEvent={() => router.push('/host/' + params.id + '/edit')}
       photos={photos}
       uploadingPhoto={uploadingPhoto}
       onPhotoUpload={onPhotoUpload}
