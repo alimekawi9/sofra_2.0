@@ -6,6 +6,7 @@ import { sv2Display, sv2Sans } from './fonts'
 import { DEMO_EVENT } from './events-fixtures'
 import { PreviewBottomNav } from './PreviewBottomNav'
 import { InvitationArtwork } from './InvitationArtwork'
+import { updatePreviewSession } from './preview-session'
 
 export type PreviewRsvpStatus = 'going' | 'tentative' | 'declined'
 export const PREVIEW_RSVP_KEY = 'sofra-preview-rsvp'
@@ -16,6 +17,7 @@ export function InvitePreview() {
   useEffect(()=>setRevealed(['going','tentative'].includes(sessionStorage.getItem(PREVIEW_RSVP_KEY)??'')),[])
   function respond(status:PreviewRsvpStatus) {
     sessionStorage.setItem(PREVIEW_RSVP_KEY,status)
+    updatePreviewSession({role:'guest',rsvpStatus:status})
     router.push(status==='declined'?'/design-preview/invite/missing-out':'/design-preview/preferences')
   }
   return <div className={`sv2-root sv2-device-page sv2-invite-page ${sv2Display.variable} ${sv2Sans.variable}`}><main className="sv2-device-shell sv2-invite-shell">

@@ -8,6 +8,8 @@ import {
   type ProteinPreference,
 } from '@/lib/protein-preferences'
 import { updateFlavorPreferenceSelection, type FlavorPreference } from '@/lib/flavor-preferences'
+import {useRouter} from 'next/navigation'
+import {updatePreviewSession} from '@/components/sofra-v2/preview-session'
 
 function toggleValue(current: readonly string[], value: string): string[] {
   return current.includes(value)
@@ -16,6 +18,7 @@ function toggleValue(current: readonly string[], value: string): string[] {
 }
 
 export default function DesignPreviewPreferencesPage() {
+  const router=useRouter()
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
@@ -54,7 +57,7 @@ export default function DesignPreviewPreferencesPage() {
       flavorHintVisible={flavorHintVisible}
       adventurousness={adventurousness}
       onAdventurousnessChange={setAdventurousness}
-      onSave={() => undefined}
+      onSave={() => {updatePreviewSession({preferencesSubmitted:true,role:'guest'});router.push('/design-preview/events/demo?role=guest')}}
     />
   )
 }
