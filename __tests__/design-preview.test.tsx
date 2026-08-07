@@ -15,6 +15,7 @@ import DesignPreviewEventsPage from '@/app/design-preview/events/page'
 import DesignPreviewEventDetailPage from '@/app/design-preview/events/demo/page'
 import DesignPreviewProfilePage from '@/app/design-preview/profile/page'
 import DesignPreviewInvitePage from '@/app/design-preview/invite/page'
+import DesignPreviewMenuPage from '@/app/design-preview/menu/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -553,6 +554,23 @@ describe('design preview routes', () => {
     expect(screen.getByRole('button', { name: 'SEAT CLAIMED' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/you're on Layla's guest list/i)).toBeInTheDocument()
     expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('renders exactly the four board-supported menu highlights', () => {
+    const { container } = render(<DesignPreviewMenuPage />)
+    expect(screen.getByRole('heading', { name: "Tonight's highlights" })).toBeInTheDocument()
+    expect(screen.getByText('Heirloom Tomato & Labneh')).toBeInTheDocument()
+    expect(screen.getByText('Whole Grilled Sea Bass')).toBeInTheDocument()
+    expect(screen.getByText('Lamb Shoulder with Freekeh')).toBeInTheDocument()
+    expect(screen.getByText('Burnt Basque Cheesecake')).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-asset-fidelity="placeholder"]')).toHaveLength(4)
+    expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('supports the board light and dark menu variants', () => {
+    const { container } = render(<DesignPreviewMenuPage searchParams={{ theme: 'dark' }} />)
+    expect(container.querySelector('.sv2-menu-page--dark')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Dark' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('navigates YALLA only to the isolated signup preview route', async () => {
