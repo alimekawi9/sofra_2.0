@@ -1,11 +1,8 @@
-import NavBar from '@/components/NavBar'
+import ProductionAppShell from '@/components/ProductionAppShell'
 import type { ReactNode } from 'react'
 
 export default function ChefLayout({ children }: { children: ReactNode }) {
   return (
-    <>
-      <NavBar />
-      {children}
-    </>
+    <ProductionAppShell>{children}</ProductionAppShell>
   )
 }

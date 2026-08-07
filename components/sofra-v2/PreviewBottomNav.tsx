@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import {updatePreviewSession} from './preview-session'
 export type PreviewNavItem='events'|'host'|'profile'

@@ -4,7 +4,7 @@
    here targets a bare element selector, so it cannot affect any
    existing Sofra page even if this stylesheet were ever loaded
    alongside them (in practice it is only ever imported by the
-   two app/design-preview/*/page.tsx routes, so it is never
+   app/design-preview route files, so it is never
    fetched on any other route at all).
    ============================================================ */
 

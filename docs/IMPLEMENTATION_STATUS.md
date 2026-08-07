@@ -5,6 +5,11 @@
 - Guest protein/base preferences support up to two raw selections, legacy
   single-value normalization, readable Table aggregation, and deterministic
   45% OR-matching against canonical dish base tags.
+- Production migration Phase 1 establishes the approved Playfair Display and
+  DM Sans visual tokens, off-white/burgundy application shell, and persistent
+  SOFRAS / HOST / PROFILE navigation.
+- Authentication, RLS, storage-policy hardening, account migration, and phone
+  onboarding are explicitly deferred for this frontend migration.
 
 ## Verification
 
