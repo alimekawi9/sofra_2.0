@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { C, THEMES } from '@/lib/theme'
 import {
   normalizeProteinPreferences,
   updateProteinPreferenceSelection,
@@ -15,10 +14,34 @@ import {
   type FlavorPreference,
 } from '@/lib/flavor-preferences'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
+import { InviteCard, type InviteCardGuest, type InviteResponse } from '@/components/sofra-v2/InviteCard'
+import { MissingOut } from '@/components/sofra-v2/MissingOut'
 import '@/components/sofra-v2/sofra-v2.css'
 
-type Step = 'status' | 'profile'
+type Step = 'status' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
+
+type EventRow = {
+  title: string
+  tagline: string | null
+  event_date: string
+  venue: string | null
+  dress_code: string | null
+  host: { name: string } | null
+}
+
+type GuestRow = {
+  status: string
+  users: { id: string; name: string } | null
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
 
 export default function RSVPPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -31,6 +54,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<Step>('status')
   const [status, setStatus] = useState<RsvpStatus | null>(null)
+  const [event, setEvent] = useState<EventRow | null>(null)
+  const [guests, setGuests] = useState<InviteCardGuest[]>([])
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
@@ -54,7 +79,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       }
       uidRef.current = stored
 
-      const [{ data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
+      const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
+        supabase.from('events')
+          .select('title,tagline,event_date,venue,dress_code,host:users!events_host_id_fkey(name)')
+          .eq('id', params.id)
+          .single(),
         supabase.from('rsvps')
           .select('status')
           .eq('event_id', params.id)
@@ -66,10 +95,29 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           .maybeSingle(),
       ])
 
-      if (e1 || e2) throw new Error('fetch failed')
+      if (e0 || e1 || e2) throw new Error('fetch failed')
+
+      setEvent(ev as unknown as EventRow)
 
       if (rsvpRow?.status) setStatus(rsvpRow.status as RsvpStatus)
-      setHasExistingRsvp(rsvpRow !== null)
+      const hasRsvp = rsvpRow !== null
+      setHasExistingRsvp(hasRsvp)
+
+      if (hasRsvp) {
+        const { data: guestRows, error: e3 } = await supabase
+          .from('rsvps')
+          .select('status, users(id, name)')
+          .eq('event_id', params.id)
+          .in('status', ['going', 'maybe'])
+
+        if (!e3 && guestRows) {
+          setGuests(
+            (guestRows as unknown as GuestRow[])
+              .filter((g) => g.users !== null)
+              .map((g) => ({ id: g.users!.id, name: g.users!.name }))
+          )
+        }
+      }
 
       if (profileRow) {
         const p = profileRow as Record<string, unknown>
@@ -108,12 +156,13 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       { event_id: params.id, user_id: uidRef.current, status: 'cant' },
       { onConflict: 'event_id,user_id' }
     )
+    setSubmitting(false)
     if (upsertErr) {
       setError('Something went wrong. Please try again.')
-      setSubmitting(false)
       return
     }
-    router.push('/events/' + params.id)
+    setStatus('cant')
+    setStep('missing-out')
   }
 
   async function handleProfileSubmit() {
@@ -175,6 +224,19 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setFlavors(update.preferences)
   }
 
+  function onRespond(response: InviteResponse) {
+    if (response === 'cant') {
+      void handleCantSubmit()
+      return
+    }
+    setStatus(response)
+    setStep('profile')
+  }
+
+  if (step === 'missing-out') {
+    return <MissingOut onReturnToInvite={() => setStep('status')} />
+  }
+
   if (step === 'profile' && !loading && !error) {
     return (
       <PreferencesReceipt
@@ -200,206 +262,22 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     )
   }
 
-  const theme = THEMES[0]
-  const accent = theme.accent
-
-  const prog = step === 'status' ? 50 : 100
-
-  const stepLabel =
-    status === 'going' || status === 'maybe' ? 'Step 1 of 2' : 'Step 1'
-  const primaryLabel = status === 'cant' ? 'Submit' : 'Continue →'
-  const onPrimaryClick =
-    status === 'cant'
-      ? handleCantSubmit
-      : status !== null
-      ? () => setStep('profile')
-      : undefined
-
   return (
-    <>
-      <style>{`@keyframes sofraPulse { 0%,100%{opacity:.4} 50%{opacity:.7} }`}</style>
-      <div
-        style={{
-          minHeight: '100vh',
-          background: theme.bg,
-          fontFamily: 'var(--font-display), Georgia, serif',
-          paddingBottom: 120,
-        }}
-      >
-        <div
-          className="fade"
-          style={{
-            maxWidth: 392,
-            margin: '0 auto',
-            padding: '22px 22px 32px',
-          }}
-        >
-          {/* Header — back / progress / close */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <button
-              className="ghosticon"
-              aria-label="Back to event"
-              onClick={() =>
-                step === 'status' ? router.push('/events/' + params.id) : setStep('status')
-              }
-            >
-              ←
-            </button>
-            <div
-              style={{
-                flex: 1,
-                height: 5,
-                borderRadius: 5,
-                background: 'rgba(255,255,255,0.1)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  borderRadius: 5,
-                  width: `${prog}%`,
-                  background: accent,
-                  transition: 'width .3s',
-                }}
-              />
-            </div>
-            <button
-              className="ghosticon"
-              aria-label="Close"
-              onClick={() => router.push('/events/' + params.id)}
-            >
-              ✕
-            </button>
-          </div>
-
-          {loading && (
-            <div data-testid="skeleton">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: 56,
-                    borderRadius: 16,
-                    background: 'rgba(255,255,255,0.08)',
-                    marginBottom: 12,
-                    animation: 'sofraPulse 1.4s ease-in-out infinite',
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {!loading && error && (
-            <div style={{ textAlign: 'center', paddingTop: 40 }}>
-              <p style={{ color: C.rose, fontSize: 14, marginBottom: 16 }}>{error}</p>
-              <button
-                onClick={loadData}
-                style={{
-                  background: 'none',
-                  border: `1px solid ${C.dim}`,
-                  borderRadius: 10,
-                  color: C.dim,
-                  padding: '8px 20px',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontFamily: 'var(--font-display), Georgia, serif',
-                }}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {!loading && !error && (
-            <div data-testid="rsvp-content">
-              {step === 'status' && (
-                <>
-                  <p
-                    style={{
-                      color: C.dim,
-                      fontSize: 13,
-                      textAlign: 'center',
-                      marginBottom: 16,
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
-                  >
-                    {stepLabel}
-                  </p>
-
-                  <h2
-                    style={{
-                      color: C.cream,
-                      fontSize: 29,
-                      margin: 0,
-                      fontWeight: 400,
-                      letterSpacing: -0.4,
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    Will you be at the table?
-                  </h2>
-                  <p
-                    style={{
-                      color: C.dim,
-                      fontSize: 15,
-                      marginTop: 10,
-                      lineHeight: 1.5,
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
-                  >
-                    Reply and we’ll seat you.
-                  </p>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 10,
-                      marginTop: 20,
-                      marginBottom: 24,
-                    }}
-                  >
-                    {([
-                      { value: 'going' as RsvpStatus, label: '✦ Going' },
-                      { value: 'maybe' as RsvpStatus, label: '◈ Maybe' },
-                      { value: 'cant' as RsvpStatus, label: "✕ Can't make it" },
-                    ]).map(({ value, label }) => {
-                      const selected = status === value
-                      return (
-                        <button
-                          key={value}
-                          className={selected ? 'opt sel' : 'opt'}
-                          onClick={() => setStatus(value)}
-                          aria-pressed={selected}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <button
-                    className="prim wide"
-                    onClick={onPrimaryClick}
-                    disabled={status === null || submitting}
-                  >
-                    {primaryLabel}
-                  </button>
-
-                  {error && (
-                    <p style={{ color: C.rose, fontSize: 13, textAlign: 'center', marginTop: 12 }}>
-                      {error}
-                    </p>
-                  )}
-                </>
-              )}
-
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+    <InviteCard
+      loading={loading}
+      error={error}
+      onRetry={loadData}
+      title={event?.title ?? ''}
+      note={event?.tagline ?? null}
+      hostName={event?.host?.name ?? null}
+      dateLabel={event ? formatDate(event.event_date) : ''}
+      timeLabel={event ? formatTime(event.event_date) : ''}
+      venue={event?.venue ?? '—'}
+      dressCode={event?.dress_code ?? null}
+      unlocked={hasExistingRsvp}
+      guests={guests}
+      submitting={submitting}
+      onRespond={onRespond}
+    />
   )
 }
-
