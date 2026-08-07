@@ -270,11 +270,14 @@ it("locks invite identities and provides the reveal message before RSVP", () => 
   render(<InvitePage />);
   expect(screen.getByText("WHO'S AROUND THE SOFRA")).toBeInTheDocument();
   expect(
-    screen.getByText("RSVP to meet the rest of the table."),
+    screen.getByText("RSVP TO MEET THE REST OF THE TABLE."),
   ).toBeInTheDocument();
   expect(
     screen.getAllByLabelText("Guest identity locked").length,
   ).toBeGreaterThan(0);
+  expect(screen.getAllByText("🔒").length).toBeGreaterThan(0);
+  expect(screen.queryByText("?")).not.toBeInTheDocument();
+  expect(document.querySelector(".sv2-invite-guests small")).toBeNull();
 });
 it("previews and persists a selected profile photo locally", async () => {
   const user = userEvent.setup();
@@ -290,6 +293,7 @@ it("previews and persists a selected profile photo locally", async () => {
     value: Reader,
   });
   render(<ProfilePage />);
+  expect(screen.getByText("Add profile photo")).toBeInTheDocument();
   await user.upload(
     screen.getByLabelText("Choose a profile photo"),
     new File(["photo"], "alia.png", { type: "image/png" }),
@@ -301,6 +305,7 @@ it("previews and persists a selected profile photo locally", async () => {
   expect(readPreviewSession().profilePhoto).toBe(
     "data:image/png;base64,profile",
   );
+  expect(screen.getByText("Change photo")).toBeInTheDocument();
   expect(createClient).not.toHaveBeenCalled();
 });
 it("keeps host location manually editable when the public Places key is absent", async () => {
