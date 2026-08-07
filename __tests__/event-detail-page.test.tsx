@@ -227,3 +227,32 @@ describe('Shared album', () => {
     )
   })
 })
+
+describe('Locked table preview', () => {
+  it('shows the locked card with exact copy for a guest with no RSVP', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase()
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('The table')).toBeInTheDocument())
+    expect(screen.getByText('🔒 RSVP to see who')).toBeInTheDocument()
+    expect(screen.getByText("The table’s filling up. Reply to meet them.")).toBeInTheDocument()
+    expect(screen.queryByText('Around this Sofra')).not.toBeInTheDocument()
+  })
+
+  it('renders 6 blurred decorative dots, not real guest data', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase()
+    const { container } = render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('The table')).toBeInTheDocument())
+    expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(6)
+  })
+
+  it('is replaced by the real guest grid once unlocked', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Around this Sofra')).toBeInTheDocument())
+    expect(screen.queryByText('The table')).not.toBeInTheDocument()
+    expect(screen.queryByText('🔒 RSVP to see who')).not.toBeInTheDocument()
+  })
+})

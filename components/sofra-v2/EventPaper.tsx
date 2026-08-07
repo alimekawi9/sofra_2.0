@@ -45,6 +45,9 @@ const RSVP_LABELS: Record<string, string> = {
   cant: "Can't make it ✕",
 }
 
+// Decorative only — stand-ins for hidden guest avatars, not real guest colors.
+const LOCKED_TABLE_TINTS = ['#7A2324', '#8A5A2B', '#4A5240', '#6E3B45', '#8A6A2B', '#3A4A5A']
+
 export function EventPaper({
   loading,
   error,
@@ -151,13 +154,13 @@ export function EventPaper({
               )}
             </dl>
 
-            <section className="sv2-guest-overview" aria-labelledby="sv2-guest-heading">
-              <div className="sv2-section-heading">
-                <h2 id="sv2-guest-heading">Around this Sofra</h2>
-                <span>{unlocked ? `${guests.length} going` : 'RSVP to see who'}</span>
-              </div>
-              {unlocked ? (
-                guests.length > 0 ? (
+            {unlocked ? (
+              <section className="sv2-guest-overview" aria-labelledby="sv2-guest-heading">
+                <div className="sv2-section-heading">
+                  <h2 id="sv2-guest-heading">Around this Sofra</h2>
+                  <span>{guests.length} going</span>
+                </div>
+                {guests.length > 0 ? (
                   <div className="sv2-guest-grid">
                     {guests.map((guest) => (
                       <article key={guest.id}>
@@ -168,11 +171,22 @@ export function EventPaper({
                   </div>
                 ) : (
                   <p style={{ fontSize: 12 }}>No one&rsquo;s replied yet.</p>
-                )
-              ) : (
-                <p style={{ fontSize: 12 }}>🔒 The table&rsquo;s filling up. RSVP to meet them.</p>
-              )}
-            </section>
+                )}
+              </section>
+            ) : (
+              <div className="sv2-table-preview">
+                <div className="sv2-table-preview-header">
+                  <span>The table</span>
+                  <span className="sv2-table-preview-lock">🔒 RSVP to see who</span>
+                </div>
+                <div className="sv2-table-preview-dots" aria-hidden="true">
+                  {LOCKED_TABLE_TINTS.map((tint, i) => (
+                    <span key={i} style={{ background: tint }} />
+                  ))}
+                </div>
+                <p className="sv2-table-preview-caption">The table&rsquo;s filling up. Reply to meet them.</p>
+              </div>
+            )}
 
             {unlocked && (
               <section className="sv2-shared-album" aria-labelledby="sv2-album-heading">
