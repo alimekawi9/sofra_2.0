@@ -837,6 +837,8 @@
 
 .sv2-back-link{display:inline-block;margin-bottom:22px;color:var(--sv2-ink);font-size:12px;text-underline-offset:4px;}
 .sv2-event-paper{padding:clamp(24px,6vw,42px);border:1px solid var(--sv2-line);background:#EEE8DC;}
+.sv2-event-paper .sv2-event-artwork{margin:0 auto 28px;}
+.sv2-event-paper img.sv2-event-artwork{display:block;padding:0;background:none;object-fit:cover;}
 .sv2-table-preview{margin:24px 0;padding:16px;border:1px solid var(--sv2-line);}
 .sv2-table-preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:13px;}
 .sv2-table-preview-lock{color:var(--sv2-muted);font-size:11px;font-family:var(--sv2-sans-family);}
