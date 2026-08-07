@@ -13,6 +13,7 @@ import DesignPreviewNamePage from '@/app/design-preview/name/page'
 import DesignPreviewIndexPage from '@/app/design-preview/page'
 import DesignPreviewEventsPage from '@/app/design-preview/events/page'
 import DesignPreviewEventDetailPage from '@/app/design-preview/events/demo/page'
+import DesignPreviewProfilePage from '@/app/design-preview/profile/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -526,6 +527,14 @@ describe('design preview routes', () => {
     render(<DesignPreviewEventDetailPage />)
     await user.click(screen.getByRole('button', { name: 'save me a seat' }))
     expect(screen.getByText('Your preview response: save me a seat.')).toBeInTheDocument()
+    expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('renders the profile frame with preview-only appearance controls', () => {
+    render(<DesignPreviewProfilePage />)
+    expect(screen.getByRole('heading', { name: 'Ali' })).toBeInTheDocument()
+    expect(screen.getByText('4 dinners · since 2025')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
     expect(createClient).not.toHaveBeenCalled()
   })
 
