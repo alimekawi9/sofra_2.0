@@ -508,8 +508,8 @@ describe('design preview routes', () => {
       expect(screen.getByText(route)).toBeInTheDocument()
       expect(container.querySelector(`a[href="${route}"]`)).toBeInTheDocument()
     }
-    expect(screen.getAllByText('Available')).toHaveLength(4)
-    expect(screen.getAllByText('Planned — not implemented')).toHaveLength(8)
+    expect(screen.getAllByText('Available')).toHaveLength(9)
+    expect(screen.getAllByText('Planned — not implemented')).toHaveLength(3)
   })
 
   it('renders the local events dashboard and keeps event details distinct', () => {

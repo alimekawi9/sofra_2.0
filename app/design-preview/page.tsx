@@ -7,14 +7,14 @@ const previewRoutes = [
   { section: 'Onboarding', label: 'Phone sign up', href: '/design-preview/signup', available: true },
   { section: 'Onboarding', label: 'Verification code', href: '/design-preview/code', available: false },
   { section: 'Onboarding', label: 'Name', href: '/design-preview/name', available: true },
-  { section: 'Dashboard', label: 'Events', href: '/design-preview/events', available: false },
-  { section: 'Dashboard', label: 'Event detail', href: '/design-preview/events/demo', available: false },
+  { section: 'Dashboard', label: 'Events', href: '/design-preview/events', available: true },
+  { section: 'Dashboard', label: 'Event detail', href: '/design-preview/events/demo', available: true },
   { section: 'Preferences', label: 'Preferences receipt', href: '/design-preview/preferences', available: true },
-  { section: 'Invite', label: 'Invitation', href: '/design-preview/invite', available: false },
+  { section: 'Invite', label: 'Invitation', href: '/design-preview/invite', available: true },
   { section: 'Invite', label: 'Invitation templates', href: '/design-preview/invite/templates', available: false },
   { section: 'Customization', label: 'Customization', href: '/design-preview/customization', available: false },
-  { section: 'Application', label: 'Menu', href: '/design-preview/menu', available: false },
-  { section: 'Application', label: 'Profile', href: '/design-preview/profile', available: false },
+  { section: 'Application', label: 'Menu', href: '/design-preview/menu', available: true },
+  { section: 'Application', label: 'Profile', href: '/design-preview/profile', available: true },
 ] as const
 
 export default function DesignPreviewIndexPage() {
