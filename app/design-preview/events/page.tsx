@@ -1,6 +1,7 @@
 import '@/components/sofra-v2/sofra-v2.css'
 import { EventsDashboard } from '@/components/sofra-v2/EventsDashboard'
 
-export default function DesignPreviewEventsPage() {
-  return <EventsDashboard />
+export default function DesignPreviewEventsPage({searchParams}:{searchParams?:{tab?:string}}) {
+  const initialFilter=searchParams?.tab==='went'?'went':searchParams?.tab==='hosted'?'hosted':'going'
+  return <EventsDashboard initialFilter={initialFilter} />
 }

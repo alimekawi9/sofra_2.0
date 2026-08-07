@@ -7,8 +7,8 @@ import { PreviewBottomNav } from './PreviewBottomNav'
 
 const filters: readonly PreviewEventStatus[] = ['going','went','hosted']
 const filterLabels:Record<PreviewEventStatus,string>={going:'INVITED',went:'WENT',hosted:'HOSTING'}
-export function EventsDashboard() {
-  const [filter,setFilter]=useState<PreviewEventStatus>('going')
+export function EventsDashboard({initialFilter='going'}:{initialFilter?:PreviewEventStatus}) {
+  const [filter,setFilter]=useState<PreviewEventStatus>(initialFilter)
   const visible=PREVIEW_EVENTS.filter(event=>event.status===filter)
   return <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}><main className="sv2-device-shell sv2-app-shell">
     <header className="sv2-app-header"><div><p>YOUR SOFRAS</p><h1>Alia</h1></div></header>

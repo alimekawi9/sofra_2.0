@@ -876,7 +876,7 @@
 /* ---- invitation preview ---- */
 
 .sv2-invite-page{color:var(--sv2-ink);}
-.sv2-invite-shell{padding-top:44px;padding-bottom:56px;background:#F4EFE4;text-align:center;}
+.sv2-invite-shell{padding-top:44px;padding-bottom:calc(var(--sv2-bottom-nav-height) + 40px + env(safe-area-inset-bottom));background:var(--sv2-off-white);text-align:center;}
 .sv2-invite-shell > .sv2-back-link{display:block;text-align:left;}
 .sv2-invite-shell > header{margin:22px 0 28px;}
 .sv2-invite-shell > header p{margin:0 0 8px;font-size:13px;font-weight:500;letter-spacing:1.4px;}
@@ -912,6 +912,7 @@
 .sv2-invite-confirmation{margin:14px auto 0;max-width:360px;font-size:12px;line-height:1.5;}
 .sv2-invite-guests{position:relative;margin-top:20px;padding-top:16px;border-top:1px solid var(--sv2-line)}.sv2-invite-guests>p{font-size:10px;text-transform:uppercase;letter-spacing:1px}.sv2-invite-guests>div{display:flex;justify-content:center;gap:8px}.sv2-invite-guests span{position:relative;width:38px;height:38px;border:1px solid var(--sv2-ink);border-radius:50%;display:grid;place-items:center;font-size:9px}.sv2-invite-guests small{position:absolute;right:-1px;bottom:0;font-size:6px}
 .sv2-invite-choices{display:grid;gap:9px;margin-top:26px}.sv2-invite-choices button{min-height:48px;padding:12px 20px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:inherit;font:500 12px var(--sv2-sans-family);letter-spacing:1px;cursor:pointer}.sv2-invite-choices button:first-child{background:var(--sv2-ink);color:#F4EFE4}
+.sv2-invite-shell>.sv2-app-nav{left:var(--sv2-shell-padding-x);right:var(--sv2-shell-padding-x)}
 .sv2-missing-out{min-height:min(844px,100vh);display:grid;align-content:center;text-align:center;background:#F4EFE4}.sv2-missing-out h1{margin:8px 0;font:italic clamp(42px,11vw,72px)/1 var(--sv2-display-family)}.sv2-missing-out>p:not(.sv2-event-kicker){font:italic 18px/1.5 var(--sv2-display-family)}.sv2-missing-out>div{display:grid;gap:10px;margin:32px auto 0;max-width:280px}.sv2-missing-out a{min-height:46px;padding:14px;border:1px solid var(--sv2-ink);color:inherit;text-decoration:none;font-size:11px}
 
 /* ---- application preview: menu ---- */
