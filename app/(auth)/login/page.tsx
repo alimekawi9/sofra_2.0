@@ -194,6 +194,22 @@ function LoginInner() {
           >
             No passwords. Your name and number stay with your account.
           </p>
+
+          <a
+            href={`/name?next=${encodeURIComponent(next)}`}
+            style={{
+              display: 'block',
+              color: C.faint,
+              fontSize: 12,
+              marginTop: 10,
+              fontFamily: 'system-ui, sans-serif',
+              textAlign: 'center',
+              textDecoration: 'underline',
+              textUnderlineOffset: 3,
+            }}
+          >
+            Or continue with just your name
+          </a>
         </div>
       </div>
     </div>
