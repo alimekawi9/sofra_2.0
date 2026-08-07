@@ -316,9 +316,7 @@ it("keeps host location manually editable when the public Places key is absent",
   const input = screen.getByPlaceholderText("Where will you gather?");
   await user.type(input, "Garden terrace");
   expect(input).toHaveValue("Garden terrace");
-  expect(
-    screen.getByText(/manual location entry remains enabled/i),
-  ).toBeInTheDocument();
+  expect(screen.queryByText(/autocomplete unavailable/i)).not.toBeInTheDocument();
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = oldKey;
 });
 it("stores selected Google place data through the local autocomplete callback", async () => {

@@ -18,6 +18,8 @@ interface PlacePrediction {
   secondaryText: string
 }
 
+let warnedAboutMissingKey = false
+
 export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
   value: string
   onChange: (value: string) => void
@@ -30,6 +32,13 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+
+  useEffect(() => {
+    if (!apiKey && process.env.NODE_ENV !== 'production' && !warnedAboutMissingKey) {
+      warnedAboutMissingKey = true
+      console.warn('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not configured.')
+    }
+  }, [apiKey])
 
   useEffect(() => {
     function close(event: MouseEvent) {
@@ -61,7 +70,10 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
           body: JSON.stringify({ input: query }),
           signal: controller.signal,
         })
-        if (!response.ok) throw new Error(`Places autocomplete failed (${response.status})`)
+        if (!response.ok) {
+          const failure = await response.json().catch(() => ({})) as { error?: { status?: string } }
+          throw new Error(`Places autocomplete failed: ${failure.error?.status ?? `HTTP_${response.status}`}`)
+        }
         const data = await response.json() as { suggestions?: Array<{ placePrediction?: { placeId?: string; text?: { text?: string }; structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } } } }> }
         setPredictions((data.suggestions ?? []).flatMap(({ placePrediction }) => placePrediction?.placeId ? [{
           placeId: placePrediction.placeId,
@@ -71,7 +83,10 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
         }] : []))
         setActiveIndex(-1)
       } catch (error) {
-        if ((error as Error).name !== 'AbortError') setPredictions([])
+        if ((error as Error).name !== 'AbortError') {
+          setPredictions([])
+          if (process.env.NODE_ENV !== 'production') console.warn((error as Error).message)
+        }
       } finally {
         if (!controller.signal.aborted) setLoading(false)
       }
@@ -129,7 +144,6 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
       onFocus={() => predictions.length && setOpen(true)}
       onChange={event => { onChange(event.target.value); onPlaceSelect(null) }}
     />
-    {!apiKey && process.env.NODE_ENV !== 'production' && <small>Autocomplete unavailable — manual location entry remains enabled.</small>}
     {apiKey && open && <div className="sv2-location-suggestions" id="sv2-location-suggestions" role="listbox">
       {loading && <p role="status">Finding places…</p>}
       {!loading && predictions.length === 0 && <p>No places found. Keep typing to use this address.</p>}
