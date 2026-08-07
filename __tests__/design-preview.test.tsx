@@ -14,6 +14,7 @@ import DesignPreviewIndexPage from '@/app/design-preview/page'
 import DesignPreviewEventsPage from '@/app/design-preview/events/page'
 import DesignPreviewEventDetailPage from '@/app/design-preview/events/demo/page'
 import DesignPreviewProfilePage from '@/app/design-preview/profile/page'
+import DesignPreviewInvitePage from '@/app/design-preview/invite/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -535,6 +536,22 @@ describe('design preview routes', () => {
     expect(screen.getByRole('heading', { name: 'Ali' })).toBeInTheDocument()
     expect(screen.getByText('4 dinners · since 2025')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Preview appearance' })).toBeInTheDocument()
+    expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('renders the primary invitation with an honestly marked placeholder asset', () => {
+    const { container } = render(<DesignPreviewInvitePage />)
+    expect(screen.getByText("Layla's Sofra")).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'CLAIM MY SEAT' })).toBeInTheDocument()
+    expect(container.querySelector('[data-asset-fidelity="placeholder"]')).toBeInTheDocument()
+  })
+
+  it('keeps invitation acceptance in local preview state', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewInvitePage />)
+    await user.click(screen.getByRole('button', { name: 'CLAIM MY SEAT' }))
+    expect(screen.getByRole('button', { name: 'SEAT CLAIMED' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText(/you're on Layla's guest list/i)).toBeInTheDocument()
     expect(createClient).not.toHaveBeenCalled()
   })
 
