@@ -119,6 +119,13 @@ describe('ThemeToggle', () => {
 })
 
 describe('WelcomeCard', () => {
+  it('renders the centered arabesque ornament as decorative artwork', () => {
+    const { container } = render(<WelcomeCard onYalla={jest.fn()} />)
+    const ornament = container.querySelector('.sv2-welcome-ornament img')
+    expect(ornament).toHaveAttribute('src', expect.stringContaining('arabesque-ornament.png'))
+    expect(ornament).toHaveAttribute('alt', '')
+  })
+
   it('renders the welcome copy and eyebrow', () => {
     render(<WelcomeCard onYalla={jest.fn()} />)
     expect(screen.getByText('EST. 2026')).toBeInTheDocument()

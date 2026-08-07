@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { sv2Display, sv2Sans } from './fonts'
 
 export interface WelcomeCardProps {
@@ -18,6 +19,15 @@ export function WelcomeCard({ onYalla }: WelcomeCardProps) {
           THE
         </p>
         <p className="sv2-welcome-title">Sofra.</p>
+        <div className="sv2-welcome-ornament" aria-hidden="true">
+          <Image
+            src="/design-preview/arabesque-ornament.png"
+            alt=""
+            width={1254}
+            height={1254}
+            priority
+          />
+        </div>
         <button type="button" className="sv2-yalla-btn" onClick={onYalla}>
           YALLA
         </button>
