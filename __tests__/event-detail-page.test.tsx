@@ -53,6 +53,13 @@ function makeSupabase({
         select: jest.fn().mockReturnValue({ eq: outerEqMock }),
       }
     }),
+    storage: {
+      from: jest.fn().mockReturnValue({
+        list: jest.fn().mockResolvedValue({ data: [], error: null }),
+        upload: jest.fn().mockResolvedValue({ data: null, error: null }),
+        getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl: 'https://example.test/photo.jpg' } }),
+      }),
+    },
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -75,12 +82,12 @@ beforeEach(() => {
 const PARAMS = { id: 'ev-1' }
 
 describe('fresh-browser initialization', () => {
-  it('redirects to login with the original event as next without querying or showing an error', async () => {
+  it('redirects to name-only onboarding with the original event as next, without querying or showing an error', async () => {
     const sb = makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
 
     await waitFor(() =>
-      expect(mockReplace).toHaveBeenCalledWith('/login?next=%2Fevents%2Fev-1')
+      expect(mockReplace).toHaveBeenCalledWith('/name?next=%2Fevents%2Fev-1')
     )
     expect(sb.from).not.toHaveBeenCalled()
     expect(screen.queryByText(/couldn't load this event/i)).not.toBeInTheDocument()
@@ -189,5 +196,34 @@ describe('Copy invite link button', () => {
       '_blank'
     )
     open.mockRestore()
+  })
+})
+
+describe('Shared album', () => {
+  it('is hidden before the guest has RSVPed', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase()
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument())
+    expect(screen.queryByText('Shared Album')).not.toBeInTheDocument()
+  })
+
+  it('shows an upload control once unlocked, and uploads to the event-photos bucket', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const sb = makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
+
+    const file = new File(['x'], 'memory.jpg', { type: 'image/jpeg' })
+    const input = screen.getByLabelText(/add a photo/i, { selector: 'input' })
+    await userEvent.upload(input, file)
+
+    await waitFor(() => expect(sb.storage.from).toHaveBeenCalledWith('event-photos'))
+    const bucket = sb.storage.from.mock.results[0].value
+    expect(bucket.upload).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`^ev-1/\\d+-${GUEST_UID}\\.jpg$`)),
+      file,
+      { contentType: 'image/jpeg' }
+    )
   })
 })

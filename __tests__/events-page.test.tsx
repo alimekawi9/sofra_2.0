@@ -223,3 +223,14 @@ it('shows both HOSTING and GOING filters when the user has both', async () => {
     expect(screen.getByRole('button', { name: 'GOING' })).toBeInTheDocument()
   })
 })
+
+it('a host who also RSVPed to their own event only shows it under HOSTING, not GOING', async () => {
+  makeSupabase({
+    hostingEvents: [SAMPLE_EVENT],
+    invitedRsvps: [{ status: 'going', events: SAMPLE_EVENT }],
+  })
+  render(<EventsPage />)
+  await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: 'GOING' })).not.toBeInTheDocument()
+  expect(screen.getAllByText('Casa Mekawi')).toHaveLength(1)
+})

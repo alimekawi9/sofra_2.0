@@ -74,7 +74,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.push('/login?next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
+        router.push('/name?next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
         return
       }
       uidRef.current = stored

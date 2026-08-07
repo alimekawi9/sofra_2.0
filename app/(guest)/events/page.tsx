@@ -70,8 +70,10 @@ export default function EventsPage() {
         theme: ev.theme,
       }))
 
+      const hostingIds = new Set(hosting.map((ev) => ev.id))
+
       const invited: EventsBoardEvent[] = ((rsvpRows ?? []) as unknown as HostedRsvpRow[])
-        .filter((r) => r.events !== null)
+        .filter((r) => r.events !== null && !hostingIds.has(r.events.id))
         .map((r) => {
           const ev = r.events!
           const past = new Date(ev.event_date).getTime() < now

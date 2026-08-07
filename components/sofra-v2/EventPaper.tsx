@@ -34,6 +34,9 @@ export interface EventPaperProps {
   onViewTable: () => void
   onEditRsvp: () => void
   onRsvp: () => void
+  photos: string[]
+  uploadingPhoto: boolean
+  onPhotoUpload: (file: File) => void
 }
 
 const RSVP_LABELS: Record<string, string> = {
@@ -67,6 +70,9 @@ export function EventPaper({
   onViewTable,
   onEditRsvp,
   onRsvp,
+  photos,
+  uploadingPhoto,
+  onPhotoUpload,
 }: EventPaperProps) {
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
@@ -162,6 +168,36 @@ export function EventPaper({
                 <p style={{ fontSize: 12 }}>🔒 The table&rsquo;s filling up. RSVP to meet them.</p>
               )}
             </section>
+
+            {unlocked && (
+              <section className="sv2-shared-album" aria-labelledby="sv2-album-heading">
+                <div className="sv2-section-heading">
+                  <h2 id="sv2-album-heading">Shared Album</h2>
+                  <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
+                </div>
+                <div className="sv2-album-grid">
+                  {photos.map((src) => (
+                    <figure key={src}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="A memory shared from this Sofra" />
+                    </figure>
+                  ))}
+                </div>
+                <label className="sv2-album-add">
+                  {uploadingPhoto ? 'UPLOADING…' : 'ADD A PHOTO'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingPhoto}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (file) onPhotoUpload(file)
+                    }}
+                  />
+                </label>
+              </section>
+            )}
 
             {!isHost && !isPast && (
               <div className="sv2-detail-actions">

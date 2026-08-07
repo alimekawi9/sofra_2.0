@@ -51,6 +51,19 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [isHost, setIsHost] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
+  const [photos, setPhotos] = useState<string[]>([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+
+  async function loadPhotos() {
+    const { data } = await supabase.storage.from('event-photos').list(params.id, {
+      sortBy: { column: 'created_at', order: 'desc' },
+    })
+    setPhotos(
+      (data ?? []).map(
+        (f) => supabase.storage.from('event-photos').getPublicUrl(params.id + '/' + f.name).data.publicUrl
+      )
+    )
+  }
 
   async function loadData() {
     setLoading(true)
@@ -58,7 +71,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.replace('/login?next=' + encodeURIComponent('/events/' + params.id))
+        router.replace('/name?next=' + encodeURIComponent('/events/' + params.id))
         return
       }
       uidRef.current = stored
@@ -105,6 +118,8 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
               .map((g) => ({ id: g.users!.id, name: g.users!.name }))
           )
         }
+
+        await loadPhotos()
       }
     } catch {
       setError("Couldn't load this event. Try again.")
@@ -125,6 +140,16 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     } catch {
       setCopyFallbackUrl(url)
     }
+  }
+
+  async function onPhotoUpload(file: File) {
+    if (!uidRef.current) return
+    setUploadingPhoto(true)
+    const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg'
+    const path = `${params.id}/${Date.now()}-${uidRef.current}.${ext}`
+    await supabase.storage.from('event-photos').upload(path, file, { contentType: file.type || undefined })
+    await loadPhotos()
+    setUploadingPhoto(false)
   }
 
   function shareViaWhatsApp() {
@@ -162,6 +187,9 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       onViewTable={() => router.push('/events/' + params.id + '/table')}
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
+      photos={photos}
+      uploadingPhoto={uploadingPhoto}
+      onPhotoUpload={onPhotoUpload}
     />
   )
 }
