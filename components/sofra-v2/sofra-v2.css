@@ -820,7 +820,7 @@
   border-top:1px solid var(--sv2-line);
   background:#F4EFE4;
 }
-.sv2-app-nav a{padding:16px 8px;color:var(--sv2-muted);text-align:center;font-size:11px;text-decoration:none;}
+.sv2-app-nav a{padding:16px 8px;color:var(--sv2-muted);text-align:center;font-size:14px;letter-spacing:.8px;text-decoration:none;}
 .sv2-app-nav .sv2-app-nav-current{color:var(--sv2-ink);font-weight:500;}
 
 .sv2-back-link{display:inline-block;margin-bottom:22px;color:var(--sv2-ink);font-size:12px;text-underline-offset:4px;}
@@ -916,7 +916,6 @@
 .sv2-menu-breadcrumb{margin:0 0 8px;color:var(--sv2-muted);font-size:10px;}
 .sv2-menu-list > h1{margin:0 0 24px;font:400 clamp(28px,7vw,40px)/1.1 var(--sv2-display-family);}
 .sv2-menu-list article{display:grid;grid-template-columns:112px 1fr;gap:18px;padding:16px 0;border-top:1px solid var(--sv2-line);}
-.sv2-menu-image-placeholder{width:112px;aspect-ratio:1;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#D9C69C,#A54738);color:#F4EFE4;font:italic 36px var(--sv2-display-family);}
 .sv2-menu-list article h2{margin:4px 0 6px;font:400 22px/1.05 var(--sv2-display-family);}
 .sv2-menu-list article p{margin:0 0 8px;color:var(--sv2-muted);font-size:11px;line-height:1.45;}
 .sv2-menu-list article span{font-size:10px;font-weight:500;}
@@ -928,11 +927,9 @@
 
 .sv2-menu-page--dark{--sv2-ink:#F4EFE4;--sv2-card-bg:#64161A;--sv2-line:rgba(244,239,228,.28);--sv2-muted:rgba(244,239,228,.68);}
 .sv2-menu-page--dark,.sv2-menu-page--dark .sv2-menu-shell,.sv2-menu-page--dark .sv2-app-nav{background:#64161A;color:#F4EFE4;}
-.sv2-menu-page--dark .sv2-menu-image-placeholder{background:linear-gradient(145deg,#B5322F,#321214);}
 
 @media(max-width:420px){
   .sv2-menu-list article{grid-template-columns:88px 1fr;gap:14px;}
-  .sv2-menu-image-placeholder{width:88px;}
   .sv2-menu-list article h2{font-size:19px;}
 }
 
@@ -977,6 +974,7 @@
 .sv2-profile-appearance .sv2-theme-toggle-btn{color:var(--sv2-ink);}
 .sv2-profile-preferences{margin-bottom:26px;padding:18px;border:1px solid var(--sv2-line)}.sv2-profile-preferences h2{margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase}.sv2-profile-preferences p{margin:0;font:italic 15px/1.5 var(--sv2-display-family)}
 .sv2-profile-logout{width:100%;min-height:48px;margin:24px 0 8px;border:1px solid var(--sv2-ink);background:transparent;color:inherit;font:500 12px var(--sv2-sans-family);letter-spacing:1.2px;cursor:pointer}
+.sv2-host-shell>h1{margin:6px 0 28px;font:italic clamp(42px,10vw,64px)/1 var(--sv2-display-family)}.sv2-host-shell form{display:grid;gap:17px}.sv2-host-shell label{display:grid;gap:7px;font-size:10px;text-transform:uppercase;letter-spacing:1px}.sv2-host-shell input,.sv2-host-shell select{min-height:48px;padding:12px;border:0;border-bottom:1px solid var(--sv2-ink);border-radius:0;background:transparent;color:inherit;font:400 15px var(--sv2-sans-family)}.sv2-host-shell form>button{min-height:50px;margin-top:12px;border:1px solid var(--sv2-ink);background:var(--sv2-ink);color:var(--sv2-card-bg);font:500 12px var(--sv2-sans-family);letter-spacing:1px}.sv2-host-shell [role="status"]{font-size:11px;text-align:center}
 .sv2-profile-history > div{margin-top:14px;border:1px solid var(--sv2-line);}
 .sv2-profile-history article{min-height:88px;padding:14px;display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;}
 .sv2-profile-history article + article{border-top:1px solid var(--sv2-line);}
