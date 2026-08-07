@@ -166,4 +166,4 @@ Sofra helps chefs generate shared menus based on:
 - Signature dishes are prioritized when they strongly fit the table.
 - The LLM fills only remaining menu gaps.
 - Final results must be validated by deterministic code.
-'@ | Set-Content -Path "docs/SOFRA_PRODUCT_SPEC.md" -Encoding UTF8
+'@ | Set-Content -Path "docs/SOFRA_PRODUCT_SPEC.md" -Encoding UTF8 

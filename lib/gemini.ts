@@ -12,18 +12,21 @@ export class GeminiError extends Error {
   }
 }
 
-const MODEL = 'gemini-2.5-flash-lite'
+const MODEL = 'gemini-3.6-flash'
 
-// 'gemini-2.5-pro'
-// Timeout calibration:
-//   At ~5966-char prompt (commit b6975b5): 44194ms, 44343ms, 45020ms — moved
-//   45s → 60s to clear the tail with ~35% headroom.
-//   At ~6983-char prompt (post allergy/preference split, commit 5fbf895):
-//   60006ms (TIMEOUT), 37111ms, 34907ms — 1/3 attempts hit the ceiling.
-//   At ~4732-char prompt (post shortlistSignaturesForAI + compressed prose):
-//   37511ms, 29760ms, 39551ms — 0 timeouts, max ~40s. Headroom is back to
-//   ~50%. See scripts/measure-ai-prompt.mjs + scripts/measure-gemini-timing.mjs
-//   to re-measure whenever the prompt grows again.
+// 2026-08-07: gemini-2.5-flash-lite returned 404 "no longer available to new
+// users" on every attempt (real measure-gemini-timing.mjs run against the
+// demo event) — that was the actual cause of the AI-generation fallback, not
+// a timeout. Re-measured against the same ~4892-char demo-event prompt:
+//   gemini-3.5-flash-lite: 2212ms, 1831ms, 1833ms (fast, but generic
+//     allergen reasoning, e.g. "respects all dietary restrictions").
+//   gemini-3.6-flash: 14518ms, 15991ms, 13204ms (7-8x slower but still
+//     ~27% of the 60s budget at worst; reasoning names specific allergens
+//     per dish, e.g. "mushroom-free", "nut ingredients").
+// Chose gemini-3.6-flash for the more specific deficit-weighting reasoning
+// this prompt depends on. See scripts/measure-ai-prompt.mjs +
+// scripts/measure-gemini-timing.mjs to re-measure whenever the prompt or
+// model catalog changes.
 const TIMEOUT_MS = 60_000
 
 let cached: GoogleGenAI | null = null
