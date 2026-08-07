@@ -1,55 +1,544 @@
-import {act,fireEvent,render,screen} from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import {useRouter} from 'next/navigation'
-import {createClient} from '@/lib/supabase/client'
-import EventsPage from '@/app/design-preview/events/page'
-import EventPage from '@/app/design-preview/events/demo/page'
-import InvitePage from '@/app/design-preview/invite/page'
-import MissingOutPage from '@/app/design-preview/invite/missing-out/page'
-import ProfilePage from '@/app/design-preview/profile/page'
-import HostPage from '@/app/design-preview/host/page'
-import MenuPage from '@/app/design-preview/menu/page'
-import CuratedMenusPage from '@/app/design-preview/curated-menus/page'
-import CuratedMenuDemoPage from '@/app/design-preview/curated-menus/demo/page'
-import MyKitchenPage from '@/app/design-preview/my-kitchen/page'
-import GalleryPage from '@/app/design-preview/page'
-import SignupPage from '@/app/design-preview/signup/page'
-import NamePage from '@/app/design-preview/name/page'
-import PreferencesPage from '@/app/design-preview/preferences/page'
-import {EventDetailPreview} from '@/components/sofra-v2/EventDetailPreview'
-import {MyKitchenPreview} from '@/components/sofra-v2/MyKitchenPreview'
-import {CuratedMenusPreview} from '@/components/sofra-v2/CuratedMenusPreview'
-import {HostLocationAutocomplete} from '@/components/sofra-v2/HostLocationAutocomplete'
-import {HostPreferenceCollection} from '@/components/sofra-v2/HostPreferenceCollection'
-import {PreviewDevControls} from '@/components/sofra-v2/PreviewDevControls'
-import {PREVIEW_SESSION_KEY,readPreviewSession,updatePreviewSession} from '@/components/sofra-v2/preview-session'
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import EventsPage from "@/app/design-preview/events/page";
+import EventPage from "@/app/design-preview/events/demo/page";
+import InvitePage from "@/app/design-preview/invite/page";
+import MissingOutPage from "@/app/design-preview/invite/missing-out/page";
+import ProfilePage from "@/app/design-preview/profile/page";
+import HostPage from "@/app/design-preview/host/page";
+import MenuPage from "@/app/design-preview/menu/page";
+import CuratedMenusPage from "@/app/design-preview/curated-menus/page";
+import CuratedMenuDemoPage from "@/app/design-preview/curated-menus/demo/page";
+import MyKitchenPage from "@/app/design-preview/my-kitchen/page";
+import GalleryPage from "@/app/design-preview/page";
+import SignupPage from "@/app/design-preview/signup/page";
+import NamePage from "@/app/design-preview/name/page";
+import PreferencesPage from "@/app/design-preview/preferences/page";
+import { EventDetailPreview } from "@/components/sofra-v2/EventDetailPreview";
+import { MyKitchenPreview } from "@/components/sofra-v2/MyKitchenPreview";
+import { CuratedMenusPreview } from "@/components/sofra-v2/CuratedMenusPreview";
+import { HostLocationAutocomplete } from "@/components/sofra-v2/HostLocationAutocomplete";
+import { HostPreferenceCollection } from "@/components/sofra-v2/HostPreferenceCollection";
+import { PreviewDevControls } from "@/components/sofra-v2/PreviewDevControls";
+import {
+  PREVIEW_SESSION_KEY,
+  readPreviewSession,
+  updatePreviewSession,
+} from "@/components/sofra-v2/preview-session";
 
-jest.mock('@/lib/supabase/client')
-jest.mock('next/navigation',()=>({useRouter:jest.fn(),usePathname:jest.fn(()=>'/design-preview/events')}))
-const push=jest.fn()
-beforeEach(()=>{push.mockClear();sessionStorage.clear();localStorage.clear();Object.defineProperty(URL,'revokeObjectURL',{configurable:true,value:jest.fn()});(createClient as jest.Mock).mockClear();(useRouter as jest.Mock).mockReturnValue({push})})
+jest.mock("@/lib/supabase/client");
+jest.mock("next/navigation", () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(() => "/design-preview/events"),
+}));
+const push = jest.fn();
+beforeEach(() => {
+  push.mockClear();
+  sessionStorage.clear();
+  localStorage.clear();
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: jest.fn(),
+  });
+  (createClient as jest.Mock).mockClear();
+  (useRouter as jest.Mock).mockReturnValue({ push });
+});
 
-it('renders Sofras without an avatar, cart, or dishes and uses shared navigation',()=>{const {container}=render(<EventsPage/>);expect(screen.getByText('YOUR SOFRAS')).toBeInTheDocument();expect(container.querySelector('.sv2-avatar')).toBeNull();for(const label of ['SOFRAS','HOST','PROFILE'])expect(screen.getByRole('link',{name:label})).toBeInTheDocument();expect(screen.queryByText('HOST (+)')).not.toBeInTheDocument()})
-it('shows guest details with EDIT RSVP and Shared Album but no host controls',()=>{render(<EventPage/>);expect(screen.getByRole('link',{name:'EDIT RSVP'})).toBeInTheDocument();expect(screen.getByRole('heading',{name:'Shared Album'})).toBeInTheDocument();expect(screen.queryByRole('button',{name:'EDIT EVENT'})).not.toBeInTheDocument();expect(screen.queryByRole('link',{name:'INVENTORY'})).not.toBeInTheDocument()})
-it('routes accepted and tentative RSVPs to Preferences and decline to Missing Out',async()=>{const user=userEvent.setup();render(<InvitePage/>);await user.click(screen.getByRole('button',{name:'SAVE ME A SEAT'}));expect(sessionStorage.getItem('sofra-preview-rsvp')).toBe('going');expect(push).toHaveBeenCalledWith('/design-preview/preferences');await user.click(screen.getByRole('button',{name:"I'LL THINK ABOUT IT"}));expect(sessionStorage.getItem('sofra-preview-rsvp')).toBe('tentative');await user.click(screen.getByRole('button',{name:'MAYBE NEXT TIME'}));expect(push).toHaveBeenCalledWith('/design-preview/invite/missing-out')})
-it('renders the missing-out destination',()=>{render(<MissingOutPage/>);expect(screen.getByText("The plates will try not to take it personally.")).toBeInTheDocument()})
-it('keeps appearance controls only on Profile and provides preview logout',()=>{const routes=[<EventsPage key="events"/>,<EventPage key="event"/>,<InvitePage key="invite"/>,<HostPage key="host"/>,<MenuPage key="menu"/>,<CuratedMenusPage key="curated"/>,<MyKitchenPage key="kitchen"/>];for(const page of routes){const view=render(page);expect(screen.queryByRole('group',{name:'Preview appearance'})).not.toBeInTheDocument();view.unmount()}render(<ProfilePage/>);expect(screen.getByRole('group',{name:'Preview appearance'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'LOG OUT'})).toBeInTheDocument()})
-it('renders curated menus and kitchen as text-only local collections',()=>{const index=render(<CuratedMenusPage/>);expect(screen.getByRole('heading',{name:'Curated Menus'})).toBeInTheDocument();index.unmount();const detail=render(<CuratedMenuDemoPage/>);expect(screen.getByText('Heirloom Tomato & Labneh')).toBeInTheDocument();expect(detail.container.querySelector('.sv2-menu-image-placeholder')).toBeNull();expect(screen.queryByRole('button',{name:/explore menu/i})).not.toBeInTheDocument();detail.unmount();render(<MyKitchenPage/>);expect(screen.getByRole('heading',{name:'My Kitchen'})).toBeInTheDocument();expect(screen.getByRole('heading',{name:'SIGNATURE DISHES'})).toBeInTheDocument();expect(createClient).not.toHaveBeenCalled()})
-it('renders the host form and every requested gallery route',()=>{const host=render(<HostPage/>);expect(screen.getByRole('heading',{name:'Create a Sofra'})).toBeInTheDocument();host.unmount();render(<GalleryPage/>);for(const route of ['/design-preview/welcome','/design-preview/signup','/design-preview/name','/design-preview/preferences','/design-preview/events','/design-preview/events/demo?role=guest','/design-preview/host','/design-preview/invite','/design-preview/invite/missing-out','/design-preview/curated-menus','/design-preview/curated-menus/demo','/design-preview/my-kitchen','/design-preview/profile'])expect(screen.getByText(route)).toBeInTheDocument()})
-it('uses the exact INVITED, HOSTING, GOING, WENT tab order',()=>{render(<EventsPage/>);expect(screen.getAllByRole('button').filter(button=>['INVITED','HOSTING','GOING','WENT'].includes(button.textContent??'')).map(button=>button.textContent)).toEqual(['INVITED','HOSTING','GOING','WENT'])})
-it('keeps compact host controls distinct and gates the curated menu',()=>{const{container}=render(<EventDetailPreview role="host"/>);for(const name of ['MANAGE GUESTS','COPY INVITE LINK','SHARE ON WHATSAPP'])expect(screen.getByRole('button',{name})).toBeInTheDocument();expect(container.querySelector('.sv2-host-share-actions')).toBeInTheDocument();for(const name of ['EDIT EVENT','PREFERENCE COLLECTION','INVENTORY'])expect(screen.getByRole('link',{name})).toBeInTheDocument();expect(screen.queryByRole('link',{name:'CURATED MENU'})).not.toBeInTheDocument();for(const action of ['EDIT RSVP','SAVE ME A SEAT',"I'LL THINK ABOUT IT",'MAYBE NEXT TIME'])expect(screen.queryByText(action)).not.toBeInTheDocument()})
-it('uses every canonical preset and structures custom signature and pantry metadata',async()=>{const user=userEvent.setup();render(<MyKitchenPreview eventContext/>);expect(screen.getByRole('button',{name:'Hummus'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Apple Pie'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Chicken thighs'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Miso paste'})).toBeInTheDocument();const signature=screen.getByLabelText('Add custom signature dishes item');await user.type(signature,'Aleppo roast{enter}');expect(screen.getByRole('region',{name:'Tag Aleppo roast'})).toBeInTheDocument();await user.click(screen.getByRole('button',{name:'Main'}));await user.click(screen.getByRole('button',{name:'Braised'}));await user.click(screen.getByRole('button',{name:'ADD TO INVENTORY'}));expect(screen.getByRole('button',{name:'Remove Aleppo roast'})).toBeInTheDocument();const pantry=screen.getByLabelText('Add custom pantry item');await user.type(pantry,'Aleppo pepper{enter}');expect(screen.queryByRole('button',{name:'Starter'})).not.toBeInTheDocument();await user.click(screen.getByRole('button',{name:'Spicy'}));await user.click(screen.getByRole('button',{name:'ADD TO INVENTORY'}));expect(screen.getByRole('button',{name:'Remove Aleppo pepper'})).toBeInTheDocument();expect(screen.getAllByRole('button',{name:'ADD'}).every(button=>button.classList.contains('sv2-inventory-add-button'))).toBe(true)})
-it('opens menu export customization without cart, theme, or images',async()=>{const user=userEvent.setup();const {container}=render(<CuratedMenusPreview detail/>);await user.click(screen.getByRole('button',{name:'EXPORT MENU'}));expect(screen.getByRole('region',{name:'Menu export customization'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Portrait'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'PDF-style preview'})).toBeInTheDocument();expect(screen.queryByText('Cart')).not.toBeInTheDocument();expect(container.querySelector('.sv2-menu-image-placeholder')).toBeNull()})
-it('locks invite identities and provides the reveal message before RSVP',()=>{render(<InvitePage/>);expect(screen.getByText("WHO'S AROUND THE SOFRA")).toBeInTheDocument();expect(screen.getByText('RSVP to meet the rest of the table.')).toBeInTheDocument();expect(screen.getAllByLabelText('Guest identity locked').length).toBeGreaterThan(0)})
-it('previews and persists a selected profile photo locally',async()=>{const user=userEvent.setup();class Reader{result='data:image/png;base64,profile';onload:null|(()=>void)=null;readAsDataURL(){this.onload?.()}};Object.defineProperty(global,'FileReader',{configurable:true,value:Reader});render(<ProfilePage/>);await user.upload(screen.getByLabelText('Choose a profile photo'),new File(['photo'],'alia.png',{type:'image/png'}));expect(screen.getByAltText('Selected local profile preview')).toHaveAttribute('src','data:image/png;base64,profile');expect(readPreviewSession().profilePhoto).toBe('data:image/png;base64,profile');expect(createClient).not.toHaveBeenCalled()})
-it('keeps host location manually editable when the public Places key is absent',async()=>{const user=userEvent.setup();const oldKey=process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY='';render(<HostPage/>);const input=screen.getByPlaceholderText('Where will you gather?');await user.type(input,'Garden terrace');expect(input).toHaveValue('Garden terrace');expect(screen.getByText(/manual location entry remains enabled/i)).toBeInTheDocument();process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=oldKey})
-it('stores selected Google place data through the local autocomplete callback',async()=>{const oldKey=process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY='public-test-key';const onPlaceSelect=jest.fn();const onChange=jest.fn();jest.useFakeTimers();global.fetch=jest.fn().mockResolvedValueOnce({ok:true,json:async()=>({suggestions:[{placePrediction:{placeId:'place-1',text:{text:'Krasi, Boston, MA'},structuredFormat:{mainText:{text:'Krasi'},secondaryText:{text:'Boston, MA'}}}}]})}).mockResolvedValueOnce({ok:true,json:async()=>({id:'place-1',displayName:{text:'Krasi'},formattedAddress:'Krasi, Boston, MA',location:{latitude:42.35,longitude:-71.06}})});render(<HostLocationAutocomplete value="Kra" onChange={onChange} onPlaceSelect={onPlaceSelect}/>);await act(async()=>{await jest.advanceTimersByTimeAsync(300)});fireEvent.click(await screen.findByRole('option',{name:/Krasi/}));await act(async()=>{});expect(onPlaceSelect).toHaveBeenCalledWith(expect.objectContaining({placeId:'place-1',formattedAddress:'Krasi, Boston, MA',latitude:42.35}));jest.useRealTimers();process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=oldKey})
-it('uses image-only local invitation previews with replace and remove controls',async()=>{const user=userEvent.setup();class Reader{result='data:image/png;base64,preview';onload:null|(()=>void)=null;onerror=null;readAsDataURL(){this.onload?.()}};Object.defineProperty(global,'FileReader',{configurable:true,value:Reader});render(<HostPage/>);await user.upload(screen.getByLabelText('Choose invitation image'),new File(['image'],'table.png',{type:'image/png'}));expect(screen.getByAltText('Selected invitation inspiration preview')).toHaveAttribute('src','data:image/png;base64,preview');expect(screen.getByText('REPLACE')).toBeInTheDocument();await user.click(screen.getByRole('button',{name:'REMOVE'}));expect(screen.queryByAltText('Selected invitation inspiration preview')).not.toBeInTheDocument()})
-it('renders invitation themes as accessible radio cards rather than a select',()=>{const {container}=render(<HostPage/>);expect(screen.getByRole('radio',{name:'Golden arabesque'})).toBeChecked();expect(screen.getByRole('radio',{name:'Pomegranate evening'})).toBeInTheDocument();expect(container.querySelector('select[name="theme"]')).toBeNull()})
-it('keeps preference collection host-only and guest identities privacy-safe',()=>{const guest=render(<EventDetailPreview role="guest"/>);expect(screen.queryByText('PREFERENCE COLLECTION')).not.toBeInTheDocument();expect(screen.queryByText('Vegetarian · bright, herbal flavors')).not.toBeInTheDocument();expect(screen.getAllByLabelText('Guest identity locked')).toHaveLength(2);expect(screen.queryByText('MR')).not.toBeInTheDocument();guest.unmount();const host=render(<EventDetailPreview role="host"/>);expect(screen.getByRole('link',{name:'PREFERENCE COLLECTION'})).toHaveAttribute('href','/design-preview/events/demo/preferences');host.unmount();render(<HostPreferenceCollection/>);expect(screen.getByRole('heading',{name:'Preference Collection'})).toBeInTheDocument();expect(screen.getByText('1 vegetarian guest')).toBeInTheDocument()})
-it('revealed invite guests expose identity only and never preference summaries',()=>{sessionStorage.setItem('sofra-preview-rsvp','going');render(<InvitePage/>);expect(screen.queryByText(/loves savory food/i)).not.toBeInTheDocument();expect(screen.queryByText(/bright, herbal flavors/i)).not.toBeInTheDocument();expect(screen.queryByText(/adventurous/i)).not.toBeInTheDocument()})
-it('validates and publishes the local host preview into host event details',async()=>{const user=userEvent.setup();const{container}=render(<HostPage/>);const publish=screen.getByRole('button',{name:'PUBLISH INVITE'});await user.click(publish);expect(screen.getByRole('alert')).toHaveTextContent('event name, date and time, and location');expect(push).not.toHaveBeenCalled();await user.type(screen.getByPlaceholderText("Friday at Layla's"),'Garden Sofra');fireEvent.change(container.querySelector('input[name="dateTime"]')!,{target:{value:'2026-08-15T18:30'}});await user.type(screen.getByPlaceholderText('Where will you gather?'),'Krasi, Boston, MA');await user.click(publish);expect(push).toHaveBeenCalledWith('/design-preview/events/demo?role=host');expect(JSON.parse(sessionStorage.getItem('sofra-preview-invitation')??'{}')).toEqual(expect.objectContaining({title:'Garden Sofra',location:'Krasi, Boston, MA',theme:'arabesque'}))})
-it('connects gallery starts and the phone and name onboarding journey',async()=>{const user=userEvent.setup();const gallery=render(<GalleryPage/>);await user.click(screen.getByRole('button',{name:'START FULL DEMO'}));expect(push).toHaveBeenCalledWith('/design-preview/welcome');gallery.unmount();const phone=render(<SignupPage/>);await user.type(screen.getByLabelText('Phone number'),'+20 10 5555 0101');await user.click(screen.getByRole('button',{name:'CONTINUE'}));expect(push).toHaveBeenCalledWith('/design-preview/name');expect(readPreviewSession().phone).toBe('+20 10 5555 0101');phone.unmount();render(<NamePage/>);await user.type(screen.getByLabelText('Your name'),'Mariam');await user.click(screen.getByRole('button',{name:'CONTINUE'}));expect(push).toHaveBeenCalledWith('/design-preview/events');expect(readPreviewSession()).toEqual(expect.objectContaining({name:'Mariam',phone:'+20 10 5555 0101',role:'guest'}))})
-it('routes invited cards through RSVP and preferences into guest details',async()=>{const user=userEvent.setup();const events=render(<EventsPage/>);expect(screen.getByRole('link',{name:/View event/})).toHaveAttribute('href','/design-preview/invite');events.unmount();const invite=render(<InvitePage/>);await user.click(screen.getByRole('button',{name:'SAVE ME A SEAT'}));expect(readPreviewSession().rsvpStatus).toBe('going');expect(push).toHaveBeenCalledWith('/design-preview/preferences');invite.unmount();render(<PreferencesPage/>);await user.click(screen.getByRole('button',{name:'SAVE MY SEAT'}));expect(readPreviewSession().preferencesSubmitted).toBe(true);expect(push).toHaveBeenCalledWith('/design-preview/events/demo?role=guest')})
-it('connects host inventory back through gating and into menu customization',async()=>{const user=userEvent.setup();const inventory=render(<MyKitchenPreview eventContext/>);await user.click(screen.getByRole('button',{name:'UPDATE INVENTORY'}));expect(readPreviewSession().inventoryUpdated).toBe(true);expect(push).toHaveBeenCalledWith('/design-preview/events/demo?role=host');inventory.unmount();const host=render(<EventDetailPreview role="host"/>);expect(screen.getByRole('link',{name:'CURATED MENU'})).toBeInTheDocument();host.unmount();render(<CuratedMenusPreview detail eventContext/>);await user.click(screen.getByRole('button',{name:'EXPORT MENU'}));expect(screen.getByRole('region',{name:'Menu export customization'})).toBeInTheDocument();expect(screen.getByRole('link',{name:'BACK TO HOSTING'})).toHaveAttribute('href','/design-preview/events?tab=hosting')})
-it('reset demo clears only preview state and returns to the gallery',async()=>{const user=userEvent.setup();updatePreviewSession({name:'Mariam',role:'guest',preferencesSubmitted:true});sessionStorage.setItem('sofra-preview-rsvp','going');render(<PreviewDevControls/>);await user.click(screen.getByRole('button',{name:'RESET DEMO'}));expect(localStorage.getItem(PREVIEW_SESSION_KEY)).toBeNull();expect(sessionStorage.getItem('sofra-preview-rsvp')).toBeNull();expect(push).toHaveBeenCalledWith('/design-preview')})
+it("renders Sofras without an avatar, cart, or dishes and uses shared navigation", () => {
+  const { container } = render(<EventsPage />);
+  expect(screen.getByText("YOUR SOFRAS")).toBeInTheDocument();
+  expect(container.querySelector(".sv2-avatar")).toBeNull();
+  for (const label of ["SOFRAS", "HOST", "PROFILE"])
+    expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+  expect(screen.queryByText("HOST (+)")).not.toBeInTheDocument();
+});
+it("shows guest details with EDIT RSVP and Shared Album but no host controls", () => {
+  render(<EventPage />);
+  expect(screen.getByRole("link", { name: "EDIT RSVP" })).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: "Shared Album" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "EDIT EVENT" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("link", { name: "INVENTORY" }),
+  ).not.toBeInTheDocument();
+});
+it("routes accepted and tentative RSVPs to Preferences and decline to Missing Out", async () => {
+  const user = userEvent.setup();
+  render(<InvitePage />);
+  await user.click(screen.getByRole("button", { name: "SAVE ME A SEAT" }));
+  expect(sessionStorage.getItem("sofra-preview-rsvp")).toBe("going");
+  expect(push).toHaveBeenCalledWith("/design-preview/preferences");
+  await user.click(screen.getByRole("button", { name: "I'LL THINK ABOUT IT" }));
+  expect(sessionStorage.getItem("sofra-preview-rsvp")).toBe("tentative");
+  await user.click(screen.getByRole("button", { name: "MAYBE NEXT TIME" }));
+  expect(push).toHaveBeenCalledWith("/design-preview/invite/missing-out");
+});
+it("renders the missing-out destination", () => {
+  render(<MissingOutPage />);
+  expect(
+    screen.getByText("The plates will try not to take it personally."),
+  ).toBeInTheDocument();
+});
+it("keeps appearance controls only on Profile and provides preview logout", () => {
+  const routes = [
+    <EventsPage key="events" />,
+    <EventPage key="event" />,
+    <InvitePage key="invite" />,
+    <HostPage key="host" />,
+    <MenuPage key="menu" />,
+    <CuratedMenusPage key="curated" />,
+    <MyKitchenPage key="kitchen" />,
+  ];
+  for (const page of routes) {
+    const view = render(page);
+    expect(
+      screen.queryByRole("group", { name: "Preview appearance" }),
+    ).not.toBeInTheDocument();
+    view.unmount();
+  }
+  render(<ProfilePage />);
+  expect(
+    screen.getByRole("group", { name: "Preview appearance" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "LOG OUT" })).toBeInTheDocument();
+});
+it("renders curated menus and kitchen as text-only local collections", () => {
+  const index = render(<CuratedMenusPage />);
+  expect(
+    screen.getByRole("heading", { name: "Curated Menus" }),
+  ).toBeInTheDocument();
+  index.unmount();
+  const detail = render(<CuratedMenuDemoPage />);
+  expect(screen.getByText("Heirloom Tomato & Labneh")).toBeInTheDocument();
+  expect(
+    detail.container.querySelector(".sv2-menu-image-placeholder"),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /explore menu/i }),
+  ).not.toBeInTheDocument();
+  detail.unmount();
+  render(<MyKitchenPage />);
+  expect(
+    screen.getByRole("heading", { name: "My Kitchen" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: "SIGNATURE DISHES" }),
+  ).toBeInTheDocument();
+  expect(createClient).not.toHaveBeenCalled();
+});
+it("renders the host form and every requested gallery route", () => {
+  const host = render(<HostPage />);
+  expect(
+    screen.getByRole("heading", { name: "Create a Sofra" }),
+  ).toBeInTheDocument();
+  host.unmount();
+  render(<GalleryPage />);
+  for (const route of [
+    "/design-preview/welcome",
+    "/design-preview/signup",
+    "/design-preview/name",
+    "/design-preview/preferences",
+    "/design-preview/events",
+    "/design-preview/events/demo?role=guest",
+    "/design-preview/host",
+    "/design-preview/invite",
+    "/design-preview/invite/missing-out",
+    "/design-preview/curated-menus",
+    "/design-preview/curated-menus/demo",
+    "/design-preview/my-kitchen",
+    "/design-preview/profile",
+  ])
+    expect(screen.getByText(route)).toBeInTheDocument();
+});
+it("uses the exact INVITED, HOSTING, GOING, WENT tab order", () => {
+  render(<EventsPage />);
+  expect(
+    screen
+      .getAllByRole("button")
+      .filter((button) =>
+        ["INVITED", "HOSTING", "GOING", "WENT"].includes(
+          button.textContent ?? "",
+        ),
+      )
+      .map((button) => button.textContent),
+  ).toEqual(["INVITED", "HOSTING", "GOING", "WENT"]);
+});
+it("keeps compact host controls distinct and gates the curated menu", () => {
+  const { container } = render(<EventDetailPreview role="host" />);
+  for (const name of ["MANAGE GUESTS", "COPY INVITE LINK", "SHARE ON WHATSAPP"])
+    expect(screen.getByRole("button", { name })).toBeInTheDocument();
+  expect(
+    container.querySelector(".sv2-host-share-actions"),
+  ).toBeInTheDocument();
+  for (const name of ["EDIT EVENT", "PREFERENCE COLLECTION", "INVENTORY"])
+    expect(screen.getByRole("link", { name })).toBeInTheDocument();
+  expect(
+    screen.queryByRole("link", { name: "CURATED MENU" }),
+  ).not.toBeInTheDocument();
+  for (const action of [
+    "EDIT RSVP",
+    "SAVE ME A SEAT",
+    "I'LL THINK ABOUT IT",
+    "MAYBE NEXT TIME",
+  ])
+    expect(screen.queryByText(action)).not.toBeInTheDocument();
+});
+it("uses every canonical preset and structures custom signature and pantry metadata", async () => {
+  const user = userEvent.setup();
+  render(<MyKitchenPreview eventContext />);
+  expect(screen.getByRole("button", { name: "Hummus" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Apple Pie" })).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Chicken thighs" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Miso paste" }),
+  ).toBeInTheDocument();
+  const signature = screen.getByLabelText("Add custom signature dishes item");
+  await user.type(signature, "Aleppo roast{enter}");
+  expect(
+    screen.getByRole("region", { name: "Tag Aleppo roast" }),
+  ).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Main" }));
+  await user.click(screen.getByRole("button", { name: "Braised" }));
+  await user.click(screen.getByRole("button", { name: "ADD TO INVENTORY" }));
+  expect(
+    screen.getByRole("button", { name: "Remove Aleppo roast" }),
+  ).toBeInTheDocument();
+  const pantry = screen.getByLabelText("Add custom pantry item");
+  await user.type(pantry, "Aleppo pepper{enter}");
+  expect(
+    screen.queryByRole("button", { name: "Starter" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Spicy" }));
+  await user.click(screen.getByRole("button", { name: "ADD TO INVENTORY" }));
+  expect(
+    screen.getByRole("button", { name: "Remove Aleppo pepper" }),
+  ).toBeInTheDocument();
+  expect(
+    screen
+      .getAllByRole("button", { name: "ADD" })
+      .every((button) => button.classList.contains("sv2-inventory-add-button")),
+  ).toBe(true);
+});
+it("curates proposed courses with swaps, custom entries, locking, finalization, and export", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<CuratedMenusPreview detail />);
+  expect(screen.getAllByText("PROPOSED")).toHaveLength(5);
+  expect(
+    screen.queryByRole("button", { name: "EXPORT MENU" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getAllByRole("button", { name: "SWAP" })[0]);
+  expect(
+    screen.getByRole("region", { name: "Alternatives for To Begin" }),
+  ).toBeInTheDocument();
+  expect(
+    screen
+      .getAllByRole("region", { name: /Alternatives/ })[0]
+      .querySelectorAll("button"),
+  ).toHaveLength(2);
+  await user.click(
+    screen.getByRole("button", { name: /Charred Eggplant Fatteh/ }),
+  );
+  await user.click(screen.getAllByRole("button", { name: "ENTER MY OWN" })[0]);
+  await user.type(
+    screen.getByLabelText("Custom dish for To Begin"),
+    "My mezze",
+  );
+  await user.click(screen.getByRole("button", { name: "USE THIS DISH" }));
+  expect(screen.getByRole("heading", { name: "My mezze" })).toBeInTheDocument();
+  for (const button of screen.getAllByRole("button", { name: "LOCK IN" }))
+    await user.click(button);
+  expect(screen.getAllByText("LOCKED")).toHaveLength(5);
+  await user.click(screen.getByRole("button", { name: "FINALIZE MENU" }));
+  await user.click(screen.getByRole("button", { name: "EXPORT MENU" }));
+  expect(
+    screen.getByRole("region", { name: "Menu export customization" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "PDF-style preview" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Cart")).not.toBeInTheDocument();
+  expect(container.querySelector(".sv2-menu-image-placeholder")).toBeNull();
+});
+it("locks invite identities and provides the reveal message before RSVP", () => {
+  render(<InvitePage />);
+  expect(screen.getByText("WHO'S AROUND THE SOFRA")).toBeInTheDocument();
+  expect(
+    screen.getByText("RSVP to meet the rest of the table."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getAllByLabelText("Guest identity locked").length,
+  ).toBeGreaterThan(0);
+});
+it("previews and persists a selected profile photo locally", async () => {
+  const user = userEvent.setup();
+  class Reader {
+    result = "data:image/png;base64,profile";
+    onload: null | (() => void) = null;
+    readAsDataURL() {
+      this.onload?.();
+    }
+  }
+  Object.defineProperty(global, "FileReader", {
+    configurable: true,
+    value: Reader,
+  });
+  render(<ProfilePage />);
+  await user.upload(
+    screen.getByLabelText("Choose a profile photo"),
+    new File(["photo"], "alia.png", { type: "image/png" }),
+  );
+  expect(screen.getByAltText("Selected local profile preview")).toHaveAttribute(
+    "src",
+    "data:image/png;base64,profile",
+  );
+  expect(readPreviewSession().profilePhoto).toBe(
+    "data:image/png;base64,profile",
+  );
+  expect(createClient).not.toHaveBeenCalled();
+});
+it("keeps host location manually editable when the public Places key is absent", async () => {
+  const user = userEvent.setup();
+  const oldKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "";
+  render(<HostPage />);
+  const input = screen.getByPlaceholderText("Where will you gather?");
+  await user.type(input, "Garden terrace");
+  expect(input).toHaveValue("Garden terrace");
+  expect(
+    screen.getByText(/manual location entry remains enabled/i),
+  ).toBeInTheDocument();
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = oldKey;
+});
+it("stores selected Google place data through the local autocomplete callback", async () => {
+  const oldKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "public-test-key";
+  const onPlaceSelect = jest.fn();
+  const onChange = jest.fn();
+  jest.useFakeTimers();
+  global.fetch = jest
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: "place-1",
+              text: { text: "Krasi, Boston, MA" },
+              structuredFormat: {
+                mainText: { text: "Krasi" },
+                secondaryText: { text: "Boston, MA" },
+              },
+            },
+          },
+        ],
+      }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: "place-1",
+        displayName: { text: "Krasi" },
+        formattedAddress: "Krasi, Boston, MA",
+        location: { latitude: 42.35, longitude: -71.06 },
+      }),
+    });
+  render(
+    <HostLocationAutocomplete
+      value="Kra"
+      onChange={onChange}
+      onPlaceSelect={onPlaceSelect}
+    />,
+  );
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(300);
+  });
+  fireEvent.click(await screen.findByRole("option", { name: /Krasi/ }));
+  await act(async () => {});
+  expect(onPlaceSelect).toHaveBeenCalledWith(
+    expect.objectContaining({
+      placeId: "place-1",
+      formattedAddress: "Krasi, Boston, MA",
+      latitude: 42.35,
+    }),
+  );
+  jest.useRealTimers();
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = oldKey;
+});
+it("uses image-only local invitation previews with replace and remove controls", async () => {
+  const user = userEvent.setup();
+  class Reader {
+    result = "data:image/png;base64,preview";
+    onload: null | (() => void) = null;
+    onerror = null;
+    readAsDataURL() {
+      this.onload?.();
+    }
+  }
+  Object.defineProperty(global, "FileReader", {
+    configurable: true,
+    value: Reader,
+  });
+  render(<HostPage />);
+  await user.upload(
+    screen.getByLabelText("Choose invitation image"),
+    new File(["image"], "table.png", { type: "image/png" }),
+  );
+  expect(
+    screen.getByAltText("Selected invitation inspiration preview"),
+  ).toHaveAttribute("src", "data:image/png;base64,preview");
+  expect(screen.getByText("REPLACE")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "REMOVE" }));
+  expect(
+    screen.queryByAltText("Selected invitation inspiration preview"),
+  ).not.toBeInTheDocument();
+});
+it("renders invitation themes as accessible radio cards rather than a select", () => {
+  const { container } = render(<HostPage />);
+  expect(screen.getByRole("radio", { name: "Golden arabesque" })).toBeChecked();
+  expect(
+    screen.getByRole("radio", { name: "Pomegranate evening" }),
+  ).toBeInTheDocument();
+  expect(container.querySelector('select[name="theme"]')).toBeNull();
+});
+it("keeps preference collection host-only and guest identities privacy-safe", () => {
+  const guest = render(<EventDetailPreview role="guest" />);
+  expect(screen.queryByText("PREFERENCE COLLECTION")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("Vegetarian · bright, herbal flavors"),
+  ).not.toBeInTheDocument();
+  expect(screen.getAllByLabelText("Guest identity locked")).toHaveLength(2);
+  expect(screen.queryByText("MR")).not.toBeInTheDocument();
+  guest.unmount();
+  const host = render(<EventDetailPreview role="host" />);
+  expect(
+    screen.getByRole("link", { name: "PREFERENCE COLLECTION" }),
+  ).toHaveAttribute("href", "/design-preview/events/demo/preferences");
+  host.unmount();
+  render(<HostPreferenceCollection />);
+  expect(
+    screen.getByRole("heading", { name: "Preference Collection" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("1 vegetarian guest")).toBeInTheDocument();
+});
+it("revealed invite guests expose identity only and never preference summaries", () => {
+  sessionStorage.setItem("sofra-preview-rsvp", "going");
+  render(<InvitePage />);
+  expect(screen.queryByText(/loves savory food/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/bright, herbal flavors/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/adventurous/i)).not.toBeInTheDocument();
+});
+it("validates and publishes the local host preview into host event details", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<HostPage />);
+  const publish = screen.getByRole("button", { name: "PUBLISH INVITE" });
+  await user.click(publish);
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "event name, date and time, and location",
+  );
+  expect(push).not.toHaveBeenCalled();
+  await user.type(
+    screen.getByPlaceholderText("Friday at Layla's"),
+    "Garden Sofra",
+  );
+  fireEvent.change(container.querySelector('input[name="dateTime"]')!, {
+    target: { value: "2026-08-15T18:30" },
+  });
+  await user.type(
+    screen.getByPlaceholderText("Where will you gather?"),
+    "Krasi, Boston, MA",
+  );
+  await user.click(publish);
+  expect(push).toHaveBeenCalledWith("/design-preview/events/demo?role=host");
+  expect(
+    JSON.parse(sessionStorage.getItem("sofra-preview-invitation") ?? "{}"),
+  ).toEqual(
+    expect.objectContaining({
+      title: "Garden Sofra",
+      location: "Krasi, Boston, MA",
+      theme: "arabesque",
+    }),
+  );
+});
+it("connects gallery starts and the phone and name onboarding journey", async () => {
+  const user = userEvent.setup();
+  const gallery = render(<GalleryPage />);
+  await user.click(screen.getByRole("button", { name: "START FULL DEMO" }));
+  expect(push).toHaveBeenCalledWith("/design-preview/welcome");
+  gallery.unmount();
+  const phone = render(<SignupPage />);
+  await user.type(screen.getByLabelText("Phone number"), "+20 10 5555 0101");
+  await user.click(screen.getByRole("button", { name: "CONTINUE" }));
+  expect(push).toHaveBeenCalledWith("/design-preview/name");
+  expect(readPreviewSession().phone).toBe("+20 10 5555 0101");
+  phone.unmount();
+  render(<NamePage />);
+  await user.type(screen.getByLabelText("Your name"), "Mariam");
+  await user.click(screen.getByRole("button", { name: "CONTINUE" }));
+  expect(push).toHaveBeenCalledWith("/design-preview/events");
+  expect(readPreviewSession()).toEqual(
+    expect.objectContaining({
+      name: "Mariam",
+      phone: "+20 10 5555 0101",
+      role: "guest",
+    }),
+  );
+});
+it("routes invited cards through RSVP and preferences into guest details", async () => {
+  const user = userEvent.setup();
+  const events = render(<EventsPage />);
+  expect(screen.getByRole("link", { name: /View event/ })).toHaveAttribute(
+    "href",
+    "/design-preview/invite",
+  );
+  events.unmount();
+  const invite = render(<InvitePage />);
+  await user.click(screen.getByRole("button", { name: "SAVE ME A SEAT" }));
+  expect(readPreviewSession().rsvpStatus).toBe("going");
+  expect(push).toHaveBeenCalledWith("/design-preview/preferences");
+  invite.unmount();
+  render(<PreferencesPage />);
+  await user.click(screen.getByRole("button", { name: "SAVE MY SEAT" }));
+  expect(readPreviewSession().preferencesSubmitted).toBe(true);
+  expect(push).toHaveBeenCalledWith("/design-preview/events/demo?role=guest");
+});
+it("connects host inventory back through gating and into menu curation", async () => {
+  const user = userEvent.setup();
+  const inventory = render(<MyKitchenPreview eventContext />);
+  await user.click(screen.getByRole("button", { name: "UPDATE INVENTORY" }));
+  expect(readPreviewSession().inventoryUpdated).toBe(true);
+  expect(push).toHaveBeenCalledWith("/design-preview/events/demo?role=host");
+  inventory.unmount();
+  const host = render(<EventDetailPreview role="host" />);
+  expect(
+    screen.getByRole("link", { name: "CURATED MENU" }),
+  ).toBeInTheDocument();
+  host.unmount();
+  render(<CuratedMenusPreview detail eventContext />);
+  expect(screen.getByRole("button", { name: "FINALIZE MENU" })).toBeDisabled();
+  expect(screen.getByRole("link", { name: "BACK TO HOSTING" })).toHaveAttribute(
+    "href",
+    "/design-preview/events?tab=hosting",
+  );
+});
+it("reset demo clears only preview state and returns to the gallery", async () => {
+  const user = userEvent.setup();
+  updatePreviewSession({
+    name: "Mariam",
+    role: "guest",
+    preferencesSubmitted: true,
+  });
+  sessionStorage.setItem("sofra-preview-rsvp", "going");
+  render(<PreviewDevControls />);
+  await user.click(screen.getByRole("button", { name: "RESET DEMO" }));
+  expect(localStorage.getItem(PREVIEW_SESSION_KEY)).toBeNull();
+  expect(sessionStorage.getItem("sofra-preview-rsvp")).toBeNull();
+  expect(push).toHaveBeenCalledWith("/design-preview");
+});
