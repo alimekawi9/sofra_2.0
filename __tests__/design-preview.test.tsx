@@ -11,6 +11,8 @@ import DesignPreviewPreferencesPage from '@/app/design-preview/preferences/page'
 import DesignPreviewSignupPage from '@/app/design-preview/signup/page'
 import DesignPreviewNamePage from '@/app/design-preview/name/page'
 import DesignPreviewIndexPage from '@/app/design-preview/page'
+import DesignPreviewEventsPage from '@/app/design-preview/events/page'
+import DesignPreviewEventDetailPage from '@/app/design-preview/events/demo/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
@@ -505,6 +507,26 @@ describe('design preview routes', () => {
     }
     expect(screen.getAllByText('Available')).toHaveLength(4)
     expect(screen.getAllByText('Planned — not implemented')).toHaveLength(8)
+  })
+
+  it('renders the local events dashboard and keeps event details distinct', () => {
+    const dashboard = render(<DesignPreviewEventsPage />)
+    expect(screen.getByText('Your table history')).toBeInTheDocument()
+    expect(screen.getByText("Ali's Sofra")).toBeInTheDocument()
+    expect(dashboard.container.querySelector('a[href="/design-preview/events/demo"]')).toBeInTheDocument()
+    dashboard.unmount()
+
+    render(<DesignPreviewEventDetailPage />)
+    expect(screen.getByText('A table set with love for the people I love. Join me for an evening of good food, warm conversation, and Middle Eastern hospitality.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /will you be joining/i })).toBeInTheDocument()
+  })
+
+  it('keeps RSVP interaction local to the event-detail preview', async () => {
+    const user = userEvent.setup()
+    render(<DesignPreviewEventDetailPage />)
+    await user.click(screen.getByRole('button', { name: 'save me a seat' }))
+    expect(screen.getByText('Your preview response: save me a seat.')).toBeInTheDocument()
+    expect(createClient).not.toHaveBeenCalled()
   })
 
   it('navigates YALLA only to the isolated signup preview route', async () => {
