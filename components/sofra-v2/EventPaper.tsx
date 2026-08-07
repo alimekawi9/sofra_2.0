@@ -35,8 +35,10 @@ export interface EventPaperProps {
   onEditRsvp: () => void
   onRsvp: () => void
   onEditEvent: () => void
-  photos: string[]
+  photos: Array<{ id: string; url: string }>
   uploadingPhoto: boolean
+  photoError: string
+  onRetryPhotos: () => void
   onPhotoUpload: (file: File) => void
 }
 
@@ -77,6 +79,8 @@ export function EventPaper({
   onEditEvent,
   photos,
   uploadingPhoto,
+  photoError,
+  onRetryPhotos,
   onPhotoUpload,
 }: EventPaperProps) {
   return (
@@ -197,10 +201,10 @@ export function EventPaper({
                   <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
                 </div>
                 <div className="sv2-album-grid">
-                  {photos.map((src) => (
-                    <figure key={src}>
+                  {photos.map((photo) => (
+                    <figure key={photo.id}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="A memory shared from this Sofra" />
+                      <img src={photo.url} alt="A memory shared from this Sofra" />
                     </figure>
                   ))}
                 </div>
@@ -217,6 +221,14 @@ export function EventPaper({
                     }}
                   />
                 </label>
+                {photoError && (
+                  <p role="alert" style={{ fontSize: 12, marginTop: 8 }}>
+                    {photoError}{' '}
+                    {photoError.includes('refresh') && (
+                      <button type="button" onClick={onRetryPhotos}>Retry</button>
+                    )}
+                  </p>
+                )}
               </section>
             )}
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
 import { PROTEIN_PREFERENCE_OPTIONS, type ProteinPreference } from '@/lib/protein-preferences'
@@ -8,6 +9,7 @@ import type { FlavorPreference } from '@/lib/flavor-preferences'
 export interface PreferencesReceiptProps {
   dietary: string[]
   onToggleDietary: (value: string) => void
+  onSelectNoDietaryRestriction?: () => void
   avoid: string[]
   onToggleAvoid: (value: string) => void
   proteinPreferences: ProteinPreference[]
@@ -47,6 +49,7 @@ function CheckboxRow({
 export function PreferencesReceipt({
   dietary,
   onToggleDietary,
+  onSelectNoDietaryRestriction = () => {},
   avoid,
   onToggleAvoid,
   proteinPreferences,
@@ -92,15 +95,23 @@ export function PreferencesReceipt({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">DEAL BREAKERS</h3>
+        <h3 className="sv2-section-label">ANY LANE TO STAY IN?</h3>
         <div className="sv2-checkbox-grid">
           {DIETARY.map((item) => (
-            <CheckboxRow
-              key={item}
-              label={item}
-              checked={dietary.includes(item)}
-              onChange={() => onToggleDietary(item)}
-            />
+            <Fragment key={item}>
+              <CheckboxRow
+                label={item}
+                checked={dietary.includes(item)}
+                onChange={() => onToggleDietary(item)}
+              />
+              {item === 'No dairy' && (
+                <CheckboxRow
+                  label="None"
+                  checked={dietary.length === 0}
+                  onChange={onSelectNoDietaryRestriction}
+                />
+              )}
+            </Fragment>
           ))}
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}

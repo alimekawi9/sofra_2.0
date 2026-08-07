@@ -40,3 +40,7 @@ next-env.d.ts
 
 inventory-export.md
 docs/design-refrence/
+
+# local test/browser artifacts
+task9-artifacts/
+status-check.txt

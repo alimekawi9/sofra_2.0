@@ -47,6 +47,7 @@ export default function DesignPreviewPreferencesPage() {
     <PreferencesReceipt
       dietary={dietary}
       onToggleDietary={(value) => setDietary((current) => toggleValue(current, value))}
+      onSelectNoDietaryRestriction={() => setDietary([])}
       avoid={avoid}
       onToggleAvoid={(value) => setAvoid((current) => toggleValue(current, value))}
       proteinPreferences={proteinPreferences}

@@ -29,6 +29,10 @@ function makeSupabase({
   event      = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
   rsvpRow    = null as { status: string } | null,
   fetchError = null as { message: string } | null,
+  photoRows  = [] as Array<{ id: string; event_id: string; uploaded_by: string; storage_path: string; created_at: string }>,
+  photoFetchError = null as { message: string } | null,
+  photoInsertError = null as { message: string } | null,
+  photoUploadError = null as { message: string } | null,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -36,6 +40,21 @@ function makeSupabase({
   const inMock          = jest.fn().mockResolvedValue({ data: [], error: null })
   const innerEqMock     = jest.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
   const outerEqMock     = jest.fn().mockReturnValue({ eq: innerEqMock, in: inMock })
+
+  const photoOrderMock = jest.fn().mockResolvedValue({ data: photoRows, error: photoFetchError })
+  const photoEqMock = jest.fn().mockReturnValue({ order: photoOrderMock })
+  const insertedPhoto = {
+    id: 'photo-new', event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
+    storage_path: `ev-1/new-${GUEST_UID}.jpg`, created_at: '2026-08-07T12:00:00Z',
+  }
+  const photoSingleMock = jest.fn().mockResolvedValue({ data: insertedPhoto, error: photoInsertError })
+  const photoInsertSelectMock = jest.fn().mockReturnValue({ single: photoSingleMock })
+  const photoInsertMock = jest.fn().mockReturnValue({ select: photoInsertSelectMock })
+  const bucket = {
+    upload: jest.fn().mockResolvedValue({ data: { path: insertedPhoto.storage_path }, error: photoUploadError }),
+    remove: jest.fn().mockResolvedValue({ data: [], error: null }),
+    getPublicUrl: jest.fn((path: string) => ({ data: { publicUrl: `https://example.test/${path}` } })),
+  }
 
   const sb = {
     from: jest.fn((table: string) => {
@@ -48,18 +67,23 @@ function makeSupabase({
           }),
         }
       }
+      if (table === 'event_photos') {
+        return {
+          select: jest.fn().mockReturnValue({ eq: photoEqMock }),
+          insert: photoInsertMock,
+        }
+      }
       // rsvps
       return {
         select: jest.fn().mockReturnValue({ eq: outerEqMock }),
       }
     }),
     storage: {
-      from: jest.fn().mockReturnValue({
-        list: jest.fn().mockResolvedValue({ data: [], error: null }),
-        upload: jest.fn().mockResolvedValue({ data: null, error: null }),
-        getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl: 'https://example.test/photo.jpg' } }),
-      }),
+      from: jest.fn().mockReturnValue(bucket),
     },
+    _photoEqMock: photoEqMock,
+    _photoOrderMock: photoOrderMock,
+    _bucket: bucket,
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -225,6 +249,69 @@ describe('Shared album', () => {
       file,
       { contentType: 'image/jpeg' }
     )
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+    expect(screen.getByRole('img', { name: /memory shared/i })).toHaveAttribute(
+      'src', `https://example.test/ev-1/new-${GUEST_UID}.jpg`
+    )
+  })
+
+  it('loads persisted photo rows for the same event in newest-first order', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const rows = [{
+      id: 'photo-1', event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
+      storage_path: 'ev-1/photo-1.jpg', created_at: '2026-08-07T10:00:00Z',
+    }]
+    const sb = makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+    expect(sb._photoEqMock).toHaveBeenCalledWith('event_id', SAMPLE_EVENT.id)
+    expect(sb._photoOrderMock).toHaveBeenCalledWith('created_at', { ascending: false })
+  })
+
+  it('preserves existing photos and shows a retry state when refresh fails', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' }, photoFetchError: { message: 'denied' } })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not refresh/i))
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.getByText('0 memories')).toBeInTheDocument()
+  })
+
+  it('does not claim completion and rolls storage back when the row insert fails', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const sb = makeSupabase({ rsvpRow: { status: 'going' }, photoInsertError: { message: 'insert denied' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
+
+    await userEvent.upload(
+      screen.getByLabelText(/add a photo/i, { selector: 'input' }),
+      new File(['x'], 'memory.jpg', { type: 'image/jpeg' })
+    )
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not save/i))
+    expect(sb._bucket.remove).toHaveBeenCalledWith([expect.stringMatching(/^ev-1\//)])
+    expect(screen.getByText('0 memories')).toBeInTheDocument()
+  })
+
+  it('increments an existing persisted album from one to two memories', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const rows = [{
+      id: 'photo-1', event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
+      storage_path: 'ev-1/photo-1.jpg', created_at: '2026-08-07T10:00:00Z',
+    }]
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+
+    await userEvent.upload(
+      screen.getByLabelText(/add a photo/i, { selector: 'input' }),
+      new File(['x'], 'second.jpg', { type: 'image/jpeg' })
+    )
+
+    await waitFor(() => expect(screen.getByText('2 memories')).toBeInTheDocument())
+    expect(screen.getAllByRole('img', { name: /memory shared/i })).toHaveLength(2)
   })
 })
 

@@ -266,6 +266,115 @@ describe('Step 2 — checkbox groups', () => {
   })
 })
 
+describe('Dietary lane heading and None option', () => {
+  it('shows the updated section label', async () => {
+    await navigateToStep2()
+    expect(screen.getByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
+    expect(screen.queryByText('DEAL BREAKERS')).not.toBeInTheDocument()
+  })
+
+  it('places None directly after No dairy, before Pescatarian', async () => {
+    await navigateToStep2()
+    const dietaryGrid = document.querySelectorAll('.sv2-checkbox-grid')[0]
+    const labels = Array.from(dietaryGrid.querySelectorAll('label')).map((l) => l.textContent?.trim())
+    expect(labels).toEqual([
+      'Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'None', 'Pescatarian',
+    ])
+  })
+
+  it('None is checked by default when no dietary options are selected', async () => {
+    await navigateToStep2()
+    expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
+  })
+
+  it('selecting a dietary option deselects None automatically', async () => {
+    await navigateToStep2()
+    expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Pescatarian' }))
+    expect(screen.getByRole('checkbox', { name: 'None' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Pescatarian' })).toBeChecked()
+  })
+
+  it('selecting None clears every currently selected dietary option', async () => {
+    await navigateToStep2()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Kosher' }))
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Kosher' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'None' })).not.toBeChecked()
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'None' }))
+    expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Kosher' })).not.toBeChecked()
+  })
+
+  it('None and a real dietary option are never both checked at once', async () => {
+    await navigateToStep2()
+    const dietaryOptions = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
+    for (const opt of dietaryOptions) {
+      await userEvent.click(screen.getByRole('checkbox', { name: opt }))
+      expect(screen.getByRole('checkbox', { name: 'None' })).not.toBeChecked()
+      await userEvent.click(screen.getByRole('checkbox', { name: 'None' }))
+      expect(screen.getByRole('checkbox', { name: opt })).not.toBeChecked()
+      expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
+    }
+  })
+
+  it('submits an empty array (the existing no-restriction representation), not a literal "None" value', async () => {
+    const sb = makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    // None is selected by default (dietary starts empty) -- submit without touching anything.
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ dietary: [] }),
+      { onConflict: 'user_id' }
+    )
+  })
+
+  it('submits real dietary selections as their exact canonical values, unchanged', async () => {
+    const sb = makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Kosher' }))
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ dietary: ['Vegan', 'Kosher'] }),
+      { onConflict: 'user_id' }
+    )
+  })
+
+  it('prefilling from an existing empty dietary array shows None checked, not any real option', async () => {
+    makeSupabase({
+      profileRow: { user_id: 'uid-1', dietary: [], avoid: [], flavor_preference: [], adventurousness: 50 },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
+    for (const opt of ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']) {
+      expect(screen.getByRole('checkbox', { name: opt })).not.toBeChecked()
+    }
+  })
+
+  it('prefilling from an existing real dietary selection shows None unchecked', async () => {
+    makeSupabase({
+      profileRow: { user_id: 'uid-1', dietary: ['Vegan'], avoid: [], flavor_preference: [], adventurousness: 50 },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'None' })).not.toBeChecked()
+  })
+})
+
 describe('adventurousness slider', () => {
   async function goToStep2WithAdventurousness(value: number) {
     makeSupabase({

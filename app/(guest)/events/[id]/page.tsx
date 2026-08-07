@@ -24,6 +24,16 @@ type GuestRow = {
   users: { id: string; name: string } | null
 }
 
+type EventPhotoRow = {
+  id: string
+  event_id: string
+  uploaded_by: string
+  storage_path: string
+  created_at: string
+}
+
+type AlbumPhoto = EventPhotoRow & { url: string }
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
@@ -51,18 +61,38 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [isHost, setIsHost] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<AlbumPhoto[]>([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoError, setPhotoError] = useState('')
 
   async function loadPhotos() {
-    const { data } = await supabase.storage.from('event-photos').list(params.id, {
-      sortBy: { column: 'created_at', order: 'desc' },
-    })
-    setPhotos(
-      (data ?? []).map(
-        (f) => supabase.storage.from('event-photos').getPublicUrl(params.id + '/' + f.name).data.publicUrl
-      )
-    )
+    let data: unknown[] | null = null
+    let photosError: { message: string } | null = null
+    try {
+      const result = await supabase
+        .from('event_photos')
+        .select('id,event_id,uploaded_by,storage_path,created_at')
+        .eq('event_id', params.id)
+        .order('created_at', { ascending: false })
+      data = result.data
+      photosError = result.error
+    } catch (caught) {
+      photosError = { message: caught instanceof Error ? caught.message : 'Unexpected request failure' }
+    }
+
+    if (photosError) {
+      console.error('Shared album fetch failed', { eventId: params.id, message: photosError.message })
+      setPhotoError('Could not refresh the album. Try again.')
+      return false
+    }
+
+    const rows = (data ?? []) as EventPhotoRow[]
+    setPhotos(rows.map((photo) => ({
+      ...photo,
+      url: supabase.storage.from('event-photos').getPublicUrl(photo.storage_path).data.publicUrl,
+    })))
+    setPhotoError('')
+    return true
   }
 
   async function loadData() {
@@ -145,11 +175,51 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   async function onPhotoUpload(file: File) {
     if (!uidRef.current) return
     setUploadingPhoto(true)
+    setPhotoError('')
     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg'
     const path = `${params.id}/${Date.now()}-${uidRef.current}.${ext}`
-    await supabase.storage.from('event-photos').upload(path, file, { contentType: file.type || undefined })
-    await loadPhotos()
-    setUploadingPhoto(false)
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('event-photos')
+        .upload(path, file, { contentType: file.type || undefined })
+
+      if (uploadError) {
+        console.error('Shared album upload failed', { eventId: params.id, message: uploadError.message })
+        setPhotoError('Could not upload that photo. Try again.')
+        return
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('event_photos')
+        .insert({ event_id: params.id, uploaded_by: uidRef.current, storage_path: path })
+        .select('id,event_id,uploaded_by,storage_path,created_at')
+        .single()
+
+      if (insertError || !inserted) {
+        console.error('Shared album record insert failed', {
+          eventId: params.id,
+          message: insertError?.message ?? 'No inserted row returned',
+        })
+        const { error: cleanupError } = await supabase.storage.from('event-photos').remove([path])
+        if (cleanupError) {
+          console.error('Shared album upload rollback failed', { eventId: params.id, message: cleanupError.message })
+        }
+        setPhotoError('Could not save that photo. Try again.')
+        return
+      }
+
+      const photo = inserted as EventPhotoRow
+      const url = supabase.storage.from('event-photos').getPublicUrl(photo.storage_path).data.publicUrl
+      setPhotos((current) => [{ ...photo, url }, ...current.filter((item) => item.id !== photo.id)])
+    } catch (caught) {
+      console.error('Shared album upload request failed', {
+        eventId: params.id,
+        message: caught instanceof Error ? caught.message : 'Unexpected request failure',
+      })
+      setPhotoError('Could not upload that photo. Try again.')
+    } finally {
+      setUploadingPhoto(false)
+    }
   }
 
   function shareViaWhatsApp() {
@@ -188,8 +258,10 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onEditEvent={() => router.push('/host/' + params.id + '/edit')}
-      photos={photos}
+      photos={photos.map((photo) => ({ id: photo.id, url: photo.url }))}
       uploadingPhoto={uploadingPhoto}
+      photoError={photoError}
+      onRetryPhotos={loadPhotos}
       onPhotoUpload={onPhotoUpload}
     />
   )

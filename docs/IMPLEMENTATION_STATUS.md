@@ -2,6 +2,13 @@
 
 ## Completed
 
+- Shared Album uploads now persist an `event_photos` record containing the
+  route event ID, uploader ID, Storage path, and server-generated timestamp.
+  The album queries those records newest-first, immediately appends the
+  returned insert row, derives its count from the rendered array, and exposes
+  restrained upload/insert/fetch errors without clearing existing photos.
+  Migration `20260807000002_add_event_photos.sql` must be applied before this
+  flow is used in production.
 - Guest protein/base preferences support up to two raw selections, legacy
   single-value normalization, readable Table aggregation, and deterministic
   45% OR-matching against canonical dish base tags.

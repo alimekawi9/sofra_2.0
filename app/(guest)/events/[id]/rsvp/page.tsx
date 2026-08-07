@@ -242,6 +242,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       <PreferencesReceipt
         dietary={dietary}
         onToggleDietary={(it) => toggleChip(dietary, setDietary, it)}
+        onSelectNoDietaryRestriction={() => setDietary([])}
         avoid={avoid}
         onToggleAvoid={(it) => toggleChip(avoid, setAvoid, it)}
         proteinPreferences={proteinPreferences}

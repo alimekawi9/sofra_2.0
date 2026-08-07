@@ -582,7 +582,7 @@ describe.skip('legacy design preview routes superseded by application organizati
 
   it('renders PreferencesReceipt without a visible theme control on the preferences route', () => {
     render(<DesignPreviewPreferencesPage />)
-    expect(screen.getByText('DEAL BREAKERS')).toBeInTheDocument()
+    expect(screen.getByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'SAVE MY SEAT' })).toBeInTheDocument()
     expect(screen.getByTestId('receipt-perforation')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Preview appearance' })).not.toBeInTheDocument()
