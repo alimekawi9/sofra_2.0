@@ -223,6 +223,33 @@ describe('Copy invite link button', () => {
   })
 })
 
+describe('EDIT EVENT button', () => {
+  it('shows for the host on an upcoming event, and navigates to the host edit route', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase()
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('link', { name: 'EDIT EVENT' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('link', { name: 'EDIT EVENT' }))
+    expect(mockPush).toHaveBeenCalledWith('/host/ev-1/edit')
+  })
+
+  it('is never shown to a guest, even one with an RSVP', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Around this Sofra')).toBeInTheDocument())
+    expect(screen.queryByRole('link', { name: 'EDIT EVENT' })).not.toBeInTheDocument()
+  })
+
+  it('is hidden from the host once the event is in the past', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ event: { ...SAMPLE_EVENT, event_date: '2020-01-01T00:00:00Z' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /copy invite link/i })).toBeInTheDocument())
+    expect(screen.queryByRole('link', { name: 'EDIT EVENT' })).not.toBeInTheDocument()
+  })
+})
+
 function rowAt(i: number) {
   return {
     id: `photo-${i}`, event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
