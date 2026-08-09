@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import '@/components/sofra-v2/sofra-v2.css'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { buildIntel } from '@/lib/intel'
@@ -372,7 +373,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       const res = await fetch('/api/menu/generate-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intel, signatures, pantry }),
+        body: JSON.stringify({ eventId: id, userId: localStorage.getItem('sofra_user_id') }),
       })
 
       if (!res.ok) {
@@ -381,9 +382,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       }
 
       const result = (await res.json()) as {
-        courses: Course[]
+        rows?: PersistedCourse[]
+        courses?: Course[]
         aiFailed: boolean
         fallbackReason?: string
+        reasoningByName?: Record<string,string>
       }
 
       if (result.aiFailed) {
@@ -394,9 +397,18 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         )
       }
 
+      if (result.rows) {
+        setCourses(result.rows)
+        setReasoningByCourseId(Object.fromEntries(result.rows.flatMap(row => {
+          const reasoning = result.reasoningByName?.[row.dish_name]
+          return reasoning ? [[row.id, reasoning]] : []
+        })))
+        return
+      }
+
       // Map AI courses back onto persisted courses by slot; only update unlocked.
       const bySlot = new Map<string, Course>()
-      for (const c of result.courses) bySlot.set(c.slot, c)
+      for (const c of result.courses ?? []) bySlot.set(c.slot, c)
 
       const updates = unlocked.map((c) => ({
         id: c.id,
@@ -478,6 +490,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
   return (
     <div
+      className="sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft"
       style={{
         minHeight: '100vh',
         background: C.ink,
@@ -486,7 +499,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       }}
     >
       <div
-        className="fade"
+        className="fade sv2-device-shell sv2-app-shell sv2-menu-draft-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
       >
         <ChefTabs
@@ -531,6 +544,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           <>
             {/* Header row */}
             <div
+              className="sv2-menu-draft-heading"
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -614,7 +628,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 derived.origin !== 'empty' &&
                 (derived.excludes.length === 0 || allExcludedCovered)
               return (
-                <div
+                <article
+                  className={`sv2-menu-draft-course${isLocked ? ' sv2-menu-draft-course-locked' : ''}`}
                   key={persisted.id}
                   style={{
                     background: C.panel,
@@ -625,6 +640,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   }}
                 >
                   <div
+                    className={`sv2-menu-table-fit${ok ? ' sv2-menu-table-fit-ok' : ''}`}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -812,11 +828,12 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                       No other options available
                     </p>
                   )}
-                </div>
+                </article>
               )
             })}
 
             <div
+              className="sv2-menu-export-row"
               style={{
                 display: 'flex',
                 alignItems: 'center',

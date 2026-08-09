@@ -12,7 +12,7 @@ export class GeminiError extends Error {
   }
 }
 
-const MODEL = 'gemini-3.6-flash'
+const MODEL = process.env.GEMINI_MENU_MODEL || 'gemini-3.5-flash-lite'
 
 // 2026-08-07: gemini-2.5-flash-lite returned 404 "no longer available to new
 // users" on every attempt (real measure-gemini-timing.mjs run against the
@@ -27,7 +27,7 @@ const MODEL = 'gemini-3.6-flash'
 // this prompt depends on. See scripts/measure-ai-prompt.mjs +
 // scripts/measure-gemini-timing.mjs to re-measure whenever the prompt or
 // model catalog changes.
-const TIMEOUT_MS = 60_000
+const TIMEOUT_MS = 8_000
 
 let cached: GoogleGenAI | null = null
 function client(): GoogleGenAI {
@@ -39,7 +39,7 @@ function client(): GoogleGenAI {
 
 // Calls Gemini and returns parsed JSON. Throws GeminiError with a specific kind
 // on any failure so callers can decide how to fall back / surface the error.
-export async function callGeminiJson<T = unknown>(prompt: string): Promise<T> {
+export async function callGeminiJson<T = unknown>(prompt: string, responseJsonSchema?: object): Promise<T> {
   const ai = client()
 
   // Rough token estimate only (chars/4) — no tokenizer dependency. Good enough
@@ -59,6 +59,9 @@ export async function callGeminiJson<T = unknown>(prompt: string): Promise<T> {
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
+        responseJsonSchema,
+        maxOutputTokens: 800,
+        thinkingConfig: { thinkingBudget: 1 },
         abortSignal: controller.signal,
       },
     })

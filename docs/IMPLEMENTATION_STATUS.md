@@ -2,6 +2,48 @@
 
 ## Completed
 
+- Production Menu Drafting (`/events/[id]/menu`) now uses the approved
+  Sofra/Lovable light application shell with rounded course cards, clearer
+  locked and table-fit states, responsive controls, and a restyled PDF export
+  area. Existing deterministic derivation, Gemini generation, course swaps,
+  locking, substitutions, persistence, and print-ready export are unchanged.
+
+## In progress
+
+- Deterministic-first recommendation restoration: central thresholds, dynamic
+  dish-count/role planning primitives, purchase/context formulas, server-owned
+  generation inputs, an environment-configurable low-latency Gemini model,
+  bounded structured-output cap, and an 8-second abort are implemented. Sequential
+  residual-aware signature scoring/selection, structured gaps, thresholded
+  pantry relevance, and MMR diagnostics are implemented as deterministic
+  planning modules. Exact pantry category ceilings and retrieval diagnostics
+  plus a typed compact gap-only Gemini brief and strict structured proposal
+  schema/parser are implemented and tested without
+  IDs, raw tags, diner names, full profiles, or full inventory. The production
+  generation route now uses that compact contract, skips Gemini
+  when M=0, and safely replaces variable unlocked rows while preserving locked
+  IDs and legacy slot compatibility. The menu UI renders the resulting ordered
+  3–9 rows with broad role labels. The full ordered deterministic validator and
+  priority-driven, single-dish repair engine are complete; repairs stop after
+  two attempts, preserve locked dishes, and return an explicit warning/fallback
+  state. The final 18-guest run calculated 9 dishes, selected 0 signatures, and
+  requested 9 generated dishes; validation correctly exhausted two repairs and
+  returned fallback rather than persisting an invalid menu.
+- Production Table Intelligence (`/events/[id]/table`) now uses the approved
+  Sofra/Lovable light application shell, rounded responsive intelligence
+  cards, restyled host navigation, bar charts, adventurousness visualization,
+  brief, custom-answer summaries, and substitution plan. Existing Supabase
+  access checks, preference aggregation, deterministic intelligence building,
+  and menu-derived substitution behavior are unchanged.
+- Production `/kitchen` now uses the approved Sofra/Lovable light application
+  styling while retaining the existing Supabase-backed signature and weekly
+  pantry workflows. Preset selection, custom add/edit/delete, canonical raw
+  tags, allergen selection, and event-return navigation remain intact; pantry
+  availability remains binary and pantry ingredients still have no dish-role
+  controls. Saved preset and custom inventory now appear only as active chips
+  in their selectors rather than being duplicated in written lists. Inline
+  chip edit buttons have been replaced by the full inventory edit forms, and
+  production Kitchen cards and controls now use consistently rounded corners.
 - Shared Album uploads now persist an `event_photos` record containing the
   route event ID, uploader ID, Storage path, and server-generated timestamp.
   The album queries those records newest-first, immediately appends the

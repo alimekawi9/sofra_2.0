@@ -8,6 +8,8 @@
 // unconditionally when imported outside a webpack "react-server" build.
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { pathToFileURL } from 'node:url'
+import { resolve as resolvePath } from 'node:path'
 import ts from 'typescript'
 
 const SERVER_ONLY_SHIM = 'sofra-shim:server-only'
@@ -15,6 +17,10 @@ const SERVER_ONLY_SHIM = 'sofra-shim:server-only'
 export async function resolve(specifier, context, next) {
   if (specifier === 'server-only') {
     return { url: SERVER_ONLY_SHIM, shortCircuit: true }
+  }
+
+  if (specifier.startsWith('@/')) {
+    specifier = pathToFileURL(resolvePath(process.cwd(), specifier.slice(2))).href
   }
 
   try {

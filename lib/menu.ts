@@ -73,6 +73,18 @@ export const SLOT_LABELS: Record<Slot, string> = {
   finish: 'To Finish',
 }
 
+export function broadRoleForSlot(slot: string): 'starter'|'main'|'side'|'dessert'|'flex' {
+  if (slot === 'start' || slot === 'starter') return 'starter'
+  if (slot === 'sea' || slot === 'land' || slot === 'main') return 'main'
+  if (slot === 'green' || slot === 'side') return 'side'
+  if (slot === 'finish' || slot === 'dessert') return 'dessert'
+  return 'flex'
+}
+
+export function displayRoleLabel(slot: string): string {
+  return broadRoleForSlot(slot).toUpperCase()
+}
+
 // Coarse name-based routing so pantry fallbacks pick something plausible for
 // the slot (fish for Sea, meat for Land, etc.) instead of the first item
 // alphabetically. Not exhaustive — a miss just means the item won't be
@@ -643,7 +655,7 @@ export function deriveCourse(
   usedNames?: Set<string>,
 ): Course {
   const slot = persisted.slot as Slot
-  const slotLabel = SLOT_LABELS[slot] ?? persisted.slot
+  const slotLabel = SLOT_LABELS[slot] ?? displayRoleLabel(persisted.slot)
 
   if (!persisted.dish_name || persisted.dish_origin === 'empty') {
     return {
