@@ -1032,3 +1032,86 @@
 @media(max-width:420px){.sv2-swap-candidates{grid-template-columns:1fr}.sv2-custom-course{grid-template-columns:1fr}.sv2-custom-course button{min-height:42px}}
 .sv2-invite-guests small{display:none!important}.sv2-guest-lock{border:0!important;width:auto!important;height:auto!important;font-size:14px!important}.sv2-profile-photo{transition:transform .18s ease,box-shadow .18s ease}.sv2-profile-photo:hover,.sv2-profile-photo:focus-within{transform:scale(1.03);box-shadow:0 0 0 3px rgba(213,169,64,.55)}.sv2-profile-photo-helper{margin:9px 0 0!important;color:inherit!important;font-size:10px!important;font-style:normal!important;letter-spacing:.6px;text-transform:uppercase}
 .sv2-invitation-artwork-wrap.sv2-event-artwork{display:block;height:auto;padding:0;background:none;overflow:visible}.sv2-invitation-artwork-wrap.sv2-event-artwork>.sv2-invitation-artwork{width:100%;height:clamp(130px,35vw,210px);border-radius:14px}.sv2-invitation-artwork-wrap.sv2-event-artwork>.sv2-invitation-motif{height:110px}.sv2-artwork-controls{display:flex;justify-content:flex-end;gap:8px;margin-top:7px}.sv2-artwork-controls label,.sv2-artwork-controls button{min-height:32px;padding:8px 10px;border:1px solid var(--sv2-line);background:transparent;color:var(--sv2-ink);font:600 8px var(--sv2-sans-family);letter-spacing:.8px;cursor:pointer}.sv2-artwork-controls input{position:absolute;width:1px;height:1px;opacity:0}.sv2-invitation-artwork-wrap.sv2-invite-ornament>.sv2-invitation-artwork{width:100%;height:100%}
+
+/* ─── Shared Album v2: compact preview, batch upload, gallery, viewer, comments ─── */
+
+.sv2-album-heading-actions{display:flex;align-items:center;gap:12px}
+.sv2-view-album-link{border:0;background:none;padding:0;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.8px;text-decoration:underline;cursor:pointer}
+
+.sv2-album-preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.sv2-album-preview-grid[data-count="1"]{grid-template-columns:1fr}
+.sv2-album-preview-grid[data-count="1"] .sv2-album-preview-tile{aspect-ratio:16/10}
+.sv2-album-preview-grid[data-count="2"]{grid-template-columns:1fr 1fr}
+.sv2-album-preview-tile{position:relative;aspect-ratio:1;padding:0;margin:0;border:0;border-radius:8px;overflow:hidden;cursor:pointer;background:var(--sv2-line)}
+.sv2-album-preview-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.sv2-album-preview-overflow{background-size:cover;background-position:center}
+.sv2-album-preview-overflow::before{content:'';position:absolute;inset:0;background:rgba(20,8,8,.55)}
+.sv2-album-preview-overflow span{position:relative;display:grid;place-items:center;width:100%;height:100%;color:#F7F4ED;font:italic 20px var(--sv2-display-family)}
+
+.sv2-add-photos-trigger{position:relative;display:grid;place-items:center;min-height:44px;margin-top:4px;border:1px solid var(--sv2-ink);border-radius:8px;font:500 10px var(--sv2-sans-family);letter-spacing:1px;cursor:pointer}
+.sv2-add-photos-trigger input{position:absolute;width:1px;height:1px;opacity:0}
+.sv2-add-photos-error{margin:8px 0 0;color:var(--sv2-ink);font-size:11px}
+
+.sv2-add-photos-sheet{position:fixed;inset:0;z-index:1100;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,8,8,.45)}
+.sv2-add-photos-sheet-body{width:100%;max-width:480px;padding:20px;border-radius:20px 20px 0 0;background:var(--sv2-card-bg);color:var(--sv2-ink)}
+.sv2-add-photos-count{margin:0 0 14px;font:italic 20px var(--sv2-display-family)}
+.sv2-add-photos-note-label{display:block;margin-bottom:8px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--sv2-muted)}
+.sv2-add-photos-sheet-body textarea{width:100%;min-height:70px;padding:10px;border:1px solid var(--sv2-line);border-radius:10px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family);resize:vertical}
+.sv2-add-photos-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.sv2-add-photos-sheet-actions button{min-height:46px;border:1px solid var(--sv2-ink);border-radius:8px;background:transparent;color:inherit;font:500 10px var(--sv2-sans-family);letter-spacing:.8px;cursor:pointer}
+.sv2-add-photos-sheet-actions button:last-child{background:var(--sv2-ink);color:var(--sv2-off-white)}
+@media(min-width:640px){.sv2-add-photos-sheet{align-items:center}.sv2-add-photos-sheet-body{border-radius:20px}}
+
+.sv2-upload-progress{position:fixed;left:50%;bottom:20px;z-index:1200;width:calc(100% - 32px);max-width:360px;transform:translateX(-50%);padding:14px 16px;border-radius:14px;background:var(--sv2-ink);color:var(--sv2-off-white);box-shadow:0 12px 30px rgba(0,0,0,.25)}
+.sv2-upload-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font:500 11px var(--sv2-sans-family);letter-spacing:.4px}
+.sv2-upload-progress-head button{border:0;background:none;color:inherit;font-size:12px;cursor:pointer}
+.sv2-upload-progress p{margin:6px 0 0;font-size:10px;opacity:.85}
+.sv2-upload-progress-bar{margin-top:8px;height:4px;border-radius:999px;background:rgba(247,244,237,.25);overflow:hidden}
+.sv2-upload-progress-bar span{display:block;height:100%;background:#F7F4ED;transition:width .2s ease}
+
+.sv2-album-page-shell .sv2-back-link{margin-bottom:10px}
+.sv2-album-page-header{margin-bottom:20px}
+.sv2-album-page-header h1{margin:0;font:italic clamp(30px,8vw,42px)/1 var(--sv2-display-family)}
+.sv2-album-page-subtitle{margin:4px 0 14px;color:var(--sv2-muted);font-size:12px}
+.sv2-album-page-meta{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sv2-album-page-meta>span{font-size:11px;color:var(--sv2-muted)}
+.sv2-album-page-meta .sv2-add-photos-trigger{min-width:130px;padding:0 16px}
+
+.sv2-album-page-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.sv2-album-page-tile{position:relative;aspect-ratio:1;padding:0;margin:0;border:0;overflow:hidden;cursor:pointer;background:var(--sv2-line)}
+.sv2-album-page-tile img{width:100%;height:100%;object-fit:cover;display:block}
+@media(min-width:640px){.sv2-album-page-grid{grid-template-columns:repeat(4,1fr);gap:6px}}
+@media(min-width:1024px){.sv2-album-page-grid{grid-template-columns:repeat(6,1fr)}}
+
+.sv2-photo-viewer{position:fixed;inset:0;z-index:1300;display:flex;flex-direction:column;background:#0B0605;color:#F7F4ED}
+.sv2-photo-viewer-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;font:500 11px var(--sv2-sans-family);letter-spacing:.6px}
+.sv2-photo-viewer-top button{border:0;background:none;color:inherit;font-size:16px;cursor:pointer}
+.sv2-photo-viewer-stage{position:relative;flex:1;display:flex;align-items:center;justify-content:center;min-height:0;touch-action:pan-y}
+.sv2-photo-viewer-stage img{max-width:100%;max-height:100%;object-fit:contain}
+.sv2-photo-viewer-prev,.sv2-photo-viewer-next{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;border-radius:50%;background:rgba(247,244,237,.12);color:#F7F4ED;font-size:20px;cursor:pointer}
+.sv2-photo-viewer-prev{left:12px}
+.sv2-photo-viewer-next{right:12px}
+.sv2-photo-viewer-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-top:1px solid rgba(247,244,237,.14)}
+.sv2-photo-viewer-attribution{display:flex;align-items:center;gap:10px;min-width:0}
+.sv2-photo-viewer-uploader{margin:0;font-size:11px;color:rgba(247,244,237,.8)}
+.sv2-photo-viewer-caption{margin:3px 0 0;font-size:13px;line-height:1.4}
+.sv2-photo-viewer-comment-toggle{flex-shrink:0;border:1px solid rgba(247,244,237,.4);border-radius:999px;padding:8px 12px;background:transparent;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.6px;cursor:pointer}
+
+.sv2-album-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.sv2-album-avatar-initials{display:grid;place-items:center;background:rgba(247,244,237,.16);color:inherit;font:500 10px var(--sv2-sans-family)}
+.sv2-comments-panel .sv2-album-avatar-initials{background:var(--sv2-line);color:var(--sv2-ink)}
+
+.sv2-comments-panel{position:fixed;left:0;right:0;bottom:0;z-index:1400;max-height:70vh;display:flex;flex-direction:column;border-radius:20px 20px 0 0;background:var(--sv2-card-bg);color:var(--sv2-ink)}
+.sv2-comments-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--sv2-line);font:600 10px var(--sv2-sans-family);letter-spacing:1px}
+.sv2-comments-header button{border:0;background:none;color:inherit;font-size:14px;cursor:pointer}
+.sv2-comments-list{flex:1;overflow-y:auto;padding:12px 16px}
+.sv2-comments-empty{font-size:11px;color:var(--sv2-muted)}
+.sv2-comment-row{display:flex;gap:10px;padding:8px 0}
+.sv2-comment-meta{margin:0;font-size:10px;color:var(--sv2-muted)}
+.sv2-comment-body{margin:3px 0 0;font-size:13px;line-height:1.4}
+.sv2-comments-error{color:#C0524A;font-size:11px}
+.sv2-comments-compose{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--sv2-line)}
+.sv2-comments-compose input{flex:1;min-width:0;min-height:40px;padding:8px 12px;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family)}
+.sv2-comments-compose button{min-height:40px;padding:0 16px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-off-white);font:500 9px var(--sv2-sans-family);letter-spacing:.6px;cursor:pointer}
+.sv2-comments-compose button:disabled{opacity:.4;cursor:default}
+@media(min-width:900px){.sv2-comments-panel{left:auto;right:24px;bottom:24px;width:340px;max-height:60vh;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.4)}}

@@ -223,6 +223,13 @@ describe('Copy invite link button', () => {
   })
 })
 
+function rowAt(i: number) {
+  return {
+    id: `photo-${i}`, event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
+    storage_path: `ev-1/photo-${i}.jpg`, created_at: `2026-08-0${(i % 9) + 1}T10:00:00Z`,
+  }
+}
+
 describe('Shared album', () => {
   it('is hidden before the guest has RSVPed', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
@@ -232,35 +239,76 @@ describe('Shared album', () => {
     expect(screen.queryByText('Shared Album')).not.toBeInTheDocument()
   })
 
-  it('shows an upload control once unlocked, and uploads to the event-photos bucket', async () => {
+  it('shows a multi-select ADD PHOTOS control once unlocked', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
+
+    const input = screen.getByLabelText('ADD PHOTOS', { selector: 'input' })
+    expect(input).toHaveAttribute('multiple')
+    expect(input).toHaveAttribute('accept', 'image/*')
+  })
+
+  it('opens a caption sheet after selecting photos, then uploads to the event-photos bucket with the note attached', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     const sb = makeSupabase({ rsvpRow: { status: 'going' } })
     render(<EventDetailPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
 
     const file = new File(['x'], 'memory.jpg', { type: 'image/jpeg' })
-    const input = screen.getByLabelText(/add a photo/i, { selector: 'input' })
-    await userEvent.upload(input, file)
+    await userEvent.upload(screen.getByLabelText('ADD PHOTOS', { selector: 'input' }), file)
+
+    expect(screen.getByText('1 photo selected')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/say something about these/i), 'Best table of the night')
+    await userEvent.click(screen.getByRole('button', { name: /^upload 1 photo$/i }))
 
     await waitFor(() => expect(sb.storage.from).toHaveBeenCalledWith('event-photos'))
     const bucket = sb.storage.from.mock.results[0].value
     expect(bucket.upload).toHaveBeenCalledWith(
-      expect.stringMatching(new RegExp(`^ev-1/\\d+-${GUEST_UID}\\.jpg$`)),
+      expect.stringMatching(new RegExp(`^ev-1/\\d+-${GUEST_UID}-0\\.jpg$`)),
       file,
       { contentType: 'image/jpeg' }
     )
-    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
-    expect(screen.getByRole('img', { name: /memory shared/i })).toHaveAttribute(
-      'src', `https://example.test/ev-1/new-${GUEST_UID}.jpg`
+    const eventPhotosResult = sb.from.mock.results.find(
+      (_r: unknown, i: number) => sb.from.mock.calls[i][0] === 'event_photos'
     )
+    expect(eventPhotosResult!.value.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ caption: 'Best table of the night' })
+    )
+  })
+
+  it('redirects to the dedicated album page once the upload succeeds', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
+
+    await userEvent.upload(
+      screen.getByLabelText('ADD PHOTOS', { selector: 'input' }),
+      new File(['x'], 'memory.jpg', { type: 'image/jpeg' })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^upload 1 photo$/i }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/ev-1/album'))
+  })
+
+  it('rejects a selection of more than 20 photos before opening the caption sheet', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
+
+    const files = Array.from({ length: 21 }, (_, i) => new File(['x'], `p${i}.jpg`, { type: 'image/jpeg' }))
+    await userEvent.upload(screen.getByLabelText('ADD PHOTOS', { selector: 'input' }), files)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('You can upload up to 20 photos at a time.')
+    expect(screen.queryByText(/photos selected/)).not.toBeInTheDocument()
   })
 
   it('loads persisted photo rows for the same event in newest-first order', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
-    const rows = [{
-      id: 'photo-1', event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
-      storage_path: 'ev-1/photo-1.jpg', created_at: '2026-08-07T10:00:00Z',
-    }]
+    const rows = [rowAt(1)]
     const sb = makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
     render(<EventDetailPage params={PARAMS} />)
 
@@ -279,39 +327,84 @@ describe('Shared album', () => {
     expect(screen.getByText('0 memories')).toBeInTheDocument()
   })
 
-  it('does not claim completion and rolls storage back when the row insert fails', async () => {
+  it('rolls storage back and reports an error when the row insert fails for every file', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     const sb = makeSupabase({ rsvpRow: { status: 'going' }, photoInsertError: { message: 'insert denied' } })
     render(<EventDetailPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
 
     await userEvent.upload(
-      screen.getByLabelText(/add a photo/i, { selector: 'input' }),
+      screen.getByLabelText('ADD PHOTOS', { selector: 'input' }),
       new File(['x'], 'memory.jpg', { type: 'image/jpeg' })
     )
+    await userEvent.click(screen.getByRole('button', { name: /^upload 1 photo$/i }))
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not save/i))
+    await waitFor(() => expect(screen.getByText('Upload failed')).toBeInTheDocument())
     expect(sb._bucket.remove).toHaveBeenCalledWith([expect.stringMatching(/^ev-1\//)])
     expect(screen.getByText('0 memories')).toBeInTheDocument()
+    expect(mockPush).not.toHaveBeenCalledWith('/events/ev-1/album')
   })
 
   it('increments an existing persisted album from one to two memories', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
-    const rows = [{
-      id: 'photo-1', event_id: SAMPLE_EVENT.id, uploaded_by: GUEST_UID,
-      storage_path: 'ev-1/photo-1.jpg', created_at: '2026-08-07T10:00:00Z',
-    }]
-    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: [rowAt(1)] })
     render(<EventDetailPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
 
     await userEvent.upload(
-      screen.getByLabelText(/add a photo/i, { selector: 'input' }),
+      screen.getByLabelText('ADD PHOTOS', { selector: 'input' }),
       new File(['x'], 'second.jpg', { type: 'image/jpeg' })
     )
+    await userEvent.click(screen.getByRole('button', { name: /^upload 1 photo$/i }))
 
     await waitFor(() => expect(screen.getByText('2 memories')).toBeInTheDocument())
-    expect(screen.getAllByRole('img', { name: /memory shared/i })).toHaveLength(2)
+  })
+
+  it('shows every photo as a compact preview tile up to 6, with no overflow tile', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const rows = Array.from({ length: 6 }, (_, i) => rowAt(i))
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    const { container } = render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByText('6 memories')).toBeInTheDocument())
+    expect(container.querySelectorAll('.sv2-album-preview-tile')).toHaveLength(6)
+    expect(container.querySelector('.sv2-album-preview-overflow')).not.toBeInTheDocument()
+  })
+
+  it('caps the preview at 5 real tiles plus one overflow tile once the album exceeds 6 photos', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const rows = Array.from({ length: 23 }, (_, i) => rowAt(i))
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    const { container } = render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByText('23 memories')).toBeInTheDocument())
+    expect(container.querySelectorAll('.sv2-album-preview-tile:not(.sv2-album-preview-overflow)')).toHaveLength(5)
+    expect(screen.getByText('+18')).toBeInTheDocument()
+  })
+
+  it('opens the dedicated album at the selected photo when a preview tile is clicked', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: [rowAt(1)] })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('img', { name: /memory shared/i }))
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/album?photo=photo-1')
+  })
+
+  it('opens the plain album (no specific photo) from VIEW ALBUM or the overflow tile', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const rows = Array.from({ length: 8 }, (_, i) => rowAt(i))
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('8 memories')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'VIEW ALBUM' }))
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/album')
+
+    mockPush.mockClear()
+    await userEvent.click(screen.getByLabelText(/view all 8 photos/i))
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/album')
   })
 })
 

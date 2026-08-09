@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EventPaper, type EventPaperGuest } from '@/components/sofra-v2/EventPaper'
+import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
+import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/shared-album'
 import '@/components/sofra-v2/sofra-v2.css'
 
 type EventRow = {
@@ -23,16 +25,6 @@ type GuestRow = {
   status: string
   users: { id: string; name: string } | null
 }
-
-type EventPhotoRow = {
-  id: string
-  event_id: string
-  uploaded_by: string
-  storage_path: string
-  created_at: string
-}
-
-type AlbumPhoto = EventPhotoRow & { url: string }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -64,33 +56,16 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [photos, setPhotos] = useState<AlbumPhoto[]>([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
 
   async function loadPhotos() {
-    let data: unknown[] | null = null
-    let photosError: { message: string } | null = null
-    try {
-      const result = await supabase
-        .from('event_photos')
-        .select('id,event_id,uploaded_by,storage_path,created_at')
-        .eq('event_id', params.id)
-        .order('created_at', { ascending: false })
-      data = result.data
-      photosError = result.error
-    } catch (caught) {
-      photosError = { message: caught instanceof Error ? caught.message : 'Unexpected request failure' }
-    }
-
+    const { photos: loaded, error: photosError } = await fetchAlbumPhotos(supabase, params.id)
     if (photosError) {
-      console.error('Shared album fetch failed', { eventId: params.id, message: photosError.message })
+      console.error('Shared album fetch failed', { eventId: params.id, message: photosError })
       setPhotoError('Could not refresh the album. Try again.')
       return false
     }
-
-    const rows = (data ?? []) as EventPhotoRow[]
-    setPhotos(rows.map((photo) => ({
-      ...photo,
-      url: supabase.storage.from('event-photos').getPublicUrl(photo.storage_path).data.publicUrl,
-    })))
+    setPhotos(loaded)
     setPhotoError('')
     return true
   }
@@ -172,53 +147,39 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     }
   }
 
-  async function onPhotoUpload(file: File) {
-    if (!uidRef.current) return
+  async function handleFilesConfirmed(files: File[], caption: string) {
+    if (!uidRef.current || files.length === 0) return
     setUploadingPhoto(true)
     setPhotoError('')
-    const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg'
-    const path = `${params.id}/${Date.now()}-${uidRef.current}.${ext}`
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from('event-photos')
-        .upload(path, file, { contentType: file.type || undefined })
+    setUploadProgress({ status: 'uploading', completed: 0, total: files.length })
 
-      if (uploadError) {
-        console.error('Shared album upload failed', { eventId: params.id, message: uploadError.message })
-        setPhotoError('Could not upload that photo. Try again.')
-        return
-      }
+    const { succeeded, failed } = await uploadPhotoBatch(supabase, {
+      eventId: params.id,
+      userId: uidRef.current,
+      files,
+      caption,
+      onProgress: (completed, total) => setUploadProgress({ status: 'uploading', completed, total }),
+    })
 
-      const { data: inserted, error: insertError } = await supabase
-        .from('event_photos')
-        .insert({ event_id: params.id, uploaded_by: uidRef.current, storage_path: path })
-        .select('id,event_id,uploaded_by,storage_path,created_at')
-        .single()
+    setUploadingPhoto(false)
 
-      if (insertError || !inserted) {
-        console.error('Shared album record insert failed', {
-          eventId: params.id,
-          message: insertError?.message ?? 'No inserted row returned',
-        })
-        const { error: cleanupError } = await supabase.storage.from('event-photos').remove([path])
-        if (cleanupError) {
-          console.error('Shared album upload rollback failed', { eventId: params.id, message: cleanupError.message })
-        }
-        setPhotoError('Could not save that photo. Try again.')
-        return
-      }
-
-      const photo = inserted as EventPhotoRow
-      const url = supabase.storage.from('event-photos').getPublicUrl(photo.storage_path).data.publicUrl
-      setPhotos((current) => [{ ...photo, url }, ...current.filter((item) => item.id !== photo.id)])
-    } catch (caught) {
-      console.error('Shared album upload request failed', {
-        eventId: params.id,
-        message: caught instanceof Error ? caught.message : 'Unexpected request failure',
+    if (failed.length === 0) {
+      setUploadProgress({ status: 'success', total: succeeded.length })
+    } else if (succeeded.length > 0) {
+      setUploadProgress({
+        status: 'partial',
+        succeeded: succeeded.length,
+        total: files.length,
+        failedNames: failed.map((f) => f.name),
       })
-      setPhotoError('Could not upload that photo. Try again.')
-    } finally {
-      setUploadingPhoto(false)
+    } else {
+      console.error('Shared album batch upload failed', { eventId: params.id, failed })
+      setUploadProgress({ status: 'error', message: 'Could not upload those photos. Try again.' })
+    }
+
+    if (succeeded.length > 0) {
+      setPhotos((current) => [...succeeded, ...current])
+      router.push('/events/' + params.id + '/album')
     }
   }
 
@@ -259,10 +220,15 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onEditEvent={() => router.push('/host/' + params.id + '/edit')}
       photos={photos.map((photo) => ({ id: photo.id, url: photo.url }))}
-      uploadingPhoto={uploadingPhoto}
       photoError={photoError}
       onRetryPhotos={loadPhotos}
-      onPhotoUpload={onPhotoUpload}
+      uploadingPhoto={uploadingPhoto}
+      uploadProgress={uploadProgress}
+      onDismissUploadProgress={() => setUploadProgress(null)}
+      onFilesConfirmed={handleFilesConfirmed}
+      onOpenAlbum={(photoId) =>
+        router.push('/events/' + params.id + '/album' + (photoId ? '?photo=' + photoId : ''))
+      }
     />
   )
 }

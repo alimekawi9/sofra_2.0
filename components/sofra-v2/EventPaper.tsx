@@ -3,6 +3,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
+import { AddPhotosControl } from './AddPhotosControl'
+import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProgress'
+import { buildPreviewTiles } from '@/lib/shared-album'
 
 export interface EventPaperGuest {
   id: string
@@ -36,10 +39,13 @@ export interface EventPaperProps {
   onRsvp: () => void
   onEditEvent: () => void
   photos: Array<{ id: string; url: string }>
-  uploadingPhoto: boolean
   photoError: string
   onRetryPhotos: () => void
-  onPhotoUpload: (file: File) => void
+  uploadingPhoto: boolean
+  uploadProgress: UploadProgressState | null
+  onDismissUploadProgress: () => void
+  onFilesConfirmed: (files: File[], caption: string) => void
+  onOpenAlbum: (photoId?: string) => void
 }
 
 const RSVP_LABELS: Record<string, string> = {
@@ -78,11 +84,16 @@ export function EventPaper({
   onRsvp,
   onEditEvent,
   photos,
-  uploadingPhoto,
   photoError,
   onRetryPhotos,
-  onPhotoUpload,
+  uploadingPhoto,
+  uploadProgress,
+  onDismissUploadProgress,
+  onFilesConfirmed,
+  onOpenAlbum,
 }: EventPaperProps) {
+  const { tiles: previewTiles, overflowCount } = buildPreviewTiles(photos)
+  const overflowBackgroundUrl = overflowCount > 0 ? photos[previewTiles.length]?.url : undefined
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-event-detail-shell">
@@ -198,37 +209,54 @@ export function EventPaper({
               <section className="sv2-shared-album" aria-labelledby="sv2-album-heading">
                 <div className="sv2-section-heading">
                   <h2 id="sv2-album-heading">Shared Album</h2>
-                  <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
-                </div>
-                <div className="sv2-album-grid">
-                  {photos.map((photo) => (
-                    <figure key={photo.id}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.url} alt="A memory shared from this Sofra" />
-                    </figure>
-                  ))}
-                </div>
-                <label className="sv2-album-add">
-                  {uploadingPhoto ? 'UPLOADING…' : 'ADD A PHOTO'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploadingPhoto}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ''
-                      if (file) onPhotoUpload(file)
-                    }}
-                  />
-                </label>
-                {photoError && (
-                  <p role="alert" style={{ fontSize: 12, marginTop: 8 }}>
-                    {photoError}{' '}
-                    {photoError.includes('refresh') && (
-                      <button type="button" onClick={onRetryPhotos}>Retry</button>
+                  <div className="sv2-album-heading-actions">
+                    <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
+                    {photos.length > 0 && (
+                      <button type="button" className="sv2-view-album-link" onClick={() => onOpenAlbum()}>
+                        VIEW ALBUM
+                      </button>
                     )}
+                  </div>
+                </div>
+
+                {photoError && (
+                  <p role="alert" style={{ fontSize: 12, marginBottom: 8 }}>
+                    {photoError}{' '}
+                    <button type="button" onClick={onRetryPhotos}>Retry</button>
                   </p>
                 )}
+
+                {photos.length === 0 ? (
+                  <p style={{ fontSize: 12 }}>No memories yet.</p>
+                ) : (
+                  <div className="sv2-album-preview-grid" data-count={Math.min(previewTiles.length, 6)}>
+                    {previewTiles.map((photo) => (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        className="sv2-album-preview-tile"
+                        onClick={() => onOpenAlbum(photo.id)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photo.url} alt="A memory shared from this Sofra" />
+                      </button>
+                    ))}
+                    {overflowCount > 0 && (
+                      <button
+                        type="button"
+                        className="sv2-album-preview-tile sv2-album-preview-overflow"
+                        style={overflowBackgroundUrl ? { backgroundImage: `url(${overflowBackgroundUrl})` } : undefined}
+                        onClick={() => onOpenAlbum()}
+                        aria-label={`View all ${photos.length} photos`}
+                      >
+                        <span>+{overflowCount}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <AddPhotosControl disabled={uploadingPhoto} onFilesConfirmed={onFilesConfirmed} />
+                <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />
               </section>
             )}
 
