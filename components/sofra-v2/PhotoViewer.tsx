@@ -22,6 +22,7 @@ export interface PhotoViewerProps {
   commentsOpen: boolean
   onToggleComments: () => void
   comments: PhotoCommentView[]
+  commentCount: number | null
   commentsLoading: boolean
   commentsError: string
   onSubmitComment: (body: string) => void
@@ -29,6 +30,22 @@ export interface PhotoViewerProps {
 }
 
 const SWIPE_THRESHOLD = 50
+
+// null = not yet known (still loading) — never claim "Add a comment" then.
+function commentButtonLabel(commentsOpen: boolean, count: number | null): string {
+  if (commentsOpen) return 'CLOSE COMMENTS'
+  if (count === null) return '💬'
+  if (count === 0) return '💬 ADD A COMMENT'
+  if (count === 1) return '💬 1 COMMENT'
+  return `💬 ${count} COMMENTS`
+}
+
+function commentButtonAriaLabel(commentsOpen: boolean, count: number | null): string {
+  if (commentsOpen) return 'Hide comments'
+  if (count === null) return 'Comments'
+  if (count === 0) return 'Add a comment'
+  return `View ${count} comment${count === 1 ? '' : 's'}`
+}
 
 export function PhotoViewer({
   photos,
@@ -38,6 +55,7 @@ export function PhotoViewer({
   commentsOpen,
   onToggleComments,
   comments,
+  commentCount,
   commentsLoading,
   commentsError,
   onSubmitComment,
@@ -112,8 +130,13 @@ export function PhotoViewer({
             {photo.caption && <p className="sv2-photo-viewer-caption">{photo.caption}</p>}
           </div>
         </div>
-        <button type="button" className="sv2-photo-viewer-comment-toggle" onClick={onToggleComments}>
-          {commentsOpen ? 'CLOSE COMMENTS' : comments.length > 0 ? `COMMENT (${comments.length})` : 'ADD A COMMENT'}
+        <button
+          type="button"
+          className="sv2-photo-viewer-comment-toggle"
+          onClick={onToggleComments}
+          aria-label={commentButtonAriaLabel(commentsOpen, commentCount)}
+        >
+          {commentButtonLabel(commentsOpen, commentCount)}
         </button>
       </div>
 

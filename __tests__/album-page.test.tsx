@@ -62,7 +62,11 @@ function makeSupabase({
       }
       if (table === 'event_photo_comments') {
         return {
-          select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ order: jest.fn().mockResolvedValue({ data: commentRows, error: null }) }) }),
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn((_col: string, photoId: string) => ({
+              order: jest.fn().mockResolvedValue({ data: commentRows.filter((c) => c.photo_id === photoId), error: null }),
+            })),
+          }),
           insert: jest.fn().mockReturnValue({
             select: jest.fn().mockReturnValue({
               single: jest.fn().mockResolvedValue(
@@ -146,31 +150,38 @@ describe('viewer navigation', () => {
     const tiles = screen.getAllByRole('button', { name: /open photo/i })
     await userEvent.click(tiles[1])
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 
   it('advances with next and wraps from the last photo to the first', async () => {
     await renderWithThree()
     await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[2])
     expect(screen.getByText('3 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
     await userEvent.click(screen.getByRole('button', { name: 'Next photo' }))
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 
   it('goes back with previous and wraps from the first photo to the last', async () => {
     await renderWithThree()
     await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[0])
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
     await userEvent.click(screen.getByRole('button', { name: 'Previous photo' }))
     expect(screen.getByText('3 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 
   it('responds to ArrowRight, ArrowLeft, and Escape', async () => {
     await renderWithThree()
     await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[0])
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
 
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
 
     fireEvent.keyDown(window, { key: 'ArrowLeft' })
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
@@ -182,6 +193,7 @@ describe('viewer navigation', () => {
   it('advances on a leftward swipe past the threshold, and ignores a tiny drag', async () => {
     await renderWithThree()
     await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[0])
+    await screen.findByRole('button', { name: 'Add a comment' })
     const stage = screen.getByRole('dialog', { name: 'Photo viewer' }).querySelector('.sv2-photo-viewer-stage')!
 
     fireEvent.pointerDown(stage, { clientX: 300, clientY: 100 })
@@ -191,11 +203,13 @@ describe('viewer navigation', () => {
     fireEvent.pointerDown(stage, { clientX: 300, clientY: 100 })
     fireEvent.pointerUp(stage, { clientX: 200, clientY: 100 })
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 
   it('closes back to the grid via the close button', async () => {
     await renderWithThree()
     await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[0])
+    await screen.findByRole('button', { name: 'Add a comment' })
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog', { name: 'Photo viewer' })).not.toBeInTheDocument()
   })
@@ -206,6 +220,7 @@ describe('viewer navigation', () => {
     makeSupabase({ rsvpRow: { status: 'going' }, photoRows: [photoRow(1), photoRow(2), photoRow(3)] })
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument())
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 })
 
@@ -218,6 +233,7 @@ describe('attribution and captions', () => {
     await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
     expect(screen.getByText(/Ali/)).toBeInTheDocument()
     expect(screen.getByText('Caption 1')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 
   it('falls back to initials when the uploader has no profile photo', async () => {
@@ -227,6 +243,7 @@ describe('attribution and captions', () => {
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
     expect(screen.getByText('A')).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 
   it('omits the caption line for old records saved before captions existed', async () => {
@@ -238,27 +255,26 @@ describe('attribution and captions', () => {
     await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
     expect(screen.queryByText(/Caption/)).not.toBeInTheDocument()
     expect(screen.getByText(/Ali/)).toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Add a comment' })
   })
 })
 
-describe('comments', () => {
-  it('shows "no comments yet" then lets a guest post one, which appears immediately', async () => {
+describe('comment count on the viewer button', () => {
+  it('shows ADD A COMMENT for a photo with zero comments, opening to an empty panel', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase({ rsvpRow: { status: 'going' }, photoRows: [photoRow(1)], commentRows: [] })
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
 
-    await userEvent.click(screen.getByRole('button', { name: /add a comment/i }))
-    await waitFor(() => expect(screen.getByText('No comments yet.')).toBeInTheDocument())
+    const button = await screen.findByRole('button', { name: 'Add a comment' })
+    expect(button).toHaveTextContent('ADD A COMMENT')
 
-    await userEvent.type(screen.getByLabelText('Add a comment'), 'Great shot')
-    await userEvent.click(screen.getByRole('button', { name: 'POST' }))
-
-    await waitFor(() => expect(screen.getByText('posted')).toBeInTheDocument())
+    await userEvent.click(button)
+    expect(screen.getByText('No comments yet.')).toBeInTheDocument()
   })
 
-  it('shows existing comments with commenter attribution', async () => {
+  it('shows the singular label for exactly one comment', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase({
       rsvpRow: { status: 'going' },
@@ -268,8 +284,110 @@ describe('comments', () => {
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
-    await userEvent.click(screen.getByRole('button', { name: /comment/i }))
-    await waitFor(() => expect(screen.getByText('No way omg')).toBeInTheDocument())
+
+    const button = await screen.findByRole('button', { name: 'View 1 comment' })
+    expect(button).toHaveTextContent('1 COMMENT')
+  })
+
+  it('shows the plural label for multiple comments', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      photoRows: [photoRow(1)],
+      commentRows: [
+        { id: 'c1', photo_id: 'photo-1', user_id: GUEST_UID, body: 'One', created_at: '2026-08-01T10:00:00Z' },
+        { id: 'c2', photo_id: 'photo-1', user_id: GUEST_UID, body: 'Two', created_at: '2026-08-01T10:01:00Z' },
+        { id: 'c3', photo_id: 'photo-1', user_id: GUEST_UID, body: 'Three', created_at: '2026-08-01T10:02:00Z' },
+      ],
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
+
+    const button = await screen.findByRole('button', { name: 'View 3 comments' })
+    expect(button).toHaveTextContent('3 COMMENTS')
+  })
+
+  it('clicking the count opens the same panel, showing existing comments and allowing another', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      photoRows: [photoRow(1)],
+      commentRows: [{ id: 'c1', photo_id: 'photo-1', user_id: GUEST_UID, body: 'No way omg', created_at: '2026-08-01T10:00:00Z' }],
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
+
+    await userEvent.click(await screen.findByRole('button', { name: 'View 1 comment' }))
+    expect(screen.getByText('No way omg')).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('Add a comment'), 'Adding another')
+    await userEvent.click(screen.getByRole('button', { name: 'POST' }))
+    await waitFor(() => expect(screen.getByText('posted')).toBeInTheDocument())
+  })
+
+  it('increments the visible count immediately after posting, with no refresh required', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      photoRows: [photoRow(1)],
+      commentRows: [{ id: 'c1', photo_id: 'photo-1', user_id: GUEST_UID, body: 'First', created_at: '2026-08-01T10:00:00Z' }],
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
+
+    await userEvent.click(await screen.findByRole('button', { name: 'View 1 comment' }))
+    await userEvent.type(screen.getByLabelText('Add a comment'), 'Second')
+    await userEvent.click(screen.getByRole('button', { name: 'POST' }))
+    await waitFor(() => expect(screen.getByText('posted')).toBeInTheDocument())
+
+    // The toggle prioritizes open/close while the panel is open; close it to
+    // confirm the count itself was updated, not just the list inside.
+    await userEvent.click(screen.getByRole('button', { name: 'Hide comments' }))
+    expect(screen.getByRole('button', { name: 'View 2 comments' })).toBeInTheDocument()
+  })
+
+  it('updates immediately when navigating to a photo with a different count, without leaking the previous count', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      photoRows: [photoRow(1), photoRow(2)],
+      commentRows: [{ id: 'c1', photo_id: 'photo-1', user_id: GUEST_UID, body: 'Only on photo 1', created_at: '2026-08-01T10:00:00Z' }],
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('2 memories')).toBeInTheDocument())
+
+    await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[0])
+    await screen.findByRole('button', { name: 'View 1 comment' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next photo' }))
+    await screen.findByRole('button', { name: 'Add a comment' })
+    expect(screen.queryByText(/1 COMMENT/)).not.toBeInTheDocument()
+  })
+
+  it('does not re-fetch comments when navigating back to an already-visited photo', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const sb = makeSupabase({
+      rsvpRow: { status: 'going' },
+      photoRows: [photoRow(1), photoRow(2)],
+      commentRows: [],
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('2 memories')).toBeInTheDocument())
+
+    await userEvent.click(screen.getAllByRole('button', { name: /open photo/i })[0])
+    await screen.findByRole('button', { name: 'Add a comment' })
+    const callsAfterFirstPhoto = sb.from.mock.calls.filter(([t]: [string]) => t === 'event_photo_comments').length
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next photo' }))
+    await screen.findByRole('button', { name: 'Add a comment' })
+    await userEvent.click(screen.getByRole('button', { name: 'Previous photo' }))
+    await screen.findByRole('button', { name: 'Add a comment' })
+
+    const callsAfterRevisit = sb.from.mock.calls.filter(([t]: [string]) => t === 'event_photo_comments').length
+    expect(callsAfterRevisit).toBe(callsAfterFirstPhoto + 1)
   })
 
   it('disables POST for an empty or whitespace-only comment', async () => {
@@ -278,7 +396,7 @@ describe('comments', () => {
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: /open photo/i }))
-    await userEvent.click(screen.getByRole('button', { name: /add a comment/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a comment' }))
     expect(screen.getByRole('button', { name: 'POST' })).toBeDisabled()
     await userEvent.type(screen.getByLabelText('Add a comment'), '   ')
     expect(screen.getByRole('button', { name: 'POST' })).toBeDisabled()

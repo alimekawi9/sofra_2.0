@@ -1095,7 +1095,7 @@
 .sv2-photo-viewer-attribution{display:flex;align-items:center;gap:10px;min-width:0}
 .sv2-photo-viewer-uploader{margin:0;font-size:11px;color:rgba(247,244,237,.8)}
 .sv2-photo-viewer-caption{margin:3px 0 0;font-size:13px;line-height:1.4}
-.sv2-photo-viewer-comment-toggle{flex-shrink:0;border:1px solid rgba(247,244,237,.4);border-radius:999px;padding:8px 12px;background:transparent;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.6px;cursor:pointer}
+.sv2-photo-viewer-comment-toggle{flex-shrink:0;min-width:96px;text-align:center;border:1px solid rgba(247,244,237,.4);border-radius:999px;padding:8px 12px;background:transparent;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.6px;cursor:pointer}
 
 .sv2-album-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0}
 .sv2-album-avatar-initials{display:grid;place-items:center;background:rgba(247,244,237,.16);color:inherit;font:500 10px var(--sv2-sans-family)}

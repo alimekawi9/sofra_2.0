@@ -35,8 +35,11 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(false)
-  const [comments, setComments] = useState<PhotoCommentView[]>([])
-  const [commentsLoading, setCommentsLoading] = useState(false)
+  // Keyed by photo id so counts/lists never bleed between photos while
+  // navigating, and revisiting a photo doesn't need to re-fetch.
+  const [commentsByPhoto, setCommentsByPhoto] = useState<Record<string, PhotoCommentView[]>>({})
+  const commentsByPhotoRef = useRef<Record<string, PhotoCommentView[]>>({})
+  const [loadingCommentsFor, setLoadingCommentsFor] = useState<string | null>(null)
   const [commentsError, setCommentsError] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
 
@@ -70,7 +73,10 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     const requestedPhotoId = searchParams.get('photo')
     if (requestedPhotoId) {
       const foundIndex = decorated.findIndex((p) => p.id === requestedPhotoId)
-      if (foundIndex >= 0) setSelectedIndex(foundIndex)
+      if (foundIndex >= 0) {
+        setSelectedIndex(foundIndex)
+        ensureCommentsLoaded(decorated[foundIndex].id)
+      }
     }
   }
 
@@ -149,42 +155,52 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     if (succeeded.length > 0) await refreshAlbum()
   }
 
+  function setCommentsForPhoto(photoId: string, list: PhotoCommentView[]) {
+    commentsByPhotoRef.current = { ...commentsByPhotoRef.current, [photoId]: list }
+    setCommentsByPhoto(commentsByPhotoRef.current)
+  }
+
+  // Fetches once per photo id and caches — called on every navigation (not
+  // just when the comments panel opens) so the count is known before the
+  // user ever clicks the comment button.
+  async function ensureCommentsLoaded(photoId: string) {
+    if (commentsByPhotoRef.current[photoId] !== undefined) return
+    setLoadingCommentsFor(photoId)
+    setCommentsError('')
+    const { comments: rows, error: commentsFetchError } = await fetchPhotoComments(supabase, photoId)
+    if (commentsFetchError) {
+      setCommentsError('Could not load comments.')
+      setLoadingCommentsFor((current) => (current === photoId ? null : current))
+      return
+    }
+    const commenterMap = await fetchUsersByIds(supabase, rows.map((c) => c.user_id))
+    setCommentsForPhoto(
+      photoId,
+      rows.map((c) => ({
+        id: c.id,
+        body: c.body,
+        createdAt: c.created_at,
+        authorName: commenterMap[c.user_id]?.name ?? uploaders[c.user_id]?.name ?? 'Someone',
+        authorPhotoUrl: commenterMap[c.user_id]?.photoUrl ?? uploaders[c.user_id]?.photoUrl ?? null,
+      }))
+    )
+    setLoadingCommentsFor((current) => (current === photoId ? null : current))
+  }
+
   function selectPhoto(index: number) {
     setSelectedIndex(index)
     setCommentsOpen(false)
+    const photo = photos[index]
+    if (photo) ensureCommentsLoaded(photo.id)
   }
 
   function closeViewer() {
     setSelectedIndex(null)
     setCommentsOpen(false)
-    setComments([])
   }
 
-  async function toggleComments() {
-    const next = !commentsOpen
-    setCommentsOpen(next)
-    if (next && selectedIndex !== null) {
-      const photo = photos[selectedIndex]
-      setCommentsLoading(true)
-      setCommentsError('')
-      const { comments: rows, error: commentsFetchError } = await fetchPhotoComments(supabase, photo.id)
-      if (commentsFetchError) {
-        setCommentsError('Could not load comments.')
-        setCommentsLoading(false)
-        return
-      }
-      const commenterMap = await fetchUsersByIds(supabase, rows.map((c) => c.user_id))
-      setComments(
-        rows.map((c) => ({
-          id: c.id,
-          body: c.body,
-          createdAt: c.created_at,
-          authorName: commenterMap[c.user_id]?.name ?? uploaders[c.user_id]?.name ?? 'Someone',
-          authorPhotoUrl: commenterMap[c.user_id]?.photoUrl ?? uploaders[c.user_id]?.photoUrl ?? null,
-        }))
-      )
-      setCommentsLoading(false)
-    }
+  function toggleComments() {
+    setCommentsOpen((open) => !open)
   }
 
   async function submitComment(body: string) {
@@ -203,8 +219,8 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
       setCommentsError('Could not post that comment. Try again.')
       return
     }
-    setComments((current) => [
-      ...current,
+    setCommentsForPhoto(photo.id, [
+      ...(commentsByPhotoRef.current[photo.id] ?? []),
       {
         id: comment.id,
         body: comment.body,
@@ -214,6 +230,10 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
       },
     ])
   }
+
+  const currentPhotoId = selectedIndex !== null ? (photos[selectedIndex]?.id ?? null) : null
+  const currentComments = currentPhotoId !== null ? commentsByPhoto[currentPhotoId] : undefined
+  const commentsLoading = currentPhotoId !== null && loadingCommentsFor === currentPhotoId
 
   return (
     <SharedAlbumPage
@@ -233,7 +253,8 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
       onFilesConfirmed={handleFilesConfirmed}
       commentsOpen={commentsOpen}
       onToggleComments={toggleComments}
-      comments={comments}
+      comments={currentComments ?? []}
+      commentCount={currentComments ? currentComments.length : null}
       commentsLoading={commentsLoading}
       commentsError={commentsError}
       onSubmitComment={submitComment}

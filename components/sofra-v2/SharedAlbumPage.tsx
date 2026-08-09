@@ -31,6 +31,7 @@ export interface SharedAlbumPageProps {
   commentsOpen: boolean
   onToggleComments: () => void
   comments: PhotoCommentView[]
+  commentCount: number | null
   commentsLoading: boolean
   commentsError: string
   onSubmitComment: (body: string) => void
@@ -55,6 +56,7 @@ export function SharedAlbumPage({
   commentsOpen,
   onToggleComments,
   comments,
+  commentCount,
   commentsLoading,
   commentsError,
   onSubmitComment,
@@ -119,6 +121,7 @@ export function SharedAlbumPage({
           commentsOpen={commentsOpen}
           onToggleComments={onToggleComments}
           comments={comments}
+          commentCount={commentCount}
           commentsLoading={commentsLoading}
           commentsError={commentsError}
           onSubmitComment={onSubmitComment}
