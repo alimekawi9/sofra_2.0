@@ -34,6 +34,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const [place, setPlace] = useState<PreviewPlace | null>(null)
   const [dressCode, setDressCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -145,6 +146,27 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
     router.push('/events/' + params.id)
   }
 
+  async function handleDelete() {
+    if (deleting || submitting) return
+    const confirmed = window.confirm(
+      'Delete this event? This cannot be undone — RSVPs, the shared album, and menu data will be removed too.'
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    setError('')
+
+    const { error: deleteError } = await supabase.from('events').delete().eq('id', params.id)
+
+    if (deleteError) {
+      setError('Could not delete this event. Try again.')
+      setDeleting(false)
+      return
+    }
+
+    router.push('/events')
+  }
+
   if (loading) return null
   if (loadError) {
     return (
@@ -176,6 +198,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}
+      onDelete={handleDelete}
+      deleting={deleting}
+      onCustomizeQuestions={() => router.push('/host/' + params.id + '/questionnaire')}
     />
   )
 }

@@ -35,8 +35,11 @@ function makeSupabase({
   fetchError = null as { message: string } | null,
   updateError = null as { message: string } | null,
   uploadError = null as { message: string } | null,
+  deleteError = null as { message: string } | null,
 } = {}) {
   const update = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: updateError }) })
+  const deleteEq = jest.fn().mockResolvedValue({ error: deleteError })
+  const del = jest.fn().mockReturnValue({ eq: deleteEq })
   const upload = jest.fn().mockResolvedValue({ error: uploadError })
   const getPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/new.jpg' } })
 
@@ -48,9 +51,10 @@ function makeSupabase({
         }),
       }),
       update,
+      delete: del,
     }),
     storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) },
-    update, upload, getPublicUrl,
+    update, upload, getPublicUrl, delete: del, deleteEq,
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -155,4 +159,55 @@ it('shows a load error when the event fetch fails', async () => {
   makeSupabase({ fetchError: { message: 'not found' } })
   render(<HostEditPage params={PARAMS} />)
   await waitFor(() => expect(screen.getByText(/couldn't load this event/i)).toBeInTheDocument())
+})
+
+describe('DELETE EVENT', () => {
+  it('shows the delete button in edit mode', async () => {
+    makeSupabase()
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'DELETE EVENT' })).toBeInTheDocument())
+  })
+
+  it('does nothing when the confirmation is declined', async () => {
+    const sb = makeSupabase()
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'DELETE EVENT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'DELETE EVENT' }))
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(sb.delete).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('deletes the event and redirects to /events once confirmed', async () => {
+    const sb = makeSupabase()
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'DELETE EVENT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'DELETE EVENT' }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events'))
+    expect(sb.delete).toHaveBeenCalled()
+    expect(sb.deleteEq).toHaveBeenCalledWith('id', 'event-1')
+    confirmSpy.mockRestore()
+  })
+
+  it('shows an error and does not redirect when deletion fails', async () => {
+    makeSupabase({ deleteError: { message: 'db error' } })
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'DELETE EVENT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'DELETE EVENT' }))
+    await waitFor(() => expect(screen.getByText(/could not delete this event/i)).toBeInTheDocument())
+    expect(mockPush).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+})
+
+it('CUSTOMIZE GUEST QUESTIONS navigates to the questionnaire editor for this event', async () => {
+  makeSupabase()
+  render(<HostEditPage params={PARAMS} />)
+  await waitFor(() => screen.getByRole('button', { name: /customize guest questions/i }))
+  await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
+  expect(mockPush).toHaveBeenCalledWith('/host/event-1/questionnaire')
 })

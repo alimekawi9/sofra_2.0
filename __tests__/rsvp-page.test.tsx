@@ -34,9 +34,12 @@ function makeSupabase({
   guestRows = [] as { status: string; users: { id: string; name: string } | null }[],
   fetchError = null as { message: string } | null,
   upsertError = null as { message: string } | null,
+  questionnaireConfig = null as Record<string, unknown> | null,
+  customResponseRows = [] as Array<{ question_id: string; response: unknown }>,
 } = {}) {
   const rsvpUpsert    = jest.fn().mockResolvedValue({ error: upsertError })
   const profileUpsert = jest.fn().mockResolvedValue({ error: upsertError })
+  const customResponseUpsert = jest.fn().mockResolvedValue({ error: null })
 
   const sb = {
     from: jest.fn((table: string) => {
@@ -70,6 +73,28 @@ function makeSupabase({
           upsert: rsvpUpsert,
         }
       }
+      if (table === 'event_questionnaires') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({
+                data: questionnaireConfig ? { config: questionnaireConfig } : null,
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      if (table === 'event_question_responses') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockResolvedValue({ data: customResponseRows, error: null }),
+            }),
+          }),
+          upsert: customResponseUpsert,
+        }
+      }
       // taste_profiles
       return {
         select: jest.fn().mockReturnValue({
@@ -82,6 +107,7 @@ function makeSupabase({
     }),
     rsvpUpsert,
     profileUpsert,
+    customResponseUpsert,
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -180,7 +206,7 @@ async function navigateToStep2() {
 describe('Step 2 — checkbox groups', () => {
   it('renders all dietary checkboxes', async () => {
     await navigateToStep2()
-    for (const chip of ['Vegetarian','Vegan','No pork/alcohol','Kosher','Gluten-free','No dairy','Pescatarian']) {
+    for (const chip of ['Vegetarian','Vegan','No pork','Kosher','Gluten-free','No dairy','Pescatarian']) {
       expect(screen.getByRole('checkbox', { name: chip })).toBeInTheDocument()
     }
   })
@@ -278,7 +304,7 @@ describe('Dietary lane heading and None option', () => {
     const dietaryGrid = document.querySelectorAll('.sv2-checkbox-grid')[0]
     const labels = Array.from(dietaryGrid.querySelectorAll('label')).map((l) => l.textContent?.trim())
     expect(labels).toEqual([
-      'Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'None', 'Pescatarian',
+      'Vegetarian', 'Vegan', 'No pork', 'Kosher', 'Gluten-free', 'No dairy', 'None', 'Pescatarian',
     ])
   })
 
@@ -311,7 +337,7 @@ describe('Dietary lane heading and None option', () => {
 
   it('None and a real dietary option are never both checked at once', async () => {
     await navigateToStep2()
-    const dietaryOptions = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
+    const dietaryOptions = ['Vegetarian', 'Vegan', 'No pork', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
     for (const opt of dietaryOptions) {
       await userEvent.click(screen.getByRole('checkbox', { name: opt }))
       expect(screen.getByRole('checkbox', { name: 'None' })).not.toBeChecked()
@@ -358,7 +384,7 @@ describe('Dietary lane heading and None option', () => {
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
     expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
-    for (const opt of ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']) {
+    for (const opt of ['Vegetarian', 'Vegan', 'No pork', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']) {
       expect(screen.getByRole('checkbox', { name: opt })).not.toBeChecked()
     }
   })
@@ -631,5 +657,108 @@ describe('prefill from existing data', () => {
   it('does not show badge when no taste_profiles row', async () => {
     await navigateToStep2()
     expect(screen.queryByTestId('prefilled-badge')).not.toBeInTheDocument()
+  })
+})
+
+describe('host-customized questionnaire', () => {
+  const CUSTOMIZED_CONFIG = {
+    questions: [
+      {
+        id: 'dietary',
+        kind: 'canonical',
+        canonicalKey: 'dietary',
+        order: 0,
+        title: 'ANY LANE TO STAY IN, TRULY?',
+        optionLabels: { 'No dairy': 'KEEP IT DAIRY-FREE' },
+      },
+      { id: 'avoid', kind: 'canonical', canonicalKey: 'avoid', order: 1 },
+      { id: 'protein', kind: 'canonical', canonicalKey: 'protein', order: 2 },
+      { id: 'flavor', kind: 'canonical', canonicalKey: 'flavor', order: 3 },
+      { id: 'adventurousness', kind: 'canonical', canonicalKey: 'adventurousness', order: 4 },
+      {
+        id: 'q_custom1',
+        kind: 'custom',
+        type: 'text',
+        title: 'Anything you are especially craving?',
+        order: 5,
+      },
+    ],
+  }
+
+  it('shows the host-customized title and option label, with protein labels unaffected (no override on that question)', async () => {
+    makeSupabase({ questionnaireConfig: CUSTOMIZED_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(await screen.findByText('ANY LANE TO STAY IN, TRULY?')).toBeInTheDocument()
+    expect(screen.queryByText('ANY LANE TO STAY IN?')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'KEEP IT DAIRY-FREE' })).toBeInTheDocument()
+    // Protein has no override in this config -- must still show real labels, not raw slugs.
+    expect(screen.getByRole('checkbox', { name: 'Beef or lamb' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'beef_lamb' })).not.toBeInTheDocument()
+  })
+
+  it('submits the raw canonical value, not the customized display label', async () => {
+    const sb = makeSupabase({ questionnaireConfig: CUSTOMIZED_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'KEEP IT DAIRY-FREE' }))
+    await userEvent.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
+
+    await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ dietary: ['No dairy'] }),
+      expect.anything()
+    )
+  })
+
+  it('renders the custom question and persists its answer separately from canonical preferences', async () => {
+    const sb = makeSupabase({ questionnaireConfig: CUSTOMIZED_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    const textbox = await screen.findByLabelText('Anything you are especially craving?')
+    await userEvent.type(textbox, 'Grandma’s knafeh')
+    await userEvent.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
+
+    await waitFor(() => expect(sb.customResponseUpsert).toHaveBeenCalled())
+    expect(sb.customResponseUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          event_id: 'event-1',
+          user_id: 'uid-1',
+          question_id: 'q_custom1',
+          response: 'Grandma’s knafeh',
+        }),
+      ],
+      expect.anything()
+    )
+  })
+
+  it('does not write a custom-question row when left blank', async () => {
+    const sb = makeSupabase({ questionnaireConfig: CUSTOMIZED_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await screen.findByLabelText('Anything you are especially craving?')
+    await userEvent.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
+
+    await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
+    expect(sb.customResponseUpsert).not.toHaveBeenCalled()
+  })
+
+  it('behaves exactly as the default questionnaire when no event_questionnaires row exists', async () => {
+    makeSupabase({ questionnaireConfig: null })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(await screen.findByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'No dairy' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Anything you are especially craving?')).not.toBeInTheDocument()
   })
 })

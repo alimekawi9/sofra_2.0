@@ -35,7 +35,7 @@ export type TableIntel = {
 // they had no downstream effect — now they trigger per-guest substitutes on
 // dishes that don't satisfy them.
 export const STRICT_DIET_LIST = [
-  'Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher',
+  'Vegetarian', 'Vegan', 'No pork', 'Kosher',
   'Gluten-free', 'No dairy', 'Pescatarian',
 ] as const
 const STRICT_DIETS: Set<string> = new Set(STRICT_DIET_LIST)

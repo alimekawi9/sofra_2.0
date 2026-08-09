@@ -16,6 +16,19 @@ import {
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
 import { InviteCard, type InviteCardGuest, type InviteResponse } from '@/components/sofra-v2/InviteCard'
 import { MissingOut } from '@/components/sofra-v2/MissingOut'
+import { CustomQuestionField, type CustomResponseValue } from '@/components/sofra-v2/CustomQuestionField'
+import {
+  DEFAULT_QUESTIONNAIRE,
+  sortedQuestions,
+  isCanonical,
+  isCustom,
+  canonicalOptionsFor,
+  resolveCanonicalTitle,
+  resolveCanonicalHelperText,
+  resolveCanonicalOptionLabel,
+  type QuestionnaireConfig,
+  type CanonicalQuestionConfig,
+} from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
 
 type Step = 'status' | 'profile' | 'missing-out'
@@ -67,6 +80,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [questionnaire, setQuestionnaire] = useState<QuestionnaireConfig>(DEFAULT_QUESTIONNAIRE)
+  const [customAnswers, setCustomAnswers] = useState<Record<string, CustomResponseValue>>({})
+  const customAnswersRef = useRef<Record<string, CustomResponseValue>>({})
 
   async function loadData() {
     setLoading(true)
@@ -139,6 +155,39 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         setAdventurousness((p.adventurousness as number) ?? 50)
         setPrefilled(true)
       }
+
+      // Questionnaire customization is optional and additive -- if these
+      // tables aren't set up yet or the fetch fails for any reason, guests
+      // simply get the default Sofra questionnaire, exactly as before.
+      try {
+        const { data: questionnaireRow } = await supabase
+          .from('event_questionnaires')
+          .select('config')
+          .eq('event_id', params.id)
+          .maybeSingle()
+
+        if (questionnaireRow?.config?.questions?.length) {
+          const config = questionnaireRow.config as QuestionnaireConfig
+          setQuestionnaire(config)
+
+          const { data: responseRows } = await supabase
+            .from('event_question_responses')
+            .select('question_id,response')
+            .eq('event_id', params.id)
+            .eq('user_id', stored)
+
+          if (responseRows) {
+            const hydrated: Record<string, CustomResponseValue> = {}
+            for (const row of responseRows as { question_id: string; response: CustomResponseValue }[]) {
+              hydrated[row.question_id] = row.response
+            }
+            customAnswersRef.current = hydrated
+            setCustomAnswers(hydrated)
+          }
+        }
+      } catch {
+        // Swallowed deliberately -- see comment above.
+      }
     } catch {
       setError("Couldn't load your RSVP. Try again.")
     } finally {
@@ -197,7 +246,42 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       setSubmitting(false)
       return
     }
+
+    // Custom (event-specific) question answers are stored separately from
+    // canonical taste-profile fields and are best-effort: their save never
+    // blocks or fails the core RSVP, which has already succeeded above.
+    const customQs = sortedQuestions(questionnaire).filter(isCustom)
+    if (customQs.length > 0) {
+      const rows = customQs
+        .map((q) => ({
+          event_id: params.id,
+          user_id: uidRef.current!,
+          question_id: q.id,
+          response: customAnswersRef.current[q.id],
+          updated_at: new Date().toISOString(),
+        }))
+        .filter((r) => {
+          const v = r.response
+          return v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
+        })
+
+      if (rows.length > 0) {
+        try {
+          await supabase
+            .from('event_question_responses')
+            .upsert(rows, { onConflict: 'event_id,user_id,question_id' })
+        } catch {
+          // Swallowed deliberately -- see comment above.
+        }
+      }
+    }
+
     router.push('/events/' + params.id)
+  }
+
+  function handleCustomAnswerChange(questionId: string, value: CustomResponseValue) {
+    customAnswersRef.current = { ...customAnswersRef.current, [questionId]: value }
+    setCustomAnswers(customAnswersRef.current)
   }
 
   function toggleChip(arr: string[], setArr: (v: string[]) => void, value: string) {
@@ -238,6 +322,18 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   }
 
   if (step === 'profile' && !loading && !error) {
+    const canonicalByKey = Object.fromEntries(
+      sortedQuestions(questionnaire).filter(isCanonical).map((q) => [q.canonicalKey, q])
+    ) as Partial<Record<CanonicalQuestionConfig['canonicalKey'], CanonicalQuestionConfig>>
+    const customQs = sortedQuestions(questionnaire).filter(isCustom)
+
+    const optionLabelMap = (q: CanonicalQuestionConfig | undefined) => {
+      if (!q) return undefined
+      return Object.fromEntries(
+        canonicalOptionsFor(q.canonicalKey).map((opt) => [opt.value, resolveCanonicalOptionLabel(q, opt.value, opt.label)])
+      )
+    }
+
     return (
       <PreferencesReceipt
         dietary={dietary}
@@ -259,6 +355,34 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         saving={submitting}
         error={error}
         onBack={() => setStep('status')}
+        dietaryTitle={canonicalByKey.dietary ? resolveCanonicalTitle(canonicalByKey.dietary) : undefined}
+        dietaryOptionLabels={optionLabelMap(canonicalByKey.dietary)}
+        avoidTitle={canonicalByKey.avoid ? resolveCanonicalTitle(canonicalByKey.avoid) : undefined}
+        avoidOptionLabels={optionLabelMap(canonicalByKey.avoid)}
+        proteinTitle={canonicalByKey.protein ? resolveCanonicalTitle(canonicalByKey.protein) : undefined}
+        proteinHelperText={canonicalByKey.protein ? resolveCanonicalHelperText(canonicalByKey.protein) : undefined}
+        proteinOptionLabels={optionLabelMap(canonicalByKey.protein)}
+        flavorTitle={canonicalByKey.flavor ? resolveCanonicalTitle(canonicalByKey.flavor) : undefined}
+        flavorHelperText={canonicalByKey.flavor ? resolveCanonicalHelperText(canonicalByKey.flavor) : undefined}
+        flavorOptionLabels={optionLabelMap(canonicalByKey.flavor)}
+        adventurousnessTitle={canonicalByKey.adventurousness ? resolveCanonicalTitle(canonicalByKey.adventurousness) : undefined}
+        extraContent={
+          customQs.length > 0 ? (
+            <>
+              {customQs.map((q) => (
+                <div key={q.id}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
+                  <CustomQuestionField
+                    question={q}
+                    value={customAnswers[q.id]}
+                    onChange={(value) => handleCustomAnswerChange(q.id, value)}
+                  />
+                </div>
+              ))}
+            </>
+          ) : undefined
+        }
       />
     )
   }

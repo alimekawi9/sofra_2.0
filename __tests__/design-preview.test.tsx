@@ -216,8 +216,8 @@ describe('PreferencesReceipt', () => {
     const user = userEvent.setup()
     const onToggleDietary = jest.fn()
     render(<PreferencesReceipt {...baseProps} onToggleDietary={onToggleDietary} />)
-    await user.click(screen.getByRole('checkbox', { name: 'No pork/alcohol' }))
-    expect(onToggleDietary).toHaveBeenCalledWith('No pork/alcohol')
+    await user.click(screen.getByRole('checkbox', { name: 'No pork' }))
+    expect(onToggleDietary).toHaveBeenCalledWith('No pork')
   })
 
   it('renders selected options as functional icon-free boxes', () => {

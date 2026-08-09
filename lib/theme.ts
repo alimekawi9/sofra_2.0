@@ -34,7 +34,7 @@ export const THEMES: Theme[] = [
 export const getTheme = (id?: string | null): Theme =>
   THEMES.find((t) => t.id === id) || THEMES[0]
 
-export const DIETARY = ['Vegetarian', 'Vegan', 'No pork/alcohol', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
+export const DIETARY = ['Vegetarian', 'Vegan', 'No pork', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']
 export const NOGOS = ['Nuts', 'Shellfish', 'Pork', 'Eggs', 'Cilantro', 'Mushrooms']
 /** Flavour profile replaced the old drinks question — it feeds menu scoring,
  *  never safety. Allergies live in NOGOS, diets in DIETARY. */

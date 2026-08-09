@@ -21,17 +21,20 @@ function makeSupabase({
   uploadError = null as { message: string } | null,
   insertError = null as { message: string } | null,
   insertedId  = 'new-event-id',
+  updateError = null as { message: string } | null,
 } = {}) {
   const upload       = jest.fn().mockResolvedValue({ error: uploadError })
   const getPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/photo.jpg' } })
   const single       = jest.fn().mockResolvedValue({ data: { id: insertedId }, error: insertError })
   const select       = jest.fn().mockReturnValue({ single })
   const insert       = jest.fn().mockReturnValue({ select })
+  const updateEq     = jest.fn().mockResolvedValue({ error: updateError })
+  const update        = jest.fn().mockReturnValue({ eq: updateEq })
 
   const sb = {
     storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) },
-    from:    jest.fn().mockReturnValue({ insert }),
-    upload, getPublicUrl, insert, select, single,
+    from:    jest.fn().mockReturnValue({ insert, update }),
+    upload, getPublicUrl, insert, select, single, update, updateEq,
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -248,5 +251,43 @@ describe('submit handler', () => {
         dress_code: null,
       })
     )
+  })
+})
+
+describe('CUSTOMIZE GUEST QUESTIONS', () => {
+  it('validates required fields before creating a draft', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
+    expect(
+      screen.getByText(/add an event name, date and time, and location/i)
+    ).toBeInTheDocument()
+    expect(sb.insert).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('creates a draft event and navigates to the questionnaire editor', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/new-event-id/questionnaire'))
+    expect(sb.insert).toHaveBeenCalledTimes(1)
+  })
+
+  it('publishing after an earlier customize click updates the draft instead of inserting a duplicate', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/new-event-id/questionnaire'))
+
+    mockPush.mockClear()
+    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+
+    expect(sb.insert).toHaveBeenCalledTimes(1)
+    expect(sb.update).toHaveBeenCalledTimes(1)
+    expect(sb.updateEq).toHaveBeenCalledWith('id', 'new-event-id')
   })
 })

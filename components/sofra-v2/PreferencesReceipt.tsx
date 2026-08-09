@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
 import { PROTEIN_PREFERENCE_OPTIONS, type ProteinPreference } from '@/lib/protein-preferences'
@@ -26,6 +26,24 @@ export interface PreferencesReceiptProps {
   saving?: boolean
   error?: string
   onBack?: () => void
+  // Host-customizable display text only. The values passed to onToggle*
+  // callbacks above are always the raw canonical strings/values, regardless
+  // of any override here -- these never change what gets persisted.
+  dietaryTitle?: string
+  dietaryHelperText?: string
+  dietaryOptionLabels?: Record<string, string>
+  avoidTitle?: string
+  avoidOptionLabels?: Record<string, string>
+  proteinTitle?: string
+  proteinHelperText?: string
+  proteinOptionLabels?: Record<string, string>
+  flavorTitle?: string
+  flavorHelperText?: string
+  flavorOptionLabels?: Record<string, string>
+  adventurousnessTitle?: string
+  // Rendered just before the save button -- used to append event-specific
+  // custom questions without forking this component.
+  extraContent?: ReactNode
 }
 
 function CheckboxRow({
@@ -66,6 +84,19 @@ export function PreferencesReceipt({
   saving = false,
   error = '',
   onBack,
+  dietaryTitle,
+  dietaryHelperText,
+  dietaryOptionLabels,
+  avoidTitle,
+  avoidOptionLabels,
+  proteinTitle,
+  proteinHelperText,
+  proteinOptionLabels,
+  flavorTitle,
+  flavorHelperText,
+  flavorOptionLabels,
+  adventurousnessTitle,
+  extraContent,
 }: PreferencesReceiptProps) {
   const adventurousnessLabel =
     adventurousness < 25
@@ -95,12 +126,13 @@ export function PreferencesReceipt({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">ANY LANE TO STAY IN?</h3>
+        <h3 className="sv2-section-label">{dietaryTitle || 'ANY LANE TO STAY IN?'}</h3>
+        {dietaryHelperText && <p className="sv2-section-sub">{dietaryHelperText}</p>}
         <div className="sv2-checkbox-grid">
           {DIETARY.map((item) => (
             <Fragment key={item}>
               <CheckboxRow
-                label={item}
+                label={dietaryOptionLabels?.[item] || item}
                 checked={dietary.includes(item)}
                 onChange={() => onToggleDietary(item)}
               />
@@ -116,12 +148,12 @@ export function PreferencesReceipt({
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">ANYTHING YOU AVOID?</h3>
+        <h3 className="sv2-section-label">{avoidTitle || 'ANYTHING YOU AVOID?'}</h3>
         <div className="sv2-checkbox-grid">
           {NOGOS.map((item) => (
             <CheckboxRow
               key={item}
-              label={item}
+              label={avoidOptionLabels?.[item] || item}
               checked={avoid.includes(item)}
               onChange={() => onToggleAvoid(item)}
             />
@@ -130,13 +162,13 @@ export function PreferencesReceipt({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">WHAT SOUNDS BEST TONIGHT?</h3>
-        <p className="sv2-section-sub">Choose up to two.</p>
+        <h3 className="sv2-section-label">{proteinTitle || 'WHAT SOUNDS BEST TONIGHT?'}</h3>
+        <p className="sv2-section-sub">{proteinHelperText || 'Choose up to two.'}</p>
         <div className="sv2-checkbox-grid">
           {PROTEIN_PREFERENCE_OPTIONS.map((option) => (
             <CheckboxRow
               key={option.value}
-              label={option.label}
+              label={proteinOptionLabels?.[option.value] || option.label}
               checked={proteinPreferences.includes(option.value)}
               onChange={() => onToggleProtein(option.value)}
             />
@@ -148,13 +180,13 @@ export function PreferencesReceipt({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">FLAVOURS YOU LEAN TOWARDS</h3>
-        {!flavorHintVisible && <p className="sv2-section-sub">Choose up to three.</p>}
+        <h3 className="sv2-section-label">{flavorTitle || 'FLAVOURS YOU LEAN TOWARDS'}</h3>
+        {!flavorHintVisible && <p className="sv2-section-sub">{flavorHelperText || 'Choose up to three.'}</p>}
         <div className="sv2-checkbox-grid">
           {FLAVORS.map((item) => (
             <CheckboxRow
               key={item}
-              label={item}
+              label={flavorOptionLabels?.[item] || item}
               checked={flavors.includes(item)}
               onChange={() => onToggleFlavor(item)}
             />
@@ -164,7 +196,7 @@ export function PreferencesReceipt({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
-        <h3 className="sv2-section-label">HOW BRAVE IS YOUR PALATE?</h3>
+        <h3 className="sv2-section-label">{adventurousnessTitle || 'HOW BRAVE IS YOUR PALATE?'}</h3>
         <input
           type="range"
           min={0}
@@ -180,6 +212,8 @@ export function PreferencesReceipt({
           <span>ANYTHING ONCE</span>
         </div>
         <p className="sv2-slider-value">{adventurousnessLabel}</p>
+
+        {extraContent}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />

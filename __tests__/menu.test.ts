@@ -77,8 +77,8 @@ describe('scoreDish — signature', () => {
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
-  test('"vegan" tag satisfies a No pork/alcohol hard limit (no pork / animal products)', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
+  test('"vegan" tag satisfies a No pork hard limit (no pork / animal products)', () => {
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
     const dish = sig({ id: '6', name: 'Chana Masala', slot: 'green', tags: ['veg', 'vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
@@ -89,23 +89,31 @@ describe('scoreDish — signature', () => {
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
-  // Conservative: "veg" (may contain dairy/eggs — and possibly wine) is not
-  // automatically no-pork/alcohol-safe. Only "vegan" is. Chef can still tag
-  // "no pork/alcohol" explicitly on a non-vegan dish they know is safe.
-  test('"veg" tag alone does NOT satisfy No pork/alcohol (may contain alcohol)', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '8', name: 'Coq au Something', slot: 'land', tags: ['veg'] })
-    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Tarek', reason: 'contains pork or alcohol', kind: 'preference' }])
+  // "No pork" used to also mean "no alcohol", so a plain "veg" dish
+  // (may contain wine) was deliberately excluded. That pairing was dropped —
+  // this is now purely about pork, and vegetarian food has none.
+  test('"veg" tag alone satisfies No pork (vegetarian food has no pork)', () => {
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
+    const dish = sig({ id: '8', name: 'Mujadara', slot: 'land', tags: ['veg'] })
+    expect(scoreDish(dish, intel)).toEqual([])
   })
 
-  // A dish can be genuinely safe (no pork, no alcohol) without being vegan —
-  // e.g. a plain grilled meat dish. The chef declares this explicitly via the
-  // "no pork/alcohol" tag rather than relying on the vegan⊂no-pork/alcohol
+  // A dish can be genuinely pork-free without being vegetarian at all —
+  // e.g. a plain grilled meat dish. The chef declares this explicitly via
+  // the "no pork" tag rather than relying on the vegan/veg⊂no-pork
   // shortcut, and that explicit declaration must be trusted.
-  test('explicit "no pork/alcohol" tag satisfies the hard limit for a non-vegan dish', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '10', name: 'Grilled Chicken Shawarma', slot: 'land', tags: ['meat', 'no pork/alcohol'] })
+  test('explicit "no pork" tag satisfies the hard limit for a meat dish', () => {
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
+    const dish = sig({ id: '10', name: 'Grilled Chicken Shawarma', slot: 'land', tags: ['meat', 'no pork'] })
     expect(scoreDish(dish, intel)).toEqual([])
+  })
+
+  // An undeclared meat dish (no veg/vegan/"no pork" tag) still fails closed
+  // with the friendly reason, not the generic "not no pork".
+  test('meat dish with no safety tag excludes a No pork guest with the correct reason', () => {
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
+    const dish = sig({ id: '11', name: 'Pork Belly Bao', slot: 'land', tags: ['meat'] })
+    expect(scoreDish(dish, intel)).toEqual([{ guest: 'Tarek', reason: 'contains pork', kind: 'preference' }])
   })
 
   test('"veg" tag alone does NOT satisfy Vegan', () => {
@@ -114,12 +122,12 @@ describe('scoreDish — signature', () => {
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Vera', reason: 'not vegan', kind: 'preference' }])
   })
 
-  test('reproduces the demo table bug: Baba Ganoush is safe for the whole vegetarian/no-pork-alcohol table', () => {
+  test('reproduces the demo table bug: Baba Ganoush is safe for the whole vegetarian/no-pork table', () => {
     const intel = buildIntel([
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
       { name: 'Mona',  dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
       { name: 'Priya', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
-      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 },
+      { name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 },
     ])
     const babaGanoush = sig({ id: 'bg', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] })
     expect(scoreDish(babaGanoush, intel)).toEqual([])
@@ -138,7 +146,7 @@ describe('scoreDish — signature', () => {
 // The demo table (scripts/seed-demo-event.mjs) shows "Table fit: safe for
 // 5/9 guests" for every Main — Land course because every land signature is
 // a meat dish, so the
-// same 4 diet-restricted guests (3 vegetarian + 1 no-pork/alcohol) are excluded from
+// same 4 diet-restricted guests (3 vegetarian + 1 no-pork) are excluded from
 // all of them — a real property of that signature catalog, not a bug. These
 // tests confirm the exclusion count genuinely tracks the allergen a dish
 // contains rather than being pinned at a constant: a shellfish-containing
@@ -152,7 +160,7 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
     { name: 'Nadia', dietary: ['Vegetarian'],  avoid: ['Nuts'],      adventurousness: 50 },
     { name: 'Sam',   dietary: [],              avoid: ['Nuts'],      adventurousness: 50 },
     { name: 'Yara',  dietary: [],              avoid: ['Shellfish'], adventurousness: 50 },
-    { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [],        adventurousness: 50 },
+    { name: 'Tarek', dietary: ['No pork'], avoid: [],        adventurousness: 50 },
     { name: 'Mona',  dietary: ['Vegetarian'],  avoid: ['Mushrooms'], adventurousness: 50 },
     { name: 'Dana',  dietary: [],              avoid: ['Nuts'],      adventurousness: 50 },
     { name: 'Priya', dietary: ['Vegetarian'],  avoid: [],            adventurousness: 50 },
@@ -163,7 +171,7 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
     expect(intel.guestCount).toBe(9)
   })
 
-  test('Main — Land dish (diet-only exclusions): excludes exactly the 3 vegetarians + 1 no-pork/alcohol guest', () => {
+  test('Main — Land dish (diet-only exclusions): excludes exactly the 3 vegetarians + 1 no-pork guest', () => {
     const lambKofta = sig({ id: 'land-1', name: 'Lamb Kofta', slot: 'land', tags: ['meat'] })
     const excludes = scoreDish(lambKofta, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Mona', 'Nadia', 'Priya', 'Tarek'])
@@ -218,8 +226,8 @@ describe('scoreDish — pantry item', () => {
     expect(scoreDish(item, intel)).toEqual([])
   })
 
-  test('vegan-tagged pantry item satisfies No pork/alcohol (same semantics as signatures)', () => {
-    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 }])
+  test('vegan-tagged pantry item satisfies No pork (same semantics as signatures)', () => {
+    const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
     const item = pantryItem('p5', 'Chickpeas', { tags: ['vegan'] })
     expect(scoreDish(item, intel)).toEqual([])
   })
@@ -248,7 +256,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
   test('Baba Ganoush case: an all-vegan set of components is safe for every diet-restricted guest', () => {
     const intel = buildIntel([
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
-      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 },
+      { name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 },
     ])
     const items = [
       pantryItem('p1', 'Aubergine', { tags: ['vegan'] }),
@@ -260,10 +268,10 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
   test('flags every guest whose diet a single non-compliant component violates', () => {
     const intel = buildIntel([
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
-      { name: 'Tarek', dietary: ['No pork/alcohol'], avoid: [], adventurousness: 50 },
+      { name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 },
     ])
-    // Lamb: violates vegetarian, but tagged safe for no-pork/alcohol.
-    const items = [pantryItem('p1', 'Lamb', { tags: ['meat', 'no pork/alcohol'] })]
+    // Lamb: violates vegetarian, but tagged safe for no-pork.
+    const items = [pantryItem('p1', 'Lamb', { tags: ['meat', 'no pork'] })]
     expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }])
   })
 

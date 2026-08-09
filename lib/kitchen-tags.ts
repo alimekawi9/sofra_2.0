@@ -3,7 +3,7 @@ import { DISH_ROLES, withoutDishRoles } from './dish-presets'
 export type TagGroup = { label: string; tags: readonly string[] }
 
 export const DESCRIPTIVE_TAG_GROUPS: readonly TagGroup[] = [
-  { label: 'Diet', tags: ['veg', 'vegan', 'pescatarian', 'no pork/alcohol', 'meat', 'seafood'] },
+  { label: 'Diet', tags: ['veg', 'vegan', 'pescatarian', 'no pork', 'meat', 'seafood'] },
   { label: 'Protein', tags: ['beef', 'lamb', 'chicken', 'turkey', 'pork', 'duck', 'fish', 'shellfish', 'egg', 'dairy', 'legume', 'tofu', 'mushroom', 'grain', 'pasta', 'vegetable', 'fruit', 'mixed', 'none'] },
   { label: 'Texture', tags: ['crunchy', 'tender', 'chewy', 'juicy', 'silky', 'flaky', 'firm', 'mild', 'bitter', 'savory', 'herbal', 'crispy', 'soft', 'creamy'] },
   { label: 'Cooking Method', tags: ['braised', 'baked', 'steamed', 'boiled', 'seared', 'smoked', 'stewed', 'pickled', 'raw', 'grilled', 'roasted', 'fried'] },

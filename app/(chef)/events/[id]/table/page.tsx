@@ -12,6 +12,36 @@ import ChefTabs from '@/components/ChefTabs'
 import { formatTagLabel } from '@/lib/tag-format'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
+import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
+
+type CustomAnswerSummary = {
+  question: CustomQuestionConfig
+  counts?: { label: string; count: number }[]
+  texts?: string[]
+}
+
+function summarizeCustomAnswers(
+  customQs: CustomQuestionConfig[],
+  rows: Array<{ question_id: string; response: unknown }>
+): CustomAnswerSummary[] {
+  return customQs.map((q) => {
+    const answers = rows.filter((r) => r.question_id === q.id).map((r) => r.response)
+    if (q.type === 'text') {
+      const texts = answers.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
+      return { question: q, texts }
+    }
+    const tally = new Map<string, number>()
+    for (const a of answers) {
+      const values = Array.isArray(a) ? a : typeof a === 'string' ? [a] : []
+      for (const v of values) tally.set(v, (tally.get(v) ?? 0) + 1)
+    }
+    const counts = (q.options ?? [])
+      .map((opt) => ({ label: opt.label, count: tally.get(opt.value) ?? 0 }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count)
+    return { question: q, counts }
+  })
+}
 
 function currentMonday(): string {
   const d = new Date()
@@ -59,6 +89,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
   const [eventTitle, setEventTitle] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [courses, setCourses] = useState<Course[]>([])
+  const [customAnswerSummaries, setCustomAnswerSummaries] = useState<CustomAnswerSummary[]>([])
 
   async function loadAll() {
     setLoading(true)
@@ -139,6 +170,34 @@ export default function TablePage({ params }: { params: { id: string } }) {
           )
         )
         setCourses(derived)
+      }
+
+      // Event-specific custom questions/responses are optional and additive.
+      // If these tables aren't set up yet, the section simply doesn't render.
+      try {
+        const { data: qRow } = await supabase
+          .from('event_questionnaires')
+          .select('config')
+          .eq('event_id', id)
+          .maybeSingle()
+
+        const customQs = qRow?.config?.questions?.length
+          ? sortedQuestions(qRow.config as QuestionnaireConfig).filter(isCustom)
+          : []
+
+        if (customQs.length > 0) {
+          const { data: responseRows } = userIds.length
+            ? await supabase
+                .from('event_question_responses')
+                .select('question_id,response')
+                .eq('event_id', id)
+                .in('user_id', userIds)
+            : { data: [] as Array<{ question_id: string; response: unknown }> }
+
+          setCustomAnswerSummaries(summarizeCustomAnswers(customQs, responseRows ?? []))
+        }
+      } catch {
+        // Swallowed deliberately -- see comment above.
       }
     } catch {
       setFetchError("Couldn't load table intel. Try again.")
@@ -444,6 +503,44 @@ export default function TablePage({ params }: { params: { id: string } }) {
               <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
               <span>{intel.brief}</span>
             </div>
+
+            {/* Event-specific custom question answers — kept fully separate
+                from canonical taste-profile data and menu scoring above. */}
+            {customAnswerSummaries.length > 0 && (
+              <div style={card}>
+                <div style={cardTitle}>Event-Specific Answers</div>
+                {customAnswerSummaries.map(({ question, counts, texts }) => (
+                  <div key={question.id} style={{ marginTop: 14 }}>
+                    <div style={{ color: C.cream, fontSize: 14, fontFamily: 'system-ui, sans-serif', marginBottom: 6 }}>
+                      {question.title}
+                    </div>
+                    {question.type === 'text' ? (
+                      texts && texts.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: 18, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif', lineHeight: 1.6 }}>
+                          {texts.map((t, i) => <li key={i}>{t}</li>)}
+                        </ul>
+                      ) : (
+                        <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
+                      )
+                    ) : counts && counts.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {counts.map((c) => (
+                          <div
+                            key={c.label}
+                            style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}
+                          >
+                            <span>{c.label}</span>
+                            <span style={{ color: C.cream }}>{c.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Per-guest substitution plan — group by guest so the chef sees
                 what each cover receives if it differs from the main. */}

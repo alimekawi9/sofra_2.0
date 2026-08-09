@@ -154,21 +154,23 @@ function isTrueAllergy(label: string): boolean {
   return TRUE_ALLERGENS.has(label.toLowerCase())
 }
 
-// A strict-diet hard limit's label ("Vegetarian" | "Vegan" | "No pork/alcohol"
+// A strict-diet hard limit's label ("Vegetarian" | "Vegan" | "No pork"
 // | "Kosher") is satisfied by any of these signature-tag values. Two things
 // to know:
 //   1. "veg" is the shorthand the seed data (lib/dish-presets.ts) uses for
 //      vegetarian — literal-equal checks miss it and reject every vegetarian
 //      signature.
-//   2. Vegan ⊂ Vegetarian, and vegan food has no pork / animal products, so
-//      it satisfies "no pork/alcohol" and Kosher as well. Vegetarian is
-//      deliberately NOT treated as safe here — a "veg" dish can still contain
-//      wine. Chef can tag "no pork/alcohol" explicitly on a non-vegan dish
-//      they know is safe (e.g. a plain grilled meat dish).
+//   2. Vegan ⊂ Vegetarian, and vegan/vegetarian food has no pork / meat at
+//      all, so it satisfies "no pork" and Kosher as well. Chef can tag
+//      "no pork" explicitly on a non-vegetarian dish they know is safe (e.g.
+//      a beef or chicken dish). "no pork" used to also mean "no alcohol",
+//      which is why plain vegetarian dishes were deliberately excluded (a
+//      "veg" dish can still contain wine) — that pairing was dropped, so
+//      this is now purely about pork and a "veg" dish qualifies too.
 const DIET_SATISFIED_BY: Record<string, Set<string>> = {
   vegetarian:          new Set(['vegetarian', 'veg', 'vegan']),
   vegan:               new Set(['vegan']),
-  'no pork/alcohol':   new Set(['no pork/alcohol', 'vegan']),
+  'no pork':           new Set(['no pork', 'vegan', 'veg', 'vegetarian']),
   kosher:              new Set(['kosher', 'vegan']),
   'gluten-free':       new Set(['gluten-free']),
   'no dairy':          new Set(['no dairy', 'vegan']),
@@ -230,9 +232,9 @@ export function withInferredSlots(signatures: Signature[]): Signature[] {
 }
 
 // Nicer phrasing than the generic `not ${tag}` for diet labels that don't
-// read well negated ("not no pork/alcohol").
+// read well negated ("not no pork").
 const DIET_VIOLATION_REASON: Record<string, string> = {
-  'no pork/alcohol': 'contains pork or alcohol',
+  'no pork': 'contains pork',
 }
 
 function dishSatisfiesDiet(dishTags: string[], dietLabel: string): boolean {
@@ -358,7 +360,10 @@ function tagsSatisfyLabel(dishTags: string[], label: string): boolean {
   const l = label.toLowerCase()
   switch (l) {
     case 'pescatarian':  return t.has('seafood') || t.has('veg') || t.has('vegan') || t.has('pescatarian')
-    case 'halal':        return t.has('no pork/alcohol') || t.has('vegan') || t.has('veg') || t.has('halal')
+    // "no pork" no longer implies alcohol-free (that pairing was dropped),
+    // so it can't stand in for halal on its own anymore — only an explicit
+    // vegan/veg/halal tag counts.
+    case 'halal':        return t.has('vegan') || t.has('veg') || t.has('halal')
     case 'gluten-free':  return t.has('gluten-free')
     case 'no dairy':     return t.has('no dairy') || t.has('vegan')
     default:             return t.has(l)

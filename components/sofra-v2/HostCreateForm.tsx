@@ -26,6 +26,10 @@ export interface HostCreateFormProps {
   submitting: boolean
   error: string
   onSubmit: () => void
+  onDelete?: () => void
+  deleting?: boolean
+  onCustomizeQuestions?: () => void
+  customizingQuestions?: boolean
 }
 
 export function HostCreateForm({
@@ -49,6 +53,10 @@ export function HostCreateForm({
   submitting,
   error,
   onSubmit,
+  onDelete,
+  deleting = false,
+  onCustomizeQuestions,
+  customizingQuestions = false,
 }: HostCreateFormProps) {
   function chooseImage(file?: File) {
     if (file) onImageChange(file)
@@ -172,11 +180,33 @@ export function HostCreateForm({
             </div>
           </fieldset>
 
+          {onCustomizeQuestions && (
+            <button
+              type="button"
+              className="sv2-customize-questions"
+              onClick={onCustomizeQuestions}
+              disabled={submitting || deleting || customizingQuestions}
+            >
+              {customizingQuestions ? 'OPENING…' : 'CUSTOMIZE GUEST QUESTIONS'}
+            </button>
+          )}
+
           {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
-          <button type="submit" disabled={submitting}>
+          <button type="submit" disabled={submitting || deleting}>
             {submitting ? (isEdit ? 'SAVING…' : 'PUBLISHING…') : isEdit ? 'UPDATE INVITE' : 'PUBLISH INVITE'}
           </button>
         </form>
+
+        {isEdit && onDelete && (
+          <button
+            type="button"
+            className="sv2-delete-event"
+            onClick={onDelete}
+            disabled={submitting || deleting}
+          >
+            {deleting ? 'DELETING…' : 'DELETE EVENT'}
+          </button>
+        )}
       </main>
     </div>
   )
