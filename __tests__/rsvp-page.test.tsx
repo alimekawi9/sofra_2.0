@@ -383,6 +383,7 @@ describe('Dietary lane heading and None option', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     expect(screen.getByRole('checkbox', { name: 'None' })).toBeChecked()
     for (const opt of ['Vegetarian', 'Vegan', 'No pork', 'Kosher', 'Gluten-free', 'No dairy', 'Pescatarian']) {
       expect(screen.getByRole('checkbox', { name: opt })).not.toBeChecked()
@@ -396,6 +397,7 @@ describe('Dietary lane heading and None option', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'None' })).not.toBeChecked()
   })
@@ -409,6 +411,7 @@ describe('adventurousness slider', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
   }
 
   it('shows "Keep it familiar" for adventurousness 0', async () => {
@@ -535,6 +538,7 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     expect(sb.profileUpsert).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     expect(screen.getByRole('checkbox', { name: 'Herby' })).toBeChecked()
     await userEvent.click(screen.getByRole('button', { name: /update rsvp/i }))
     await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
@@ -611,6 +615,7 @@ describe('prefill from existing data', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Nuts' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Umami' })).toBeChecked()
@@ -629,6 +634,7 @@ describe('prefill from existing data', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Grains or pasta' })).toBeChecked()
   })
@@ -640,6 +646,7 @@ describe('prefill from existing data', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
   })
 
@@ -650,6 +657,7 @@ describe('prefill from existing data', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Vegan' })) // deselect
     expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
   })
@@ -830,5 +838,93 @@ describe('host-customized questionnaire', () => {
       expect.objectContaining({ adventurousness: 50 }),
       expect.anything()
     )
+  })
+})
+
+describe('reuse saved preferences (confirm step)', () => {
+  const CUSTOMIZED_CONFIG = {
+    questions: [
+      { id: 'dietary', kind: 'canonical', canonicalKey: 'dietary', order: 0, title: 'A CUSTOM QUESTION' },
+      { id: 'avoid', kind: 'canonical', canonicalKey: 'avoid', order: 1 },
+      { id: 'protein', kind: 'canonical', canonicalKey: 'protein', order: 2 },
+      { id: 'flavor', kind: 'canonical', canonicalKey: 'flavor', order: 3 },
+      { id: 'adventurousness', kind: 'canonical', canonicalKey: 'adventurousness', order: 4 },
+    ],
+  }
+  const EXISTING_PROFILE = {
+    user_id: 'uid-1', dietary: ['Vegan'], avoid: ['Nuts'], flavor_preference: ['Umami'], adventurousness: 60,
+  }
+
+  it('prompts to reuse or update when the guest has saved preferences and the questionnaire is unmodified', async () => {
+    makeSupabase({ profileRow: EXISTING_PROFILE })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(await screen.findByText('Same taste as last time?')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'USE MY SAVED PREFERENCES' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'UPDATE MY PREFERENCES' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('skips the prompt for a first-time guest with no saved preferences', async () => {
+    makeSupabase()
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(screen.queryByText('Same taste as last time?')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
+  })
+
+  it('skips the prompt when the questionnaire differs from the Sofra default, even with saved preferences', async () => {
+    makeSupabase({ profileRow: EXISTING_PROFILE, questionnaireConfig: CUSTOMIZED_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(screen.queryByText('Same taste as last time?')).not.toBeInTheDocument()
+    expect(await screen.findByText('A CUSTOM QUESTION')).toBeInTheDocument()
+    // Still prefilled from the saved profile, just without the reuse/update prompt.
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+  })
+
+  it('USE MY SAVED PREFERENCES submits only the RSVP status, leaving taste_profiles untouched', async () => {
+    const sb = makeSupabase({ profileRow: EXISTING_PROFILE })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    await userEvent.click(await screen.findByRole('button', { name: 'USE MY SAVED PREFERENCES' }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1'))
+    expect(sb.rsvpUpsert).toHaveBeenCalledWith(
+      { event_id: 'event-1', user_id: 'uid-1', status: 'going' },
+      { onConflict: 'event_id,user_id' }
+    )
+    expect(sb.profileUpsert).not.toHaveBeenCalled()
+  })
+
+  it('UPDATE MY PREFERENCES leads to the normal prefilled form', async () => {
+    makeSupabase({ profileRow: EXISTING_PROFILE })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
+
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(screen.getByTestId('prefilled-badge')).toBeInTheDocument()
+  })
+
+  it('Back from the confirm screen returns to the invite', async () => {
+    makeSupabase({ profileRow: EXISTING_PROFILE })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await screen.findByText('Same taste as last time?')
+
+    await userEvent.click(screen.getByRole('button', { name: '← Back' }))
+    expect(screen.getByText('Casa Mekawi')).toBeInTheDocument()
   })
 })

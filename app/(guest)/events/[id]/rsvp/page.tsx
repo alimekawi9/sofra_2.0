@@ -14,11 +14,13 @@ import {
   type FlavorPreference,
 } from '@/lib/flavor-preferences'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
+import { PreferencesConfirm } from '@/components/sofra-v2/PreferencesConfirm'
 import { InviteCard, type InviteCardGuest, type InviteResponse } from '@/components/sofra-v2/InviteCard'
 import { MissingOut } from '@/components/sofra-v2/MissingOut'
 import { CustomQuestionField, type CustomResponseValue } from '@/components/sofra-v2/CustomQuestionField'
 import {
   DEFAULT_QUESTIONNAIRE,
+  isDefaultQuestionnaire,
   sortedQuestions,
   isCanonical,
   isCustom,
@@ -33,7 +35,7 @@ import {
 } from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
 
-type Step = 'status' | 'profile' | 'missing-out'
+type Step = 'status' | 'confirm-preferences' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
 
 type EventRow = {
@@ -216,6 +218,26 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setStep('missing-out')
   }
 
+  // Guest already has a taste_profiles row and this event's questionnaire is
+  // unmodified from the Sofra default -- reuse the existing preferences as-is
+  // rather than asking them to fill out the same form again. Only the RSVP
+  // status changes; taste_profiles is intentionally left untouched.
+  async function handleUseSavedPreferences() {
+    if (!uidRef.current || submitting || !status) return
+    setSubmitting(true)
+    setError('')
+    const { error: upsertErr } = await supabase.from('rsvps').upsert(
+      { event_id: params.id, user_id: uidRef.current, status },
+      { onConflict: 'event_id,user_id' }
+    )
+    setSubmitting(false)
+    if (upsertErr) {
+      setError('Something went wrong. Please try again.')
+      return
+    }
+    router.push('/events/' + params.id)
+  }
+
   async function handleProfileSubmit() {
     if (!uidRef.current || submitting) return
     const proteinPreferencesForSubmit = [...proteinPreferencesRef.current]
@@ -316,11 +338,26 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       return
     }
     setStatus(response)
-    setStep('profile')
+    // Already have preferences on file and nothing about this event's
+    // questionnaire differs from the Sofra default -> offer to reuse them
+    // instead of collecting the same answers again.
+    setStep(prefilled && isDefaultQuestionnaire(questionnaire) ? 'confirm-preferences' : 'profile')
   }
 
   if (step === 'missing-out') {
     return <MissingOut onReturnToInvite={() => setStep('status')} />
+  }
+
+  if (step === 'confirm-preferences') {
+    return (
+      <PreferencesConfirm
+        saving={submitting}
+        error={error}
+        onUseSaved={handleUseSavedPreferences}
+        onUpdate={() => setStep('profile')}
+        onBack={() => setStep('status')}
+      />
+    )
   }
 
   if (step === 'profile' && !loading && !error) {
