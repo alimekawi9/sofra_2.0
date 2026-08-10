@@ -26,6 +26,8 @@ import {
   resolveCanonicalTitle,
   resolveCanonicalHelperText,
   resolveCanonicalOptionLabel,
+  resolveCanonicalSliderMinLabel,
+  resolveCanonicalSliderMaxLabel,
   type QuestionnaireConfig,
   type CanonicalQuestionConfig,
 } from '@/lib/questionnaire'
@@ -366,6 +368,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         flavorHelperText={canonicalByKey.flavor ? resolveCanonicalHelperText(canonicalByKey.flavor) : undefined}
         flavorOptionLabels={optionLabelMap(canonicalByKey.flavor)}
         adventurousnessTitle={canonicalByKey.adventurousness ? resolveCanonicalTitle(canonicalByKey.adventurousness) : undefined}
+        adventurousnessHelperText={canonicalByKey.adventurousness ? resolveCanonicalHelperText(canonicalByKey.adventurousness) : undefined}
+        adventurousnessMinLabel={canonicalByKey.adventurousness ? resolveCanonicalSliderMinLabel(canonicalByKey.adventurousness) : undefined}
+        adventurousnessMaxLabel={canonicalByKey.adventurousness ? resolveCanonicalSliderMaxLabel(canonicalByKey.adventurousness) : undefined}
         extraContent={
           customQs.length > 0 ? (
             <>

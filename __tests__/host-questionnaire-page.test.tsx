@@ -199,6 +199,67 @@ it('reset to defaults asks for confirmation, then deletes the row and restores d
   confirmSpy.mockRestore()
 })
 
+it('shows an actual slider preview/editor for the canonical adventurousness question, not multiple choice', async () => {
+  makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByPlaceholderText('HOW BRAVE IS YOUR PALATE?'))
+  expect(screen.getByLabelText('Slider preview')).toHaveAttribute('type', 'range')
+  expect(screen.getByLabelText('Low end')).toBeInTheDocument()
+  expect(screen.getByLabelText('High end')).toBeInTheDocument()
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+})
+
+it('editing the canonical slider end labels and saving persists them, keyed to the adventurousness question, values untouched', async () => {
+  const sb = makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByLabelText('Low end'))
+
+  await userEvent.type(screen.getByLabelText('Low end'), 'KEEP IT FAMILIAR')
+  await userEvent.type(screen.getByLabelText('High end'), 'SURPRISE ME')
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalled())
+  const [payload] = sb.upsert.mock.calls[0]
+  const adventurousness = payload.config.questions.find((q: { id: string }) => q.id === 'adventurousness')
+  expect(adventurousness.sliderMinLabel).toBe('KEEP IT FAMILIAR')
+  expect(adventurousness.sliderMaxLabel).toBe('SURPRISE ME')
+  expect(adventurousness.canonicalKey).toBe('adventurousness')
+})
+
+it('adding a custom Slider question with labels and steps saves correctly', async () => {
+  const sb = makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByText('+ ADD QUESTION'))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Slider' }))
+  await userEvent.type(screen.getByPlaceholderText('Ask your guests something…'), 'How adventurous should tonight feel?')
+  await userEvent.type(screen.getByLabelText('Low end label'), 'Keep it familiar')
+  await userEvent.type(screen.getByLabelText('High end label'), 'Surprise me')
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalled())
+  const [payload] = sb.upsert.mock.calls[0]
+  const custom = payload.config.questions.find((q: { kind: string }) => q.kind === 'custom')
+  expect(custom.type).toBe('slider')
+  expect(custom.sliderMinLabel).toBe('Keep it familiar')
+  expect(custom.sliderMaxLabel).toBe('Surprise me')
+  expect(custom.sliderSteps).toBe(5)
+})
+
+it('blocks save when a custom slider is missing an end label', async () => {
+  const sb = makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByText('+ ADD QUESTION'))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Slider' }))
+  await userEvent.type(screen.getByPlaceholderText('Ask your guests something…'), 'Pick a spot')
+  await userEvent.type(screen.getByLabelText('Low end label'), 'Low')
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(/high end/i)
+  expect(sb.upsert).not.toHaveBeenCalled()
+})
+
 it('does nothing when the reset confirmation is declined', async () => {
   const sb = makeSupabase({
     existingConfig: {

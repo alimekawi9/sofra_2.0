@@ -1150,6 +1150,11 @@
 .sv2-canonical-option input{width:100%;min-height:40px;padding:9px 12px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family)}
 .sv2-custom-option-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:6px;margin-bottom:8px}
 .sv2-custom-option-row input{min-height:40px;padding:9px 12px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family)}
+.sv2-slider-label-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.sv2-slider-mini-preview{margin-top:6px;padding:14px;border:1px solid var(--sv2-line);border-radius:10px}
+.sv2-slider-mini-preview .sv2-slider{margin:0 0 10px}
+.sv2-slider-mini-preview .sv2-slider-labels{margin:0;font-size:9px}
+@media(max-width:420px){.sv2-slider-label-fields{grid-template-columns:1fr}}
 .sv2-custom-option-row button{width:28px;height:28px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font-size:11px;cursor:pointer}
 .sv2-custom-option-row button:disabled{opacity:.3;cursor:default}
 .sv2-add-option{min-height:36px;padding:0 14px;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.6px;cursor:pointer}

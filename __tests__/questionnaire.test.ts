@@ -2,10 +2,14 @@ import {
   DEFAULT_QUESTIONNAIRE,
   CANONICAL_KEYS,
   CANONICAL_DEFAULTS,
+  MIN_SLIDER_STEPS,
+  MAX_SLIDER_STEPS,
   canonicalOptionsFor,
   resolveCanonicalTitle,
   resolveCanonicalHelperText,
   resolveCanonicalOptionLabel,
+  resolveCanonicalSliderMinLabel,
+  resolveCanonicalSliderMaxLabel,
   isDefaultQuestionnaire,
   validateQuestionnaire,
   generateOptionValue,
@@ -206,5 +210,85 @@ describe('validateQuestionnaire', () => {
       ),
     }
     expect(validateQuestionnaire(config)).toEqual([])
+  })
+})
+
+describe('canonical slider (adventurousness) label resolution', () => {
+  const base: CanonicalQuestionConfig = { id: 'adventurousness', kind: 'canonical', canonicalKey: 'adventurousness', order: 4 }
+
+  it('falls back to the Sofra default endpoint labels when unset', () => {
+    expect(resolveCanonicalSliderMinLabel(base)).toBe('THE USUAL')
+    expect(resolveCanonicalSliderMaxLabel(base)).toBe('ANYTHING ONCE')
+  })
+
+  it('falls back to the default when the override is blank', () => {
+    expect(resolveCanonicalSliderMinLabel({ ...base, sliderMinLabel: '   ' })).toBe('THE USUAL')
+  })
+
+  it('uses the host override when present', () => {
+    const q = { ...base, sliderMinLabel: 'KEEP IT FAMILIAR', sliderMaxLabel: 'SURPRISE ME' }
+    expect(resolveCanonicalSliderMinLabel(q)).toBe('KEEP IT FAMILIAR')
+    expect(resolveCanonicalSliderMaxLabel(q)).toBe('SURPRISE ME')
+  })
+
+  it('is not converted into a set of discrete answer options', () => {
+    expect(canonicalOptionsFor('adventurousness')).toEqual([])
+  })
+})
+
+describe('isDefaultQuestionnaire and slider label overrides', () => {
+  it('is false once a slider label override is set on the canonical adventurousness question', () => {
+    const config: QuestionnaireConfig = {
+      questions: DEFAULT_QUESTIONNAIRE.questions.map((q) =>
+        q.kind === 'canonical' && q.canonicalKey === 'adventurousness' ? { ...q, sliderMinLabel: 'KEEP IT FAMILIAR' } : q
+      ),
+    }
+    expect(isDefaultQuestionnaire(config)).toBe(false)
+  })
+})
+
+describe('custom slider validation', () => {
+  function withSlider(overrides: Partial<CustomQuestionConfig> = {}): QuestionnaireConfig {
+    const slider: CustomQuestionConfig = {
+      id: 'c1',
+      kind: 'custom',
+      type: 'slider',
+      title: 'How adventurous should tonight feel?',
+      order: 5,
+      sliderMinLabel: 'Keep it familiar',
+      sliderMaxLabel: 'Surprise me',
+      sliderSteps: 5,
+      ...overrides,
+    }
+    return { questions: [...DEFAULT_QUESTIONNAIRE.questions, slider] }
+  }
+
+  it('passes for a well-formed custom slider', () => {
+    expect(validateQuestionnaire(withSlider())).toEqual([])
+  })
+
+  it('rejects fewer than the minimum slider positions', () => {
+    const errors = validateQuestionnaire(withSlider({ sliderSteps: MIN_SLIDER_STEPS - 1 }))
+    expect(errors.some((e) => e.includes('at least'))).toBe(true)
+  })
+
+  it('accepts the minimum and maximum allowed step counts', () => {
+    expect(validateQuestionnaire(withSlider({ sliderSteps: MIN_SLIDER_STEPS }))).toEqual([])
+    expect(validateQuestionnaire(withSlider({ sliderSteps: MAX_SLIDER_STEPS }))).toEqual([])
+  })
+
+  it('rejects a missing low-end label', () => {
+    const errors = validateQuestionnaire(withSlider({ sliderMinLabel: '' }))
+    expect(errors.some((e) => e.includes('low end'))).toBe(true)
+  })
+
+  it('rejects a missing high-end label', () => {
+    const errors = validateQuestionnaire(withSlider({ sliderMaxLabel: '  ' }))
+    expect(errors.some((e) => e.includes('high end'))).toBe(true)
+  })
+
+  it('does not require answer options for a slider (unlike single/multiple choice)', () => {
+    const errors = validateQuestionnaire(withSlider())
+    expect(errors.some((e) => e.includes('answer option'))).toBe(false)
   })
 })

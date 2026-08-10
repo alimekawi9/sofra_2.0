@@ -19,15 +19,23 @@ export interface CanonicalQuestionConfig {
   // label. The stored value is never a key in reverse -- renaming a label
   // never changes what gets written to taste_profiles.
   optionLabels?: Record<string, string>
+  // Display-only endpoint labels for the one canonical slider question
+  // (adventurousness). The underlying 0-100 scale/persistence never changes.
+  sliderMinLabel?: string
+  sliderMaxLabel?: string
   order: number
 }
 
-export type CustomQuestionType = 'single' | 'multiple' | 'text'
+export type CustomQuestionType = 'single' | 'multiple' | 'text' | 'slider'
 
 export interface CustomOption {
   value: string
   label: string
 }
+
+export const DEFAULT_SLIDER_STEPS = 5
+export const MIN_SLIDER_STEPS = 2
+export const MAX_SLIDER_STEPS = 10
 
 export interface CustomQuestionConfig {
   id: string
@@ -37,6 +45,11 @@ export interface CustomQuestionConfig {
   helperText?: string
   options?: CustomOption[]
   maxSelections?: number
+  // Slider-only. Answers are stored as a 1-based numeric position
+  // (1..sliderSteps); the labels below are display metadata only.
+  sliderMinLabel?: string
+  sliderMaxLabel?: string
+  sliderSteps?: number
   order: number
 }
 
@@ -46,12 +59,15 @@ export interface QuestionnaireConfig {
   questions: QuestionConfig[]
 }
 
-export const CANONICAL_DEFAULTS: Record<CanonicalKey, { title: string; helperText?: string }> = {
+export const CANONICAL_DEFAULTS: Record<
+  CanonicalKey,
+  { title: string; helperText?: string; sliderMinLabel?: string; sliderMaxLabel?: string }
+> = {
   dietary: { title: 'ANY LANE TO STAY IN?' },
   avoid: { title: 'ANYTHING YOU AVOID?' },
   protein: { title: 'WHAT SOUNDS BEST TONIGHT?', helperText: 'Choose up to two.' },
   flavor: { title: 'FLAVOURS YOU LEAN TOWARDS', helperText: 'Choose up to three.' },
-  adventurousness: { title: 'HOW BRAVE IS YOUR PALATE?' },
+  adventurousness: { title: 'HOW BRAVE IS YOUR PALATE?', sliderMinLabel: 'THE USUAL', sliderMaxLabel: 'ANYTHING ONCE' },
 }
 
 export const DEFAULT_QUESTIONNAIRE: QuestionnaireConfig = {
@@ -88,6 +104,14 @@ export function resolveCanonicalTitle(q: CanonicalQuestionConfig): string {
 export function resolveCanonicalHelperText(q: CanonicalQuestionConfig): string | undefined {
   if (q.helperText !== undefined) return q.helperText.trim() || undefined
   return CANONICAL_DEFAULTS[q.canonicalKey].helperText
+}
+
+export function resolveCanonicalSliderMinLabel(q: CanonicalQuestionConfig): string {
+  return q.sliderMinLabel?.trim() || CANONICAL_DEFAULTS[q.canonicalKey].sliderMinLabel || ''
+}
+
+export function resolveCanonicalSliderMaxLabel(q: CanonicalQuestionConfig): string {
+  return q.sliderMaxLabel?.trim() || CANONICAL_DEFAULTS[q.canonicalKey].sliderMaxLabel || ''
 }
 
 // `defaultLabel` must be the option's own canonical default label (from
@@ -130,6 +154,8 @@ export function isDefaultQuestionnaire(config: QuestionnaireConfig | null | unde
     (q) =>
       !q.title?.trim() &&
       !q.helperText?.trim() &&
+      !q.sliderMinLabel?.trim() &&
+      !q.sliderMaxLabel?.trim() &&
       (!q.optionLabels || Object.keys(q.optionLabels).length === 0)
   )
 }
@@ -167,33 +193,49 @@ export function validateQuestionnaire(config: QuestionnaireConfig): string[] {
 
   for (const q of config.questions) {
     if (isCustom(q)) {
+      const label = q.title || 'Untitled question'
       if (!q.title.trim()) {
         errors.push('Every question needs a title.')
       }
-      if (q.type !== 'text') {
+
+      if (q.type === 'single' || q.type === 'multiple') {
         const options = q.options ?? []
         if (options.length === 0) {
-          errors.push(`"${q.title || 'Untitled question'}" needs at least one answer option.`)
+          errors.push(`"${label}" needs at least one answer option.`)
         }
         const labels = options.map((o) => o.label.trim().toLowerCase())
         if (labels.some((l) => l.length === 0)) {
-          errors.push(`"${q.title || 'Untitled question'}" has a blank answer option.`)
+          errors.push(`"${label}" has a blank answer option.`)
         }
         const duplicates = labels.filter((l, i) => l.length > 0 && labels.indexOf(l) !== i)
         if (duplicates.length > 0) {
-          errors.push(`"${q.title || 'Untitled question'}" has duplicate answer options.`)
+          errors.push(`"${label}" has duplicate answer options.`)
         }
         if (q.type === 'multiple' && q.maxSelections !== undefined) {
           if (q.maxSelections < 1) {
-            errors.push(`"${q.title || 'Untitled question'}" needs to allow at least 1 selection.`)
+            errors.push(`"${label}" needs to allow at least 1 selection.`)
           } else if (q.maxSelections > options.length) {
-            errors.push(`"${q.title || 'Untitled question'}" allows more selections than it has options.`)
+            errors.push(`"${label}" allows more selections than it has options.`)
           }
+        }
+      } else if (q.type === 'slider') {
+        const steps = q.sliderSteps ?? DEFAULT_SLIDER_STEPS
+        if (steps < MIN_SLIDER_STEPS) {
+          errors.push(`"${label}" needs at least ${MIN_SLIDER_STEPS} slider positions.`)
+        }
+        if (!q.sliderMinLabel?.trim()) {
+          errors.push(`"${label}" needs a label for the low end of the slider.`)
+        }
+        if (!q.sliderMaxLabel?.trim()) {
+          errors.push(`"${label}" needs a label for the high end of the slider.`)
         }
       }
     }
     // Canonical questions fall back to the Sofra default title/helper text
     // whenever the override is blank, so an empty override is never invalid.
+    // Canonical sliders (adventurousness) have no editable step count at
+    // all -- scoring depends on the fixed 0-100 scale, so there's nothing
+    // to validate there beyond the label fallback already handled above.
   }
 
   return errors

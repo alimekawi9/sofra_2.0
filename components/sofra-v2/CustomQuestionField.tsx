@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import type { CustomQuestionConfig } from '@/lib/questionnaire'
+import { DEFAULT_SLIDER_STEPS, type CustomQuestionConfig } from '@/lib/questionnaire'
 
-export type CustomResponseValue = string | string[]
+export type CustomResponseValue = string | string[] | number
 
 export interface CustomQuestionFieldProps {
   question: CustomQuestionConfig
@@ -41,8 +41,33 @@ export function CustomQuestionField({ question, value, onChange }: CustomQuestio
     )
   }
 
+  if (question.type === 'slider') {
+    const steps = question.sliderSteps ?? DEFAULT_SLIDER_STEPS
+    const position = typeof value === 'number' ? value : Math.ceil((steps + 1) / 2)
+    return (
+      <section>
+        <h3 className="sv2-section-label">{question.title}</h3>
+        {question.helperText && <p className="sv2-section-sub">{question.helperText}</p>}
+        <input
+          type="range"
+          min={1}
+          max={steps}
+          step={1}
+          value={position}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label={question.title}
+          className="sv2-slider"
+        />
+        <div className="sv2-slider-labels">
+          <span>{question.sliderMinLabel}</span>
+          <span>{question.sliderMaxLabel}</span>
+        </div>
+      </section>
+    )
+  }
+
   const options = question.options ?? []
-  const selected = Array.isArray(value) ? value : value ? [value] : []
+  const selected = Array.isArray(value) ? value : typeof value === 'string' ? [value] : []
 
   if (question.type === 'single') {
     return (

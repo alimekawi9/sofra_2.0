@@ -14,8 +14,13 @@ import {
   resolveCanonicalTitle,
   resolveCanonicalHelperText,
   resolveCanonicalOptionLabel,
+  resolveCanonicalSliderMinLabel,
+  resolveCanonicalSliderMaxLabel,
   generateOptionValue,
   generateQuestionId,
+  DEFAULT_SLIDER_STEPS,
+  MIN_SLIDER_STEPS,
+  MAX_SLIDER_STEPS,
   type QuestionnaireConfig,
   type QuestionConfig,
   type CanonicalQuestionConfig,
@@ -84,7 +89,8 @@ export function QuestionnaireEditor({
       type,
       title: '',
       order,
-      ...(type === 'text' ? {} : { options: [{ value: 'option_1', label: '' }] }),
+      ...(type === 'single' || type === 'multiple' ? { options: [{ value: 'option_1', label: '' }] } : {}),
+      ...(type === 'slider' ? { sliderMinLabel: '', sliderMaxLabel: '', sliderSteps: DEFAULT_SLIDER_STEPS } : {}),
     }
     onChange({ questions: [...config.questions, base] })
   }
@@ -164,6 +170,7 @@ export function QuestionnaireEditor({
                 <button type="button" onClick={() => addCustomQuestion('single')}>Single choice</button>
                 <button type="button" onClick={() => addCustomQuestion('multiple')}>Multiple choice</button>
                 <button type="button" onClick={() => addCustomQuestion('text')}>Short text</button>
+                <button type="button" onClick={() => addCustomQuestion('slider')}>Slider</button>
               </div>
             </div>
 
@@ -238,6 +245,36 @@ function CanonicalQuestionCard({
           ))}
         </div>
       )}
+      {question.canonicalKey === 'adventurousness' && (
+        <div className="sv2-question-options">
+          <span className="sv2-question-options-label">Slider labels</span>
+          <div className="sv2-slider-label-fields">
+            <label className="sv2-question-field">
+              Low end
+              <input
+                value={question.sliderMinLabel ?? ''}
+                placeholder={resolveCanonicalSliderMinLabel(question)}
+                onChange={(e) => onUpdate({ sliderMinLabel: e.target.value })}
+              />
+            </label>
+            <label className="sv2-question-field">
+              High end
+              <input
+                value={question.sliderMaxLabel ?? ''}
+                placeholder={resolveCanonicalSliderMaxLabel(question)}
+                onChange={(e) => onUpdate({ sliderMaxLabel: e.target.value })}
+              />
+            </label>
+          </div>
+          <div className="sv2-slider-mini-preview">
+            <input type="range" min={0} max={100} defaultValue={50} aria-label="Slider preview" disabled className="sv2-slider" />
+            <div className="sv2-slider-labels">
+              <span>{question.sliderMinLabel?.trim() || resolveCanonicalSliderMinLabel(question)}</span>
+              <span>{question.sliderMaxLabel?.trim() || resolveCanonicalSliderMaxLabel(question)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -279,7 +316,14 @@ function CustomQuestionCard({
     <div>
       <div className="sv2-question-card-headrow">
         <span className="sv2-question-kind">
-          Custom · {question.type === 'single' ? 'Single choice' : question.type === 'multiple' ? 'Multiple choice' : 'Short text'}
+          Custom ·{' '}
+          {question.type === 'single'
+            ? 'Single choice'
+            : question.type === 'multiple'
+              ? 'Multiple choice'
+              : question.type === 'slider'
+                ? 'Slider'
+                : 'Short text'}
         </span>
         <button type="button" className="sv2-remove-question" onClick={onRemove}>REMOVE</button>
       </div>
@@ -299,7 +343,7 @@ function CustomQuestionCard({
         />
       </label>
 
-      {question.type !== 'text' && (
+      {(question.type === 'single' || question.type === 'multiple') && (
         <div className="sv2-question-options">
           <span className="sv2-question-options-label">Answers</span>
           {options.map((opt, i) => (
@@ -316,6 +360,62 @@ function CustomQuestionCard({
             </div>
           ))}
           <button type="button" className="sv2-add-option" onClick={addOption}>+ ADD OPTION</button>
+        </div>
+      )}
+
+      {question.type === 'slider' && (
+        <div className="sv2-question-options">
+          <span className="sv2-question-options-label">Slider</span>
+          <div className="sv2-slider-label-fields">
+            <label className="sv2-question-field">
+              Low end label
+              <input
+                value={question.sliderMinLabel ?? ''}
+                placeholder="e.g. Keep it familiar"
+                onChange={(e) => onUpdate({ sliderMinLabel: e.target.value })}
+              />
+            </label>
+            <label className="sv2-question-field">
+              High end label
+              <input
+                value={question.sliderMaxLabel ?? ''}
+                placeholder="e.g. Surprise me"
+                onChange={(e) => onUpdate({ sliderMaxLabel: e.target.value })}
+              />
+            </label>
+          </div>
+          <label className="sv2-question-field sv2-max-selections">
+            Number of steps
+            <input
+              type="number"
+              min={MIN_SLIDER_STEPS}
+              max={MAX_SLIDER_STEPS}
+              value={question.sliderSteps ?? DEFAULT_SLIDER_STEPS}
+              onChange={(e) =>
+                onUpdate({
+                  sliderSteps: Math.min(
+                    MAX_SLIDER_STEPS,
+                    Math.max(MIN_SLIDER_STEPS, Number(e.target.value) || DEFAULT_SLIDER_STEPS)
+                  ),
+                })
+              }
+            />
+          </label>
+          <div className="sv2-slider-mini-preview">
+            <input
+              type="range"
+              min={1}
+              max={question.sliderSteps ?? DEFAULT_SLIDER_STEPS}
+              defaultValue={Math.ceil(((question.sliderSteps ?? DEFAULT_SLIDER_STEPS) + 1) / 2)}
+              aria-label="Slider preview"
+              disabled
+              className="sv2-slider"
+            />
+            <div className="sv2-slider-labels">
+              <span>{question.sliderMinLabel}</span>
+              <span>{question.sliderMaxLabel}</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -384,6 +484,9 @@ function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
         flavorHelperText={byKey.flavor ? resolveCanonicalHelperText(byKey.flavor) : undefined}
         flavorOptionLabels={byKey.flavor ? optionLabelMap(byKey.flavor) : undefined}
         adventurousnessTitle={byKey.adventurousness ? resolveCanonicalTitle(byKey.adventurousness) : undefined}
+        adventurousnessHelperText={byKey.adventurousness ? resolveCanonicalHelperText(byKey.adventurousness) : undefined}
+        adventurousnessMinLabel={byKey.adventurousness ? resolveCanonicalSliderMinLabel(byKey.adventurousness) : undefined}
+        adventurousnessMaxLabel={byKey.adventurousness ? resolveCanonicalSliderMaxLabel(byKey.adventurousness) : undefined}
         extraContent={
           custom.length > 0 ? (
             <>

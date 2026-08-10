@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import RSVPPage from '@/app/(guest)/events/[id]/rsvp/page'
 import { createClient } from '@/lib/supabase/client'
@@ -760,5 +760,75 @@ describe('host-customized questionnaire', () => {
     expect(await screen.findByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'No dairy' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Anything you are especially craving?')).not.toBeInTheDocument()
+  })
+
+  const SLIDER_CONFIG = {
+    questions: [
+      { id: 'dietary', kind: 'canonical', canonicalKey: 'dietary', order: 0 },
+      { id: 'avoid', kind: 'canonical', canonicalKey: 'avoid', order: 1 },
+      { id: 'protein', kind: 'canonical', canonicalKey: 'protein', order: 2 },
+      { id: 'flavor', kind: 'canonical', canonicalKey: 'flavor', order: 3 },
+      {
+        id: 'adventurousness',
+        kind: 'canonical',
+        canonicalKey: 'adventurousness',
+        order: 4,
+        sliderMinLabel: 'KEEP IT FAMILIAR',
+        sliderMaxLabel: 'SURPRISE ME',
+      },
+      {
+        id: 'q_slider1',
+        kind: 'custom',
+        type: 'slider',
+        title: 'How adventurous should tonight feel?',
+        order: 5,
+        sliderMinLabel: 'Keep it familiar',
+        sliderMaxLabel: 'Surprise me',
+        sliderSteps: 5,
+      },
+    ],
+  }
+
+  it('shows customized slider end labels for the canonical adventurousness question, not a set of choices', async () => {
+    makeSupabase({ questionnaireConfig: SLIDER_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(await screen.findByText('KEEP IT FAMILIAR')).toBeInTheDocument()
+    expect(screen.getByText('SURPRISE ME')).toBeInTheDocument()
+    expect(screen.queryByText('THE USUAL')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Adventurousness')).toHaveAttribute('type', 'range')
+  })
+
+  it('renders a custom slider question and persists a numeric answer, separate from canonical preferences', async () => {
+    const sb = makeSupabase({ questionnaireConfig: SLIDER_CONFIG })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    const slider = await screen.findByLabelText('How adventurous should tonight feel?')
+    expect(slider).toHaveAttribute('type', 'range')
+    expect(slider).toHaveAttribute('max', '5')
+    fireEvent.change(slider, { target: { value: '5' } })
+    await userEvent.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
+
+    await waitFor(() => expect(sb.customResponseUpsert).toHaveBeenCalled())
+    expect(sb.customResponseUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          event_id: 'event-1',
+          user_id: 'uid-1',
+          question_id: 'q_slider1',
+          response: 5,
+        }),
+      ],
+      expect.anything()
+    )
+    // Canonical adventurousness (0-100 continuous) must be untouched by the custom slider.
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ adventurousness: 50 }),
+      expect.anything()
+    )
   })
 })

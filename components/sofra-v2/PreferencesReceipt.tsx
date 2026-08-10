@@ -41,6 +41,9 @@ export interface PreferencesReceiptProps {
   flavorHelperText?: string
   flavorOptionLabels?: Record<string, string>
   adventurousnessTitle?: string
+  adventurousnessHelperText?: string
+  adventurousnessMinLabel?: string
+  adventurousnessMaxLabel?: string
   // Rendered just before the save button -- used to append event-specific
   // custom questions without forking this component.
   extraContent?: ReactNode
@@ -96,6 +99,9 @@ export function PreferencesReceipt({
   flavorHelperText,
   flavorOptionLabels,
   adventurousnessTitle,
+  adventurousnessHelperText,
+  adventurousnessMinLabel,
+  adventurousnessMaxLabel,
   extraContent,
 }: PreferencesReceiptProps) {
   const adventurousnessLabel =
@@ -197,6 +203,7 @@ export function PreferencesReceipt({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{adventurousnessTitle || 'HOW BRAVE IS YOUR PALATE?'}</h3>
+        {adventurousnessHelperText && <p className="sv2-section-sub">{adventurousnessHelperText}</p>}
         <input
           type="range"
           min={0}
@@ -208,8 +215,8 @@ export function PreferencesReceipt({
           className="sv2-slider"
         />
         <div className="sv2-slider-labels">
-          <span>THE USUAL</span>
-          <span>ANYTHING ONCE</span>
+          <span>{adventurousnessMinLabel || 'THE USUAL'}</span>
+          <span>{adventurousnessMaxLabel || 'ANYTHING ONCE'}</span>
         </div>
         <p className="sv2-slider-value">{adventurousnessLabel}</p>
 
