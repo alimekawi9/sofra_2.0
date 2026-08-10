@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import '@/components/sofra-v2/sofra-v2.css'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
 import { deriveCourse } from '@/lib/menu'
@@ -138,7 +139,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
       const [{ data: sigs }, { data: pantryRows }, { data: menu }] = await Promise.all([
         supabase
           .from('signatures')
-          .select('id, name, tags, contains_allergens, slot')
+          .select('id, name, tags, contains_allergens, slot, novelty_score, is_substantial')
           .eq('chef_id', chefId),
         supabase
           .from('pantry_items')
@@ -220,6 +221,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
     <>
     <style>{`@keyframes sofraPulse { 0%,100%{opacity:.4} 50%{opacity:.7} }`}</style>
     <div
+      className="sv2-root sv2-device-page sv2-app-page sv2-production-table"
       style={{
         minHeight: '100vh',
         background: C.ink,
@@ -228,7 +230,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
       }}
     >
       <div
-        className="fade"
+        className="fade sv2-device-shell sv2-app-shell sv2-table-intel-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
       >
         <ChefTabs
@@ -285,7 +287,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
         {!loading && !fetchError && intel && (
           <>
             {/* Hard limits */}
-            <div style={{ ...card, borderColor: 'rgba(224,119,107,0.35)' }}>
+            <section className="sv2-intel-card sv2-intel-hard-limits" style={{ ...card, borderColor: 'rgba(224,119,107,0.35)' }}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Hard Limits — non-negotiable</span>
                 <span
@@ -341,11 +343,11 @@ export default function TablePage({ params }: { params: { id: string } }) {
                   ))
                 )}
               </div>
-            </div>
+            </section>
 
             {/* Diet mix + protein anchor grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div style={card}>
+            <div className="sv2-intel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Diet Mix</div>
                 <div style={{ marginTop: 12 }}>
                   {intel.dietMix.length === 0 ? (
@@ -370,8 +372,8 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     ))
                   )}
                 </div>
-              </div>
-              <div style={card}>
+              </section>
+              <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Tonight&apos;s Picks</div>
                 <div style={{ marginTop: 12 }}>
                   {intel.proteinCounts.length === 0 ? (
@@ -397,11 +399,11 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     ))
                   )}
                 </div>
-              </div>
+              </section>
             </div>
 
             {/* Flavor preference */}
-            <div style={card}>
+            <section className="sv2-intel-card" style={card}>
               <div style={cardTitle}>Flavor Preference</div>
               <div style={{ marginTop: 12 }}>
                 {intel.flavorCounts.length === 0 ? (
@@ -426,10 +428,10 @@ export default function TablePage({ params }: { params: { id: string } }) {
                   ))
                 )}
               </div>
-            </div>
+            </section>
 
             {/* Adventurousness */}
-            <div style={card}>
+            <section className="sv2-intel-card sv2-intel-adventurousness" style={card}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Adventurousness</span>
                 <span
@@ -496,18 +498,18 @@ export default function TablePage({ params }: { params: { id: string } }) {
                 <span>Keep it familiar</span>
                 <span>Chef, surprise me</span>
               </div>
-            </div>
+            </section>
 
             {/* Brief */}
-            <div style={brief}>
+            <aside className="sv2-intel-brief" style={brief}>
               <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
               <span>{intel.brief}</span>
-            </div>
+            </aside>
 
             {/* Event-specific custom question answers — kept fully separate
                 from canonical taste-profile data and menu scoring above. */}
             {customAnswerSummaries.length > 0 && (
-              <div style={card}>
+              <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Event-Specific Answers</div>
                 {customAnswerSummaries.map(({ question, counts, texts }) => (
                   <div key={question.id} style={{ marginTop: 14 }}>
@@ -539,7 +541,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     )}
                   </div>
                 ))}
-              </div>
+              </section>
             )}
 
             {/* Per-guest substitution plan — group by guest so the chef sees
@@ -572,7 +574,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
               if (perGuest.size === 0 && unmet.length === 0) return null
 
               return (
-                <div style={{ ...card, marginTop: 14 }}>
+                <section className="sv2-intel-card" style={{ ...card, marginTop: 14 }}>
                   <div style={cardTitle}>Substitution plan</div>
                   <div
                     style={{
@@ -637,7 +639,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                       . Add more signatures to cover these.
                     </div>
                   )}
-                </div>
+                </section>
               )
             })()}
           </>
@@ -663,7 +665,7 @@ function Bar({
 }) {
   const pct = total === 0 ? 0 : Math.round((n / total) * 100)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
+    <div className="sv2-intel-bar" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
       <span
         style={{
           color: C.dim,
@@ -675,6 +677,7 @@ function Bar({
         {formatLabel(label)}
       </span>
       <div
+        className="sv2-intel-bar-track"
         style={{
           flex: 1,
           height: 8,

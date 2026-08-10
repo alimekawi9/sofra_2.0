@@ -15,6 +15,14 @@ const signature = {
   name: 'Roast Chicken',
   tags: ['main', 'room_temperature'],
   contains_allergens: [],
+  preset_key: null,
+}
+const savedPreset = {
+  id: 'sig-baba',
+  name: 'Baba Ganoush',
+  tags: ['starter', 'veg'],
+  contains_allergens: [],
+  preset_key: 'Levantine::baba ganoush',
 }
 const pantry = {
   id: 'pantry-1',
@@ -30,7 +38,7 @@ function builder(table: string) {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
     order: jest.fn(() => Promise.resolve({
-      data: table === 'signatures' ? [signature] : [pantry],
+      data: table === 'signatures' ? [signature, savedPreset] : [pantry],
       error: null,
     })),
     insert: jest.fn((payload) => {
@@ -91,6 +99,29 @@ test('saved signatures and pantry items render once as active chips', async () =
   expect(screen.getAllByRole('button', { name: 'Tomato' })).toHaveLength(1)
 })
 
+test('rehydrates a saved preset with the exact filled pending-selection style', async () => {
+  render(<KitchenPage />)
+
+  const saved = await screen.findByRole('button', { name: 'Baba Ganoush' })
+  expect(saved).toHaveAttribute('aria-pressed', 'true')
+  expect(saved).toHaveStyle({ background: '#5C1515', color: '#F7F4ED' })
+})
+
+test('stages preset changes until the single signatures UPDATE action', async () => {
+  render(<KitchenPage />)
+  const hummus = await screen.findByRole('button', { name: 'Hummus' })
+
+  const signatureCard = screen.getByText('Your signatures').parentElement?.parentElement
+  expect(within(signatureCard as HTMLElement).queryByRole('button', { name: /Add selected/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'DONE' })).toBeDisabled()
+  fireEvent.click(hummus)
+  expect(hummus).toHaveAttribute('aria-pressed', 'true')
+  expect(writes.some(write => write.kind === 'insert')).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+
+  await waitFor(() => expect(writes.some(write => write.table === 'signatures' && write.kind === 'insert')).toBe(true))
+})
+
 test('creating and editing a signature persists the raw main role', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Roast Chicken' })
@@ -101,7 +132,8 @@ test('creating and editing a signature persists the raw main role', async () => 
   fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[0])
   fireEvent.click(screen.getByRole('button', { name: 'Main' }))
   fireEvent.click(screen.getByRole('button', { name: 'Rich' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Save signature' }))
+  expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some((write) =>
     write.table === 'signatures'
@@ -113,7 +145,8 @@ test('creating and editing a signature persists the raw main role', async () => 
     target: { value: signature.id },
   })
   expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Fresh' }))
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some((write) =>
     write.table === 'signatures'
@@ -135,4 +168,47 @@ test('pantry update strips legacy roles and keeps raw descriptive tags', async (
     const update = writes.find((write) => write.table === 'pantry_items' && write.kind === 'update')
     expect(update?.payload.tags).toEqual(['savory'])
   })
+})
+
+test('adding a pantry item with no quantity entered saves null amount/unit (binary presence keeps working)', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+
+  fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
+  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[1])
+  fireEvent.click(screen.getByRole('button', { name: 'Savory' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save ingredient' }))
+
+  await waitFor(() => {
+    const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')
+    expect(insert?.payload).toMatchObject({ quantity_amount: null, quantity_unit: null })
+  })
+})
+
+test('adding a pantry item with a quantity entered saves the amount and unit', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+
+  fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
+  fireEvent.change(screen.getByLabelText('Quantity amount'), { target: { value: '2' } })
+  fireEvent.change(screen.getByLabelText('Quantity unit'), { target: { value: 'lbs' } })
+  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[1])
+  fireEvent.click(screen.getByRole('button', { name: 'Savory' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save ingredient' }))
+
+  await waitFor(() => {
+    const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')
+    expect(insert?.payload).toMatchObject({ quantity_amount: 2, quantity_unit: 'lbs' })
+  })
+})
+
+test('editing a saved pantry item with no quantity leaves the quantity fields blank', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+  fireEvent.change(screen.getByLabelText('Edit a saved pantry item'), {
+    target: { value: pantry.id },
+  })
+
+  expect(screen.getByLabelText('Quantity amount')).toHaveValue(null)
+  expect(screen.getByLabelText('Quantity unit')).toHaveValue('')
 })

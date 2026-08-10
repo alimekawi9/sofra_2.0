@@ -8,7 +8,7 @@ import { withoutDishRoles } from '@/lib/dish-presets'
 import { normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
-import { draftCourse, draftMenu, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
+import { draftCourse, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
@@ -64,11 +64,11 @@ function buildMenuHtml(
       const portionHtml =
         c.origin === 'empty'
           ? ''
-          : `<div class="portion">${escHtml(portionGuidance(c.slot))}</div>`
+          : `<div class="portion">${escHtml(portionGuidance(c.slot, guestCount))}</div>`
       return `
         <div class="course">
           <div class="slot">${escHtml(c.slotLabel)}</div>
-          <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
+          <div class="dish">${escHtml(c.dishName) || 'TBD'}</div>
           ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
           ${portionHtml}
           ${substitutionsHtml}
@@ -77,7 +77,7 @@ function buildMenuHtml(
     })
     .join('')
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} — Menu</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} | Menu</title>
     <style>
       @page { size:A4; margin:0; }
       *{margin:0;padding:0;box-sizing:border-box;}
@@ -230,7 +230,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       const [{ data: sigs }, { data: pantryItems }] = await Promise.all([
         supabase
           .from('signatures')
-          .select('id, name, tags, contains_allergens, slot')
+          .select('id, name, tags, contains_allergens, slot, novelty_score, is_substantial')
           .eq('chef_id', stored),
         supabase
           .from('pantry_items')
@@ -243,7 +243,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       // UI never sets it, so every existing row is NULL. That made the rule-
       // based draftCourse filter out every signature and return empty slots.
       // Infer from tags/name and persist so future draws hit the fast path.
-      // Fire-and-forget — we already use the inferred slot in memory below.
+      // Fire-and-forget; we already use the inferred slot in memory below.
       const backfilled: Signature[] = (sigs ?? []).map((s: Signature) => {
         if (s.slot) return s
         const inferred = inferSlot(s.name, s.tags)
@@ -272,29 +272,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           .order('sort_order', { ascending: true })
         setCourses(rows ?? [])
       } else {
-        const drafted = draftMenu(builtIntel, backfilled, roleFreePantry)
-        const { data: newMenu, error: menuErr } = await supabase
-          .from('menus')
-          .insert({ event_id: id })
-          .select('id')
-          .single()
-        if (menuErr || !newMenu) throw new Error('menu insert failed')
-
-        const inserts = drafted.map((c, i) => ({
-          menu_id: newMenu.id,
-          slot: c.slot,
-          dish_name: c.dishName,
-          dish_origin: c.origin,
-          source: c.sourceId,
-          component_ids: c.componentIds ?? null,
-          locked: false,
-          sort_order: i,
-        }))
-        const { data: rows } = await supabase
-          .from('menu_courses')
-          .insert(inserts)
-          .select('*')
-        setCourses(rows ?? [])
+        setCourses([])
       }
     } catch {
       setFetchError("Couldn't load the menu. Try again.")
@@ -362,11 +340,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   }
 
   async function handleRegenerateAI() {
-    if (!intel) return
+    if (!id || !intel || aiLoading) return
     setActionError('')
     setAiNotice('')
     const unlocked = courses.filter((c) => !c.locked)
-    if (unlocked.length === 0) return
+    if (courses.length > 0 && unlocked.length === 0) return
 
     setAiLoading(true)
     try {
@@ -377,7 +355,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       })
 
       if (!res.ok) {
-        setActionError('AI generation failed. The rule-based draft is still on screen.')
+        setActionError('Menu generation failed. Try again.')
         return
       }
 
@@ -391,7 +369,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
       if (result.aiFailed) {
         setAiNotice(
-          `AI generation unavailable — showing rule-based draft instead${
+          `AI generation unavailable\nShowing rule-based draft instead${
             result.fallbackReason ? ` (${result.fallbackReason})` : ''
           }.`
         )
@@ -567,29 +545,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   Composed for this table. Every dish is allergy-safe by construction.
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <button
-                  className="regen"
-                  onClick={() => void handleRegenerateAI()}
-                  disabled={allLocked || aiLoading}
-                  title={
-                    allLocked
-                      ? 'Everything is locked'
-                      : aiLoading
-                      ? 'AI is thinking…'
-                      : 'Compose a fresh draft with Gemini'
-                  }
-                  style={{
-                    ...(allLocked || aiLoading
-                      ? { opacity: 0.5, cursor: 'not-allowed' }
-                      : undefined),
-                    borderColor: C.gold,
-                    color: C.gold,
-                  }}
-                >
-                  {aiLoading ? '✦ Thinking…' : '✦ Set the Table'}
-                </button>
-              </div>
             </div>
 
             {aiNotice && (
@@ -600,6 +555,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   marginBottom: 12,
                   fontFamily: 'system-ui, sans-serif',
                   lineHeight: 1.45,
+                  whiteSpace: 'pre-line',
                 }}
               >
                 {aiNotice}
@@ -610,6 +566,30 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               <p style={{ color: C.rose, fontSize: 13, marginBottom: 12, fontFamily: 'system-ui, sans-serif' }}>
                 {actionError}
               </p>
+            )}
+
+            {courses.length === 0 && (
+              <div className="sv2-menu-draft-empty">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="sv2-menu-draft-empty-illustration"
+                  src="/design-preview/menu-draft-table.png"
+                  alt=""
+                />
+                <p
+                  style={{
+                    color: C.dim,
+                    fontSize: 13,
+                    fontFamily: 'system-ui, sans-serif',
+                    maxWidth: 260,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Nothing drafted yet
+                  <br />
+                  Tap <strong>Set the Table</strong> to compose your first draft.
+                </p>
+              </div>
             )}
 
             {derivedCourses.map((derived, idx) => {
@@ -677,7 +657,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                     </div>
                   </div>
                   <div style={{ color: C.cream, fontSize: 19 }}>
-                    {derived.dishName || '— TBD —'}
+                    {derived.dishName || 'TBD'}
                   </div>
                   {reasoningByCourseId[persisted.id] && (
                     <div
@@ -705,7 +685,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                     {derived.origin === 'signature' && 'Chef’s signature'}
                     {derived.origin === 'pantry-composed' && 'Composed for this table'}
                     {derived.origin === 'fallback' && 'Chef’s adaptation (best available for this slot)'}
-                    {derived.origin === 'empty' && 'No signatures yet — add one in Kitchen'}
+                    {derived.origin === 'empty' && <>No signatures yet<br />Add one in Kitchen</>}
                   </div>
                   {derived.origin !== 'empty' && (
                     <div
@@ -718,7 +698,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                         fontFamily: 'system-ui, sans-serif',
                       }}
                     >
-                      {portionGuidance(derived.slot)}
+                      {portionGuidance(derived.slot, intel?.guestCount)}
                     </div>
                   )}
 
@@ -743,7 +723,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                       }}
                     >
                       {derived.origin === 'empty'
-                        ? '— Draft a dish for this slot'
+                        ? 'Draft a dish for this slot'
                         : allExcludedCovered && derived.excludes.length > 0
                         ? `✓ Table fit: safe for ${intel?.guestCount ?? 0}/${intel?.guestCount ?? 0} guests`
                         : ok
@@ -811,7 +791,9 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                             fontFamily: 'system-ui, sans-serif',
                           }}
                         >
-                          No substitute available — add a signature that avoids these constraints.
+                          No substitute available
+                          <br />
+                          Add a signature that avoids these constraints.
                         </div>
                       )}
                   </div>
@@ -831,6 +813,18 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 </article>
               )
             })}
+
+            <div className="sv2-menu-generate-row">
+              <button
+                type="button"
+                className="regen"
+                onClick={() => void handleRegenerateAI()}
+                disabled={allLocked || aiLoading}
+                title={allLocked ? 'Everything is locked' : courses.length > 0 ? 'Create a fresh menu draft' : 'Create your menu draft'}
+              >
+                {aiLoading ? 'Setting the Table…' : courses.length > 0 ? 'Regenerate' : 'Set the Table'}
+              </button>
+            </div>
 
             <div
               className="sv2-menu-export-row"
@@ -852,7 +846,9 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   fontFamily: 'system-ui, sans-serif',
                 }}
               >
-                Opens a print-ready menu — save as PDF or print.
+                Opens a print-ready menu
+                <br />
+                Save as PDF or print.
               </span>
             </div>
 

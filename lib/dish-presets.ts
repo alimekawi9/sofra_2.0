@@ -10,6 +10,14 @@
 export const DISH_ROLES = ['starter', 'main', 'side', 'dessert', 'flex'] as const
 export type DishRole = (typeof DISH_ROLES)[number]
 
+export function canonicalDishName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US')
+}
+
+export function dishPresetKey(preset: Pick<DishPreset, 'cuisine' | 'name'>): string {
+  return `${preset.cuisine}::${canonicalDishName(preset.name)}`
+}
+
 const DISH_ROLE_SET = new Set<string>(DISH_ROLES)
 
 export function isDishRole(value: string): value is DishRole {
@@ -34,6 +42,8 @@ export type DishPreset = {
   tags: string[]
   allergens: string[]
   role: DishRole
+  novelty_score?: 0.10 | 0.25 | 0.50 | 0.75 | 0.95
+  is_substantial?: boolean
 }
 
 export const CUISINES = [
@@ -47,7 +57,9 @@ export const CUISINES = [
   'American',
 ] as const
 
-export const DISH_PRESETS: DishPreset[] = [
+type RawDishPreset = Omit<DishPreset, 'novelty_score' | 'is_substantial'>
+
+const DISH_PRESETS_RAW: RawDishPreset[] = [
   // Levantine
   { name: 'Hummus', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [], role: 'starter' },
   { name: 'Baba Ganoush', cuisine: 'Levantine', tags: ['veg', 'vegan'], allergens: [], role: 'starter' },
@@ -126,6 +138,23 @@ export const DISH_PRESETS: DishPreset[] = [
   { name: 'Fried Chicken', cuisine: 'American', tags: ['meat'], allergens: ['gluten', 'dairy', 'eggs'], role: 'main' },
   { name: 'Apple Pie', cuisine: 'American', tags: ['dessert', 'veg'], allergens: ['gluten', 'dairy'], role: 'dessert' },
 ]
+
+const PRESET_TAG_ENRICHMENT:Record<string,string[]>={
+  Tabbouleh:['vegetable','grain','fresh','acidic','herbal','savory','chewy','raw','cold'],
+  Tzatziki:['dairy','fresh','acidic','herbal','creamy','raw','chilled'],
+  'Lamb Rogan Josh':['lamb','rich','spicy','earthy','umami','tender','juicy','braised','stewed','hot'],
+}
+const PRESET_NOVELTY:Record<string,0.10|0.25|0.50|0.75|0.95>={Tabbouleh:.25,Tzatziki:.25,'Lamb Rogan Josh':.75}
+
+// Presets carry complete-dish metadata once, at definition time. Selecting a
+// preset persists these canonical tags and the two structured values; menu
+// generation never asks an LLM to reinterpret the saved dish.
+export const DISH_PRESETS:DishPreset[]=DISH_PRESETS_RAW.map(preset=>({
+  ...preset,
+  tags:Array.from(new Set([...preset.tags,...(PRESET_TAG_ENRICHMENT[preset.name]??[])])),
+  novelty_score:PRESET_NOVELTY[preset.name]??.25,
+  is_substantial:preset.role==='main',
+}))
 
 // Name → role lookup so inferSlot in lib/menu.ts can classify legacy DB rows
 // added before the `role` field existed. Those rows have tags like ['veg']
