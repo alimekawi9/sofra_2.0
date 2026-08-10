@@ -4,12 +4,12 @@ import { inferSlot, type PantryItem, type Signature } from '@/lib/menu'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { createClient } from '@/lib/supabase/server'
-import { buildRecommendationPlan } from '@/lib/recommendation/pipeline'
-import { buildCompactGapPrompt, buildMenuCreationBrief } from '@/lib/recommendation/brief'
+import { buildRecommendationPlan, dinerDishFit } from '@/lib/recommendation/pipeline'
+import { buildCompactGapPrompt, buildMenuCreationBrief, chooseRepairGap } from '@/lib/recommendation/brief'
 import { MENU_PROPOSAL_SCHEMA, parseMenuProposal, type LLMMenuProposal } from '@/lib/recommendation/proposal'
 import { callGeminiJson } from '@/lib/gemini'
 import { planMenuReplacement, type DesiredMenuDish, type ExistingMenuRow } from '@/lib/recommendation/persistence'
-import { repairWithLimit, validateFinalMenu, type FinalDish } from '@/lib/recommendation/validator'
+import { chooseReplacementDishIndex, hasBlockingIssues, repairWithLimit, validateFinalMenu, type FinalDish } from '@/lib/recommendation/validator'
 
 export const runtime = 'nodejs'
 export const maxDuration = 10
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   const chefId = event.chef_id ?? event.host_id
   const [{ data: rsvps }, { data: signatures }, { data: pantry }, { data: menu }] = await Promise.all([
     supabase.from('rsvps').select('user_id,users(name)').eq('event_id', body.eventId).in('status', ['going', 'maybe']),
-    supabase.from('signatures').select('id,name,tags,contains_allergens,slot').eq('chef_id', chefId),
+    supabase.from('signatures').select('id,name,tags,contains_allergens,slot,novelty_score,is_substantial').eq('chef_id', chefId),
     supabase.from('pantry_items').select('id,name,tags,contains_allergens').eq('chef_id', chefId).eq('week_of', currentMonday()),
     supabase.from('menus').select('id').eq('event_id', body.eventId).maybeSingle(),
   ])
@@ -59,24 +59,45 @@ export async function POST(req: Request) {
   const intel = buildIntel(guests)
   const trustedSignatures: Signature[] = (signatures ?? []).map((item) => ({ ...item, slot: item.slot ?? inferSlot(item.name, item.tags) }))
   const trustedPantry: PantryItem[] = (pantry ?? []).map((item) => ({ ...item, tags: withoutDishRoles(item.tags) }))
-  if(!menu)return NextResponse.json({error:'Menu not found'},{status:404})
-  const {data:existingRows}=await supabase.from('menu_courses').select('*').eq('menu_id',menu.id).order('sort_order',{ascending:true})
+  let menuId=menu?.id??null
+  const {data:existingRows}=menuId
+    ? await supabase.from('menu_courses').select('*').eq('menu_id',menuId).order('sort_order',{ascending:true})
+    : {data:[]}
   const existing=(existingRows??[]) as ExistingMenuRow[],lockedSignatures=existing.filter(row=>row.locked&&row.source).map(row=>trustedSignatures.find(sig=>sig.id===row.source)).filter(Boolean) as Signature[]
   const plan=buildRecommendationPlan(guests,trustedSignatures,trustedPantry,lockedSignatures),brief=buildMenuCreationBrief(plan),dataLoadMs=Date.now()-loadStarted
+  if(plan.infeasibleDinerIndexes.length)return NextResponse.json({error:'Menu coverage is infeasible before generation',dinerIndexes:plan.infeasibleDinerIndexes},{status:422})
+  console.info(JSON.stringify({scope:'menu_generation_stage',stage:'build_compact_brief',eventId:body.eventId,guestCount:guests.length,targetN:plan.targetDishCount,selectedSignatureCount:plan.selected.length,M:plan.gaps.length,selectedSignatureNames:plan.selected.map(x=>x.signature.name),pantryNames:plan.ingredients.map(x=>x.item.name),promptChars:buildCompactGapPrompt(brief).length,model:process.env.GEMINI_MENU_MODEL||'gemini-3.5-flash-lite'}))
   let proposal:LLMMenuProposal={signatureRefinements:[],generatedDishes:[]},modelMs=0,usedFallback=false
-  if(plan.gaps.length){const modelStarted=Date.now();try{const raw=await callGeminiJson(buildCompactGapPrompt(brief),MENU_PROPOSAL_SCHEMA);modelMs=Date.now()-modelStarted;const parsed=parseMenuProposal(raw,brief);if(!parsed.ok)return NextResponse.json({error:'Invalid model proposal',validationErrors:parsed.errors},{status:422});proposal=parsed.proposal}catch(error){modelMs=Date.now()-modelStarted;usedFallback=true;return NextResponse.json({error:error instanceof Error?error.message:'Generation failed',usedFallback:true},{status:503})}}
-  const initialDishes:FinalDish[]=[...plan.selected.map(item=>({name:item.signature.name,role:item.role,origin:'signature' as const,baseSignatureName:item.signature.name,usedAvailableIngredients:[],missingIngredients:[],locked:existing.some(row=>row.locked&&row.source===item.signature.id)})),...proposal.generatedDishes.map(item=>({name:item.finalName,role:item.role,origin:'generated' as const,usedAvailableIngredients:item.usedAvailableIngredients,missingIngredients:item.missingIngredients}))]
+  if(plan.gaps.length){const modelStarted=Date.now();try{const raw=await callGeminiJson(buildCompactGapPrompt(brief),MENU_PROPOSAL_SCHEMA);modelMs=Date.now()-modelStarted;const parsed=parseMenuProposal(raw,brief);if(!parsed.ok){console.error(JSON.stringify({scope:'menu_generation_stage',stage:'proposal_rejected',errors:parsed.errors,expectedM:plan.gaps.length,modelMs}));return NextResponse.json({error:'Invalid model proposal',validationErrors:parsed.errors},{status:422})}proposal=parsed.proposal;console.info(JSON.stringify({scope:'menu_generation_stage',stage:'gemini_structured_response',expectedM:plan.gaps.length,returnedDishCount:proposal.generatedDishes.length,modelMs,usedAvailableIngredients:proposal.generatedDishes.map(d=>({dish:d.finalName,names:d.usedAvailableIngredients})),baseSignatureNames:proposal.signatureRefinements.map(r=>r.baseSignatureName)}))}catch(error){modelMs=Date.now()-modelStarted;usedFallback=true;console.error(JSON.stringify({scope:'menu_generation_stage',stage:'gemini_request',modelMs,error:error instanceof Error?error.message:String(error)}));return NextResponse.json({error:error instanceof Error?error.message:'Generation failed',usedFallback:true},{status:503})}}
+  const initialDishes:FinalDish[]=[...plan.selected.map(item=>({name:item.signature.name,role:item.role,origin:'signature' as const,baseSignatureName:item.signature.name,usedAvailableIngredients:[],missingIngredients:[],locked:existing.some(row=>row.locked&&row.source===item.signature.id)})),...proposal.generatedDishes.map(item=>({name:item.finalName,role:item.role,origin:'generated' as const,usedAvailableIngredients:item.usedAvailableIngredients,missingIngredients:item.missingIngredients,scoringMetadata:item.metadata}))]
   const validationStarted=Date.now(),validate=(dishes:FinalDish[])=>validateFinalMenu({dishes,target:plan.targetDishCount,guests,signatures:trustedSignatures,pantry:trustedPantry})
-  const repaired=await repairWithLimit(initialDishes,validate,async(dishes,issue)=>{const index=issue.dishIndex??dishes.findIndex(d=>!d.locked);if(index<0||dishes[index]?.locked)return null;const gap=brief.gaps[0];if(!gap)return null;const repairBrief={...brief,event:{...brief.event,missingDishCount:1},selectedSignatures:dishes.filter((_,i)=>i!==index&&dishes[i].origin==='signature').map(d=>({name:d.name,role:d.role,mayBeRefined:false})),gaps:[{...gap,culinaryGoal:`Replace ${dishes[index].name}: ${issue.message}`,avoid:dishes.filter((_,i)=>i!==index).map(d=>d.name)}]};try{const raw=await callGeminiJson<LLMMenuProposal>(buildCompactGapPrompt(repairBrief),MENU_PROPOSAL_SCHEMA);const parsed=parseMenuProposal(raw,repairBrief);if(!parsed.ok||parsed.proposal.generatedDishes.length!==1)return null;const d=parsed.proposal.generatedDishes[0];return{index,dish:{name:d.finalName,role:d.role,origin:'generated',usedAvailableIngredients:d.usedAvailableIngredients,missingIngredients:d.missingIngredients}}}catch{return null}},2)
+  const scoreDish=(dish:FinalDish,dinerIndex:number)=>{const sig=dish.origin.startsWith('signature')?trustedSignatures.find(s=>s.name===(dish.baseSignatureName??dish.name)):undefined,m=dish.scoringMetadata,source=sig??{name:dish.name,tags:m?[dish.role,...m.proteinBase,...m.flavors,...m.textures,...m.techniques,...m.temperature,...m.richness,...m.dietary]:[],contains_allergens:m?.allergens??[],novelty_score:m?.noveltyScore??null,slot:null,id:''};return dinerDishFit(guests[dinerIndex],source,guests.length).q}
+  const repaired=await repairWithLimit(initialDishes,validate,async(dishes,issue)=>{const dinerIndex=issue.dinerIndex;let index=issue.dishIndex??-1;if(index<0&&dinerIndex!==undefined)index=chooseReplacementDishIndex(dishes,d=>scoreDish(d,dinerIndex),d=>guests.reduce((sum,_,gi)=>sum+scoreDish(d,gi),0));if(index<0)index=dishes.findIndex(d=>!d.locked);if(index<0||dishes[index]?.locked)return null;const sourceGap=chooseRepairGap(brief.gaps,dinerIndex,dishes[index].role);if(!sourceGap)return null;const target=sourceGap.targetDiners.find(t=>t.dinerIndex===dinerIndex),gap={...sourceGap,requestedRole:dishes[index].role,substantialRequired:target?.needsSubstantialSafeDish??sourceGap.substantialRequired,targetDinerCount:target?1:sourceGap.targetDinerCount,targetDiners:target?[target]:sourceGap.targetDiners,proteinDirections:target?.proteinNeed??sourceGap.proteinDirections,flavorDirections:target?.sensoryNeed??sourceGap.flavorDirections,culinaryGoal:`Replace ${dishes[index].name} to resolve: ${issue.message}`,avoid:dishes.filter((_,i)=>i!==index).map(d=>d.name)};const repairBrief={...brief,event:{...brief.event,missingDishCount:1},selectedSignatures:dishes.filter((_,i)=>i!==index&&dishes[i].origin==='signature').map(d=>({name:d.name,role:d.role,mayBeRefined:false})),gaps:[gap]};try{const raw=await callGeminiJson<LLMMenuProposal>(buildCompactGapPrompt(repairBrief),MENU_PROPOSAL_SCHEMA);const parsed=parseMenuProposal(raw,repairBrief);if(!parsed.ok||parsed.proposal.generatedDishes.length!==1)return null;const d=parsed.proposal.generatedDishes[0],replacement:FinalDish={name:d.finalName,role:d.role,origin:'generated',usedAvailableIngredients:d.usedAvailableIngredients,missingIngredients:d.missingIngredients,scoringMetadata:d.metadata};if(dinerIndex!==undefined&&scoreDish(replacement,dinerIndex)<=scoreDish(dishes[index],dinerIndex))return null;return{index,dish:replacement}}catch{return null}},2)
   const validationMs=Date.now()-validationStarted
-  if(!repaired.result.valid)return NextResponse.json({error:'Menu validation failed',validationErrors:repaired.result.issues,repairAttempts:repaired.attempts,warning:repaired.warning},{status:422})
+  // 'error'-severity issues are hard safety/schema violations (allergy, dietary,
+  // signature/pantry lineage, schema) and must never be served. 'repair' issues
+  // that survive the repair budget (diner-satisfaction, substantial-coverage,
+  // menu-average, role-ceiling, duplicate) are optimization shortfalls, not
+  // safety violations -- persist the best-effort draft with the outstanding
+  // issues attached so the chef can see and manually swap/regenerate specific
+  // dishes, rather than discarding otherwise-safe work and returning nothing.
+  if(hasBlockingIssues(repaired.result.issues)){console.error(JSON.stringify({scope:'menu_generation_stage',stage:'deterministic_validation',issues:repaired.result.issues,repairAttempts:repaired.attempts}));return NextResponse.json({error:'Menu validation failed',validationErrors:repaired.result.issues,repairAttempts:repaired.attempts,warning:repaired.warning},{status:422})}
+  if(!repaired.result.valid)console.warn(JSON.stringify({scope:'menu_generation_stage',stage:'deterministic_validation',outcome:'persisted_with_warnings',issues:repaired.result.issues,repairAttempts:repaired.attempts}))
   const desired:DesiredMenuDish[]=repaired.result.normalized.map(item=>({role:item.role,dish_name:item.name,dish_origin:item.origin.startsWith('signature')?'signature':'pantry-composed',source:item.sourceId??null,component_ids:item.componentIds??null}))
+  if(!menuId){
+    const {data:created,error:createError}=await supabase.from('menus').insert({event_id:body.eventId}).select('id').single()
+    if(createError?.code==='23505'){
+      const {data:concurrent}=await supabase.from('menus').select('id').eq('event_id',body.eventId).single()
+      menuId=concurrent?.id??null
+    }else if(!createError&&created){menuId=created.id}
+    if(!menuId)return NextResponse.json({error:'Failed to initialize menu'},{status:500})
+  }
   const replacement=planMenuReplacement(existing,desired,plan.targetDishCount)
   await Promise.all(replacement.preserve.map(row=>supabase.from('menu_courses').update({sort_order:row.sort_order,slot:row.role??row.slot}).eq('id',row.id)))
   let inserted:ExistingMenuRow[]=[]
-  if(replacement.insert.length){const {data,error}=await supabase.from('menu_courses').insert(replacement.insert.map(row=>({menu_id:menu.id,slot:row.role,dish_name:row.dish_name,dish_origin:row.dish_origin,source:row.source,component_ids:row.component_ids??null,locked:false,sort_order:row.sort_order}))).select('*');if(error)return NextResponse.json({error:'Failed to persist menu'},{status:500});inserted=(data??[]) as ExistingMenuRow[]}
+  if(replacement.insert.length){const {data,error}=await supabase.from('menu_courses').insert(replacement.insert.map(row=>({menu_id:menuId,slot:row.role,dish_name:row.dish_name,dish_origin:row.dish_origin,source:row.source,component_ids:row.component_ids??null,locked:false,sort_order:row.sort_order}))).select('*');if(error)return NextResponse.json({error:'Failed to persist menu'},{status:500});inserted=(data??[]) as ExistingMenuRow[]}
   if(replacement.removeIds.length){const {error}=await supabase.from('menu_courses').delete().in('id',replacement.removeIds);if(error){if(inserted.length)await supabase.from('menu_courses').delete().in('id',inserted.map(row=>row.id));return NextResponse.json({error:'Failed to remove stale menu rows'},{status:500})}}
   const rows=[...replacement.preserve,...inserted].sort((a,b)=>a.sort_order-b.sort_order)
   console.info(JSON.stringify({scope:'menu_generation',dataLoadMs,promptChars:plan.gaps.length?buildCompactGapPrompt(brief).length:0,modelMs,validationMs,repairAttempts:repaired.attempts,totalMs:Date.now()-startedAt,model:process.env.GEMINI_MENU_MODEL||'gemini-3.5-flash-lite',guestCount:intel.guestCount,targetDishCount:plan.targetDishCount,selectedSignatureCount:plan.selected.length,generatedDishCount:proposal.generatedDishes.length,ingredientContextCount:plan.ingredients.length,categoryBreakdown:plan.retrievalDiagnostics.categoryBreakdown,usedFallback}))
-  return NextResponse.json({rows,aiFailed:false,repairAttempts:repaired.attempts,reasoningByName:Object.fromEntries(proposal.generatedDishes.map(d=>[d.finalName,d.reasoning]))})
+  return NextResponse.json({rows,aiFailed:false,repairAttempts:repaired.attempts,reasoningByName:Object.fromEntries(proposal.generatedDishes.map(d=>[d.finalName,d.reasoning])),...(repaired.result.valid?{}:{validationWarnings:repaired.result.issues,warning:repaired.warning})})
 }
