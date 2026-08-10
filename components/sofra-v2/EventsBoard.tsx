@@ -62,9 +62,11 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
               <button type="button" onClick={onRetry}>Retry</button>
             </div>
           ) : available.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <div className="sv2-events-empty" style={{ textAlign: 'center', padding: '24px 0' }}>
               <p style={{ fontSize: 13, marginBottom: 12 }}>No events yet. Host one, or wait for an invite.</p>
               <button type="button" onClick={onHostEvent}>Host an event</button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="sv2-events-empty-illustration" src="/design-preview/empty-table.png" alt="" />
             </div>
           ) : (
             <>

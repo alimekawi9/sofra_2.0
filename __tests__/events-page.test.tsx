@@ -149,6 +149,22 @@ describe('empty state', () => {
     await userEvent.click(screen.getByRole('button', { name: /host an event/i }))
     expect(mockPush).toHaveBeenCalledWith('/host/new')
   })
+
+  it('shows the empty-state table illustration only when there are no events', async () => {
+    makeSupabase()
+    render(<EventsPage />)
+    await waitFor(() => expect(screen.getByText(/no events yet/i)).toBeInTheDocument())
+    expect(document.querySelector('img[src="/design-preview/empty-table.png"]')).toBeInTheDocument()
+  })
+
+  it('does not show the illustration once the guest has events', async () => {
+    makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
+    render(<EventsPage />)
+    await waitFor(() => expect(screen.getByText('Casa Mekawi')).toBeInTheDocument())
+    expect(screen.queryByText(/no events yet/i)).not.toBeInTheDocument()
+    const img = document.querySelector('img[src="/design-preview/empty-table.png"]')
+    expect(img).not.toBeInTheDocument()
+  })
 })
 
 describe('Hosting events', () => {
