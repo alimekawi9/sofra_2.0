@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
@@ -38,6 +39,9 @@ export interface EventPaperProps {
   onEditRsvp: () => void
   onRsvp: () => void
   onEditEvent: () => void
+  onRemoveGuest?: (guestId: string) => void
+  removingGuestId?: string | null
+  removeGuestError?: string
   photos: Array<{ id: string; url: string }>
   photoError: string
   onRetryPhotos: () => void
@@ -83,6 +87,9 @@ export function EventPaper({
   onEditRsvp,
   onRsvp,
   onEditEvent,
+  onRemoveGuest,
+  removingGuestId = null,
+  removeGuestError = '',
   photos,
   photoError,
   onRetryPhotos,
@@ -92,6 +99,7 @@ export function EventPaper({
   onFilesConfirmed,
   onOpenAlbum,
 }: EventPaperProps) {
+  const [confirmingGuestId, setConfirmingGuestId] = useState<string | null>(null)
   const { tiles: previewTiles, overflowCount } = buildPreviewTiles(photos)
   const overflowBackgroundUrl = overflowCount > 0 ? photos[previewTiles.length]?.url : undefined
   return (
@@ -145,7 +153,7 @@ export function EventPaper({
                   />
                 )}
                 <button className="sv2-manage-guests" type="button" onClick={onViewTable}>
-                  VIEW TABLE
+                  SET THE SOFRA
                 </button>
               </>
             )}
@@ -177,12 +185,43 @@ export function EventPaper({
                   <h2 id="sv2-guest-heading">Around this Sofra</h2>
                   <span>{guests.length} going</span>
                 </div>
+                {removeGuestError && (
+                  <p role="alert" style={{ fontSize: 12, marginBottom: 8 }}>{removeGuestError}</p>
+                )}
                 {guests.length > 0 ? (
                   <div className="sv2-guest-grid">
                     {guests.map((guest) => (
-                      <article key={guest.id}>
+                      <article key={guest.id} className={isHost ? 'sv2-guest-removable' : undefined}>
                         <span className="sv2-guest-initials">{guest.name.charAt(0).toUpperCase()}</span>
                         <h3>{guest.name}</h3>
+                        {isHost && onRemoveGuest && (
+                          confirmingGuestId === guest.id ? (
+                            <div className="sv2-guest-remove-confirm">
+                              <button
+                                type="button"
+                                disabled={removingGuestId === guest.id}
+                                onClick={() => {
+                                  onRemoveGuest(guest.id)
+                                  setConfirmingGuestId(null)
+                                }}
+                              >
+                                {removingGuestId === guest.id ? '…' : 'Remove'}
+                              </button>
+                              <button type="button" onClick={() => setConfirmingGuestId(null)}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="sv2-guest-remove-btn"
+                              aria-label={`Remove ${guest.name} from this Sofra`}
+                              onClick={() => setConfirmingGuestId(guest.id)}
+                            >
+                              Remove
+                            </button>
+                          )
+                        )}
                       </article>
                     ))}
                   </div>

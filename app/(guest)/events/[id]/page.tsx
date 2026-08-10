@@ -57,6 +57,8 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState('')
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
+  const [removingGuestId, setRemovingGuestId] = useState<string | null>(null)
+  const [removeGuestError, setRemoveGuestError] = useState('')
 
   async function loadPhotos() {
     const { photos: loaded, error: photosError } = await fetchAlbumPhotos(supabase, params.id)
@@ -183,6 +185,23 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     }
   }
 
+  async function handleRemoveGuest(guestId: string) {
+    if (!isHost) return
+    setRemovingGuestId(guestId)
+    setRemoveGuestError('')
+    const { error: deleteErr } = await supabase
+      .from('rsvps')
+      .delete()
+      .eq('event_id', params.id)
+      .eq('user_id', guestId)
+    setRemovingGuestId(null)
+    if (deleteErr) {
+      setRemoveGuestError('Could not remove that guest. Try again.')
+      return
+    }
+    setGuests((current) => current.filter((guest) => guest.id !== guestId))
+  }
+
   function shareViaWhatsApp() {
     if (!event) return
     const url = canonicalEventUrl(params.id)
@@ -219,6 +238,9 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onEditEvent={() => router.push('/host/' + params.id + '/edit')}
+      onRemoveGuest={handleRemoveGuest}
+      removingGuestId={removingGuestId}
+      removeGuestError={removeGuestError}
       photos={photos.map((photo) => ({ id: photo.id, url: photo.url }))}
       photoError={photoError}
       onRetryPhotos={loadPhotos}

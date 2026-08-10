@@ -29,6 +29,8 @@ function makeSupabase({
   event      = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
   rsvpRow    = null as { status: string } | null,
   fetchError = null as { message: string } | null,
+  guestRows  = [] as Array<{ status: string; users: { id: string; name: string } | null }>,
+  deleteError = null as { message: string } | null,
   photoRows  = [] as Array<{ id: string; event_id: string; uploaded_by: string; storage_path: string; created_at: string }>,
   photoFetchError = null as { message: string } | null,
   photoInsertError = null as { message: string } | null,
@@ -37,9 +39,14 @@ function makeSupabase({
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
   const maybeSingleMock = jest.fn().mockResolvedValue({ data: rsvpRow, error: fetchError })
-  const inMock          = jest.fn().mockResolvedValue({ data: [], error: null })
+  const inMock          = jest.fn().mockResolvedValue({ data: guestRows, error: null })
   const innerEqMock     = jest.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
   const outerEqMock     = jest.fn().mockReturnValue({ eq: innerEqMock, in: inMock })
+
+  // rsvps delete chain: .delete().eq(event_id).eq(user_id)
+  const deleteEqMock2 = jest.fn().mockResolvedValue({ error: deleteError })
+  const deleteEqMock1 = jest.fn().mockReturnValue({ eq: deleteEqMock2 })
+  const deleteMock    = jest.fn().mockReturnValue({ eq: deleteEqMock1 })
 
   const photoOrderMock = jest.fn().mockResolvedValue({ data: photoRows, error: photoFetchError })
   const photoEqMock = jest.fn().mockReturnValue({ order: photoOrderMock })
@@ -76,6 +83,7 @@ function makeSupabase({
       // rsvps
       return {
         select: jest.fn().mockReturnValue({ eq: outerEqMock }),
+        delete: deleteMock,
       }
     }),
     storage: {
@@ -84,6 +92,9 @@ function makeSupabase({
     _photoEqMock: photoEqMock,
     _photoOrderMock: photoOrderMock,
     _bucket: bucket,
+    _deleteMock: deleteMock,
+    _deleteEqMock1: deleteEqMock1,
+    _deleteEqMock2: deleteEqMock2,
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -432,6 +443,76 @@ describe('Shared album', () => {
     mockPush.mockClear()
     await userEvent.click(screen.getByLabelText(/view all 8 photos/i))
     expect(mockPush).toHaveBeenCalledWith('/events/ev-1/album')
+  })
+})
+
+describe('Remove guest', () => {
+  const REMOVABLE_GUEST = { status: 'going', users: { id: 'guest-abc', name: 'Omar' } }
+
+  it('shows a Remove control per guest for the host', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ guestRows: [REMOVABLE_GUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Omar')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Remove Omar from this Sofra' })).toBeInTheDocument()
+  })
+
+  it('does not show a Remove control to a non-host guest', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: { status: 'going' }, guestRows: [REMOVABLE_GUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('Omar')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /remove omar/i })).not.toBeInTheDocument()
+  })
+
+  it('requires a confirm step before removing a guest', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    const sb = makeSupabase({ guestRows: [REMOVABLE_GUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(sb._deleteMock).not.toHaveBeenCalled()
+  })
+
+  it('cancelling the confirm step leaves the guest in place', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    const sb = makeSupabase({ guestRows: [REMOVABLE_GUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByText('Omar')).toBeInTheDocument()
+    expect(sb._deleteMock).not.toHaveBeenCalled()
+  })
+
+  it('confirming removal deletes the rsvp row for that guest and drops them from the list', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    const sb = makeSupabase({ guestRows: [REMOVABLE_GUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
+
+    await waitFor(() => expect(screen.queryByText('Omar')).not.toBeInTheDocument())
+    expect(sb._deleteMock).toHaveBeenCalled()
+    expect(sb._deleteEqMock1).toHaveBeenCalledWith('event_id', 'ev-1')
+    expect(sb._deleteEqMock2).toHaveBeenCalledWith('user_id', 'guest-abc')
+    expect(screen.getByText('0 going')).toBeInTheDocument()
+  })
+
+  it('shows an error and keeps the guest listed when the delete fails', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ guestRows: [REMOVABLE_GUEST], deleteError: { message: 'denied' } })
+    render(<EventDetailPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not remove/i))
+    expect(screen.getByText('Omar')).toBeInTheDocument()
   })
 })
 
