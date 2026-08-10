@@ -51,7 +51,7 @@ function buildMenuHtml(
       const portionHtml =
         c.origin === 'empty'
           ? ''
-          : `<div class="portion">${escHtml(portionGuidance(c.slot))}</div>`
+          : `<div class="portion">${escHtml(portionGuidance(c.slot, guestCount))}</div>`
       return `
         <div class="course">
           <div class="slot">${escHtml(c.slotLabel)}</div>

@@ -333,6 +333,55 @@ describe('portionGuidance', () => {
     const landN   = parseInt(portionGuidance('main').match(/\d+/)![0], 10)
     expect(finishN).toBeGreaterThan(landN)
   })
+
+  // guestCount is an optional, purely cosmetic second argument -- omitting it,
+  // or passing a count at/under the reference the dish-count formula caps out
+  // at (13; see lib/recommendation/planning.ts calculateTargetDishCount),
+  // must return the exact same baseline string every existing caller expects.
+  test('omitting guestCount returns the static baseline unchanged', () => {
+    for (const slot of SLOTS) {
+      expect(portionGuidance(slot)).toBe(portionGuidance(slot, undefined))
+    }
+  })
+
+  test('a guest count at or under the reference does not scale the baseline', () => {
+    expect(portionGuidance('main', 8)).toBe('Enough for ~4 bellies')
+    expect(portionGuidance('main', 13)).toBe('Enough for ~4 bellies')
+  })
+
+  test('a guest count beyond the reference scales the batch estimate up proportionally', () => {
+    // 26 guests = 2x the 13-guest reference -> ~2x the baseline yield.
+    expect(portionGuidance('main', 26)).toBe('Enough for ~8 bellies')
+    expect(portionGuidance('starter', 26)).toBe('Enough for ~12 bellies')
+  })
+
+  test('scaling never drops below the static baseline', () => {
+    for (const slot of SLOTS) {
+      const baseline = parseInt(portionGuidance(slot).match(/\d+/)![0], 10)
+      const scaled = parseInt(portionGuidance(slot, 14).match(/\d+/)![0], 10)
+      expect(scaled).toBeGreaterThanOrEqual(baseline)
+    }
+  })
+
+  test('scaling is capped so an extreme guest count never renders an absurd number', () => {
+    const baseline = parseInt(portionGuidance('main').match(/\d+/)![0], 10)
+    const scaled = parseInt(portionGuidance('main', 10_000).match(/\d+/)![0], 10)
+    expect(scaled).toBeLessThanOrEqual(baseline * 4)
+  })
+
+  // The "variety vs. quantity" rule: portionGuidance is a pure display-text
+  // function. Regardless of guestCount, it can only ever change the number in
+  // the returned string -- it has no way to add, remove, or otherwise touch
+  // which dishes exist. Dish count is decided solely by calculateTargetDishCount
+  // (lib/recommendation/planning.ts), which this feature does not call or alter.
+  test('scaling the batch estimate is a pure string change with no dish-selection side effects', () => {
+    const atSix = SLOTS.map((slot) => portionGuidance(slot, 6))
+    const atTwenty = SLOTS.map((slot) => portionGuidance(slot, 20))
+    expect(atSix).toHaveLength(SLOTS.length)
+    expect(atTwenty).toHaveLength(SLOTS.length)
+    expect(atSix.every((s) => typeof s === 'string')).toBe(true)
+    expect(atTwenty.every((s) => typeof s === 'string')).toBe(true)
+  })
 })
 
 describe('nameMatchesSlot', () => {

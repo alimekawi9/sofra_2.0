@@ -2,9 +2,33 @@
 
 ## Completed
 
+- `portionGuidance(slot, guestCount?)` (`lib/menu.ts`) now optionally scales its
+  batch estimate with guest count once the dynamic dish-count formula caps out
+  at 9 dishes (guestCount > 13), bounded to 4x the static baseline; omitting
+  guestCount (every pre-existing caller) is unchanged. Wired into both the
+  Table/Menu page course cards and the PDF export. `pantry_items` gained
+  optional, nullable `quantity_amount`/`quantity_unit` columns (migration
+  `20260811000001_add_pantry_item_quantity.sql`) with an optional quantity
+  input in the Kitchen page's manual pantry-add form; availability stays
+  binary and this data isn't read by any deduction logic yet. See
+  docs/DECISION_LOG.md for the full recipe-input/shopping-cart scope this was
+  deliberately extracted from and deferred.
+- Generated menu dishes now return strict dish-specific canonical scoring
+  metadata; unknown novelty is neutral, explicit no-protein-preference is
+  neutral, and questionnaire sensory choices such as crispy participate in
+  the existing flavor-weighted fit dimension. Pre-LLM gaps allocate anonymous
+  per-diner satisfying and substantial coverage across distinct compatible,
+  role-feasible gaps. Repairs prioritize the largest deficit, replace the
+  lowest marginal-value unlocked dish, build a diner/role-specific gap, and
+  still stop after two attempts.
+- Gemini structured-output diagnostics now distinguish max-token truncation,
+  harmless local-only Markdown wrapping, incomplete/prose output, malformed
+  JSON, and post-JSON schema rejection. The metadata-rich seven-dish response
+  budget is 1,600 tokens; input context and the 8-second deadline are unchanged.
 - Kitchen signature and pantry creation now use progressive manual tagging with no AI metadata inference.
 - Signature edits preserve and rehydrate saved names/tags in place.
 - Legacy sea/land/green menu slots are normalized to starter/main/side/dessert roles.
+- Menu generation now initializes one menu per event after validation; opening an empty menu page no longer creates a rule-based draft.
 
 - Signature scoring metadata now reuses canonical `tags[]` dimensions and
   trusted `contains_allergens[]` through one normalized accessor. Migration

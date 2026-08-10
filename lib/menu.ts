@@ -151,12 +151,39 @@ export const SLOT_PORTIONS: Record<Slot, number> = {
   dessert: 8,
 }
 
+// calculateTargetDishCount (lib/recommendation/planning.ts) already scales
+// dish COUNT with guest count, up to its cap of 9 dishes at guestCount=13
+// (2 + ceil(g/2) >= 9 first at g=13). Below that point guest-count growth is
+// already absorbed by having more dishes per role, so the static per-slot
+// yield holds. Beyond it, dish count can't grow any further, so each dish's
+// batch size has to pick up the slack instead. This constant is deliberately
+// NOT imported from the recommendation module (menu.ts stays a dependency
+// of that module, not the reverse) -- it's the guest count at which that
+// formula's own math caps out, restated here.
+const PORTION_SCALING_REFERENCE_GUESTS = 13
+// Sanity bound so a data glitch (or a genuinely huge party) never renders an
+// absurd batch number -- SLOT_PORTIONS stays a baseline reference, not
+// something guestCount multiplies without limit.
+const PORTION_SCALING_MAX_MULTIPLIER = 4
+
 // Deliberately says "bellies" rather than "serves" — this is a raw cooking
 // quantity (how much to prep), not a guest-safety count. Keeping the wording
 // disjoint from the table-fit safety label avoids the two being read as
 // answers to the same question.
-export function portionGuidance(slot: Slot): string {
-  return `Enough for ~${SLOT_PORTIONS[slot]} bellies`
+//
+// guestCount is optional and purely cosmetic -- this function never affects
+// which or how many dishes exist (that's calculateTargetDishCount's job
+// alone; see lib/recommendation/planning.ts). Omitting it (or passing a
+// count at/under the reference above) returns the original static baseline
+// unchanged, so every existing caller keeps working exactly as before.
+export function portionGuidance(slot: Slot, guestCount?: number): string {
+  const baseline = SLOT_PORTIONS[slot]
+  if (!guestCount || guestCount <= PORTION_SCALING_REFERENCE_GUESTS) {
+    return `Enough for ~${baseline} bellies`
+  }
+  const ratio = Math.min(PORTION_SCALING_MAX_MULTIPLIER, guestCount / PORTION_SCALING_REFERENCE_GUESTS)
+  const scaled = Math.max(baseline, Math.round(baseline * ratio))
+  return `Enough for ~${scaled} bellies`
 }
 
 // True allergies — physical-danger stakes. These hard-block a dish from being
