@@ -1,4 +1,4 @@
-import { buildIntel } from '@/lib/intel'
+﻿import { buildIntel } from '@/lib/intel'
 import {
   scoreDish, scoreComposedDish, draftCourse, draftMenu, deriveCourse, deriveMenu,
   assignSubstitutions, inferSlot, nameMatchesSlot, portionGuidance,
@@ -27,37 +27,36 @@ const pantryItem = (
 const noGuests = buildIntel([])
 
 describe('SLOT_LABELS', () => {
-  test('covers all five slots', () => {
-    expect(SLOT_LABELS['start']).toBe('To Start')
-    expect(SLOT_LABELS['sea']).toBe('Main — Sea')
-    expect(SLOT_LABELS['land']).toBe('Main — Land')
-    expect(SLOT_LABELS['green']).toBe('Main — Green')
-    expect(SLOT_LABELS['finish']).toBe('To Finish')
+  test('covers the four flexible roles', () => {
+    expect(SLOT_LABELS['starter']).toBe('To Start')
+    expect(SLOT_LABELS['main']).toBe('Mains')
+    expect(SLOT_LABELS['side']).toBe('On the Side')
+    expect(SLOT_LABELS['dessert']).toBe('To Finish')
   })
 })
 
-describe('scoreDish — signature', () => {
+describe('scoreDish â€” signature', () => {
   test('returns empty when dish has no conflicts', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
-    const dish = sig({ id: '1', name: 'Bread', slot: 'start' })
+    const dish = sig({ id: '1', name: 'Bread', slot: 'starter' })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('excludes guest when dish contains their allergen (case-insensitive)', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
-    const dish = sig({ id: '1', name: 'Walnut Cake', slot: 'finish', contains_allergens: ['Nuts'] })
+    const dish = sig({ id: '1', name: 'Walnut Cake', slot: 'dessert', contains_allergens: ['Nuts'] })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
   test('excludes guest whose strict diet is not in dish tags', () => {
     const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '2', name: 'Beef Tartare', slot: 'land' })
+    const dish = sig({ id: '2', name: 'Beef Tartare', slot: 'main' })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Sara', reason: 'not vegetarian', kind: 'preference' }])
   })
 
   test('does not exclude guest when dish carries their required diet tag', () => {
     const intel = buildIntel([{ name: 'Sara', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '3', name: 'Risotto', slot: 'green', tags: ['vegetarian'] })
+    const dish = sig({ id: '3', name: 'Risotto', slot: 'side', tags: ['vegetarian'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
@@ -67,44 +66,44 @@ describe('scoreDish — signature', () => {
   // guests, cascading the whole menu to pantry-composed placeholders.
   test('"veg" tag satisfies a Vegetarian hard limit', () => {
     const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '4', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] })
+    const dish = sig({ id: '4', name: 'Baba Ganoush', slot: 'starter', tags: ['veg', 'vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
-  test('"vegan" tag alone satisfies a Vegetarian hard limit (vegan ⊂ vegetarian)', () => {
+  test('"vegan" tag alone satisfies a Vegetarian hard limit (vegan âŠ‚ vegetarian)', () => {
     const intel = buildIntel([{ name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '5', name: 'Ratatouille', slot: 'green', tags: ['vegan'] })
+    const dish = sig({ id: '5', name: 'Ratatouille', slot: 'side', tags: ['vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('"vegan" tag satisfies a No pork hard limit (no pork / animal products)', () => {
     const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '6', name: 'Chana Masala', slot: 'green', tags: ['veg', 'vegan'] })
+    const dish = sig({ id: '6', name: 'Chana Masala', slot: 'side', tags: ['veg', 'vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   test('"vegan" tag satisfies a Kosher hard limit (no pork / shellfish / meat-dairy mixing)', () => {
     const intel = buildIntel([{ name: 'Kal', dietary: ['Kosher'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '7', name: 'Falafel', slot: 'start', tags: ['vegan'] })
+    const dish = sig({ id: '7', name: 'Falafel', slot: 'starter', tags: ['vegan'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
   // "No pork" used to also mean "no alcohol", so a plain "veg" dish
-  // (may contain wine) was deliberately excluded. That pairing was dropped —
+  // (may contain wine) was deliberately excluded. That pairing was dropped â€”
   // this is now purely about pork, and vegetarian food has none.
   test('"veg" tag alone satisfies No pork (vegetarian food has no pork)', () => {
     const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '8', name: 'Mujadara', slot: 'land', tags: ['veg'] })
+    const dish = sig({ id: '8', name: 'Mujadara', slot: 'main', tags: ['veg'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
-  // A dish can be genuinely pork-free without being vegetarian at all —
+  // A dish can be genuinely pork-free without being vegetarian at all â€”
   // e.g. a plain grilled meat dish. The chef declares this explicitly via
-  // the "no pork" tag rather than relying on the vegan/veg⊂no-pork
+  // the "no pork" tag rather than relying on the vegan/vegâŠ‚no-pork
   // shortcut, and that explicit declaration must be trusted.
   test('explicit "no pork" tag satisfies the hard limit for a meat dish', () => {
     const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '10', name: 'Grilled Chicken Shawarma', slot: 'land', tags: ['meat', 'no pork'] })
+    const dish = sig({ id: '10', name: 'Grilled Chicken Shawarma', slot: 'main', tags: ['meat', 'no pork'] })
     expect(scoreDish(dish, intel)).toEqual([])
   })
 
@@ -112,13 +111,13 @@ describe('scoreDish — signature', () => {
   // with the friendly reason, not the generic "not no pork".
   test('meat dish with no safety tag excludes a No pork guest with the correct reason', () => {
     const intel = buildIntel([{ name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '11', name: 'Pork Belly Bao', slot: 'land', tags: ['meat'] })
+    const dish = sig({ id: '11', name: 'Pork Belly Bao', slot: 'main', tags: ['meat'] })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Tarek', reason: 'contains pork', kind: 'preference' }])
   })
 
   test('"veg" tag alone does NOT satisfy Vegan', () => {
     const intel = buildIntel([{ name: 'Vera', dietary: ['Vegan'], avoid: [], adventurousness: 50 }])
-    const dish = sig({ id: '9', name: 'Panna Cotta', slot: 'finish', tags: ['veg'] })
+    const dish = sig({ id: '9', name: 'Panna Cotta', slot: 'dessert', tags: ['veg'] })
     expect(scoreDish(dish, intel)).toEqual([{ guest: 'Vera', reason: 'not vegan', kind: 'preference' }])
   })
 
@@ -129,13 +128,13 @@ describe('scoreDish — signature', () => {
       { name: 'Priya', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
       { name: 'Tarek', dietary: ['No pork'], avoid: [], adventurousness: 50 },
     ])
-    const babaGanoush = sig({ id: 'bg', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] })
+    const babaGanoush = sig({ id: 'bg', name: 'Baba Ganoush', slot: 'starter', tags: ['veg', 'vegan'] })
     expect(scoreDish(babaGanoush, intel)).toEqual([])
   })
 
-  test('deduplicates guest hit by both allergen and diet — first reason wins', () => {
+  test('deduplicates guest hit by both allergen and diet â€” first reason wins', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: ['Vegan'], avoid: ['Nuts'], adventurousness: 50 }])
-    const dish = sig({ id: '4', name: 'Nut Tart', slot: 'finish', contains_allergens: ['Nuts'] })
+    const dish = sig({ id: '4', name: 'Nut Tart', slot: 'dessert', contains_allergens: ['Nuts'] })
     const excludes = scoreDish(dish, intel)
     const aliEntries = excludes.filter(e => e.guest === 'Ali')
     expect(aliEntries).toHaveLength(1)
@@ -144,16 +143,16 @@ describe('scoreDish — signature', () => {
 })
 
 // The demo table (scripts/seed-demo-event.mjs) shows "Table fit: safe for
-// 5/9 guests" for every Main — Land course because every land signature is
+// 5/9 guests" for every Main â€” Land course because every land signature is
 // a meat dish, so the
 // same 4 diet-restricted guests (3 vegetarian + 1 no-pork) are excluded from
-// all of them — a real property of that signature catalog, not a bug. These
+// all of them â€” a real property of that signature catalog, not a bug. These
 // tests confirm the exclusion count genuinely tracks the allergen a dish
 // contains rather than being pinned at a constant: a shellfish-containing
 // sea dish excludes an additional guest beyond the land dish's diet-only
 // exclusions, and a nuts-containing dish excludes a different guest set
 // entirely (nut-avoiders who aren't vegetarian).
-describe('demo guest data — exclusion counts vary by allergen, not fixed', () => {
+describe('demo guest data â€” exclusion counts vary by allergen, not fixed', () => {
   const demoGuests = [
     { name: 'Host',  dietary: [],              avoid: [],            adventurousness: 50 },
     { name: 'Omar',  dietary: [],              avoid: ['Pork'],      adventurousness: 50 },
@@ -171,33 +170,33 @@ describe('demo guest data — exclusion counts vary by allergen, not fixed', () 
     expect(intel.guestCount).toBe(9)
   })
 
-  test('Main — Land dish (diet-only exclusions): excludes exactly the 3 vegetarians + 1 no-pork guest', () => {
-    const lambKofta = sig({ id: 'land-1', name: 'Lamb Kofta', slot: 'land', tags: ['meat'] })
+  test('Main â€” Land dish (diet-only exclusions): excludes exactly the 3 vegetarians + 1 no-pork guest', () => {
+    const lambKofta = sig({ id: 'land-1', name: 'Lamb Kofta', slot: 'main', tags: ['meat'] })
     const excludes = scoreDish(lambKofta, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Mona', 'Nadia', 'Priya', 'Tarek'])
     expect(excludes).toHaveLength(4) // Table fit: safe for 5/9 guests
   })
 
-  test('Main — Sea dish with shellfish: excludes the same diet guests PLUS the shellfish-allergic guest', () => {
+  test('Main â€” Sea dish with shellfish: excludes the same diet guests PLUS the shellfish-allergic guest', () => {
     const sushiPlatter = sig({
-      id: 'sea-1', name: 'Sushi Platter', slot: 'sea', tags: ['seafood'], contains_allergens: ['shellfish'],
+      id: 'sea-1', name: 'Sushi Platter', slot: 'main', tags: ['seafood'], contains_allergens: ['shellfish'],
     })
     const excludes = scoreDish(sushiPlatter, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Mona', 'Nadia', 'Priya', 'Tarek', 'Yara'])
-    expect(excludes).toHaveLength(5) // Table fit: safe for 4/9 guests — differs from the land dish's 5/9
+    expect(excludes).toHaveLength(5) // Table fit: safe for 4/9 guests â€” differs from the land dish's 5/9
   })
 
   test('nuts-containing dish excludes a different guest set (nut-avoiders, not vegetarians)', () => {
     const muhammara = sig({
-      id: 'start-1', name: 'Muhammara', slot: 'start', tags: ['veg', 'vegan'], contains_allergens: ['nuts'],
+      id: 'start-1', name: 'Muhammara', slot: 'starter', tags: ['veg', 'vegan'], contains_allergens: ['nuts'],
     })
     const excludes = scoreDish(muhammara, intel)
     expect(excludes.map(e => e.guest).sort()).toEqual(['Dana', 'Nadia', 'Sam'])
-    expect(excludes).toHaveLength(3) // Table fit: safe for 6/9 guests — differs from both the land and sea counts
+    expect(excludes).toHaveLength(3) // Table fit: safe for 6/9 guests â€” differs from both the land and sea counts
   })
 })
 
-describe('scoreDish — pantry item', () => {
+describe('scoreDish â€” pantry item', () => {
   test('excludes guest when avoid label is a substring of item name (case-insensitive)', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const item = pantryItem('p1', 'Mixed Nuts Brittle')
@@ -213,7 +212,7 @@ describe('scoreDish — pantry item', () => {
   // Pantry now carries declared tags/allergens like signatures. Untagged items
   // still fail closed on strict diets (chef didn't claim safety), but the
   // reason is now the signature-parity "not vegan" rather than the special
-  // "pantry dish — diet-safe status unknown".
+  // "pantry dish â€” diet-safe status unknown".
   test('untagged pantry item fails closed on strict diet with signature-parity reason', () => {
     const intel = buildIntel([{ name: 'Sara', dietary: ['Vegan'], avoid: [], adventurousness: 50 }])
     const item = pantryItem('p3', 'Seasonal Vegetable')
@@ -240,7 +239,7 @@ describe('scoreDish — pantry item', () => {
 
   test('declared allergen and name-substring dedup to a single exclusion per guest', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
-    // Name substring AND declared allergen both hit — one exclusion, not two.
+    // Name substring AND declared allergen both hit â€” one exclusion, not two.
     const item = pantryItem('p7', 'Mixed Nuts', { contains_allergens: ['Nuts'] })
     const excludes = scoreDish(item, intel)
     expect(excludes).toHaveLength(1)
@@ -248,9 +247,9 @@ describe('scoreDish — pantry item', () => {
   })
 })
 
-describe('scoreComposedDish — AI-composed dish safety derived from real pantry data', () => {
+describe('scoreComposedDish â€” AI-composed dish safety derived from real pantry data', () => {
   // Safety for an AI-composed dish is derived from the *actual* declared
-  // tags/allergens of the pantry items it's built from — never from the AI's
+  // tags/allergens of the pantry items it's built from â€” never from the AI's
   // own say-so. This is the union of each component's scoreDish result: a
   // dish is only as safe as its least-safe ingredient.
   test('Baba Ganoush case: an all-vegan set of components is safe for every diet-restricted guest', () => {
@@ -292,7 +291,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
     expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }])
   })
 
-  test('deduplicates a guest hit by multiple components — one exclusion per guest', () => {
+  test('deduplicates a guest hit by multiple components â€” one exclusion per guest', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const items = [
       pantryItem('p1', 'Almond Cream', { contains_allergens: ['Nuts'] }),
@@ -313,7 +312,7 @@ describe('scoreComposedDish — AI-composed dish safety derived from real pantry
 
 describe('portionGuidance', () => {
   // Static per-slot batch-size hint. The chef reads "Enough for ~N bellies" as
-  // a recipe yield and scales up for the full table themselves — no
+  // a recipe yield and scales up for the full table themselves â€” no
   // dependency on guest count so the number is stable across events. Phrased
   // disjointly from "serves" so it can't be misread as the table-fit safety
   // count shown elsewhere on the same course card.
@@ -324,36 +323,36 @@ describe('portionGuidance', () => {
   })
 
   test('start course serves fewer than mains (small bites, batch feeds more)', () => {
-    const startN = parseInt(portionGuidance('start').match(/\d+/)![0], 10)
-    const seaN   = parseInt(portionGuidance('sea').match(/\d+/)![0], 10)
+    const startN = parseInt(portionGuidance('starter').match(/\d+/)![0], 10)
+    const seaN   = parseInt(portionGuidance('main').match(/\d+/)![0], 10)
     expect(startN).toBeGreaterThan(seaN)
   })
 
   test('finish course serves more than mains (small dessert portions)', () => {
-    const finishN = parseInt(portionGuidance('finish').match(/\d+/)![0], 10)
-    const landN   = parseInt(portionGuidance('land').match(/\d+/)![0], 10)
+    const finishN = parseInt(portionGuidance('dessert').match(/\d+/)![0], 10)
+    const landN   = parseInt(portionGuidance('main').match(/\d+/)![0], 10)
     expect(finishN).toBeGreaterThan(landN)
   })
 })
 
 describe('nameMatchesSlot', () => {
   test('sea keywords match fish/seafood names', () => {
-    expect(nameMatchesSlot('Sea Bass', 'sea')).toBe(true)
-    expect(nameMatchesSlot('Wild Salmon', 'sea')).toBe(true)
-    expect(nameMatchesSlot('Apricots', 'sea')).toBe(false)
+    expect(nameMatchesSlot('Sea Bass', 'main')).toBe(true)
+    expect(nameMatchesSlot('Wild Salmon', 'main')).toBe(true)
+    expect(nameMatchesSlot('Apricots', 'main')).toBe(false)
   })
   test('land keywords match meat names', () => {
-    expect(nameMatchesSlot('Lamb Shoulder', 'land')).toBe(true)
-    expect(nameMatchesSlot('Duck Breast', 'land')).toBe(true)
-    expect(nameMatchesSlot('Zucchini', 'land')).toBe(false)
+    expect(nameMatchesSlot('Lamb Shoulder', 'main')).toBe(true)
+    expect(nameMatchesSlot('Duck Breast', 'main')).toBe(true)
+    expect(nameMatchesSlot('Zucchini', 'main')).toBe(false)
   })
   test('finish keywords match fruit/dessert names', () => {
-    expect(nameMatchesSlot('Apricots', 'finish')).toBe(true)
-    expect(nameMatchesSlot('Dark Chocolate', 'finish')).toBe(true)
+    expect(nameMatchesSlot('Apricots', 'dessert')).toBe(true)
+    expect(nameMatchesSlot('Dark Chocolate', 'dessert')).toBe(true)
   })
   test('green keywords match vegetables and grains', () => {
-    expect(nameMatchesSlot('Aubergine', 'green')).toBe(true)
-    expect(nameMatchesSlot('Rice', 'green')).toBe(true)
+    expect(nameMatchesSlot('Aubergine', 'side')).toBe(true)
+    expect(nameMatchesSlot('Rice', 'side')).toBe(true)
   })
 })
 
@@ -361,28 +360,28 @@ describe('draftCourse', () => {
   test('picks zero-exclusion signature over one with exclusions', () => {
     const intel = buildIntel([{ name: 'Ali', dietary: [], avoid: ['Nuts'], adventurousness: 50 }])
     const sigs = [
-      sig({ id: '1', name: 'Walnut Tart', slot: 'finish', contains_allergens: ['Nuts'] }),
-      sig({ id: '2', name: 'Panna Cotta', slot: 'finish' }),
+      sig({ id: '1', name: 'Walnut Tart', slot: 'dessert', contains_allergens: ['Nuts'] }),
+      sig({ id: '2', name: 'Panna Cotta', slot: 'dessert' }),
     ]
-    const course = draftCourse('finish', intel, sigs, [])
+    const course = draftCourse('dessert', intel, sigs, [])
     expect(course.dishName).toBe('Panna Cotta')
     expect(course.excludes).toHaveLength(0)
   })
 
   // Rule-based drafting has no way to invent a coherent name for a raw
   // pantry ingredient (only the AI path can compose one), so pantry items
-  // are never eligible candidates here — presenting one as "Chef's
+  // are never eligible candidates here â€” presenting one as "Chef's
   // Sourdough" would misrepresent an un-composed ingredient as a finished
   // dish. An honest empty slot is the correct outcome.
   test('does not fabricate a dish name from pantry when no slotted signatures exist', () => {
-    const course = draftCourse('start', noGuests, [], [pantryItem('p1', 'Sourdough')])
+    const course = draftCourse('starter', noGuests, [], [pantryItem('p1', 'Sourdough')])
     expect(course.origin).toBe('empty')
     expect(course.dishName).toBe('')
     expect(course.slotLabel).toBe('To Start')
   })
 
   test('returns empty course when pool is empty', () => {
-    const course = draftCourse('sea', noGuests, [], [])
+    const course = draftCourse('main', noGuests, [], [])
     expect(course.origin).toBe('empty')
     expect(course.dishName).toBe('')
     expect(course.sourceId).toBeNull()
@@ -391,7 +390,7 @@ describe('draftCourse', () => {
 
   test('returns empty course when pantry has slot-matching items but no signature exists for the slot', () => {
     const pantry = [pantryItem('p1', 'Sea Bass'), pantryItem('p2', 'Duck Breast')]
-    const course = draftCourse('sea', noGuests, [], pantry)
+    const course = draftCourse('main', noGuests, [], pantry)
     expect(course.origin).toBe('empty')
     expect(course.dishName).toBe('')
     expect(course.sourceId).toBeNull()
@@ -399,33 +398,33 @@ describe('draftCourse', () => {
 
   test('exclude set prevents picking the current dish, returns next-best', () => {
     const sigs = [
-      sig({ id: '1', name: 'Amuse Bouche', slot: 'start' }),
-      sig({ id: '2', name: 'Oyster Shot', slot: 'start' }),
+      sig({ id: '1', name: 'Amuse Bouche', slot: 'starter' }),
+      sig({ id: '2', name: 'Oyster Shot', slot: 'starter' }),
     ]
-    const first  = draftCourse('start', noGuests, sigs, [])
-    const second = draftCourse('start', noGuests, sigs, [], new Set([first.sourceId!]))
+    const first  = draftCourse('starter', noGuests, sigs, [])
+    const second = draftCourse('starter', noGuests, sigs, [], new Set([first.sourceId!]))
     expect(second.sourceId).not.toBe(first.sourceId)
   })
 
   test('exclude-emptied pool returns empty course', () => {
-    const sigs = [sig({ id: '1', name: 'Only Option', slot: 'start' })]
-    const course = draftCourse('start', noGuests, sigs, [], new Set(['1']))
+    const sigs = [sig({ id: '1', name: 'Only Option', slot: 'starter' })]
+    const course = draftCourse('starter', noGuests, sigs, [], new Set(['1']))
     expect(course.origin).toBe('empty')
   })
 
   test('tiebreaks: alphabetical by name within same tier', () => {
     const sigs = [
-      sig({ id: '2', name: 'Zucchini Soup', slot: 'start' }),
-      sig({ id: '1', name: 'Amuse Bouche', slot: 'start' }),
+      sig({ id: '2', name: 'Zucchini Soup', slot: 'starter' }),
+      sig({ id: '1', name: 'Amuse Bouche', slot: 'starter' }),
     ]
-    const course = draftCourse('start', noGuests, sigs, [])
+    const course = draftCourse('starter', noGuests, sigs, [])
     expect(course.dishName).toBe('Amuse Bouche')
   })
 })
 
 describe('deriveCourse', () => {
   const persisted = (overrides: Partial<PersistedCourseLike>): PersistedCourseLike => ({
-    slot: 'start',
+    slot: 'starter',
     dish_name: 'Amuse Bouche',
     dish_origin: 'signature',
     source: '1',
@@ -433,7 +432,7 @@ describe('deriveCourse', () => {
   })
 
   test('signature dish resolves normally when source is found', () => {
-    const sigs = [sig({ id: '1', name: 'Amuse Bouche', slot: 'start' })]
+    const sigs = [sig({ id: '1', name: 'Amuse Bouche', slot: 'starter' })]
     const course = deriveCourse(persisted({}), sigs, [], noGuests)
     expect(course.dishName).toBe('Amuse Bouche')
     expect(course.origin).toBe('signature')
@@ -447,7 +446,7 @@ describe('deriveCourse', () => {
 
   test('AI pantry-composed dish with no linked pantry item keeps its dish_name', () => {
     // Gemini can compose a dish from multiple pantry ingredients without
-    // pinning it to one single pantry_id — source is null, not deleted.
+    // pinning it to one single pantry_id â€” source is null, not deleted.
     const course = deriveCourse(
       persisted({ dish_name: 'Charred Aubergine with Pomegranate', dish_origin: 'pantry-composed', source: null }),
       [],
@@ -476,9 +475,9 @@ describe('deriveCourse', () => {
 })
 
 describe('draftMenu', () => {
-  test('returns exactly five courses in SLOTS order', () => {
+  test('returns exactly four courses in SLOTS order', () => {
     const courses = draftMenu(noGuests, [], [])
-    expect(courses).toHaveLength(5)
+    expect(courses).toHaveLength(4)
     expect(courses.map(c => c.slot)).toEqual(SLOTS)
   })
 
@@ -489,12 +488,12 @@ describe('draftMenu', () => {
 
   test('uses slotted signatures per slot', () => {
     const sigs = [
-      sig({ id: '1', name: 'Mushroom Soup', slot: 'start' }),
-      sig({ id: '2', name: 'Sea Bass', slot: 'sea' }),
+      sig({ id: '1', name: 'Mushroom Soup', slot: 'starter' }),
+      sig({ id: '2', name: 'Sea Bass', slot: 'main' }),
     ]
     const courses = draftMenu(noGuests, sigs, [])
-    expect(courses.find(c => c.slot === 'start')?.dishName).toBe('Mushroom Soup')
-    expect(courses.find(c => c.slot === 'sea')?.dishName).toBe('Sea Bass')
+    expect(courses.find(c => c.slot === 'starter')?.dishName).toBe('Mushroom Soup')
+    expect(courses.find(c => c.slot === 'main')?.dishName).toBe('Sea Bass')
   })
 
   test('pantry-only catalog (no signatures) yields all-empty courses rather than fabricated names', () => {
@@ -510,31 +509,31 @@ describe('draftMenu', () => {
 // leaving every course origin='empty'. These tests lock in the two safety
 // nets: (1) inferSlot fills the void from tags/name, and (2) draftCourse's
 // last-resort fallback tier never returns empty while any signature exists.
-describe('inferSlot — auto-assign when chef never set a slot', () => {
+describe('inferSlot â€” auto-assign when chef never set a slot', () => {
   test('meat tag maps to land', () => {
-    expect(inferSlot('Lamb Kofta', ['meat'])).toBe('land')
+    expect(inferSlot('Lamb Kofta', ['meat'])).toBe('main')
   })
   test('seafood tag maps to sea', () => {
-    expect(inferSlot('Grilled Fish', ['seafood'])).toBe('sea')
+    expect(inferSlot('Grilled Fish', ['seafood'])).toBe('main')
   })
   test('dessert tag maps to finish', () => {
-    expect(inferSlot('Panna Cotta', ['dessert'])).toBe('finish')
+    expect(inferSlot('Panna Cotta', ['dessert'])).toBe('dessert')
   })
   test('vegan tag with no other signal maps to green', () => {
-    expect(inferSlot('Chickpea Bowl', ['vegan'])).toBe('green')
+    expect(inferSlot('Chickpea Bowl', ['vegan'])).toBe('side')
   })
-  test('name keywords beat tag defaults (soup → start)', () => {
-    expect(inferSlot('Butternut Soup', ['veg'])).toBe('start')
+  test('name keywords beat tag defaults (soup â†’ start)', () => {
+    expect(inferSlot('Butternut Soup', ['veg'])).toBe('starter')
   })
-  test('unknown tags + generic name → null (last-resort tier)', () => {
+  test('unknown tags + generic name â†’ null (last-resort tier)', () => {
     expect(inferSlot('Mystery Plate', [])).toBeNull()
   })
-  test('side tag routes to start even with a meat/veg course-type tag', () => {
-    expect(inferSlot('Mac and Cheese', ['veg', 'side'])).toBe('start')
-    expect(inferSlot('Gyoza', ['meat', 'side'])).toBe('start')
+  test('side tag routes to the broad side role', () => {
+    expect(inferSlot('Mac and Cheese', ['veg', 'side'])).toBe('side')
+    expect(inferSlot('Gyoza', ['meat', 'side'])).toBe('side')
   })
   test('starter tag routes to start even with a meat/veg course-type tag', () => {
-    expect(inferSlot('Samosas', ['veg', 'vegan', 'starter'])).toBe('start')
+    expect(inferSlot('Samosas', ['veg', 'vegan', 'starter'])).toBe('starter')
   })
 })
 
@@ -542,74 +541,74 @@ describe('draftCourse never returns empty when signatures exist (the real bug)',
   test('slot=null signatures still enter the pool via inferSlot', () => {
     // Simulates the DB state: chef added Baba Ganoush + Lamb Kofta from the
     // preset picker, both stored with slot=null. Neither slot was reachable
-    // under the old `s.slot === slot` filter — start and land both went
-    // empty. With inferSlot, tag 'veg'/'vegan' → green (no name hit here),
+    // under the old `s.slot === slot` filter â€” start and land both went
+    // empty. With inferSlot, tag 'veg'/'vegan' â†’ green (no name hit here),
     // but 'Baba Ganoush' name matches start's 'baba' keyword, so it lands
     // in start correctly.
     const sigs: Signature[] = [
       { id: '1', name: 'Baba Ganoush', tags: ['veg', 'vegan'], contains_allergens: [], slot: null },
       { id: '2', name: 'Lamb Kofta',   tags: ['meat'],         contains_allergens: [], slot: null },
     ]
-    const startCourse = draftCourse('start', noGuests, sigs, [])
-    const landCourse  = draftCourse('land',  noGuests, sigs, [])
+    const startCourse = draftCourse('starter', noGuests, sigs, [])
+    const landCourse  = draftCourse('main',  noGuests, sigs, [])
     expect(startCourse.origin).not.toBe('empty')
     expect(startCourse.dishName).toBe('Baba Ganoush')
     expect(landCourse.origin).not.toBe('empty')
     expect(landCourse.dishName).toBe('Lamb Kofta')
   })
 
-  test('last-resort tier picks best affinity match when any exists', () => {
-    // Sea has no in-slot signature, but "Sea Bass Terrine" name-matches 'sea'
-    // keywords → slotAffinity=1 → fallback pool has one candidate.
+  test('main accepts any strong main without protein-category restrictions', () => {
+    // Sea has no in-slot signature, but "Sea Bass Terrine" name-matches 'main'
+    // keywords â†’ slotAffinity=1 â†’ fallback pool has one candidate.
     const sigs = [
-      sig({ id: 'l1', name: 'Lamb Chops',        slot: 'land',   tags: ['meat'] }),
-      sig({ id: 'f1', name: 'Panna Cotta',       slot: 'finish', tags: ['dessert'] }),
-      sig({ id: 's1', name: 'Sea Bass Terrine',  slot: 'start' }),
+      sig({ id: 'l1', name: 'Lamb Chops',        slot: 'main',   tags: ['meat'] }),
+      sig({ id: 'f1', name: 'Panna Cotta',       slot: 'dessert', tags: ['dessert'] }),
+      sig({ id: 's1', name: 'Sea Bass Terrine',  slot: 'starter' }),
     ]
-    const seaCourse = draftCourse('sea', noGuests, sigs, [])
-    expect(seaCourse.origin).toBe('fallback')
-    expect(seaCourse.dishName).toBe('Sea Bass Terrine')
+    const seaCourse = draftCourse('main', noGuests, sigs, [])
+    expect(seaCourse.origin).toBe('signature')
+    expect(seaCourse.dishName).toBe('Lamb Chops')
   })
 
-  test('sea/land 0-affinity fallback returns empty rather than a misleading fill', () => {
+  test('main does not require separate sea or land inventory', () => {
     // Only land + finish signatures, none name-matching sea. The old
     // behavior widened to any signature and would pick e.g. "Panna Cotta"
-    // for Main — Sea, which mislabels the category. New behavior: honest
+    // for Main â€” Sea, which mislabels the category. New behavior: honest
     // empty so the chef knows to add a real sea dish.
     const sigs = [
-      sig({ id: 'l1', name: 'Lamb Chops',  slot: 'land',   tags: ['meat'] }),
-      sig({ id: 'f1', name: 'Panna Cotta', slot: 'finish', tags: ['dessert'] }),
+      sig({ id: 'l1', name: 'Lamb Chops',  slot: 'main',   tags: ['meat'] }),
+      sig({ id: 'f1', name: 'Panna Cotta', slot: 'dessert', tags: ['dessert'] }),
     ]
-    expect(draftCourse('sea', noGuests, sigs, []).origin).toBe('empty')
+    expect(draftCourse('main', noGuests, sigs, []).origin).toBe('signature')
     // Symmetric for land when only start/finish/green signatures exist.
     const noMeat = [
-      sig({ id: 'g1', name: 'Chickpea Stew', slot: 'green', tags: ['veg'] }),
-      sig({ id: 'f1', name: 'Panna Cotta',   slot: 'finish', tags: ['dessert'] }),
+      sig({ id: 'g1', name: 'Chickpea Stew', slot: 'side', tags: ['veg'] }),
+      sig({ id: 'f1', name: 'Panna Cotta',   slot: 'dessert', tags: ['dessert'] }),
     ]
-    expect(draftCourse('land', noGuests, noMeat, []).origin).toBe('empty')
+    expect(draftCourse('main', noGuests, noMeat, []).origin).toBe('fallback')
   })
 
-  test('start/green/finish still permissive — any signature is better than empty', () => {
+  test('start/green/finish still permissive â€” any signature is better than empty', () => {
     // Non-category-strict slots keep the old broad fallback: "any veg" is
     // plausible enough for start/green/finish that empty would be worse.
-    const sigs = [sig({ id: 'l1', name: 'Lamb Chops', slot: 'land', tags: ['meat'] })]
-    expect(draftCourse('start', noGuests, sigs, []).origin).toBe('fallback')
-    expect(draftCourse('green', noGuests, sigs, []).origin).toBe('fallback')
-    expect(draftCourse('finish', noGuests, sigs, []).origin).toBe('fallback')
+    const sigs = [sig({ id: 'l1', name: 'Lamb Chops', slot: 'main', tags: ['meat'] })]
+    expect(draftCourse('starter', noGuests, sigs, []).origin).toBe('fallback')
+    expect(draftCourse('side', noGuests, sigs, []).origin).toBe('fallback')
+    expect(draftCourse('dessert', noGuests, sigs, []).origin).toBe('fallback')
   })
 
   test('genuinely empty signature list still returns empty (only truly-empty state)', () => {
-    const c = draftCourse('sea', noGuests, [], [])
+    const c = draftCourse('main', noGuests, [], [])
     expect(c.origin).toBe('empty')
   })
 })
 
-describe('per-guest substitutions — strict-diet preferences become side plates', () => {
+describe('per-guest substitutions â€” strict-diet preferences become side plates', () => {
   test('vegetarian excluded from a meat main receives a labeled substitute from the veg pool', () => {
     // Table: 2 vegetarians who cannot eat lamb. Under the substitution
     // model, the main course still lands on the majority-preferred dish
     // that would otherwise best-fit the table (e.g. locked by the chef,
-    // picked by the AI, or the only slotted candidate) — and the excluded
+    // picked by the AI, or the only slotted candidate) â€” and the excluded
     // guests receive a labeled alt on the side.
     const intel = buildIntel([
       { name: 'Omar', dietary: [], avoid: [], adventurousness: 50 },
@@ -617,12 +616,12 @@ describe('per-guest substitutions — strict-diet preferences become side plates
       { name: 'Priya', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const sigs = [
-      sig({ id: 'l1', name: 'Lamb Kofta',  slot: 'land',  tags: ['meat'] }),
-      sig({ id: 'g1', name: 'Ratatouille', slot: 'green', tags: ['veg', 'vegan'] }),
+      sig({ id: 'l1', name: 'Lamb Kofta',  slot: 'main',  tags: ['meat'] }),
+      sig({ id: 'g1', name: 'Ratatouille', slot: 'side', tags: ['veg', 'vegan'] }),
     ]
     const lamb: Course = {
-      slot: 'land',
-      slotLabel: SLOT_LABELS.land,
+      slot: 'main',
+      slotLabel: SLOT_LABELS.main,
       dishName: 'Lamb Kofta',
       origin: 'signature',
       sourceId: 'l1',
@@ -644,21 +643,21 @@ describe('per-guest substitutions — strict-diet preferences become side plates
     // has two veg options + one nut-free meat option, so the assignment
     // can hand each excluded guest a dish they can actually eat.
     const sigs = [
-      sig({ id: 'm1', name: 'Nut-Crusted Lamb', slot: 'land', tags: ['meat'], contains_allergens: ['Nuts'] }),
-      sig({ id: 'v1', name: 'Aubergine Steak',  slot: 'land', tags: ['veg', 'vegan'] }),
-      sig({ id: 'm2', name: 'Plain Lamb',       slot: 'land', tags: ['meat'] }),
-      sig({ id: 'v2', name: 'Ratatouille',      slot: 'land', tags: ['veg', 'vegan'] }),
+      sig({ id: 'm1', name: 'Nut-Crusted Lamb', slot: 'main', tags: ['meat'], contains_allergens: ['Nuts'] }),
+      sig({ id: 'v1', name: 'Aubergine Steak',  slot: 'main', tags: ['veg', 'vegan'] }),
+      sig({ id: 'm2', name: 'Plain Lamb',       slot: 'main', tags: ['meat'] }),
+      sig({ id: 'v2', name: 'Ratatouille',      slot: 'main', tags: ['veg', 'vegan'] }),
     ]
     const main: Course = {
-      slot: 'land',
-      slotLabel: SLOT_LABELS.land,
+      slot: 'main',
+      slotLabel: SLOT_LABELS.main,
       dishName: 'Nut-Crusted Lamb',
       origin: 'signature',
       sourceId: 'm1',
       excludes: scoreDish(sigs[0], intel),
     }
     const subs = assignSubstitutions(main, intel, sigs, new Set())
-    // Both excluded guests receive a substitute they can actually eat —
+    // Both excluded guests receive a substitute they can actually eat â€”
     // exact dish depends on ranking, but Sam's must be nut-free and
     // Nadia's must be veg. And they cannot be the same dish.
     const nadiaSub = subs.find(s => s.guests.includes('Nadia'))
@@ -678,40 +677,40 @@ describe('per-guest substitutions — strict-diet preferences become side plates
       { name: 'Sam', dietary: [], avoid: ['Nuts'], adventurousness: 50 },
     ])
     const sigs = [
-      sig({ id: 'f1', name: 'Walnut Tart', slot: 'finish', contains_allergens: ['Nuts'] }),
-      sig({ id: 'f2', name: 'Panna Cotta', slot: 'finish', tags: ['veg'] }),
+      sig({ id: 'f1', name: 'Walnut Tart', slot: 'dessert', contains_allergens: ['Nuts'] }),
+      sig({ id: 'f2', name: 'Panna Cotta', slot: 'dessert', tags: ['veg'] }),
     ]
     // Allergy exclusions rank higher than preference exclusions, so
     // Panna Cotta (0 allergy) beats Walnut Tart (1 allergy). Sam is served.
-    const course = draftCourse('finish', intel, sigs, [])
+    const course = draftCourse('dessert', intel, sigs, [])
     expect(course.dishName).toBe('Panna Cotta')
   })
 })
 
-describe('inferSlot — preset-name fallback for legacy DB rows', () => {
+describe('inferSlot â€” preset-name fallback for legacy DB rows', () => {
   // Existing DB rows (added before dish-presets gained the `role` field)
   // have tags like ['veg'] with no 'side'/'starter' tag. Without a fallback,
-  // Mac and Cheese would infer to 'green' via the isVeg path and end up as
-  // "Main — Green". The preset-name lookup keeps it out of the mains.
+  // Mac and Cheese would infer to 'side' via the isVeg path and end up as
+  // "Main â€” Green". The preset-name lookup keeps it out of the mains.
   test('Mac and Cheese with legacy [veg] tags routes to start via preset lookup', () => {
-    expect(inferSlot('Mac and Cheese', ['veg'])).toBe('start')
+    expect(inferSlot('Mac and Cheese', ['veg'])).toBe('side')
   })
   test('Greek Salad (preset side) with legacy [veg] tags routes to start', () => {
-    expect(inferSlot('Greek Salad', ['veg'])).toBe('start')
+    expect(inferSlot('Greek Salad', ['veg'])).toBe('side')
   })
   test('Tzatziki (preset starter) with legacy [veg] tags routes to start', () => {
-    expect(inferSlot('Tzatziki', ['veg'])).toBe('start')
+    expect(inferSlot('Tzatziki', ['veg'])).toBe('starter')
   })
   test('Gyoza (preset starter, tagged meat) routes to start not land', () => {
     // Even 'meat' as a tag doesn't win against the preset-known starter role.
-    expect(inferSlot('Gyoza', ['meat'])).toBe('start')
+    expect(inferSlot('Gyoza', ['meat'])).toBe('starter')
   })
   test('unknown-name dish falls through to tag/keyword scoring', () => {
-    expect(inferSlot('Chef Special Beef Stew', ['meat'])).toBe('land')
+    expect(inferSlot('Chef Special Beef Stew', ['meat'])).toBe('main')
   })
 })
 
-describe('deriveCourse — composed dish re-scoring from component_ids', () => {
+describe('deriveCourse â€” composed dish re-scoring from component_ids', () => {
   // The silent-9/9 bug: an AI-composed pantry dish is persisted with
   // source=null. Without component_ids, deriveCourse can't reconstruct which
   // pantry items backed the dish, so excludes come back empty and the UI
@@ -728,14 +727,14 @@ describe('deriveCourse — composed dish re-scoring from component_ids', () => {
       pantryItem('p-bell', 'Bell peppers'),
     ]
     const persisted: PersistedCourseLike = {
-      slot: 'sea',
+      slot: 'main',
       dish_name: 'Creamy Miso Orzo with Charred Bell Peppers',
       dish_origin: 'pantry-composed',
       source: null,
       component_ids: ['p-miso', 'p-orzo', 'p-bell'],
     }
     const derived = deriveCourse(persisted, [], pantry, vegIntel)
-    // At least one exclusion for Nadia — untagged pantry items fail closed
+    // At least one exclusion for Nadia â€” untagged pantry items fail closed
     // on vegetarian, and the composed dish inherits the union of its
     // components' exclusions.
     expect(derived.excludes.some(e => e.guest === 'Nadia')).toBe(true)
@@ -747,7 +746,7 @@ describe('deriveCourse — composed dish re-scoring from component_ids', () => {
       pantryItem('p2', 'Tahini',    { tags: ['veg', 'vegan'] }),
     ]
     const persisted: PersistedCourseLike = {
-      slot: 'start',
+      slot: 'starter',
       dish_name: 'Aubergine Tahini Dip',
       dish_origin: 'pantry-composed',
       source: null,
@@ -759,7 +758,7 @@ describe('deriveCourse — composed dish re-scoring from component_ids', () => {
 
   test('pantry-composed without component_ids stays backward-compatible (empty excludes)', () => {
     const persisted: PersistedCourseLike = {
-      slot: 'sea',
+      slot: 'main',
       dish_name: 'Legacy Composed Dish',
       dish_origin: 'pantry-composed',
       source: null,
@@ -771,7 +770,7 @@ describe('deriveCourse — composed dish re-scoring from component_ids', () => {
 
   test('pantry-composed with all components deleted shows source-deleted placeholder', () => {
     const persisted: PersistedCourseLike = {
-      slot: 'sea',
+      slot: 'main',
       dish_name: 'Ephemeral Dish',
       dish_origin: 'pantry-composed',
       source: null,
@@ -783,7 +782,7 @@ describe('deriveCourse — composed dish re-scoring from component_ids', () => {
   })
 })
 
-describe('deriveMenu — cross-course substitute dedup', () => {
+describe('deriveMenu â€” cross-course substitute dedup', () => {
   // Bug repro: Duck Confit on Land needs a veg substitute; the isolated
   // per-course derive picks Baba Ganoush, which is already the Start main.
   // deriveMenu threads shared used-ids/used-names so the substitute pool
@@ -793,16 +792,16 @@ describe('deriveMenu — cross-course substitute dedup', () => {
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const signatures: Signature[] = [
-      { id: 'bg', name: 'Baba Ganoush', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'start' },
-      { id: 'dc', name: 'Duck Confit',  tags: ['meat'],         contains_allergens: [], slot: 'land' },
-      { id: 'ch', name: 'Chana Masala', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'green' },
+      { id: 'bg', name: 'Baba Ganoush', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'starter' },
+      { id: 'dc', name: 'Duck Confit',  tags: ['meat'],         contains_allergens: [], slot: 'main' },
+      { id: 'ch', name: 'Chana Masala', tags: ['veg', 'vegan'], contains_allergens: [], slot: 'side' },
     ]
     const persisted: PersistedCourseLike[] = [
-      { slot: 'start',  dish_name: 'Baba Ganoush', dish_origin: 'signature', source: 'bg' },
-      { slot: 'land',   dish_name: 'Duck Confit',  dish_origin: 'signature', source: 'dc' },
+      { slot: 'starter',  dish_name: 'Baba Ganoush', dish_origin: 'signature', source: 'bg' },
+      { slot: 'main',   dish_name: 'Duck Confit',  dish_origin: 'signature', source: 'dc' },
     ]
     const derived = deriveMenu(persisted, signatures, [], intel)
-    const land = derived.find(c => c.slot === 'land')!
+    const land = derived.find(c => c.slot === 'main')!
     const babaAsSub = land.substitutions?.some(s => s.dishName === 'Baba Ganoush')
     expect(babaAsSub).toBeFalsy()
     // And a valid alternative was picked instead.
@@ -812,69 +811,67 @@ describe('deriveMenu — cross-course substitute dedup', () => {
   test("composed main's name blocks a later slot's substitute of the same name", () => {
     // Course 1: pantry-composed "Chana Masala" (source=null, but named same
     // as signature 'ch'). Course 2: Duck Confit needs veg sub; sourceId
-    // dedup misses because course 1 has no sourceId — the name dedup catches.
+    // dedup misses because course 1 has no sourceId â€” the name dedup catches.
     const intel = buildIntel([
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const signatures: Signature[] = [
-      { id: 'ch', name: 'Chana Masala',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'green' },
-      { id: 'bg', name: 'Baba Ganoush',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'start' },
-      { id: 'dc', name: 'Duck Confit',   tags: ['meat'],         contains_allergens: [], slot: 'land' },
+      { id: 'ch', name: 'Chana Masala',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'side' },
+      { id: 'bg', name: 'Baba Ganoush',  tags: ['veg', 'vegan'], contains_allergens: [], slot: 'starter' },
+      { id: 'dc', name: 'Duck Confit',   tags: ['meat'],         contains_allergens: [], slot: 'main' },
     ]
     const pantry = [pantryItem('p-veg', 'Aubergine', { tags: ['vegan'] })]
     const persisted: PersistedCourseLike[] = [
-      { slot: 'start', dish_name: 'Chana Masala', dish_origin: 'pantry-composed', source: null, component_ids: ['p-veg'] },
-      { slot: 'land',  dish_name: 'Duck Confit',  dish_origin: 'signature',       source: 'dc' },
+      { slot: 'starter', dish_name: 'Chana Masala', dish_origin: 'pantry-composed', source: null, component_ids: ['p-veg'] },
+      { slot: 'main',  dish_name: 'Duck Confit',  dish_origin: 'signature',       source: 'dc' },
     ]
     const derived = deriveMenu(persisted, signatures, pantry, intel)
-    const land = derived.find(c => c.slot === 'land')!
+    const land = derived.find(c => c.slot === 'main')!
     // Chana Masala the signature must NOT be handed as a substitute even
-    // though the composed main shares its name (sourceId=null → name dedup).
+    // though the composed main shares its name (sourceId=null â†’ name dedup).
     expect(land.substitutions?.some(s => s.dishName === 'Chana Masala')).toBeFalsy()
     // Baba Ganoush is next-best veg option.
     expect(land.substitutions?.[0]?.dishName).toBe('Baba Ganoush')
   })
 })
 
-describe('shortlistSignaturesForAI — trims AI prompt while preserving strong picks', () => {
+describe('shortlistSignaturesForAI â€” trims AI prompt while preserving strong picks', () => {
   test('unions top-K per slot into one deduped list, preserving slot-order encounters', () => {
     const intel = buildIntel([
       { name: 'Ali', dietary: [], avoid: [], adventurousness: 50 },
     ])
     const sigs = [
-      sig({ id: 'oct',  name: 'Charred Octopus', slot: 'sea',    tags: ['seafood'] }),
-      sig({ id: 'lamb', name: 'Braised Lamb',    slot: 'land',   tags: ['meat'] }),
-      sig({ id: 'salm', name: 'Roasted Salmon',  slot: 'sea',    tags: ['seafood'] }),
-      sig({ id: 'chan', name: 'Chana Masala',    slot: 'green',  tags: ['vegan'] }),
-      sig({ id: 'baba', name: 'Baba Ganoush',    slot: 'start',  tags: ['vegan'] }),
-      sig({ id: 'knaf', name: 'Knafeh',          slot: 'finish', tags: ['dessert'] }),
-      sig({ id: 'duck', name: 'Duck Confit',     slot: 'land',   tags: ['meat'] }),
+      sig({ id: 'oct',  name: 'Charred Octopus', slot: 'main',    tags: ['seafood'] }),
+      sig({ id: 'lamb', name: 'Braised Lamb',    slot: 'main',   tags: ['meat'] }),
+      sig({ id: 'salm', name: 'Roasted Salmon',  slot: 'main',    tags: ['seafood'] }),
+      sig({ id: 'chan', name: 'Chana Masala',    slot: 'side',  tags: ['vegan'] }),
+      sig({ id: 'baba', name: 'Baba Ganoush',    slot: 'starter',  tags: ['vegan'] }),
+      sig({ id: 'knaf', name: 'Knafeh',          slot: 'dessert', tags: ['dessert'] }),
+      sig({ id: 'duck', name: 'Duck Confit',     slot: 'main',   tags: ['meat'] }),
     ]
     const short = shortlistSignaturesForAI(sigs, intel, 2)
-    // 2 per slot × 5 slots = up to 10, but we only have 7 distinct dishes.
-    // All 7 should survive (chef doesn't have enough sigs to trim).
-    expect(short).toHaveLength(7)
-    expect(new Set(short.map(s => s.id))).toEqual(new Set(sigs.map(s => s.id)))
+    expect(short).toHaveLength(5)
+    expect(new Set(short.map(s => s.id))).toEqual(new Set(['baba', 'lamb', 'oct', 'chan', 'knaf']))
   })
 
-  test('drops weak candidates when catalog is bigger than K × slots', () => {
+  test('drops weak candidates when catalog is bigger than K Ã— slots', () => {
     const intel = buildIntel([
       { name: 'Ali', dietary: [], avoid: [], adventurousness: 50 },
     ])
-    // 10 desserts and 10 meats — with K=1 and 5 slots (at most 5 wins), most
+    // 10 desserts and 10 meats â€” with K=1 and 5 slots (at most 5 wins), most
     // of the catalog is dropped. The strongest per-slot picks by affinity
     // survive; the rest are trimmed.
     const many = [
       ...Array.from({ length: 10 }, (_, i) =>
-        sig({ id: `d${i}`, name: `Dessert ${i}`, slot: 'finish', tags: ['dessert'] })
+        sig({ id: `d${i}`, name: `Dessert ${i}`, slot: 'dessert', tags: ['dessert'] })
       ),
       ...Array.from({ length: 10 }, (_, i) =>
-        sig({ id: `m${i}`, name: `Meat ${i}`, slot: 'land', tags: ['meat'] })
+        sig({ id: `m${i}`, name: `Meat ${i}`, slot: 'main', tags: ['meat'] })
       ),
     ]
     const short = shortlistSignaturesForAI(many, intel, 1)
     // Two winners: one per slot (finish, land). Other three slots have no
-    // matching sigs — they still pick the alphabetically-first candidate,
+    // matching sigs â€” they still pick the alphabetically-first candidate,
     // but that's usually one already picked for finish/land, so dedup collapses.
     expect(short.length).toBeGreaterThanOrEqual(2)
     expect(short.length).toBeLessThan(many.length)
@@ -885,36 +882,37 @@ describe('shortlistSignaturesForAI — trims AI prompt while preserving strong p
       { name: 'Sam', dietary: [], avoid: ['Nuts'], adventurousness: 50 },
     ])
     const sigs = [
-      sig({ id: 'nuts', name: 'Almond Cake',   slot: 'finish', tags: ['dessert'], contains_allergens: ['nuts'] }),
-      sig({ id: 'safe', name: 'Chocolate Tart', slot: 'finish', tags: ['dessert'] }),
+      sig({ id: 'nuts', name: 'Almond Cake',   slot: 'dessert', tags: ['dessert'], contains_allergens: ['nuts'] }),
+      sig({ id: 'safe', name: 'Chocolate Tart', slot: 'dessert', tags: ['dessert'] }),
     ]
     const short = shortlistSignaturesForAI(sigs, intel, 1)
     // The nut-free dessert should be first (fewer allergy excludes).
-    const finishPick = short.find(s => s.slot === 'finish')
+    const finishPick = short.find(s => s.slot === 'dessert')
     expect(finishPick?.id).toBe('safe')
   })
 })
 
-describe('assignSubstitutions — usedNames filter', () => {
+describe('assignSubstitutions â€” usedNames filter', () => {
   test('busyNames blocks a substitute name even when its id is not in busyIds', () => {
     const intel = buildIntel([
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const sigs = [
-      sig({ id: 'bg', name: 'Baba Ganoush', slot: 'start', tags: ['veg', 'vegan'] }),
-      sig({ id: 'ch', name: 'Chana Masala', slot: 'green', tags: ['veg', 'vegan'] }),
+      sig({ id: 'bg', name: 'Baba Ganoush', slot: 'starter', tags: ['veg', 'vegan'] }),
+      sig({ id: 'ch', name: 'Chana Masala', slot: 'side', tags: ['veg', 'vegan'] }),
     ]
     const main: Course = {
-      slot: 'land',
-      slotLabel: SLOT_LABELS.land,
+      slot: 'main',
+      slotLabel: SLOT_LABELS.main,
       dishName: 'Osso Buco',
       origin: 'signature',
       sourceId: 'ob',
       excludes: [{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }],
     }
-    // Baba Ganoush isn't in busyIds, but its name is in usedNames — must skip.
+    // Baba Ganoush isn't in busyIds, but its name is in usedNames â€” must skip.
     const subs = assignSubstitutions(main, intel, sigs, new Set(), new Set(['baba ganoush']))
     expect(subs).toHaveLength(1)
     expect(subs[0].dishName).toBe('Chana Masala')
   })
 })
+

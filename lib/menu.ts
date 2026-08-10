@@ -1,8 +1,9 @@
 import type { TableIntel } from './intel'
 import { dishRoleByName } from './dish-presets'
 import { proteinPreferenceWeightedScore } from './protein-preferences'
+import { normalizeDishScoringData } from './dish-scoring'
 
-export type Slot = 'start' | 'sea' | 'land' | 'green' | 'finish'
+export type Slot = 'starter' | 'main' | 'side' | 'dessert'
 // 'fallback' — last-resort signature that still had exclusions but was picked
 // so the slot wouldn't render empty. Displays with a warning band.
 export type CourseOrigin = 'signature' | 'pantry-composed' | 'fallback' | 'empty'
@@ -13,6 +14,8 @@ export type Signature = {
   tags: string[]
   contains_allergens: string[]
   slot: Slot | null
+  novelty_score?: number | null
+  is_substantial?: boolean | null
 }
 
 export type PantryItem = {
@@ -20,6 +23,8 @@ export type PantryItem = {
   name: string
   tags: string[]
   contains_allergens: string[]
+  novelty_score?: number | null
+  is_substantial?: boolean | null
 }
 
 // An exclusion the main dish can't avoid — either a true allergy (physical
@@ -63,14 +68,13 @@ export type Course = {
   reasoning?: string
 }
 
-export const SLOTS: Slot[] = ['start', 'sea', 'land', 'green', 'finish']
+export const SLOTS: Slot[] = ['starter', 'main', 'side', 'dessert']
 
 export const SLOT_LABELS: Record<Slot, string> = {
-  start:  'To Start',
-  sea:    'Main — Sea',
-  land:   'Main — Land',
-  green:  'Main — Green',
-  finish: 'To Finish',
+  starter: 'To Start',
+  main: 'Mains',
+  side: 'On the Side',
+  dessert: 'To Finish',
 }
 
 export function broadRoleForSlot(slot: string): 'starter'|'main'|'side'|'dessert'|'flex' {
@@ -85,29 +89,32 @@ export function displayRoleLabel(slot: string): string {
   return broadRoleForSlot(slot).toUpperCase()
 }
 
+export function normalizeSlot(slot: string): Slot {
+  const role = broadRoleForSlot(slot)
+  return role === 'flex' ? 'main' : role
+}
+
 // Coarse name-based routing so pantry fallbacks pick something plausible for
 // the slot (fish for Sea, meat for Land, etc.) instead of the first item
 // alphabetically. Not exhaustive — a miss just means the item won't be
 // preferred, and the sort falls back to alphabetical.
 export const SLOT_KEYWORDS: Record<Slot, string[]> = {
-  start: [
+  starter: [
     'bread', 'sourdough', 'focaccia', 'cracker', 'olive', 'labneh', 'yogurt',
     'feta', 'burrata', 'ricotta', 'cured', 'prosciutto', 'jamon', 'salami',
     'tartare', 'crudo', 'ceviche', 'soup', 'broth', 'dip', 'hummus', 'baba',
     'muhammara', 'mezze',
   ],
-  sea: [
+  main: [
     'fish', 'salmon', 'tuna', 'cod', 'bass', 'trout', 'mackerel', 'sardine',
     'anchovy', 'halibut', 'sole', 'monkfish', 'bream', 'turbot', 'sea ',
     'shrimp', 'prawn', 'crab', 'lobster', 'clam', 'mussel', 'oyster', 'scallop',
     'octopus', 'squid', 'calamari', 'urchin', 'uni', 'roe', 'caviar', 'seafood',
-  ],
-  land: [
     'beef', 'steak', 'lamb', 'pork', 'chicken', 'duck', 'poultry', 'veal',
     'venison', 'rabbit', 'quail', 'pigeon', 'turkey', 'sausage', 'chorizo',
     'bacon', 'meat', 'game', 'kofta', 'kebab', 'shawarma',
   ],
-  green: [
+  side: [
     'spinach', 'kale', 'chard', 'arugula', 'watercress', 'lettuce', 'courgette',
     'zucchini', 'aubergine', 'eggplant', 'pepper', 'tomato', 'carrot', 'beet',
     'onion', 'shallot', 'leek', 'fennel', 'artichoke', 'asparagus', 'broccoli',
@@ -116,7 +123,7 @@ export const SLOT_KEYWORDS: Record<Slot, string[]> = {
     'quinoa', 'farro', 'barley', 'greens', 'vegetable', 'vegetables', 'herb',
     'tofu',
   ],
-  finish: [
+  dessert: [
     'chocolate', 'cocoa', 'cream', 'honey', 'sugar', 'fruit', 'apricot',
     'peach', 'plum', 'cherry', 'strawberry', 'raspberry', 'blueberry',
     'blackberry', 'fig', 'pear', 'apple', 'pomegranate', 'citrus', 'lemon',
@@ -138,11 +145,10 @@ export function nameMatchesSlot(name: string, slot: Slot): boolean {
 // (start) and small desserts (finish) yield more per batch than mains
 // (sea/land/green) which are typically plated per guest.
 export const SLOT_PORTIONS: Record<Slot, number> = {
-  start:  6,
-  sea:    4,
-  land:   4,
-  green:  6,
-  finish: 8,
+  starter: 6,
+  main: 4,
+  side: 6,
+  dessert: 8,
 }
 
 // Deliberately says "bellies" rather than "serves" — this is a raw cooking
@@ -205,21 +211,22 @@ const DIET_SATISFIED_BY: Record<string, Set<string>> = {
 // genuine mains.
 export function inferSlot(name: string, tags: string[]): Slot | null {
   const tagset = new Set(tags.map(t => t.toLowerCase()))
-  if (tagset.has('side') || tagset.has('starter')) return 'start'
+  if (tagset.has('starter')) return 'starter'
+  if (tagset.has('side')) return 'side'
   // Preset-name fallback: legacy DB rows (added before the role tag existed)
   // still lack 'side'/'starter' in their stored tags. Consulting the preset
   // list by name keeps Mac and Cheese / Greek Salad / Tzatziki / Gyoza / etc.
   // out of Main — Land/Sea/Green without needing to backfill every row.
   const presetRole = dishRoleByName(name)
-  if (presetRole === 'side' || presetRole === 'starter') return 'start'
-  if (tagset.has('dessert')) return 'finish'
-  if (tagset.has('seafood')) return 'sea'
-  if (tagset.has('meat')) return 'land'
+  if (presetRole === 'main') return 'main'
+  if (presetRole === 'side' || presetRole === 'starter') return presetRole
+  if (tagset.has('dessert')) return 'dessert'
+  if (tagset.has('main') || tagset.has('seafood') || tagset.has('meat')) return 'main'
   // veg/vegan without any of the above → green main; refined below by name match
   const isVeg = tagset.has('veg') || tagset.has('vegan') || tagset.has('vegetarian')
 
   // Score against every slot's keyword list, pick the best.
-  const scores: Record<Slot, number> = { start: 0, sea: 0, land: 0, green: 0, finish: 0 }
+  const scores: Record<Slot, number> = { starter: 0, main: 0, side: 0, dessert: 0 }
   const n = name.toLowerCase()
   for (const slot of SLOTS) {
     for (const k of SLOT_KEYWORDS[slot]) {
@@ -232,7 +239,7 @@ export function inferSlot(name: string, tags: string[]): Slot | null {
   )
   if (best && best.score > 0) return best.slot
 
-  if (isVeg) return 'green'
+  if (isVeg) return 'main'
   return null
 }
 
@@ -261,6 +268,7 @@ function dietViolationReason(dietLabel: string): string {
 }
 
 export function scoreDish(dish: Signature | PantryItem, intel: TableIntel): Exclusion[] {
+  const scoring = normalizeDishScoringData(dish)
   const seen = new Set<string>()
   const result: Exclusion[] = []
 
@@ -271,7 +279,7 @@ export function scoreDish(dish: Signature | PantryItem, intel: TableIntel): Excl
   // to tag "nuts", and we don't want the safety net to miss that.
   const isSignature = 'slot' in dish
 
-  for (const allergen of dish.contains_allergens) {
+  for (const allergen of scoring.allergens) {
     const limit = intel.hardLimits.find(
       h => h.type === 'allergy' && h.label.toLowerCase() === allergen.toLowerCase()
     )
@@ -306,7 +314,7 @@ export function scoreDish(dish: Signature | PantryItem, intel: TableIntel): Excl
   // substitute case, never a hard block.
   for (const limit of intel.hardLimits.filter(h => h.type === 'diet')) {
     const tag = limit.label.toLowerCase()
-    if (dishSatisfiesDiet(dish.tags, tag)) continue
+    if (dishSatisfiesDiet(scoring.dietary, tag)) continue
     for (const guestName of limit.guests) {
       if (seen.has(guestName)) continue
       seen.add(guestName)
@@ -389,23 +397,38 @@ function tableFitScore(dish: Signature | PantryItem, intel: TableIntel): number 
   if (intel.guestCount === 0) return 0
 
   let score = 0
+  const scoring = normalizeDishScoringData(dish)
   // Soft dietary preferences — a bonus each time a guest's soft signal is
   // satisfied. Uses raw counts (a dominant Pescatarian mix matters more).
   for (const { label, count } of intel.dietMix) {
-    if (tagsSatisfyLabel(dish.tags, label)) score += count
+    if (tagsSatisfyLabel(scoring.dietary, label)) score += count
   }
   // Protein/base fit retains the configured 45% weight. Each guest earns at
   // most one match per dish even when they selected two options.
-  score += proteinPreferenceWeightedScore(intel.proteinPreferencesByGuest, dish.tags)
-  // Adventurousness proxy: adventurous tables (>=60) get a small nudge for
-  // signature dishes tagged 'seafood' or with less-mainstream keywords
-  // (fermented/spiced/offal by name substring). Cautious tables (<40) get
-  // the reverse nudge for comfort-food name keywords.
+  score += proteinPreferenceWeightedScore(intel.proteinPreferencesByGuest, scoring.proteinBases)
+  const flavorAliases:Record<string,string[]>={
+    'bright & sour':['acidic','fresh'],
+    'plain & clean':['fresh'],
+    'sweet-savoury':['sweet','umami'],
+    herby:['fresh'],
+    saucy:['rich'],
+  }
+  for(const {label,count} of intel.flavorCounts){
+    const key=label.toLowerCase(),acceptable=flavorAliases[key]??[key]
+    if(acceptable.some(value=>scoring.flavors.includes(value)))score+=count
+  }
+  // Prefer explicit saved novelty. Legacy rows retain the prior conservative
+  // name heuristic until they are enriched; unknown is not fabricated.
   const name = dish.name.toLowerCase()
   const bold = /truffle|uni|urchin|offal|foie|liver|marrow|tartare|crudo|ceviche|kimchi|miso|harissa|labneh|freekeh/
   const comfort = /pasta|bread|soup|potato|rice|risotto|pizza|cheese|butter/
-  if (intel.avgAdventurousness >= 60 && bold.test(name)) score += 1
-  if (intel.avgAdventurousness < 40 && comfort.test(name)) score += 1
+  if(scoring.noveltyScore!==null){
+    const alignment=1-Math.abs(intel.avgAdventurousness/100-scoring.noveltyScore)
+    if(alignment>=.7)score+=1
+  }else{
+    if (intel.avgAdventurousness >= 60 && bold.test(name)) score += 1
+    if (intel.avgAdventurousness < 40 && comfort.test(name)) score += 1
+  }
   return score
 }
 
@@ -504,10 +527,6 @@ export function draftCourse(
   // Sea" is worse than showing an empty slot the chef can fill themselves.
   // An honest empty is better than a misleading fill. Start/Green/Finish
   // stay permissive since "any veg" plausibly fits any of those.
-  if (fallbackPool.length === 0 && (slot === 'sea' || slot === 'land')) {
-    return { slot, slotLabel, dishName: '', origin: 'empty', sourceId: null, excludes: [] }
-  }
-
   const finalPool = fallbackPool.length > 0
     ? fallbackPool
     : availableSigs.map(toCandidate)
@@ -654,8 +673,8 @@ export function deriveCourse(
   usedInMenu?: Set<string>,
   usedNames?: Set<string>,
 ): Course {
-  const slot = persisted.slot as Slot
-  const slotLabel = SLOT_LABELS[slot] ?? displayRoleLabel(persisted.slot)
+  const slot = normalizeSlot(persisted.slot)
+  const slotLabel = SLOT_LABELS[slot]
 
   if (!persisted.dish_name || persisted.dish_origin === 'empty') {
     return {
@@ -763,11 +782,10 @@ export function deriveMenu(
 // prompt trimming, not a placement decision.
 function pantrySlotAffinity(item: PantryItem, slot: Slot): number {
   const tagset = new Set(item.tags.map(t => t.toLowerCase()))
-  if (slot === 'sea'    && tagset.has('seafood')) return 3
-  if (slot === 'land'   && tagset.has('meat')) return 3
-  if (slot === 'green'  && (tagset.has('veg') || tagset.has('vegan') || tagset.has('vegetarian'))) return 2
-  if (slot === 'finish' && tagset.has('dessert')) return 3
-  if (slot === 'start'  && (tagset.has('side') || tagset.has('starter'))) return 2
+  if (slot === 'main' && (tagset.has('seafood') || tagset.has('meat') || tagset.has('main'))) return 3
+  if (slot === 'side' && (tagset.has('side') || tagset.has('veg') || tagset.has('vegan') || tagset.has('vegetarian'))) return 2
+  if (slot === 'dessert' && tagset.has('dessert')) return 3
+  if (slot === 'starter' && tagset.has('starter')) return 2
   if (nameMatchesSlot(item.name, slot)) return 1
   return 0
 }

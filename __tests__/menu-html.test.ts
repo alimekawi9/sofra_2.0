@@ -1,4 +1,4 @@
-// __tests__/menu-html.test.ts
+﻿// __tests__/menu-html.test.ts
 //
 // buildMenuHtml lives as a private helper inside
 // app/(chef)/events/[id]/menu/page.tsx (a client component that can't be
@@ -31,7 +31,7 @@ function buildMenuHtml(
           : c.origin === 'pantry-composed'
           ? 'Composed for this table'
           : c.origin === 'fallback'
-          ? 'Chef’s adaptation'
+          ? 'Chefâ€™s adaptation'
           : ''
       const substitutionsHtml =
         c.substitutions && c.substitutions.length > 0
@@ -55,7 +55,7 @@ function buildMenuHtml(
       return `
         <div class="course">
           <div class="slot">${escHtml(c.slotLabel)}</div>
-          <div class="dish">${escHtml(c.dishName) || '— TBD —'}</div>
+          <div class="dish">${escHtml(c.dishName) || 'â€” TBD â€”'}</div>
           ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
           ${portionHtml}
           ${substitutionsHtml}
@@ -64,7 +64,7 @@ function buildMenuHtml(
     })
     .join('')
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} — Menu</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} â€” Menu</title>
     <style>
       @page { size:A4; margin:0; }
       *{margin:0;padding:0;box-sizing:border-box;}
@@ -96,9 +96,9 @@ function buildMenuHtml(
         <div class="brand">Sofra</div>
         <div class="rule"></div>
         <div class="title">${escHtml(event.title)}</div>
-        <div class="meta">${dateStr} · ${guestCount} cover${guestCount !== 1 ? 's' : ''}</div>
+        <div class="meta">${dateStr} Â· ${guestCount} cover${guestCount !== 1 ? 's' : ''}</div>
         ${coursesHtml}
-        <div class="foot">Curated for this table · <span class="s">Sofra</span></div>
+        <div class="foot">Curated for this table Â· <span class="s">Sofra</span></div>
       </div>
     </body></html>`
 }
@@ -106,7 +106,7 @@ function buildMenuHtml(
 const EVENT = { title: 'Summer Feast', event_date: '2026-08-12T18:00:00Z' }
 
 const course = (overrides: Partial<Course>): Course => ({
-  slot: 'start',
+  slot: 'starter',
   slotLabel: 'To Start',
   dishName: 'Test Dish',
   origin: 'signature',
@@ -139,8 +139,8 @@ describe('buildMenuHtml', () => {
 
   test('includes slot label and dish name for each course', () => {
     const courses: Course[] = [
-      course({ slot: 'start', slotLabel: 'To Start', dishName: 'Amuse Bouche' }),
-      course({ slot: 'finish', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
+      course({ slot: 'starter', slotLabel: 'To Start', dishName: 'Amuse Bouche' }),
+      course({ slot: 'dessert', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
     ]
     const html = buildMenuHtml(courses, 6, EVENT)
     expect(html).toContain('To Start')
@@ -149,12 +149,12 @@ describe('buildMenuHtml', () => {
     expect(html).toContain('Panna Cotta')
   })
 
-  test('renders "— TBD —" for empty course', () => {
+  test('renders "â€” TBD â€”" for empty course', () => {
     const html = buildMenuHtml([course({ dishName: '', origin: 'empty', sourceId: null })], 4, EVENT)
-    expect(html).toContain('— TBD —')
+    expect(html).toContain('â€” TBD â€”')
   })
 
-  // "Alternative required for …" is the honest-failure line: it should
+  // "Alternative required for â€¦" is the honest-failure line: it should
   // ONLY render when there are excluded guests AND no substitute was found
   // for them. Before this feature it fired on every exclusion, which would
   // incorrectly override the successful-substitute case.
@@ -176,7 +176,7 @@ describe('buildMenuHtml', () => {
     expect(html).not.toContain('Alternative required for')
   })
 
-  test('renders "Guest alternates … get instead: <dish>" block when substitutions present', () => {
+  test('renders "Guest alternates â€¦ get instead: <dish>" block when substitutions present', () => {
     const c = course({
       excludes: [
         { guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' },
@@ -191,11 +191,11 @@ describe('buildMenuHtml', () => {
     expect(html).toContain('Nadia, Priya')
     expect(html).toContain('get instead: Baba Ganoush')
     // Explicit "instead" phrasing means the substitute reads as a REPLACEMENT
-    // for the main, not an addition to the plate — the ambiguity the old
+    // for the main, not an addition to the plate â€” the ambiguity the old
     // "Plated on the side" wording introduced.
     expect(html).not.toContain('Plated on the side')
     // And the honest-failure "Alternative required for" line must NOT fire
-    // when a substitute was found — the two blocks are mutually exclusive.
+    // when a substitute was found â€” the two blocks are mutually exclusive.
     expect(html).not.toContain('Alternative required for')
   })
 
@@ -218,15 +218,15 @@ describe('buildMenuHtml', () => {
     expect(htmlNoSubs).toContain('Alternative required for')
   })
 
-  test('fallback origin renders as "Chef’s adaptation"', () => {
+  test('fallback origin renders as "Chefâ€™s adaptation"', () => {
     const html = buildMenuHtml([course({ origin: 'fallback' })], 4, EVENT)
-    expect(html).toContain('Chef’s adaptation')
+    expect(html).toContain('Chefâ€™s adaptation')
   })
 
   test('includes portion guidance for each non-empty course', () => {
     const courses: Course[] = [
-      course({ slot: 'start', slotLabel: 'To Start', dishName: 'Amuse Bouche' }),
-      course({ slot: 'finish', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
+      course({ slot: 'starter', slotLabel: 'To Start', dishName: 'Amuse Bouche' }),
+      course({ slot: 'dessert', slotLabel: 'To Finish', dishName: 'Panna Cotta', sourceId: '2' }),
     ]
     const html = buildMenuHtml(courses, 6, EVENT)
     expect(html).toContain('Enough for ~6 bellies') // start slot yield
@@ -235,7 +235,7 @@ describe('buildMenuHtml', () => {
 
   test('omits portion guidance for empty courses', () => {
     const html = buildMenuHtml(
-      [course({ slot: 'sea', slotLabel: 'Main — Sea', dishName: '', origin: 'empty', sourceId: null })],
+      [course({ slot: 'main', slotLabel: 'Main â€” Sea', dishName: '', origin: 'empty', sourceId: null })],
       6,
       EVENT
     )
@@ -282,3 +282,4 @@ describe('buildMenuHtml', () => {
     expect(html).toContain('x&gt;y')
   })
 })
+

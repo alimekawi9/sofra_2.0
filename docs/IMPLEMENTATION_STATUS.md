@@ -2,6 +2,23 @@
 
 ## Completed
 
+- Kitchen signature and pantry creation now use progressive manual tagging with no AI metadata inference.
+- Signature edits preserve and rehydrate saved names/tags in place.
+- Legacy sea/land/green menu slots are normalized to starter/main/side/dessert roles.
+
+- Signature scoring metadata now reuses canonical `tags[]` dimensions and
+  trusted `contains_allergens[]` through one normalized accessor. Migration
+  `20260810000001_add_signature_novelty_and_substantial.sql` adds only the two
+  genuinely missing complete-dish fields (`novelty_score` and
+  `is_substantial`) and backfills the three audited presets. New preset
+  selections persist curated metadata; genuinely custom dishes receive one
+  bounded Gemini metadata suggestion at creation time and save it for future
+  deterministic scoring. Editing a saved dish does not invoke Gemini again.
+- A local pre-LLM inspection helper and read-only real-event script now expose
+  signature score components and decisions, the explicit N/selected/locked/M
+  invariant, anonymized diner coverage and gaps, pantry retrieval stage counts,
+  and the compact brief without calling Gemini. Controlled signature, allergy,
+  pantry, and preference-sensitivity fixtures verify deterministic control.
 - Production Menu Drafting (`/events/[id]/menu`) now uses the approved
   Sofra/Lovable light application shell with rounded course cards, clearer
   locked and table-fit states, responsive controls, and a restyled PDF export

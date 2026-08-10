@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
+import '@/components/sofra-v2/sofra-v2.css'
 import {
   DISH_PRESETS,
   CUISINES,
@@ -62,6 +63,8 @@ type Signature = {
   name: string
   tags: string[]
   contains_allergens: string[]
+  novelty_score: number | null
+  is_substantial: boolean | null
 }
 
 type PantryItem = {
@@ -100,6 +103,7 @@ function KitchenPageInner() {
   const [sigAdding, setSigAdding] = useState(false)
   const [sigAddError, setSigAddError] = useState('')
   const [sigDeleteError, setSigDeleteError] = useState('')
+  const [sigTagsRevealed, setSigTagsRevealed] = useState(false)
   const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
   const [selectedDishKeys, setSelectedDishKeys] = useState<string[]>([])
   const [dishBatchAdding, setDishBatchAdding] = useState(false)
@@ -113,6 +117,7 @@ function KitchenPageInner() {
   const [pantryAdding, setPantryAdding] = useState(false)
   const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
+  const [pantryTagsRevealed, setPantryTagsRevealed] = useState(false)
   const [pantryDoneSaved, setPantryDoneSaved] = useState(false)
   const pantryDoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ingredientCategory, setIngredientCategory] = useState<IngredientCategoryFilter>('All')
@@ -136,7 +141,7 @@ function KitchenPageInner() {
       const [{ data: sigs, error: e1 }, { data: items, error: e2 }] = await Promise.all([
         supabase
           .from('signatures')
-          .select('id, name, tags, contains_allergens')
+          .select('id, name, tags, contains_allergens, novelty_score, is_substantial')
           .eq('chef_id', uid)
           .order('created_at', { ascending: false }),
         supabase
@@ -181,19 +186,26 @@ function KitchenPageInner() {
     if (!uid || sigAdding) return
     const name = sigName.trim()
     if (!name) { setSigAddError('Name is required.'); return }
+    if (!sigTagsRevealed) { setSigTagsRevealed(true); return }
+    if (!sigTagsList.some(isDishRole) || withoutDishRoles(sigTagsList).length === 0) {
+      setSigAddError('Choose a role and at least one descriptive tag.'); return
+    }
     setSigAdding(true)
     setSigAddError('')
 
+    const existing=editingSignatureId?signatures.find(signature=>signature.id===editingSignatureId):null
     const payload = {
       name,
-      tags: sigTagsList,
+      tags: Array.from(new Set(sigTagsList)),
       contains_allergens: sigAllergensList,
+      novelty_score:existing?.novelty_score??null,
+      is_substantial:existing?.is_substantial??null,
     }
     const query = editingSignatureId
       ? supabase.from('signatures').update(payload).eq('id', editingSignatureId).eq('chef_id', uid)
       : supabase.from('signatures').insert({ chef_id: uid, ...payload })
     const { data, error } = await query
-      .select('id, name, tags, contains_allergens')
+      .select('id, name, tags, contains_allergens, novelty_score, is_substantial')
       .single()
 
     if (error || !data) {
@@ -201,13 +213,14 @@ function KitchenPageInner() {
     } else {
       setSignatures((prev) =>
         editingSignatureId
-          ? prev.map((signature) => (signature.id === editingSignatureId ? data : signature))
+          ? prev.map((signature) => (signature.id === editingSignatureId ? { ...signature, ...data, name } : signature))
           : [data, ...prev]
       )
       setSigName('')
       setSigTagsList([])
       setSigAllergensList([])
       setEditingSignatureId(null)
+      setSigTagsRevealed(false)
     }
     setSigAdding(false)
   }
@@ -218,6 +231,7 @@ function KitchenPageInner() {
     setSigTagsList([...signature.tags])
     setSigAllergensList([...signature.contains_allergens])
     setSigAddError('')
+    setSigTagsRevealed(true)
   }
 
   function cancelSignatureEdit() {
@@ -225,6 +239,7 @@ function KitchenPageInner() {
     setSigName('')
     setSigTagsList([])
     setSigAllergensList([])
+    setSigTagsRevealed(false)
   }
 
   function toggleDishSelection(p: DishPreset) {
@@ -267,8 +282,10 @@ function KitchenPageInner() {
             name: p.name,
             tags: withDishRole(p.tags, p.role),
             contains_allergens: p.allergens,
+            novelty_score:p.novelty_score??null,
+            is_substantial:p.is_substantial??(p.role==='main'),
           })
-          .select('id, name, tags, contains_allergens')
+          .select('id, name, tags, contains_allergens, novelty_score, is_substantial')
           .single()
       )
     )
@@ -373,7 +390,15 @@ function KitchenPageInner() {
       ? INGREDIENT_CATEGORIES.flatMap((c) => INGREDIENT_PRESETS[c] ?? [])
       : (INGREDIENT_PRESETS[ingredientCategory] ?? [])
 
-  const pantryNamesLC = new Set(pantry.map((p) => p.name.toLowerCase()))
+  const presetSignatureNamesLC = new Set(DISH_PRESETS.map((preset) => preset.name.toLowerCase()))
+  const customSignatures = signatures.filter(
+    (signature) => !presetSignatureNamesLC.has(signature.name.toLowerCase())
+  )
+  const presetPantryNamesLC = new Set(
+    INGREDIENT_CATEGORIES.flatMap((category) => INGREDIENT_PRESETS[category] ?? [])
+      .map((name) => name.toLowerCase())
+  )
+  const customPantry = pantry.filter((item) => !presetPantryNamesLC.has(item.name.toLowerCase()))
 
   async function deleteSignature(sig: Signature) {
     const uid = uidRef.current
@@ -399,6 +424,10 @@ function KitchenPageInner() {
     if (!uid || pantryAdding) return
     const name = pantryName.trim()
     if (!name) { setPantryAddError('Name is required.'); return }
+    if (!pantryTagsRevealed) { setPantryTagsRevealed(true); return }
+    if (pantryTagsForPersistence(pantryTagsList).length === 0) {
+      setPantryAddError('Choose at least one descriptive tag.'); return
+    }
     setPantryAdding(true)
     setPantryAddError('')
 
@@ -428,6 +457,7 @@ function KitchenPageInner() {
       setPantryTagsList([])
       setPantryAllergensList([])
       setEditingPantryId(null)
+      setPantryTagsRevealed(false)
     }
     setPantryAdding(false)
   }
@@ -438,6 +468,7 @@ function KitchenPageInner() {
     setPantryTagsList(pantryTagsForPersistence(item.tags))
     setPantryAllergensList([...item.contains_allergens])
     setPantryAddError('')
+    setPantryTagsRevealed(true)
   }
 
   function cancelPantryEdit() {
@@ -445,6 +476,7 @@ function KitchenPageInner() {
     setPantryName('')
     setPantryTagsList([])
     setPantryAllergensList([])
+    setPantryTagsRevealed(false)
   }
 
   async function deletePantryItem(item: PantryItem) {
@@ -484,6 +516,7 @@ function KitchenPageInner() {
 
   return (
     <div
+      className="sv2-root sv2-device-page sv2-app-page sv2-production-kitchen"
       style={{
         minHeight: '100vh',
         background: C.ink,
@@ -492,7 +525,7 @@ function KitchenPageInner() {
       }}
     >
       <div
-        className="fade"
+        className="fade sv2-device-shell sv2-app-shell sv2-kitchen-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
       >
         {backEvent && (
@@ -572,71 +605,11 @@ function KitchenPageInner() {
         {!loading && !fetchError && (
           <>
             {/* ── Signatures ── */}
-            <div style={cardStyle}>
+            <section className="sv2-kitchen-card sv2-kitchen-signatures" style={cardStyle}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Your signatures</span>
                 <span style={faintSm}>dishes Sofra can always plate</span>
               </div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  marginTop: 12,
-                }}
-              >
-                {signatures.length === 0 ? (
-                  <div style={{ color: C.faint, fontSize: 14, fontFamily: 'system-ui, sans-serif' }}>
-                    No signatures yet.
-                  </div>
-                ) : (
-                  signatures.map((s) => (
-                    <div key={s.id} style={sigRow}>
-                      <span
-                        style={{
-                          color: C.cream,
-                          fontSize: 15,
-                          fontFamily: 'system-ui, sans-serif',
-                        }}
-                      >
-                        {s.name}
-                      </span>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 5,
-                          flexWrap: 'wrap',
-                          justifyContent: 'flex-end',
-                          alignItems: 'center',
-                        }}
-                      >
-                        {s.tags.map((t) => (
-                          <span key={t} style={tagOk}>{formatTagLabel(t)}</span>
-                        ))}
-                        {s.contains_allergens.map((c) => (
-                          <span key={c} style={tagWarn}>contains {formatTagLabel(c)}</span>
-                        ))}
-                        <button
-                          onClick={() => editSignature(s)}
-                          style={xBtn}
-                          aria-label={`Edit ${s.name}`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => void deleteSignature(s)}
-                          style={xBtn}
-                          title="Remove"
-                          aria-label={`Remove ${s.name}`}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
               <div
                 style={{
                   display: 'flex',
@@ -682,6 +655,7 @@ function KitchenPageInner() {
                   })}
                 </div>
                 <div
+                  className="sv2-production-inventory-chips"
                   style={{
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -691,10 +665,26 @@ function KitchenPageInner() {
                     paddingRight: 2,
                   }}
                 >
+                  {customSignatures.map((signature) => (
+                    <span className="sv2-production-saved-chip" key={signature.id}>
+                      <button type="button" aria-pressed="true" onClick={() => void deleteSignature(signature)}>
+                        {signature.name}
+                      </button>
+                    </span>
+                  ))}
                   {filteredPresets.map((p) => {
                     const key = dishKey(p)
-                    const on = selectedDishKeys.includes(key)
-                    return (
+                    const saved = signatures.find(
+                      (signature) => signature.name.toLowerCase() === p.name.toLowerCase()
+                    )
+                    const on = Boolean(saved) || selectedDishKeys.includes(key)
+                    return saved ? (
+                      <span className="sv2-production-saved-chip" key={key}>
+                        <button type="button" aria-pressed="true" onClick={() => void deleteSignature(saved)}>
+                          {p.name}
+                        </button>
+                      </span>
+                    ) : (
                       <button
                         key={key}
                         onClick={() => toggleDishSelection(p)}
@@ -762,12 +752,30 @@ function KitchenPageInner() {
                 >
                   {editingSignatureId ? 'Edit signature dish' : 'Add your own dish'}
                 </div>
+                {signatures.length > 0 && (
+                  <label className="sv2-inventory-edit-select" style={{ marginBottom: 18 }}>
+                    Edit a saved signature
+                    <select
+                      value={editingSignatureId ?? ''}
+                      onChange={(event) => {
+                        const signature = signatures.find((item) => item.id === event.target.value)
+                        if (signature) editSignature(signature)
+                        else cancelSignatureEdit()
+                      }}
+                    >
+                      <option value="">Choose a signature</option>
+                      {signatures.map((signature) => (
+                        <option key={signature.id} value={signature.id}>{signature.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     className="field sm"
                     placeholder="Add a signature dish…"
                     value={sigName}
-                    onChange={(e) => setSigName(e.target.value)}
+                    onChange={(e) => { setSigName(e.target.value); setSigAddError('') }}
                     onKeyDown={(e) => e.key === 'Enter' && void addSignature()}
                   />
                   <button
@@ -775,13 +783,13 @@ function KitchenPageInner() {
                     onClick={() => void addSignature()}
                     disabled={sigAdding}
                   >
-                    {sigAdding ? '…' : editingSignatureId ? 'Save' : 'Add'}
+                    {sigAdding ? '…' : sigTagsRevealed ? (editingSignatureId ? 'Save' : 'Save signature') : 'Continue'}
                   </button>
                   {editingSignatureId && (
                     <button onClick={cancelSignatureEdit} style={clearBtn}>Cancel</button>
                   )}
                 </div>
-                <TagGroupsPicker
+                {sigTagsRevealed && <><TagGroupsPicker
                   groups={SIGNATURE_TAG_GROUPS}
                   selected={sigTagsList}
                   onToggle={toggleTag}
@@ -811,6 +819,7 @@ function KitchenPageInner() {
                     )
                   })}
                 </div>
+                </>}
                 {sigAddError && (
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
@@ -818,72 +827,13 @@ function KitchenPageInner() {
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigDeleteError}</p>
                 )}
               </div>
-            </div>
+            </section>
 
             {/* ── Pantry ── */}
-            <div style={cardStyle}>
+            <section className="sv2-kitchen-card sv2-kitchen-pantry" style={cardStyle}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>This week’s pantry</span>
                 <span style={faintSm}>what’s fresh — Sofra builds new dishes from it</span>
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  marginTop: 12,
-                }}
-              >
-                {pantry.length === 0 ? (
-                  <div style={{ color: C.faint, fontSize: 14, fontFamily: 'system-ui, sans-serif' }}>
-                    Nothing in the pantry this week.
-                  </div>
-                ) : (
-                  pantry.map((p) => (
-                    <div key={p.id} style={sigRow}>
-                      <span
-                        style={{
-                          color: C.cream,
-                          fontSize: 15,
-                          fontFamily: 'system-ui, sans-serif',
-                        }}
-                      >
-                        {p.name}
-                      </span>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 5,
-                          flexWrap: 'wrap',
-                          justifyContent: 'flex-end',
-                          alignItems: 'center',
-                        }}
-                      >
-                        {p.tags.map((t) => (
-                          <span key={t} style={tagOk}>{formatTagLabel(t)}</span>
-                        ))}
-                        {p.contains_allergens.map((c) => (
-                          <span key={c} style={tagWarn}>contains {formatTagLabel(c)}</span>
-                        ))}
-                        <button
-                          onClick={() => editPantryItem(p)}
-                          style={xBtn}
-                          aria-label={`Edit ${p.name}`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => void deletePantryItem(p)}
-                          style={xBtn}
-                          title="Remove"
-                          aria-label={`Remove ${p.name}`}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
               <div
                 style={{
@@ -930,6 +880,7 @@ function KitchenPageInner() {
                   })}
                 </div>
                 <div
+                  className="sv2-production-pantry-chips"
                   style={{
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -939,17 +890,28 @@ function KitchenPageInner() {
                     paddingRight: 2,
                   }}
                 >
+                  {customPantry.map((item) => (
+                    <span className="sv2-production-saved-chip" key={item.id}>
+                      <button type="button" aria-pressed="true" onClick={() => void deletePantryItem(item)}>
+                        {item.name}
+                      </button>
+                    </span>
+                  ))}
                   {filteredIngredients.map((name) => {
-                    const on = selectedIngredients.includes(name)
-                    const already = pantryNamesLC.has(name.toLowerCase())
-                    return (
+                    const saved = pantry.find((item) => item.name.toLowerCase() === name.toLowerCase())
+                    const on = Boolean(saved) || selectedIngredients.includes(name)
+                    return saved ? (
+                      <span className="sv2-production-saved-chip" key={name}>
+                        <button type="button" aria-pressed="true" onClick={() => void deletePantryItem(saved)}>
+                          {name}
+                        </button>
+                      </span>
+                    ) : (
                       <button
                         key={name}
                         onClick={() => toggleIngredientSelection(name)}
-                        style={presetChip(on, already)}
-                        disabled={already}
+                        style={presetChip(on)}
                         aria-pressed={on}
-                        title={already ? 'Already in this week’s pantry' : undefined}
                       >
                         {name}
                       </button>
@@ -991,11 +953,31 @@ function KitchenPageInner() {
               </div>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                {pantry.length > 0 && (
+                  <label className="sv2-inventory-edit-select">
+                    Edit a saved pantry item
+                    <select
+                      value={editingPantryId ?? ''}
+                      onChange={(event) => {
+                        const item = pantry.find((savedItem) => savedItem.id === event.target.value)
+                        if (item) editPantryItem(item)
+                        else cancelPantryEdit()
+                      }}
+                    >
+                      <option value="">Choose a pantry item</option>
+                      {pantry.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                 <input
                   className="field sm"
                   placeholder="Add an ingredient…"
                   value={pantryName}
-                  onChange={(e) => setPantryName(e.target.value)}
+                  onChange={(e) => { setPantryName(e.target.value); setPantryAddError('') }}
                   onKeyDown={(e) => e.key === 'Enter' && void addPantryItem()}
                 />
                 <button
@@ -1003,7 +985,7 @@ function KitchenPageInner() {
                   onClick={() => void addPantryItem()}
                   disabled={pantryAdding}
                 >
-                  {pantryAdding ? '…' : editingPantryId ? 'Save' : 'Add'}
+                  {pantryAdding ? '…' : pantryTagsRevealed ? (editingPantryId ? 'Save' : 'Save ingredient') : 'Continue'}
                 </button>
                 {editingPantryId && (
                   <button onClick={cancelPantryEdit} style={clearBtn}>Cancel</button>
@@ -1013,7 +995,7 @@ function KitchenPageInner() {
               {/* Tag/allergen chips apply to whichever pantry insert fires next —
                   the manual "Add" button OR the preset "Add selected" batch —
                   and clear on success. Same UX pattern as signatures. */}
-              <div style={{ marginTop: 12 }}>
+              {pantryTagsRevealed && <><div style={{ marginTop: 12 }}>
                 <TagGroupsPicker
                   groups={PANTRY_TAG_GROUPS}
                   selected={pantryTagsList}
@@ -1045,6 +1027,7 @@ function KitchenPageInner() {
                   )
                 })}
               </div>
+              </>}
 
               {pantryAddError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
@@ -1073,7 +1056,7 @@ function KitchenPageInner() {
               >
                 {pantryDoneSaved ? 'Saved ✓' : "Done — this week's pantry"}
               </button>
-            </div>
+            </section>
 
             {/* Brief */}
             <div style={briefStyle}>
@@ -1091,8 +1074,8 @@ function KitchenPageInner() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: C.panel,
-  border: `1px solid ${C.line}`,
+  background: 'transparent',
+  border: '1px solid rgba(92, 21, 21, 0.22)',
   borderRadius: 18,
   padding: 18,
   marginBottom: 14,
@@ -1106,65 +1089,27 @@ const cardHeadRow: React.CSSProperties = {
 }
 
 const cardTitle: React.CSSProperties = {
-  color: C.cream,
+  color: 'inherit',
   fontSize: 17,
 }
 
 const faintSm: React.CSSProperties = {
-  color: C.faint,
+  color: 'rgba(92, 21, 21, 0.62)',
   fontSize: 12,
   fontFamily: 'system-ui, sans-serif',
   textAlign: 'right',
 }
 
-const sigRow: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 10,
-  padding: '10px 0',
-  borderBottom: `1px solid ${C.line}`,
-}
-
-const tagOk: React.CSSProperties = {
-  color: C.sage,
-  fontSize: 10,
-  border: '1px solid rgba(138,160,110,0.4)',
-  borderRadius: 10,
-  padding: '2px 7px',
-  fontFamily: 'system-ui, sans-serif',
-}
-
-const tagWarn: React.CSSProperties = {
-  color: C.gold,
-  fontSize: 10,
-  border: '1px solid rgba(217,161,91,0.4)',
-  borderRadius: 10,
-  padding: '2px 7px',
-  fontFamily: 'system-ui, sans-serif',
-}
-
-const xBtn: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: C.faint,
-  fontSize: 16,
-  cursor: 'pointer',
-  padding: '2px 4px',
-  lineHeight: 1,
-}
-
-function presetChip(on: boolean, disabled: boolean = false): React.CSSProperties {
+function presetChip(on: boolean): React.CSSProperties {
   return {
-    background: on ? C.burgundy : disabled ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.03)',
-    border: `1px solid ${on ? C.gold : C.line}`,
-    borderRadius: 10,
-    color: on ? C.cream : disabled ? C.faint : C.dim,
+    background: on ? '#5C1515' : 'transparent',
+    border: `1px solid ${on ? '#5C1515' : 'rgba(92, 21, 21, 0.28)'}`,
+    borderRadius: 999,
+    color: on ? '#F7F4ED' : '#5C1515',
     padding: '5px 10px',
     fontSize: 12,
     fontFamily: 'system-ui, sans-serif',
-    cursor: disabled ? 'default' : 'pointer',
-    opacity: disabled ? 0.5 : 1,
+    cursor: 'pointer',
     transition: 'all 0.18s',
   }
 }
@@ -1217,12 +1162,12 @@ function vocabChip(on: boolean, danger: boolean): React.CSSProperties {
   // Allergen chips use rose/danger palette to match how "avoid" chips look on
   // the guest RSVP page — visual language for "off-limits".
   return {
-    background: on ? (danger ? '#4A1E1E' : C.burgundy) : 'transparent',
+    background: on ? (danger ? '#7A171E' : '#5C1515') : 'transparent',
     border: `1px solid ${
-      on ? (danger ? C.rose : C.gold) : 'rgba(243,233,221,0.18)'
+      on ? '#5C1515' : 'rgba(92,21,21,0.28)'
     }`,
     borderRadius: 14,
-    color: on ? C.cream : danger ? C.rose : C.dim,
+    color: on ? '#F7F4ED' : '#5C1515',
     padding: '5px 11px',
     fontSize: 12,
     fontFamily: 'system-ui, sans-serif',
@@ -1234,7 +1179,7 @@ function vocabChip(on: boolean, danger: boolean): React.CSSProperties {
 const clearBtn: React.CSSProperties = {
   background: 'transparent',
   border: 'none',
-  color: C.faint,
+  color: 'rgba(92, 21, 21, 0.62)',
   fontSize: 12,
   fontFamily: 'system-ui, sans-serif',
   cursor: 'pointer',
@@ -1249,7 +1194,7 @@ const briefStyle: React.CSSProperties = {
   border: '1px solid rgba(217,161,91,0.22)',
   borderRadius: 16,
   padding: '14px 16px',
-  color: C.cream,
+  color: '#5C1515',
   fontSize: 14,
   lineHeight: 1.5,
   fontFamily: 'system-ui, sans-serif',

@@ -65,8 +65,10 @@ beforeEach(() => {
 
 test('signature picker exposes Main while pantry has no role controls or legacy role chip', async () => {
   render(<KitchenPage />)
-  await screen.findByText('Roast Chicken')
+  await screen.findByRole('button', { name: 'Roast Chicken' })
 
+  fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Test dish' } })
+  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[0])
   const main = screen.getByRole('button', { name: 'Main' })
   expect(main).toBeInTheDocument()
 
@@ -74,18 +76,32 @@ test('signature picker exposes Main while pantry has no role controls or legacy 
   expect(pantryCard).toBeTruthy()
   expect(within(pantryCard as HTMLElement).queryByText('Role')).not.toBeInTheDocument()
   expect(within(pantryCard as HTMLElement).queryByText('Main')).not.toBeInTheDocument()
-  expect(within(pantryCard as HTMLElement).getAllByText('Savory').length).toBeGreaterThan(0)
+  expect(within(pantryCard as HTMLElement).queryByText('Savory')).not.toBeInTheDocument()
+})
+
+test('saved signatures and pantry items render once as active chips', async () => {
+  render(<KitchenPage />)
+
+  const savedSignature = await screen.findByRole('button', { name: 'Roast Chicken' })
+  const savedPantry = await screen.findByRole('button', { name: 'Tomato' })
+
+  expect(savedSignature).toHaveAttribute('aria-pressed', 'true')
+  expect(savedPantry).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getAllByRole('button', { name: 'Roast Chicken' })).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: 'Tomato' })).toHaveLength(1)
 })
 
 test('creating and editing a signature persists the raw main role', async () => {
   render(<KitchenPage />)
-  await screen.findByText('Roast Chicken')
+  await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), {
     target: { value: 'Lamb Shoulder' },
   })
+  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[0])
   fireEvent.click(screen.getByRole('button', { name: 'Main' }))
-  fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0])
+  fireEvent.click(screen.getByRole('button', { name: 'Rich' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save signature' }))
 
   await waitFor(() => expect(writes.some((write) =>
     write.table === 'signatures'
@@ -93,7 +109,9 @@ test('creating and editing a signature persists the raw main role', async () => 
       && (write.payload.tags as string[]).includes('main')
   )).toBe(true))
 
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Roast Chicken' }))
+  fireEvent.change(screen.getByLabelText('Edit a saved signature'), {
+    target: { value: signature.id },
+  })
   expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -107,8 +125,10 @@ test('creating and editing a signature persists the raw main role', async () => 
 
 test('pantry update strips legacy roles and keeps raw descriptive tags', async () => {
   render(<KitchenPage />)
-  await screen.findByText('Tomato')
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Tomato' }))
+  await screen.findByRole('button', { name: 'Tomato' })
+  fireEvent.change(screen.getByLabelText('Edit a saved pantry item'), {
+    target: { value: pantry.id },
+  })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
   await waitFor(() => {

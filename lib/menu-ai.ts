@@ -7,7 +7,6 @@ import {
   assignSubstitutions,
   draftCourse,
   draftMenu,
-  nameMatchesSlot,
   scoreDish,
   scoreComposedDish,
   shortlistPantryForAI,
@@ -104,8 +103,8 @@ export function buildAIPrompt(
     ? intel.flavorCounts.map(d => `${d.label}=${d.count}`).join(', ')
     : 'none'
 
-  return `Compose a 5-course tasting menu. Slots, in order:
-  start (To Start), sea (Main — Sea), land (Main — Land), green (Main — Green), finish (To Finish)
+  return `Compose a flexible shared menu. Roles, in order:
+  starter (To Start), main (Mains), side (On the Side), dessert (To Finish)
 
 SIGNATURE DISHES (chef's picks, pre-filtered to strong slot matches — reuse where they fit):
 ${sigLines}
@@ -129,14 +128,12 @@ guest. Downstream verifies each course against the pantry's declared allergens
 ${allergyLines}
 
 PREFERENCES — the system handles these with side-plated substitutes. Pick the
-right dish for the WHOLE table regardless. Do NOT swap Sea to veg pasta or Land
-to veg curry to appease vegetarians. Composed Sea MUST include a seafood
-pantry item; composed Land MUST include a meat/poultry pantry item — otherwise
-the course is rejected.
+right dish for the WHOLE table regardless. Do not assume seafood or meat must
+exist; use the strongest available ingredients and table fit.
 ${preferenceLines}
 
 Return ONE dish per slot. Fields per course:
-- slot: "start"|"sea"|"land"|"green"|"finish"
+- slot: "starter"|"main"|"side"|"dessert"
 - dish_name: plated name (exact signature name if reusing)
 - dish_origin: "signature" | "pantry-composed"
 - signature_id: id from the signature list (only when dish_origin="signature"; must match exactly)
@@ -149,9 +146,9 @@ Do NOT return self-declared safety fields (no contains_allergens, violates_diets
 Return ONLY this JSON, no prose:
 {
   "courses": [
-    { "slot": "start", "dish_name": "...", "dish_origin": "...",
+    { "slot": "starter", "dish_name": "...", "dish_origin": "...",
       "signature_id": "..."|null, "pantry_ids": [...]|null, "reasoning": "..." },
-    ... (5 entries, in the order start, sea, land, green, finish)
+    ... (4 entries, in the order starter, main, side, dessert)
   ]
 }`
 }
@@ -224,29 +221,6 @@ function verifyAndScore(
     return {
       unverifiable: true,
       reason: `pantry_ids not in catalog: ${missing.join(', ')}`,
-    }
-  }
-
-  // Sea/Land are category-strict slots: a "Main — Sea" composed only of
-  // Miso Paste + Orzo + Bell Peppers is misleading even if it verifies safe.
-  // Require at least one component whose tag ('seafood' / 'meat') or name
-  // matches the slot's keywords. If nothing plausible, reject as
-  // unverifiable so the caller either falls back to a rule-based pick or
-  // leaves the slot honestly empty.
-  if (proposed.slot === 'sea' || proposed.slot === 'land') {
-    const needTag = proposed.slot === 'sea' ? 'seafood' : 'meat'
-    const slotOk = resolved.some(item => {
-      const hasTag = item.tags.some(t => t.toLowerCase() === needTag)
-      return hasTag || nameMatchesSlot(item.name, proposed.slot)
-    })
-    if (!slotOk) {
-      return {
-        unverifiable: true,
-        reason:
-          `composed dish for slot "${proposed.slot}" has no ` +
-          `${proposed.slot === 'sea' ? 'seafood/fish' : 'meat/poultry'} component ` +
-          `(components: ${resolved.map(r => r.name).join(', ')})`,
-      }
     }
   }
 
