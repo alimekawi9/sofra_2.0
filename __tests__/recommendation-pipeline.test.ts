@@ -42,3 +42,23 @@ test('sequential selector produces dynamic gaps and MMR diagnostics',()=>{
   expect(plan.ingredients.length).toBeLessThanOrEqual(plan.contextCeiling)
   expect(plan.ingredients.every(item=>item.mmr===.8*item.relevance-.2*item.redundancy)).toBe(true)
 })
+
+test('unknown novelty is neutral, no-preference protein is neutral, and crispy is sensory-matchable',()=>{
+  const generated={id:'g',name:'Crispy vegetable bite',tags:['starter','vegetable','crispy'],contains_allergens:[],slot:null,novelty_score:null}
+  const fit=dinerDishFit(diner('A',{proteinPreferences:['no_preference'],flavorPreference:['crispy'],adventurousness:90}),generated,4)
+  expect(fit.protein).toBe(.65)
+  expect(fit.flavor).toBe(1)
+  expect(fit.adventurousness).toBe(.5)
+  expect(dinerDishFit(diner('A',{dietary:['vegan']}),{...generated,tags:['starter','chicken','crispy']},4).eligibility).toBe(0)
+})
+
+test('coverage allocation assigns distinct diner obligations across enough gaps',()=>{
+  const plan=buildRecommendationPlan([diner('A',{proteinPreferences:['chicken'],flavorPreference:['crispy']}),diner('B',{dietary:['vegetarian'],proteinPreferences:['no_preference'],flavorPreference:['spicy','umami']}),...Array.from({length:7},(_,i)=>diner(`Other ${i}`))],[],[])
+  const a=plan.gaps.filter(g=>g.targetDiners.some(t=>t.dinerIndex===0)),b=plan.gaps.filter(g=>g.targetDiners.some(t=>t.dinerIndex===1))
+  expect(plan.targetDishCount).toBe(7)
+  expect(a).toHaveLength(4)
+  expect(b).toHaveLength(4)
+  expect(plan.gaps.some(g=>g.targetDiners.length>=2)).toBe(true)
+  expect(a[0].targetDiners.find(t=>t.dinerIndex===0)?.proteinNeed).toEqual(['chicken'])
+  expect(b[0].targetDiners.find(t=>t.dinerIndex===1)?.dietaryConstraints).toContain('vegetarian')
+})

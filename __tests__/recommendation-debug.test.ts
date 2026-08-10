@@ -1,0 +1,16 @@
+import { inspectPreLlmPipeline } from '@/lib/recommendation/debug'
+import type { TasteProfile } from '@/lib/intel'
+import type { PantryItem, Signature } from '@/lib/menu'
+
+const guests=(overrides:Partial<TasteProfile>={}):TasteProfile[]=>Array.from({length:6},(_,i)=>({name:`Guest ${i}`,dietary:[],avoid:[],proteinPreferences:['chicken'],flavorPreference:['smoky'],adventurousness:75,...overrides}))
+const signature=(id:string,name:string,tags:string[],contains_allergens:string[]=[]):Signature=>({id,name,tags,contains_allergens,slot:null})
+const pantry=(names:Array<[string,string[]]>):PantryItem[]=>names.map(([name,tags],i)=>({id:`p${i}`,name,tags,contains_allergens:[]}))
+const matching=signature('match','Smoky Chicken Grill',['main','chicken','smoky','adventurous','substantial'])
+
+test('A: obvious signature match is selected before Gemini',()=>{const result=inspectPreLlmPipeline(guests(),[matching],[],[]);expect(result.N).toBe(5);expect(result.selectedSignatures).toContain(matching.name);expect(result.M).toBeLessThan(result.N);expect(result.invariant).toBe('M = 5 - 1 selected unlocked - 0 locked = 4')})
+
+test('B: below-cutoff allergen excludes then restores signature',()=>{const risky=signature('risk','Smoky Chicken Satay',['main','chicken','smoky','adventurous','substantial'],['nuts']),blocked=inspectPreLlmPipeline(guests({avoid:['nuts']}),[risky],[],[]),clear=inspectPreLlmPipeline(guests(),[risky],[],[]);expect(blocked.selectedSignatures).not.toContain(risky.name);expect(blocked.signatureCandidates[0].reason).toMatch(/excluded before selection/);expect(clear.selectedSignatures).toContain(risky.name)})
+
+test('C: pantry inventory materially changes compact context',()=>{const a=pantry([['Eggplant',['vegetable']],['Tahini',['sauce']],['Chickpeas',['legume']],['Mint',['herb']],['Yogurt',['dairy']],['Pomegranate Molasses',['sauce']]]),b=pantry([['Potatoes',['grain']],['Mushrooms',['mushroom']],['Cream',['dairy']],['Leeks',['vegetable']],['Rosemary',['herb']],['Parmesan',['dairy']]]),A=inspectPreLlmPipeline(guests(),[],a,[]),B=inspectPreLlmPipeline(guests(),[],b,[]);expect(A.pantryRetrieval.finalIngredientNames).not.toEqual(B.pantryRetrieval.finalIngredientNames);expect(A.compactBrief.availableIngredientsByCategory).not.toEqual(B.compactBrief.availableIngredientsByCategory)})
+
+test('D: preferences change scores, gaps, and retrieved context',()=>{const signatures=[signature('fresh','Citrus Herb Salad',['starter','vegetable','fresh','bright','light','familiar']),signature('smoky','Smoky Chicken',['main','chicken','smoky','rich','adventurous','substantial'])],stock=pantry([['Citrus Dressing',['fresh']],['Smoke Paste',['smoky']],['Chicken',['chicken']],['Lentils',['legume']]]),fresh=inspectPreLlmPipeline(guests({proteinPreferences:['vegetable'],flavorPreference:['fresh','bright'],adventurousness:25}),signatures,stock,[]),smoky=inspectPreLlmPipeline(guests({proteinPreferences:['chicken'],flavorPreference:['smoky','rich'],adventurousness:75}),signatures,stock,[]);expect(fresh.signatureCandidates.map(x=>x.dynamicScore)).not.toEqual(smoky.signatureCandidates.map(x=>x.dynamicScore));expect(fresh.compactBrief.gaps).not.toEqual(smoky.compactBrief.gaps);expect(fresh.pantryRetrieval.finalIngredientNames).not.toEqual(smoky.pantryRetrieval.finalIngredientNames)})

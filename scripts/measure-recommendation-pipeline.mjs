@@ -55,7 +55,7 @@ try {
   fallback = true
   console.error(error)
 }
-const toDishes = p => [...plan.selected.map(x => ({ name: x.signature.name, role: x.role, origin: 'signature', baseSignatureName: x.signature.name, usedAvailableIngredients: [], missingIngredients: [] })), ...p.generatedDishes.map(x => ({ name: x.finalName, role: x.role, origin: 'generated', usedAvailableIngredients: x.usedAvailableIngredients, missingIngredients: x.missingIngredients }))]
+const toDishes = p => [...plan.selected.map(x => ({ name: x.signature.name, role: x.role, origin: 'signature', baseSignatureName: x.signature.name, usedAvailableIngredients: [], missingIngredients: [] })), ...p.generatedDishes.map(x => ({ name: x.finalName, role: x.role, origin: 'generated', usedAvailableIngredients: x.usedAvailableIngredients, missingIngredients: x.missingIngredients, scoringMetadata: x.metadata }))]
 const validate = dishes => validateFinalMenu({ dishes, target: plan.targetDishCount, guests, signatures, pantry })
 const validationStarted = performance.now()
 const repaired = fallback ? { result: validate(toDishes(proposal)), attempts: 0 } : await repairWithLimit(toDishes(proposal), validate, async (dishes, issue) => {
@@ -66,8 +66,9 @@ const repaired = fallback ? { result: validate(toDishes(proposal)), attempts: 0 
   const parsed = parseMenuProposal(raw, repairBrief)
   if (!parsed.ok || parsed.proposal.generatedDishes.length !== 1) return null
   const d = parsed.proposal.generatedDishes[0]
-  return { index, dish: { name: d.finalName, role: d.role, origin: 'generated', usedAvailableIngredients: d.usedAvailableIngredients, missingIngredients: d.missingIngredients } }
+  return { index, dish: { name: d.finalName, role: d.role, origin: 'generated', usedAvailableIngredients: d.usedAvailableIngredients, missingIngredients: d.missingIngredients, scoringMetadata: d.metadata } }
 }, 2)
 const validationLatency = performance.now() - validationStarted
 fallback ||= !repaired.result.valid
+if (!repaired.result.valid) console.error(JSON.stringify({ stage: 'deterministic_validation', issues: repaired.result.issues }, null, 2))
 console.log(JSON.stringify({ calculatedN: plan.targetDishCount, selectedSignatureCount: plan.selected.length, M: plan.gaps.length, promptTokens: Math.ceil(prompt.length / 4), modelLatencyMs: Math.round(modelLatency), validationLatencyMs: Math.round(validationLatency), repairAttempts: repaired.attempts, totalLatencyMs: Math.round(performance.now() - started), fallback }, null, 2))
