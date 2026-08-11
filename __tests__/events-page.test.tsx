@@ -190,6 +190,7 @@ describe('Hosting events', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
     expect(screen.getByText('Casa Mekawi')).toBeInTheDocument()
     expect(screen.getByText('The Garden Room')).toBeInTheDocument()
+    expect(screen.getByText(/Sep 1, 2026/)).toBeInTheDocument()
   })
 
   it('moves a published past host event to HOSTED', async () => {
