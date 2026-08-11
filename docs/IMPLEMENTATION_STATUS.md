@@ -169,3 +169,4 @@
 - Person names across production event, RSVP, table-intelligence, dashboard, and shared-album views now use linked photo/initial avatars.
 - `/profile/[userId]` shows public identity and caption. RSVP history is queried only after the viewer is confirmed as the owner or a mutual through shared `going`/`maybe` RSVP rows; non-mutuals receive a private-history message.
 - Mutual relationships remain derived from RSVP data and are not stored separately.
+- Event hosts are automatically maintained as `going` RSVP attendees, so their taste profile contributes to menu fit and portion counts. Existing events are backfilled, hosts appear in Around this Sofra with a Host badge, and hosts can open their own table-preference form.

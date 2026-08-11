@@ -135,7 +135,12 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           setGuests(
             (guestRows as unknown as GuestRow[])
               .filter((g) => g.users !== null)
-              .map((g) => ({ id: g.users!.id, name: g.users!.name, photoUrl: g.users!.photo_url }))
+              .map((g) => ({
+                id: g.users!.id,
+                name: g.users!.name,
+                photoUrl: g.users!.photo_url,
+                isHost: g.users!.id === ev.host_id,
+              }))
           )
         }
 

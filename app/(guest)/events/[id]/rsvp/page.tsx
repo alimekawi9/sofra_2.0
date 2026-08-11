@@ -39,6 +39,7 @@ type Step = 'status' | 'confirm-preferences' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
 
 type EventRow = {
+  host_id: string
   is_published: boolean
   title: string
   tagline: string | null
@@ -103,7 +104,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
       const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
         supabase.from('events')
-          .select('title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(id,name,photo_url)')
+          .select('host_id,title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(id,name,photo_url)')
           .eq('id', params.id)
           .single(),
         supabase.from('rsvps')
@@ -119,7 +120,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
       if (e0 || e1 || e2) throw new Error('fetch failed')
 
-      if (ev.is_published === false) {
+      if (ev.is_published === false && ev.host_id !== stored) {
         setIsUnpublished(true)
         setEvent(null)
         return

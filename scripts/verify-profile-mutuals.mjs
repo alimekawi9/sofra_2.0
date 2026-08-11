@@ -38,7 +38,6 @@ try {
   if (eventError) throw eventError
 
   const { error: rsvpError } = await db.from('rsvps').insert([
-    { event_id: eventId, user_id: ids[0], status: 'going' },
     { event_id: eventId, user_id: ids[1], status: 'maybe' },
   ])
   if (rsvpError) throw rsvpError

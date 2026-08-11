@@ -29,7 +29,7 @@ function makeSupabase({
   event      = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
   rsvpRow    = null as { status: string } | null,
   fetchError = null as { message: string } | null,
-  guestRows  = [] as Array<{ status: string; users: { id: string; name: string } | null }>,
+  guestRows  = [] as Array<{ status: string; users: { id: string; name: string; photo_url?: string | null } | null }>,
   deleteError = null as { message: string } | null,
   photoRows  = [] as Array<{ id: string; event_id: string; uploaded_by: string; storage_path: string; created_at: string }>,
   photoFetchError = null as { message: string } | null,
@@ -513,6 +513,19 @@ describe('Remove guest', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not remove/i))
     expect(screen.getByText('Omar')).toBeInTheDocument()
+  })
+})
+
+describe('Host membership', () => {
+  it('shows the host in Around this Sofra with a Host badge and no remove control', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ guestRows: [{ status: 'going', users: { id: HOST_UID, name: 'Layla', photo_url: null } }] })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByText('Layla')).toBeInTheDocument())
+    expect(screen.getByText('Host')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Remove Layla/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /my table preferences/i })).toBeInTheDocument()
   })
 })
 

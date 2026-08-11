@@ -13,6 +13,7 @@ export interface EventPaperGuest {
   id: string
   name: string
   photoUrl: string | null
+  isHost?: boolean
 }
 
 export interface EventPaperProps {
@@ -157,6 +158,9 @@ export function EventPaper({
                 <button className="sv2-manage-guests" type="button" onClick={onViewTable}>
                   SET THE SOFRA
                 </button>
+                <button className="sv2-manage-guests" type="button" onClick={onEditRsvp}>
+                  MY TABLE PREFERENCES
+                </button>
               </>
             )}
 
@@ -200,7 +204,8 @@ export function EventPaper({
                           name={guest.name}
                           photoUrl={guest.photoUrl}
                         />
-                        {isHost && onRemoveGuest && (
+                        {guest.isHost && <span className="sv2-guest-host-badge">Host</span>}
+                        {isHost && !guest.isHost && onRemoveGuest && (
                           confirmingGuestId === guest.id ? (
                             <div className="sv2-guest-remove-confirm">
                               <button
