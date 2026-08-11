@@ -529,6 +529,14 @@ describe('Host membership', () => {
   })
 })
 
+it('shows the event year in the detail date', async () => {
+  localStorage.setItem('sofra_user_id', HOST_UID)
+  makeSupabase()
+  render(<EventDetailPage params={PARAMS} />)
+
+  await waitFor(() => expect(screen.getByText(/September 1, 2026/)).toBeInTheDocument())
+})
+
 describe('Locked table preview', () => {
   it('shows the locked card with exact copy for a guest with no RSVP', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
