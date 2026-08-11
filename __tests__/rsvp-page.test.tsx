@@ -24,6 +24,7 @@ beforeEach(() => {
   mockPush.mockReset()
   localStorage.clear()
   localStorage.setItem('sofra_user_id', 'uid-1')
+  window.history.replaceState({}, '', '/events/event-1/rsvp')
 })
 
 // Shared mock factory — call at the start of each test that needs Supabase
@@ -599,6 +600,15 @@ describe('going/maybe submit', () => {
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
     expect(screen.getByRole('button', { name: /update rsvp/i })).toBeInTheDocument()
+  })
+
+  it('reads "UPDATE PREFERENCES" when opened from Profile', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+
+    expect(await screen.findByRole('button', { name: 'UPDATE PREFERENCES' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'UPDATE RSVP' })).not.toBeInTheDocument()
   })
 })
 

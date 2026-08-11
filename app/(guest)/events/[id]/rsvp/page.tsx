@@ -84,6 +84,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [adventurousness, setAdventurousness] = useState(50)
   const [prefilled, setPrefilled] = useState(false)
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
+  const [isPreferenceOnly, setIsPreferenceOnly] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [isUnpublished, setIsUnpublished] = useState(false)
@@ -204,6 +205,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       }
 
       if (new URLSearchParams(window.location.search).get('preferences') === '1') {
+        setIsPreferenceOnly(true)
         setStatus('going')
         setStep('profile')
       }
@@ -416,7 +418,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onAdventurousnessChange={setAdventurousness}
         onSave={handleProfileSubmit}
         prefilled={prefilled}
-        saveLabel={hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
+        saveLabel={isPreferenceOnly ? 'UPDATE PREFERENCES' : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
         error={error}
         onBack={() => setStep('status')}
