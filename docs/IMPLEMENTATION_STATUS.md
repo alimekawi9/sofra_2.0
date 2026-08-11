@@ -171,3 +171,4 @@
 - Mutual relationships remain derived from RSVP data and are not stored separately.
 - Event hosts are automatically maintained as `going` RSVP attendees, so their taste profile contributes to menu fit and portion counts. Existing events are backfilled and hosts appear in Around this Sofra with a Host badge.
 - Host table preferences are managed from Profile instead of the event preview. Hosts without a taste profile see a dismissible reminder, and mobile invite sharing keeps Copy Link and WhatsApp side by side.
+- Published host events automatically move from Hosting to Hosted after their event date passes; unpublished drafts remain under Hosting.

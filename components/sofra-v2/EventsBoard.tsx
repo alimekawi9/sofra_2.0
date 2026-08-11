@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
 
-export type EventsBoardStatus = 'invited' | 'hosting' | 'going' | 'went'
+export type EventsBoardStatus = 'invited' | 'hosting' | 'going' | 'hosted' | 'went'
 
 export interface EventsBoardEvent {
   id: string
@@ -32,11 +32,12 @@ export interface EventsBoardProps {
   onHostEvent: () => void
 }
 
-const FILTERS: readonly EventsBoardStatus[] = ['invited', 'hosting', 'going', 'went']
+const FILTERS: readonly EventsBoardStatus[] = ['invited', 'hosting', 'going', 'hosted', 'went']
 const LABELS: Record<EventsBoardStatus, string> = {
   invited: 'INVITED',
   hosting: 'HOSTING',
   going: 'GOING',
+  hosted: 'HOSTED',
   went: 'WENT',
 }
 

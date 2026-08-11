@@ -60,19 +60,24 @@ export default function EventsPage() {
 
       setName(user?.name || 'You')
 
-      const hosting: EventsBoardEvent[] = ((hostEvents ?? []) as EventRow[]).map((ev) => ({
-        id: ev.id,
-        status: 'hosting' as EventsBoardStatus,
-        title: ev.title,
-        host: null,
-        venue: ev.venue ?? '',
-        dateLabel: formatDate(ev.event_date),
-        timeLabel: formatTime(ev.event_date),
-        rsvpStatus: 'Hosting',
-        theme: ev.theme,
-        coverUrl: ev.cover_url,
-        isDraft: ev.is_published === false,
-      }))
+      const hosting: EventsBoardEvent[] = ((hostEvents ?? []) as EventRow[]).map((ev) => {
+        const isDraft = ev.is_published === false
+        const isPast = new Date(ev.event_date).getTime() < now
+        const status: EventsBoardStatus = !isDraft && isPast ? 'hosted' : 'hosting'
+        return {
+          id: ev.id,
+          status,
+          title: ev.title,
+          host: null,
+          venue: ev.venue ?? '',
+          dateLabel: formatDate(ev.event_date),
+          timeLabel: formatTime(ev.event_date),
+          rsvpStatus: status === 'hosted' ? 'Hosted' : 'Hosting',
+          theme: ev.theme,
+          coverUrl: ev.cover_url,
+          isDraft,
+        }
+      })
 
       const hostingIds = new Set(hosting.map((ev) => ev.id))
 

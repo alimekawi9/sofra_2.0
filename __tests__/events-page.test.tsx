@@ -16,6 +16,7 @@ type EventRow = {
   venue: string | null
   theme: string
   cover_url?: string | null
+  is_published?: boolean
 }
 
 const SAMPLE_EVENT: EventRow = {
@@ -189,6 +190,28 @@ describe('Hosting events', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
     expect(screen.getByText('Casa Mekawi')).toBeInTheDocument()
     expect(screen.getByText('The Garden Room')).toBeInTheDocument()
+  })
+
+  it('moves a published past host event to HOSTED', async () => {
+    makeSupabase({
+      hostingEvents: [{ ...SAMPLE_EVENT, event_date: '2020-01-01T19:00:00Z', is_published: true }],
+    })
+    render(<EventsPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTED' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'HOSTING' })).not.toBeInTheDocument()
+    expect(screen.getByText('Hosted')).toBeInTheDocument()
+  })
+
+  it('keeps an unpublished past draft under HOSTING', async () => {
+    makeSupabase({
+      hostingEvents: [{ ...SAMPLE_EVENT, event_date: '2020-01-01T19:00:00Z', is_published: false }],
+    })
+    render(<EventsPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'HOSTED' })).not.toBeInTheDocument()
+    expect(screen.getByText('Draft')).toBeInTheDocument()
   })
 
   it('clicking View event navigates to /events/[id]', async () => {
