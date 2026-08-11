@@ -791,10 +791,10 @@
 .sv2-event-stack{display:grid;gap:18px;}
 .sv2-event-card{
   position:relative;
-  width:70%;
+  width:60%;
   min-height:230px;
   margin-inline:auto;
-  padding:24px;
+  padding:24px 24px 40px;
   box-sizing:border-box;
   border-radius:28px;
   overflow:hidden;
