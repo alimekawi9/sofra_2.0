@@ -76,7 +76,6 @@ test('signature picker exposes Main while pantry has no role controls or legacy 
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Test dish' } })
-  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[0])
   const main = screen.getByRole('button', { name: 'Main' })
   expect(main).toBeInTheDocument()
 
@@ -113,11 +112,11 @@ test('stages preset changes until the single signatures UPDATE action', async ()
 
   const signatureCard = screen.getByText('Your signatures').parentElement?.parentElement
   expect(within(signatureCard as HTMLElement).queryByRole('button', { name: /Add selected/i })).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'DONE' })).toBeDisabled()
+  expect(within(signatureCard as HTMLElement).getByRole('button', { name: 'UPDATE' })).toBeDisabled()
   fireEvent.click(hummus)
   expect(hummus).toHaveAttribute('aria-pressed', 'true')
   expect(writes.some(write => write.kind === 'insert')).toBe(false)
-  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+  fireEvent.click(within(signatureCard as HTMLElement).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some(write => write.table === 'signatures' && write.kind === 'insert')).toBe(true))
 })
@@ -129,11 +128,11 @@ test('creating and editing a signature persists the raw main role', async () => 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), {
     target: { value: 'Lamb Shoulder' },
   })
-  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[0])
   fireEvent.click(screen.getByRole('button', { name: 'Main' }))
   fireEvent.click(screen.getByRole('button', { name: 'Rich' }))
   expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
-  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+  const signatureCard = document.querySelector('.sv2-kitchen-signatures') as HTMLElement
+  fireEvent.click(within(signatureCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some((write) =>
     write.table === 'signatures'
@@ -146,7 +145,7 @@ test('creating and editing a signature persists the raw main role', async () => 
   })
   expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
   fireEvent.click(screen.getByRole('button', { name: 'Fresh' }))
-  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+  fireEvent.click(within(signatureCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some((write) =>
     write.table === 'signatures'
@@ -162,7 +161,8 @@ test('pantry update strips legacy roles and keeps raw descriptive tags', async (
   fireEvent.change(screen.getByLabelText('Edit a saved pantry item'), {
     target: { value: pantry.id },
   })
-  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => {
     const update = writes.find((write) => write.table === 'pantry_items' && write.kind === 'update')
@@ -175,9 +175,9 @@ test('adding a pantry item with no quantity entered saves null amount/unit (bina
   await screen.findByRole('button', { name: 'Tomato' })
 
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
-  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[1])
   fireEvent.click(screen.getByRole('button', { name: 'Savory' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Save ingredient' }))
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => {
     const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')
@@ -192,9 +192,9 @@ test('adding a pantry item with a quantity entered saves the amount and unit', a
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
   fireEvent.change(screen.getByLabelText('Quantity amount'), { target: { value: '2' } })
   fireEvent.change(screen.getByLabelText('Quantity unit'), { target: { value: 'lbs' } })
-  fireEvent.click(screen.getAllByRole('button', { name: 'Continue' })[1])
   fireEvent.click(screen.getByRole('button', { name: 'Savory' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Save ingredient' }))
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => {
     const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')

@@ -202,13 +202,6 @@ function KitchenPageInner() {
     return { id: data.id, title: data.title, isPublished: data.is_published !== false }
   }
 
-  function continueSignature() {
-    const name = sigName.trim()
-    if (!name) { setSigAddError('Name is required.'); return }
-    setSigAddError('')
-    setSigTagsRevealed(true)
-  }
-
   function editSignature(signature: Signature) {
     setEditingSignatureId(signature.id)
     setSigName(signature.name)
@@ -320,6 +313,8 @@ function KitchenPageInner() {
     setPantryAllergensList((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))
   }
 
+  // Kept as the retry primitive for any future partial batch-recovery UI.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function addSelectedIngredients() {
     const uid = uidRef.current
     if (!uid || ingredientBatchAdding || selectedIngredients.length === 0) return
@@ -421,6 +416,8 @@ function KitchenPageInner() {
     setPendingRemovedSignatureIds(prev => prev.includes(signature.id) ? prev.filter(id => id !== signature.id) : [...prev, signature.id])
   }
 
+  // Kept as the single-item persistence primitive used by the combined flow.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function addPantryItem() {
     const uid = uidRef.current
     if (!uid || pantryAdding) return
@@ -535,6 +532,65 @@ function KitchenPageInner() {
     setPantryDoneSaved(true)
     if (pantryDoneTimeoutRef.current) clearTimeout(pantryDoneTimeoutRef.current)
     pantryDoneTimeoutRef.current = setTimeout(() => setPantryDoneSaved(false), 2000)
+  }
+
+  async function savePantryAndContinue() {
+    const uid = uidRef.current
+    if (!uid || pantryAdding || ingredientBatchAdding || publishingDraft) return
+
+    const name = pantryName.trim()
+    const formHasContent = Boolean(name || editingPantryId || pantryTagsList.length || pantryAllergensList.length || pantryQuantityAmount.trim() || pantryQuantityUnit.trim())
+    const tags = pantryTagsForPersistence(pantryTagsList)
+    if (formHasContent && (!name || tags.length === 0)) {
+      setPantryAddError('Enter an ingredient name and choose at least one descriptive tag.')
+      return
+    }
+
+    setPantryAdding(true)
+    setIngredientBatchAdding(true)
+    setPantryAddError('')
+    setIngredientBatchError('')
+
+    const allergens = pantryAllergensList
+    const trimmedAmount = pantryQuantityAmount.trim()
+    const parsedAmount = trimmedAmount === '' ? null : Number(trimmedAmount)
+    const formPayload = {
+      name,
+      week_of: weekOf,
+      tags,
+      contains_allergens: allergens,
+      quantity_amount: parsedAmount !== null && Number.isFinite(parsedAmount) ? parsedAmount : null,
+      quantity_unit: pantryQuantityUnit.trim() || null,
+    }
+    const formOperation = formHasContent
+      ? (editingPantryId
+          ? supabase.from('pantry_items').update(formPayload).eq('id', editingPantryId).eq('chef_id', uid)
+          : supabase.from('pantry_items').insert({ chef_id: uid, ...formPayload }))
+      : null
+    const results = await Promise.allSettled([
+      ...selectedIngredients.map((selectedName) =>
+        supabase.from('pantry_items').insert({
+          chef_id: uid,
+          name: selectedName,
+          week_of: weekOf,
+          tags,
+          contains_allergens: allergens,
+        })
+      ),
+      ...(formOperation ? [formOperation] : []),
+    ])
+    const failed = results.some((result) => result.status === 'rejected' || Boolean(result.value.error))
+    setPantryAdding(false)
+    setIngredientBatchAdding(false)
+    if (failed) {
+      setPantryAddError('Could not update your pantry. Your selections are still here. Try again.')
+      return
+    }
+
+    setSelectedIngredients([])
+    cancelPantryEdit()
+    await loadData()
+    await handlePantryDone()
   }
 
   useEffect(() => {
@@ -765,16 +821,12 @@ function KitchenPageInner() {
                     className="field sm"
                     placeholder="Add a signature dish…"
                     value={sigName}
-                    onChange={(e) => { setSigName(e.target.value); setSigAddError('') }}
-                    onKeyDown={(e) => e.key === 'Enter' && !sigTagsRevealed && continueSignature()}
+                    onChange={(e) => {
+                      setSigName(e.target.value)
+                      setSigAddError('')
+                      if (e.target.value.trim()) setSigTagsRevealed(true)
+                    }}
                   />
-                  {!sigTagsRevealed && <button
-                    className="add"
-                    onClick={continueSignature}
-                    disabled={sigAdding}
-                  >
-                    Continue
-                  </button>}
                   {editingSignatureId && (
                     <button onClick={cancelSignatureEdit} style={clearBtn}>Cancel</button>
                   )}
@@ -814,7 +866,7 @@ function KitchenPageInner() {
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
                 <button className="add" onClick={() => void saveSignatureChanges()} disabled={!signaturesDirty || sigAdding} style={{ marginTop: 12, width: '100%' }}>
-                  {sigAdding ? 'UPDATING...' : signaturesDirty ? 'UPDATE' : 'DONE'}
+                  {sigAdding ? 'SAVING...' : signatures.length === 0 ? 'SUBMIT' : 'UPDATE'}
                 </button>
               </div>
             </section>
@@ -908,35 +960,6 @@ function KitchenPageInner() {
                     )
                   })}
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginTop: 4,
-                  }}
-                >
-                  <button
-                    className="add"
-                    onClick={() => void addSelectedIngredients()}
-                    disabled={ingredientBatchAdding || selectedIngredients.length === 0}
-                  >
-                    {ingredientBatchAdding
-                      ? '…'
-                      : `Add selected (${selectedIngredients.length})`}
-                  </button>
-                  {selectedIngredients.length > 0 && !ingredientBatchAdding && (
-                    <button
-                      onClick={() => {
-                        setSelectedIngredients([])
-                        setIngredientBatchError('')
-                      }}
-                      style={clearBtn}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
                 {ingredientBatchError && (
                   <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{ingredientBatchError}</p>
                 )}
@@ -967,16 +990,12 @@ function KitchenPageInner() {
                   className="field sm"
                   placeholder="Add an ingredient…"
                   value={pantryName}
-                  onChange={(e) => { setPantryName(e.target.value); setPantryAddError('') }}
-                  onKeyDown={(e) => e.key === 'Enter' && void addPantryItem()}
+                  onChange={(e) => {
+                    setPantryName(e.target.value)
+                    setPantryAddError('')
+                    if (e.target.value.trim()) setPantryTagsRevealed(true)
+                  }}
                 />
-                <button
-                  className="add"
-                  onClick={() => void addPantryItem()}
-                  disabled={pantryAdding}
-                >
-                  {pantryAdding ? '…' : pantryTagsRevealed ? (editingPantryId ? 'Save' : 'Save ingredient') : 'Continue'}
-                </button>
                 {editingPantryId && (
                   <button onClick={cancelPantryEdit} style={clearBtn}>Cancel</button>
                 )}
@@ -1049,8 +1068,8 @@ function KitchenPageInner() {
               )}
 
               <button
-                onClick={handlePantryDone}
-                disabled={pantryDoneSaved || publishingDraft}
+                onClick={() => void savePantryAndContinue()}
+                disabled={pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding}
                 style={{
                   width: '100%',
                   marginTop: 16,
@@ -1062,17 +1081,19 @@ function KitchenPageInner() {
                   fontSize: 14,
                   fontWeight: 600,
                   fontFamily: 'system-ui, sans-serif',
-                  cursor: pantryDoneSaved || publishingDraft ? 'default' : 'pointer',
+                  cursor: pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding ? 'default' : 'pointer',
                   transition: 'all 0.18s',
                 }}
               >
                 {publishingDraft
                   ? 'Publishing…'
+                  : pantryAdding || ingredientBatchAdding
+                    ? 'SAVING...'
                   : backEvent && !backEvent.isPublished
                     ? 'Publish Invite'
-                    : pantryDoneSaved
-                      ? 'Saved ✓'
-                      : "Done — this week's pantry"}
+                  : pantryDoneSaved
+                    ? 'Saved ✓'
+                    : pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
               </button>
               {publishError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{publishError}</p>

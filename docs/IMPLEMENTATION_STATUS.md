@@ -155,3 +155,9 @@
 - Focused recipe tests, TypeScript, and the isolated production build pass.
 - Recipe capture recommends a base serving count from the current guest count, supports structured import from a pasted recipe, and collapses saved cards to a single View recipe action.
 - Generated, pasted, and edited recipe quantities are now deterministically scaled to the seated guests who can eat each specific dish; base servings are no longer user-selectable.
+
+## Kitchen inventory submission (2026-08-11)
+
+- Signature presets and custom dishes now share one card-level action; pantry presets and custom ingredients do the same.
+- The per-item Continue, Save ingredient, and Add selected controls were removed.
+- Each card says Submit when its saved inventory is empty and Update after inventory exists, while preserving the draft-event Publish Invite action.
