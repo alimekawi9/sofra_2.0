@@ -818,6 +818,8 @@
 .sv2-event-card h3{margin:0 0 6px;font:italic 34px/1 var(--sv2-display-family);}
 .sv2-event-card > p:not(.sv2-event-status){margin:4px 0;font-size:12px;opacity:.82;}
 .sv2-event-card a{display:flex;justify-content:space-between;margin-top:24px;color:inherit;font-size:13px;}
+.sv2-event-card .sv2-profile-identity-link{display:inline-flex;justify-content:flex-start;gap:8px;margin:4px 0;color:inherit;font-size:12px;line-height:1.4;opacity:.82;}
+.sv2-event-card .sv2-profile-identity-link .sv2-album-avatar{width:24px;height:24px;}
 .sv2-event-card-artwork{width:100%;height:clamp(150px,25vw,250px);margin:0 0 24px;display:grid;place-items:end start;padding:14px;border-radius:18px;background:radial-gradient(circle at 70% 30%,#D9B35F 0 9%,transparent 10%),repeating-linear-gradient(45deg,#7C1F25 0 12px,#A93B35 12px 24px);color:#FFF7E7;overflow:hidden;}
 .sv2-event-card-artwork span{padding:5px 8px;background:rgba(60,12,15,.72);font-size:9px;letter-spacing:1px;text-transform:uppercase;}
 .sv2-event-card-artwork.sv2-event-card-artwork-photo{height:auto;padding:0;display:block;background:none;}
