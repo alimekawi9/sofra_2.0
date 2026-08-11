@@ -202,6 +202,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       } catch {
         // Swallowed deliberately -- see comment above.
       }
+
+      if (new URLSearchParams(window.location.search).get('preferences') === '1') {
+        setStatus('going')
+        setStep('profile')
+      }
     } catch {
       setError("Couldn't load your RSVP. Try again.")
     } finally {

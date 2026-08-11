@@ -18,6 +18,9 @@ export interface ProfileCardProps {
   onCaptionSave: () => void
   savingCaption: boolean
   captionSaved: boolean
+  hostPreferenceHref: string | null
+  showPreferenceWarning: boolean
+  onDismissPreferenceWarning: () => void
   onPhotoSelect: (file: File) => void
   uploading: boolean
   uploadError: string
@@ -39,6 +42,9 @@ export function ProfileCard({
   onCaptionSave,
   savingCaption,
   captionSaved,
+  hostPreferenceHref,
+  showPreferenceWarning,
+  onDismissPreferenceWarning,
   onPhotoSelect,
   uploading,
   uploadError,
@@ -114,6 +120,18 @@ export function ProfileCard({
         <section className="sv2-profile-preferences">
           <h2>My preferences</h2>
           <p>{preferencesSummary ?? 'No preferences set yet.'}</p>
+          {showPreferenceWarning && hostPreferenceHref && (
+            <div className="sv2-profile-preference-warning" role="status">
+              <p>Add your table preferences so Sofra can count your tastes when planning menus and portions.</p>
+              <div>
+                <a href={hostPreferenceHref}>ADD MY PREFERENCES</a>
+                <button type="button" onClick={onDismissPreferenceWarning}>DISMISS</button>
+              </div>
+            </div>
+          )}
+          {hostPreferenceHref && !showPreferenceWarning && (
+            <a className="sv2-profile-preference-link" href={hostPreferenceHref}>MY TABLE PREFERENCES</a>
+          )}
         </section>
 
         <section className="sv2-profile-history">

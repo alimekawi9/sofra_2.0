@@ -525,7 +525,7 @@ describe('Host membership', () => {
     await waitFor(() => expect(screen.getByText('Layla')).toBeInTheDocument())
     expect(screen.getByText('Host')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Remove Layla/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /my table preferences/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /my table preferences/i })).not.toBeInTheDocument()
   })
 })
 

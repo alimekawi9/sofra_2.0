@@ -43,6 +43,8 @@ export default function ProfilePage() {
   const [caption, setCaption] = useState('')
   const [savingCaption, setSavingCaption] = useState(false)
   const [captionSaved, setCaptionSaved] = useState(false)
+  const [hostPreferenceHref, setHostPreferenceHref] = useState<string | null>(null)
+  const [showPreferenceWarning, setShowPreferenceWarning] = useState(false)
   const [preferencesSummary, setPreferencesSummary] = useState<string | null>(null)
   const [history, setHistory] = useState<ProfileHistoryEntry[]>([])
   const [error, setError] = useState('')
@@ -78,6 +80,23 @@ export default function ProfilePage() {
       }
 
       setPreferencesSummary(buildPreferencesSummary(tasteProfile as TasteProfileRow | null))
+      try {
+        const { data: hostedEvent } = await supabase
+          .from('events')
+          .select('id')
+          .eq('host_id', stored)
+          .order('event_date', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (hostedEvent?.id) {
+          setHostPreferenceHref(`/events/${hostedEvent.id}/rsvp?preferences=1`)
+          setShowPreferenceWarning(
+            !tasteProfile && localStorage.getItem(`sofra_dismiss_host_preferences:${stored}`) !== '1'
+          )
+        }
+      } catch {
+        // Profile remains usable if host-event lookup is unavailable.
+      }
 
       setHistory(transformProfileHistory((rsvps ?? []) as unknown as ProfileHistoryRow[]))
     } catch {
@@ -157,6 +176,12 @@ export default function ProfilePage() {
       onCaptionSave={saveCaption}
       savingCaption={savingCaption}
       captionSaved={captionSaved}
+      hostPreferenceHref={hostPreferenceHref}
+      showPreferenceWarning={showPreferenceWarning}
+      onDismissPreferenceWarning={() => {
+        if (userId) localStorage.setItem(`sofra_dismiss_host_preferences:${userId}`, '1')
+        setShowPreferenceWarning(false)
+      }}
       onPhotoSelect={onPhotoSelect}
       uploading={uploading}
       uploadError={uploadError}

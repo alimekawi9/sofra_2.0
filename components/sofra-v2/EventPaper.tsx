@@ -158,9 +158,6 @@ export function EventPaper({
                 <button className="sv2-manage-guests" type="button" onClick={onViewTable}>
                   SET THE SOFRA
                 </button>
-                <button className="sv2-manage-guests" type="button" onClick={onEditRsvp}>
-                  MY TABLE PREFERENCES
-                </button>
               </>
             )}
 
