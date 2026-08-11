@@ -88,7 +88,7 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
                 {visible.map((event) => (
                   <article className="sv2-event-card" key={event.id}>
                     <div
-                      className={`sv2-event-artwork${event.coverUrl ? ' sv2-event-artwork-photo' : ''}`}
+                      className={`sv2-event-card-artwork${event.coverUrl ? ' sv2-event-card-artwork-photo' : ''}`}
                       role="img"
                       aria-label={event.coverUrl ? `${event.title} invitation image` : `${event.theme} theme`}
                     >
