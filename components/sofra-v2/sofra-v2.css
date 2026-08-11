@@ -820,8 +820,8 @@
 .sv2-event-card a{display:flex;justify-content:space-between;margin-top:24px;color:inherit;font-size:13px;}
 .sv2-event-card-artwork{width:100%;height:clamp(150px,25vw,250px);margin:0 0 24px;display:grid;place-items:end start;padding:14px;border-radius:18px;background:radial-gradient(circle at 70% 30%,#D9B35F 0 9%,transparent 10%),repeating-linear-gradient(45deg,#7C1F25 0 12px,#A93B35 12px 24px);color:#FFF7E7;overflow:hidden;}
 .sv2-event-card-artwork span{padding:5px 8px;background:rgba(60,12,15,.72);font-size:9px;letter-spacing:1px;text-transform:uppercase;}
-.sv2-event-card-artwork.sv2-event-card-artwork-photo{padding:0;background:none;}
-.sv2-event-card-artwork.sv2-event-card-artwork-photo img{display:block;width:100%;height:100%;object-fit:cover;}
+.sv2-event-card-artwork.sv2-event-card-artwork-photo{height:auto;padding:0;display:block;background:none;}
+.sv2-event-card-artwork.sv2-event-card-artwork-photo img{display:block;width:100%;height:auto;object-fit:contain;}
 
 .sv2-app-nav{
   position:absolute;
@@ -843,6 +843,7 @@
 .sv2-event-paper{padding:clamp(24px,6vw,42px);border:1px solid var(--sv2-line);background:#EEE8DC;}
 .sv2-event-paper .sv2-event-artwork{margin:0 auto 28px;}
 .sv2-event-paper img.sv2-event-artwork{display:block;padding:0;background:none;object-fit:cover;}
+.sv2-event-paper img.sv2-event-artwork.sv2-event-cover-image{width:100%;max-width:none;height:auto;max-height:none;object-fit:contain;}
 .sv2-table-preview{margin:24px 0;padding:16px;border:1px solid var(--sv2-line);}
 .sv2-table-preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:13px;}
 .sv2-table-preview-lock{color:var(--sv2-muted);font-size:11px;font-family:var(--sv2-sans-family);}

@@ -97,7 +97,7 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
                     >
                       {event.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={event.coverUrl} alt="" />
+                        <img className="sv2-event-cover-image" src={event.coverUrl} alt="" />
                       ) : (
                         <span>{event.theme}</span>
                       )}

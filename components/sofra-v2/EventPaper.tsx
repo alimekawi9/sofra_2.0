@@ -121,7 +121,7 @@ export function EventPaper({
           <article className="sv2-event-paper">
             {coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className="sv2-event-artwork" src={coverUrl} alt="" />
+              <img className="sv2-event-artwork sv2-event-cover-image" src={coverUrl} alt="" />
             ) : (
               <div className="sv2-event-artwork sv2-invitation-motif" aria-hidden="true" style={{ position: 'relative' }}>
                 <Image
