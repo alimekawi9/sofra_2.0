@@ -1068,21 +1068,12 @@ function KitchenPageInner() {
               )}
 
               <button
+                className="add"
                 onClick={() => void savePantryAndContinue()}
                 disabled={pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding}
                 style={{
                   width: '100%',
-                  marginTop: 16,
-                  background: pantryDoneSaved ? 'rgba(217,161,91,0.25)' : C.gold,
-                  color: C.ink,
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '12px 16px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  fontFamily: 'system-ui, sans-serif',
-                  cursor: pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding ? 'default' : 'pointer',
-                  transition: 'all 0.18s',
+                  marginTop: 12,
                 }}
               >
                 {publishingDraft
