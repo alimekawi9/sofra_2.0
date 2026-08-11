@@ -7,10 +7,12 @@ import { sv2Display, sv2Sans } from './fonts'
 import { AddPhotosControl } from './AddPhotosControl'
 import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProgress'
 import { buildPreviewTiles } from '@/lib/shared-album'
+import { ProfileIdentityLink } from './ProfileIdentityLink'
 
 export interface EventPaperGuest {
   id: string
   name: string
+  photoUrl: string | null
 }
 
 export interface EventPaperProps {
@@ -192,8 +194,12 @@ export function EventPaper({
                   <div className="sv2-guest-grid">
                     {guests.map((guest) => (
                       <article key={guest.id} className={isHost ? 'sv2-guest-removable' : undefined}>
-                        <span className="sv2-guest-initials">{guest.name.charAt(0).toUpperCase()}</span>
-                        <h3>{guest.name}</h3>
+                        <ProfileIdentityLink
+                          className="sv2-guest-profile-link"
+                          userId={guest.id}
+                          name={guest.name}
+                          photoUrl={guest.photoUrl}
+                        />
                         {isHost && onRemoveGuest && (
                           confirmingGuestId === guest.id ? (
                             <div className="sv2-guest-remove-confirm">

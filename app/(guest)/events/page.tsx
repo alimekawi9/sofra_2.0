@@ -18,7 +18,7 @@ type EventRow = {
 
 type HostedRsvpRow = {
   status: string
-  events: (EventRow & { host: { name: string } | null }) | null
+  events: (EventRow & { host: { id: string; name: string; photo_url: string | null } | null }) | null
 }
 
 function formatDate(iso: string): string {
@@ -34,6 +34,8 @@ export default function EventsPage() {
   const supabase = createClient()
 
   const [name, setName] = useState('You')
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [events, setEvents] = useState<EventsBoardEvent[]>([])
@@ -47,11 +49,11 @@ export default function EventsPage() {
     try {
       const now = Date.now()
       const [{ data: user }, { data: hostEvents, error: e1 }, { data: rsvpRows, error: e2 }] = await Promise.all([
-        supabase.from('users').select('name').eq('id', uid).maybeSingle(),
+        supabase.from('users').select('name,photo_url').eq('id', uid).maybeSingle(),
         supabase.from('events').select('id,title,event_date,venue,theme,cover_url,is_published').eq('host_id', uid),
         supabase
           .from('rsvps')
-          .select('status, events(id,title,event_date,venue,theme,cover_url,is_published,host:users!events_host_id_fkey(name))')
+          .select('status, events(id,title,event_date,venue,theme,cover_url,is_published,host:users!events_host_id_fkey(id,name,photo_url))')
           .eq('user_id', uid)
           .in('status', ['going', 'maybe']),
       ])
@@ -59,6 +61,8 @@ export default function EventsPage() {
       if (e1 || e2) throw new Error('fetch failed')
 
       setName(user?.name || 'You')
+      setPhotoUrl(user?.photo_url || null)
+      setUserId(uid)
 
       const hosting: EventsBoardEvent[] = ((hostEvents ?? []) as EventRow[]).map((ev) => ({
         id: ev.id,
@@ -88,6 +92,8 @@ export default function EventsPage() {
             status,
             title: ev.title,
             host: ev.host?.name ?? null,
+            hostId: ev.host?.id ?? null,
+            hostPhotoUrl: ev.host?.photo_url ?? null,
             venue: ev.venue ?? '',
             dateLabel: formatDate(ev.event_date),
             timeLabel: formatTime(ev.event_date),
@@ -110,6 +116,8 @@ export default function EventsPage() {
   return (
     <EventsBoard
       name={name}
+      userId={userId}
+      photoUrl={photoUrl}
       events={events}
       loading={loading}
       error={error}

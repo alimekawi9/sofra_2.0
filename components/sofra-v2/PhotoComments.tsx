@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { AlbumAvatar } from './AlbumAvatar'
+import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { timeAgo } from '@/lib/sofra/format'
 
 export interface PhotoCommentView {
   id: string
   body: string
   createdAt: string
+  authorId: string
   authorName: string
   authorPhotoUrl: string | null
 }
@@ -49,10 +50,10 @@ export function PhotoComments({ open, onClose, loading, comments, onSubmit, subm
         ) : (
           comments.map((comment) => (
             <div key={comment.id} className="sv2-comment-row">
-              <AlbumAvatar name={comment.authorName} photoUrl={comment.authorPhotoUrl} />
+              <ProfileIdentityLink userId={comment.authorId} name={comment.authorName} photoUrl={comment.authorPhotoUrl} />
               <div>
                 <p className="sv2-comment-meta">
-                  {comment.authorName} · {timeAgo(comment.createdAt)}
+                  {timeAgo(comment.createdAt)}
                 </p>
                 <p className="sv2-comment-body">{comment.body}</p>
               </div>

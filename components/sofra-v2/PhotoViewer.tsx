@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { AlbumAvatar } from './AlbumAvatar'
+import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { PhotoComments, type PhotoCommentView } from './PhotoComments'
 import { timeAgo } from '@/lib/sofra/format'
 
@@ -10,6 +10,7 @@ export interface PhotoViewerPhoto {
   url: string
   caption: string | null
   uploaderName: string
+  uploaderId: string
   uploaderPhotoUrl: string | null
   createdAt: string
 }
@@ -124,9 +125,9 @@ export function PhotoViewer({
 
       <div className="sv2-photo-viewer-bottom">
         <div className="sv2-photo-viewer-attribution">
-          <AlbumAvatar name={photo.uploaderName} photoUrl={photo.uploaderPhotoUrl} />
+          <ProfileIdentityLink userId={photo.uploaderId} name={photo.uploaderName} photoUrl={photo.uploaderPhotoUrl} />
           <div>
-            <p className="sv2-photo-viewer-uploader">{photo.uploaderName} · {timeAgo(photo.createdAt)}</p>
+            <p className="sv2-photo-viewer-uploader">{timeAgo(photo.createdAt)}</p>
             {photo.caption && <p className="sv2-photo-viewer-caption">{photo.caption}</p>}
           </div>
         </div>

@@ -24,7 +24,7 @@ type EventRow = {
 
 type GuestRow = {
   status: string
-  users: { id: string; name: string } | null
+  users: { id: string; name: string; photo_url: string | null } | null
 }
 
 function formatDate(iso: string): string {
@@ -127,7 +127,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       if (isUnlocked) {
         const { data: guestRows, error: e3 } = await supabase
           .from('rsvps')
-          .select('status, users(id, name)')
+          .select('status, users(id, name, photo_url)')
           .eq('event_id', params.id)
           .in('status', ['going', 'maybe'])
 
@@ -135,7 +135,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           setGuests(
             (guestRows as unknown as GuestRow[])
               .filter((g) => g.users !== null)
-              .map((g) => ({ id: g.users!.id, name: g.users!.name }))
+              .map((g) => ({ id: g.users!.id, name: g.users!.name, photoUrl: g.users!.photo_url }))
           )
         }
 

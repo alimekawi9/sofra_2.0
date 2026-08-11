@@ -46,6 +46,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
   function decoratePhotos(rawPhotos: Awaited<ReturnType<typeof fetchAlbumPhotos>>['photos'], userMap: Record<string, AlbumUploader>): AlbumPhotoView[] {
     return rawPhotos.map((photo) => ({
       ...photo,
+      uploaderId: photo.uploaded_by,
       uploaderName: userMap[photo.uploaded_by]?.name ?? 'Someone',
       uploaderPhotoUrl: userMap[photo.uploaded_by]?.photoUrl ?? null,
     }))
@@ -180,6 +181,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
         id: c.id,
         body: c.body,
         createdAt: c.created_at,
+        authorId: c.user_id,
         authorName: commenterMap[c.user_id]?.name ?? uploaders[c.user_id]?.name ?? 'Someone',
         authorPhotoUrl: commenterMap[c.user_id]?.photoUrl ?? uploaders[c.user_id]?.photoUrl ?? null,
       }))
@@ -225,6 +227,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
         id: comment.id,
         body: comment.body,
         createdAt: comment.created_at,
+        authorId: uid,
         authorName: uploaders[uid]?.name ?? 'You',
         authorPhotoUrl: uploaders[uid]?.photoUrl ?? null,
       },

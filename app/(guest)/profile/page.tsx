@@ -5,18 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatProteinPreferenceLabel } from '@/lib/protein-preferences'
 import { ProfileCard, type ProfileHistoryEntry } from '@/components/sofra-v2/ProfileCard'
+import { transformProfileHistory, type ProfileHistoryRow } from '@/lib/profiles'
 import '@/components/sofra-v2/sofra-v2.css'
-
-type LogRow = {
-  id: string
-  status: string
-  events: {
-    id: string
-    title: string
-    event_date: string
-    venue: string | null
-  } | null
-}
 
 type TasteProfileRow = {
   dietary: string[] | null
@@ -24,11 +14,6 @@ type TasteProfileRow = {
   protein_preferences: string[] | null
   flavor_preference: string[] | null
   adventurousness: number | null
-}
-
-function formatShort(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function buildPreferencesSummary(profile: TasteProfileRow | null): string | null {
@@ -55,6 +40,9 @@ export default function ProfilePage() {
   const [name, setName] = useState('You')
   const [phone, setPhone] = useState<string | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [caption, setCaption] = useState('')
+  const [savingCaption, setSavingCaption] = useState(false)
+  const [captionSaved, setCaptionSaved] = useState(false)
   const [preferencesSummary, setPreferencesSummary] = useState<string | null>(null)
   const [history, setHistory] = useState<ProfileHistoryEntry[]>([])
   const [error, setError] = useState('')
@@ -70,7 +58,7 @@ export default function ProfilePage() {
       setUserId(stored)
 
       const [{ data: user }, { data: rsvps }, { data: tasteProfile }] = await Promise.all([
-        supabase.from('users').select('name, phone, photo_url').eq('id', stored).maybeSingle(),
+        supabase.from('users').select('name, phone, photo_url, caption').eq('id', stored).maybeSingle(),
         supabase
           .from('rsvps')
           .select('id, status, events(id, title, event_date, venue)')
@@ -86,26 +74,12 @@ export default function ProfilePage() {
         setName(user.name || 'You')
         setPhone(user.phone || null)
         setPhotoUrl(user.photo_url || null)
+        setCaption(user.caption || '')
       }
 
       setPreferencesSummary(buildPreferencesSummary(tasteProfile as TasteProfileRow | null))
 
-      const now = Date.now()
-      const entries: ProfileHistoryEntry[] = ((rsvps ?? []) as unknown as LogRow[])
-        .filter((r) => r.events !== null && (r.status === 'going' || r.status === 'maybe'))
-        .map((r): ProfileHistoryEntry => {
-          const ev = r.events!
-          const past = new Date(ev.event_date).getTime() < now
-          return {
-            id: ev.id,
-            title: ev.title,
-            date: `${formatShort(ev.event_date)}${ev.venue ? ` · ${ev.venue}` : ''}`,
-            went: past ? 'Went' : 'Going',
-          }
-        })
-        .sort((a, b) => (a.went === 'Going' && b.went !== 'Going' ? -1 : 1))
-
-      setHistory(entries)
+      setHistory(transformProfileHistory((rsvps ?? []) as unknown as ProfileHistoryRow[]))
     } catch {
       setError("Couldn't load your profile. Try again.")
     } finally {
@@ -157,11 +131,32 @@ export default function ProfilePage() {
     setUploading(false)
   }
 
+  async function saveCaption() {
+    if (!userId || savingCaption) return
+    setSavingCaption(true)
+    setCaptionSaved(false)
+    const { error: captionError } = await supabase
+      .from('users')
+      .update({ caption: caption.trim() || null })
+      .eq('id', userId)
+    setSavingCaption(false)
+    if (captionError) {
+      setError('Could not save your caption. Try again.')
+      return
+    }
+    setCaptionSaved(true)
+  }
+
   return (
     <ProfileCard
       name={name}
       phone={phone}
       photoUrl={photoUrl}
+      caption={caption}
+      onCaptionChange={(value) => { setCaption(value); setCaptionSaved(false) }}
+      onCaptionSave={saveCaption}
+      savingCaption={savingCaption}
+      captionSaved={captionSaved}
       onPhotoSelect={onPhotoSelect}
       uploading={uploading}
       uploadError={uploadError}

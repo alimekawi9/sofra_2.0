@@ -1314,6 +1314,12 @@
 
 .sv2-album-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0}
 .sv2-album-avatar-initials{display:grid;place-items:center;background:rgba(247,244,237,.16);color:inherit;font:500 10px var(--sv2-sans-family)}
+.sv2-profile-identity-link{display:inline-flex;align-items:center;gap:8px;color:inherit;text-decoration:none}
+.sv2-profile-identity-link:hover span{text-decoration:underline;text-underline-offset:3px}
+.sv2-dashboard-profile-link .sv2-album-avatar{width:38px;height:38px}.sv2-dashboard-profile-link>span{font:italic clamp(48px,10vw,72px)/1 var(--sv2-display-family)}
+.sv2-guest-profile-link{display:flex;flex-direction:column;justify-content:center}.sv2-guest-profile-link .sv2-album-avatar{width:52px;height:52px;margin:auto;border:1px solid var(--sv2-ink)}.sv2-guest-profile-link>span{margin-top:8px;font-size:11px}
+.sv2-profile-caption-editor{display:grid;gap:9px;margin:0 0 28px}.sv2-profile-caption-editor label{font-size:10px;letter-spacing:1px;text-transform:uppercase}.sv2-profile-caption-editor textarea{min-height:88px;padding:12px;border:1px solid var(--sv2-line);border-radius:14px;background:transparent;color:inherit;font:400 13px/1.5 var(--sv2-sans-family);resize:vertical}.sv2-profile-caption-editor button{min-height:42px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-off-white);font:600 9px var(--sv2-sans-family);letter-spacing:1px}.sv2-profile-caption-editor button:disabled{opacity:.55}
+.sv2-public-profile-shell{padding-block:28px 90px}.sv2-public-profile-identity{text-align:center;margin:16px 0 36px}.sv2-public-profile-identity .sv2-album-avatar{width:112px;height:112px;margin:0 auto 18px;font-size:28px}.sv2-public-profile-identity h1{margin:0;font:italic clamp(44px,10vw,68px)/1 var(--sv2-display-family)}.sv2-public-profile-identity p{max-width:440px;margin:16px auto 0;font-size:13px;line-height:1.65}
 .sv2-comments-panel .sv2-album-avatar-initials{background:var(--sv2-line);color:var(--sv2-ink)}
 
 .sv2-comments-panel{position:fixed;left:0;right:0;bottom:0;z-index:1400;max-height:70vh;display:flex;flex-direction:column;border-radius:20px 20px 0 0;background:var(--sv2-card-bg);color:var(--sv2-ink)}

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
+import { ProfileIdentityLink } from './ProfileIdentityLink'
 
 export type EventsBoardStatus = 'invited' | 'hosting' | 'going' | 'went'
 
@@ -11,6 +12,8 @@ export interface EventsBoardEvent {
   status: EventsBoardStatus
   title: string
   host: string | null
+  hostId?: string | null
+  hostPhotoUrl?: string | null
   venue: string
   dateLabel: string
   timeLabel: string
@@ -22,6 +25,8 @@ export interface EventsBoardEvent {
 
 export interface EventsBoardProps {
   name: string
+  userId: string | null
+  photoUrl: string | null
   events: EventsBoardEvent[]
   loading: boolean
   error: string
@@ -37,7 +42,7 @@ const LABELS: Record<EventsBoardStatus, string> = {
   went: 'WENT',
 }
 
-export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent }: EventsBoardProps) {
+export function EventsBoard({ name, userId, photoUrl, events, loading, error, onRetry, onHostEvent }: EventsBoardProps) {
   const available = FILTERS.filter((status) => events.some((event) => event.status === status))
   const [filter, setFilter] = useState<EventsBoardStatus | null>(null)
   const activeFilter = filter && available.includes(filter) ? filter : available[0] ?? null
@@ -49,7 +54,9 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
         <header className="sv2-app-header">
           <div>
             <p>YOUR SOFRAS</p>
-            <h1>{name}</h1>
+            {userId ? (
+              <ProfileIdentityLink className="sv2-dashboard-profile-link" userId={userId} name={name} photoUrl={photoUrl} />
+            ) : <h1>{name}</h1>}
           </div>
         </header>
 
@@ -104,7 +111,9 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
                       {event.isDraft && <span className="sv2-draft-badge">Draft</span>}
                     </p>
                     <h3>{event.title}</h3>
-                    {event.host && <p>Hosted by {event.host}</p>}
+                    {event.host && (event.hostId ? (
+                      <ProfileIdentityLink userId={event.hostId} name={event.host} photoUrl={event.hostPhotoUrl ?? null} prefix="Hosted by " />
+                    ) : <p>Hosted by {event.host}</p>)}
                     <p>{event.venue}</p>
                     <p>{event.dateLabel} · {event.timeLabel}</p>
                     <p>{event.rsvpStatus}</p>

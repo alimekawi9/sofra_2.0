@@ -162,3 +162,10 @@
 - The per-item Continue, Save ingredient, and Add selected controls were removed.
 - Each card says Submit when its saved inventory is empty and Update after inventory exists, while preserving the draft-event Publish Invite action.
 - Dashboard event cards display the invitation's uploaded cover image when available and retain the themed artwork as the no-image fallback.
+
+## Public profiles and mutuals (2026-08-12)
+
+- User captions are stored in nullable `users.caption` and editable from the private profile.
+- Person names across production event, RSVP, table-intelligence, dashboard, and shared-album views now use linked photo/initial avatars.
+- `/profile/[userId]` shows public identity and caption. RSVP history is queried only after the viewer is confirmed as the owner or a mutual through shared `going`/`maybe` RSVP rows; non-mutuals receive a private-history message.
+- Mutual relationships remain derived from RSVP data and are not stored separately.

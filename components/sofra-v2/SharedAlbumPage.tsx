@@ -111,6 +111,7 @@ export function SharedAlbumPage({
             id: p.id,
             url: p.url,
             caption: p.caption,
+            uploaderId: p.uploaded_by,
             uploaderName: p.uploaderName,
             uploaderPhotoUrl: p.uploaderPhotoUrl,
             createdAt: p.created_at,

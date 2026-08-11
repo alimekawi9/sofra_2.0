@@ -45,12 +45,12 @@ type EventRow = {
   event_date: string
   venue: string | null
   dress_code: string | null
-  host: { name: string } | null
+  host: { id: string; name: string; photo_url: string | null } | null
 }
 
 type GuestRow = {
   status: string
-  users: { id: string; name: string } | null
+  users: { id: string; name: string; photo_url: string | null } | null
 }
 
 function formatDate(iso: string): string {
@@ -103,7 +103,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
       const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
         supabase.from('events')
-          .select('title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(name)')
+          .select('title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(id,name,photo_url)')
           .eq('id', params.id)
           .single(),
         supabase.from('rsvps')
@@ -135,7 +135,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       if (hasRsvp) {
         const { data: guestRows, error: e3 } = await supabase
           .from('rsvps')
-          .select('status, users(id, name)')
+          .select('status, users(id, name, photo_url)')
           .eq('event_id', params.id)
           .in('status', ['going', 'maybe'])
 
@@ -143,7 +143,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           setGuests(
             (guestRows as unknown as GuestRow[])
               .filter((g) => g.users !== null)
-              .map((g) => ({ id: g.users!.id, name: g.users!.name }))
+              .map((g) => ({ id: g.users!.id, name: g.users!.name, photoUrl: g.users!.photo_url }))
           )
         }
       }
@@ -457,6 +457,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       title={event?.title ?? ''}
       note={event?.tagline ?? null}
       hostName={event?.host?.name ?? null}
+      hostId={event?.host?.id ?? null}
+      hostPhotoUrl={event?.host?.photo_url ?? null}
       dateLabel={event ? formatDate(event.event_date) : ''}
       timeLabel={event ? formatTime(event.event_date) : ''}
       venue={event?.venue ?? 'Venue pending'}

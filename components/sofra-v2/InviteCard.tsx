@@ -3,10 +3,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
+import { ProfileIdentityLink } from './ProfileIdentityLink'
 
 export interface InviteCardGuest {
   id: string
   name: string
+  photoUrl: string | null
 }
 
 export type InviteResponse = 'going' | 'maybe' | 'cant'
@@ -18,6 +20,8 @@ export interface InviteCardProps {
   title: string
   note: string | null
   hostName: string | null
+  hostId: string | null
+  hostPhotoUrl: string | null
   dateLabel: string
   timeLabel: string
   venue: string
@@ -35,6 +39,8 @@ export function InviteCard({
   title,
   note,
   hostName,
+  hostId,
+  hostPhotoUrl,
   dateLabel,
   timeLabel,
   venue,
@@ -71,7 +77,7 @@ export function InviteCard({
               <h2>{title}</h2>
               {note && <p className="sv2-invite-message">{note}</p>}
               <dl>
-                {hostName && <div><dt>Hosted by</dt><dd>{hostName}</dd></div>}
+                {hostName && <div><dt>Hosted by</dt><dd>{hostId ? <ProfileIdentityLink userId={hostId} name={hostName} photoUrl={hostPhotoUrl} /> : hostName}</dd></div>}
                 <div><dt>When</dt><dd>{dateLabel}<br />{timeLabel}</dd></div>
                 <div><dt>Where</dt><dd>{venue}</dd></div>
                 {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}
@@ -82,9 +88,7 @@ export function InviteCard({
                 {unlocked && guests.length > 0 ? (
                   <div>
                     {guests.map((guest) => (
-                      <span key={guest.id} aria-label={`${guest.name} responded`}>
-                        {guest.name.charAt(0).toUpperCase()}
-                      </span>
+                      <ProfileIdentityLink key={guest.id} userId={guest.id} name={guest.name} photoUrl={guest.photoUrl} />
                     ))}
                   </div>
                 ) : (

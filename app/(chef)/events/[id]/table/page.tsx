@@ -14,6 +14,7 @@ import { formatTagLabel } from '@/lib/tag-format'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
+import { ProfileIdentityLink } from '@/components/sofra-v2/ProfileIdentityLink'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -52,7 +53,7 @@ function currentMonday(): string {
   return d.toISOString().slice(0, 10)
 }
 
-type RsvpRow = { user_id: string; users: { name: string } | null }
+type RsvpRow = { user_id: string; users: { name: string; photo_url: string | null } | null }
 type ProfileRow = {
   user_id: string
   dietary: string[]
@@ -67,7 +68,9 @@ function mergeGuests(rsvps: RsvpRow[], profiles: ProfileRow[]): TasteProfile[] {
   return rsvps.map((r) => {
     const p = profiles.find((x) => x.user_id === r.user_id)
     return {
+      userId: r.user_id,
       name: r.users?.name ?? 'Unknown',
+      photoUrl: r.users?.photo_url ?? null,
       dietary: p?.dietary ?? [],
       avoid: p?.avoid ?? [],
       proteinAnchor: p?.protein_anchor ?? null,
@@ -111,7 +114,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
 
       const { data: rsvps } = await supabase
         .from('rsvps')
-        .select('user_id, users(name)')
+        .select('user_id, users(name,photo_url)')
         .eq('event_id', id)
         .in('status', ['going', 'maybe'])
 
@@ -337,7 +340,15 @@ export default function TablePage({ params }: { params: { id: string } }) {
                           textAlign: 'right',
                         }}
                       >
-                        {limit.guests.join(', ')}
+                        {limit.guests.map((guestName, index) => {
+                          const person = guests.find((guest) => guest.name === guestName)
+                          return person?.userId ? (
+                            <span key={person.userId}>
+                              {index > 0 && ', '}
+                              <ProfileIdentityLink userId={person.userId} name={person.name} photoUrl={person.photoUrl ?? null} />
+                            </span>
+                          ) : <span key={`${guestName}-${index}`}>{index > 0 && ', '}{guestName}</span>
+                        })}
                       </span>
                     </div>
                   ))

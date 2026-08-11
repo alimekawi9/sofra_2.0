@@ -13,6 +13,11 @@ export interface ProfileCardProps {
   name: string
   phone: string | null
   photoUrl: string | null
+  caption: string
+  onCaptionChange: (value: string) => void
+  onCaptionSave: () => void
+  savingCaption: boolean
+  captionSaved: boolean
   onPhotoSelect: (file: File) => void
   uploading: boolean
   uploadError: string
@@ -29,6 +34,11 @@ export function ProfileCard({
   name,
   phone,
   photoUrl,
+  caption,
+  onCaptionChange,
+  onCaptionSave,
+  savingCaption,
+  captionSaved,
   onPhotoSelect,
   uploading,
   uploadError,
@@ -85,6 +95,20 @@ export function ProfileCard({
             {dinnerCount} {dinnerCount === 1 ? 'dinner' : 'dinners'}
             {phone ? ` · ${phone}` : ''}
           </p>
+        </section>
+
+        <section className="sv2-profile-caption-editor">
+          <label htmlFor="profile-caption">About me</label>
+          <textarea
+            id="profile-caption"
+            maxLength={240}
+            value={caption}
+            onChange={(event) => onCaptionChange(event.target.value)}
+            placeholder="A little about you around the table"
+          />
+          <button type="button" disabled={savingCaption} onClick={onCaptionSave}>
+            {savingCaption ? 'SAVING...' : captionSaved ? 'SAVED' : 'SAVE CAPTION'}
+          </button>
         </section>
 
         <section className="sv2-profile-preferences">

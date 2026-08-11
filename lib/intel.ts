@@ -1,7 +1,9 @@
 import { normalizeProteinPreferences, type ProteinPreference } from './protein-preferences'
 
 export type TasteProfile = {
+  userId?: string
   name: string
+  photoUrl?: string | null
   dietary: string[]
   avoid: string[]
   proteinAnchor?: string | null
