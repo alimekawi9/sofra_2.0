@@ -25,8 +25,6 @@ export interface EventsBoardEvent {
 
 export interface EventsBoardProps {
   name: string
-  userId: string | null
-  photoUrl: string | null
   events: EventsBoardEvent[]
   loading: boolean
   error: string
@@ -42,7 +40,7 @@ const LABELS: Record<EventsBoardStatus, string> = {
   went: 'WENT',
 }
 
-export function EventsBoard({ name, userId, photoUrl, events, loading, error, onRetry, onHostEvent }: EventsBoardProps) {
+export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent }: EventsBoardProps) {
   const available = FILTERS.filter((status) => events.some((event) => event.status === status))
   const [filter, setFilter] = useState<EventsBoardStatus | null>(null)
   const activeFilter = filter && available.includes(filter) ? filter : available[0] ?? null
@@ -54,9 +52,7 @@ export function EventsBoard({ name, userId, photoUrl, events, loading, error, on
         <header className="sv2-app-header">
           <div>
             <p>YOUR SOFRAS</p>
-            {userId ? (
-              <ProfileIdentityLink className="sv2-dashboard-profile-link" userId={userId} name={name} photoUrl={photoUrl} />
-            ) : <h1>{name}</h1>}
+            <h1>{name}</h1>
           </div>
         </header>
 
