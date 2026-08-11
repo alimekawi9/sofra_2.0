@@ -188,7 +188,7 @@ function buildBrief(
 
   parts.push(`${label} table (avg ${avg})`)
 
-  return `${guestCount} guest${guestCount !== 1 ? 's' : ''} — ${parts.join(', ')}.`
+  return `${guestCount} guest${guestCount !== 1 ? 's' : ''} with ${parts.join(', ')}.`
 }
 
 function leanPart(

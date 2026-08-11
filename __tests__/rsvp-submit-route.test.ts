@@ -20,6 +20,14 @@ function request(body: unknown) {
   return { json: async () => body } as Request
 }
 
+function publishedEventFrom() {
+  return jest.fn(() => ({
+    select: () => ({
+      eq: () => ({ maybeSingle: async () => ({ data: { is_published: true }, error: null }) }),
+    }),
+  }))
+}
+
 beforeEach(() => jest.clearAllMocks())
 
 it('calls the atomic idempotent RPC with correctly serialized production fields', async () => {
@@ -27,7 +35,7 @@ it('calls the atomic idempotent RPC with correctly serialized production fields'
     data: { success: true, eventId: validBody.eventId, userId: validBody.userId, nextPath: `/events/${validBody.eventId}` },
     error: null,
   })
-  ;(createClient as jest.Mock).mockReturnValue({ rpc })
+  ;(createClient as jest.Mock).mockReturnValue({ rpc, from: publishedEventFrom() })
   const response = await POST(request(validBody))
   expect(response.status).toBe(200)
   expect(rpc).toHaveBeenCalledWith('submit_rsvp_preferences', {
@@ -44,7 +52,7 @@ it('calls the atomic idempotent RPC with correctly serialized production fields'
 
 it('rejects invalid event identity before calling Supabase', async () => {
   const rpc = jest.fn()
-  ;(createClient as jest.Mock).mockReturnValue({ rpc })
+  ;(createClient as jest.Mock).mockReturnValue({ rpc, from: publishedEventFrom() })
   const response = await POST(request({ ...validBody, eventId: null }))
   expect(response.status).toBe(400)
   expect(rpc).not.toHaveBeenCalled()
@@ -52,7 +60,7 @@ it('rejects invalid event identity before calling Supabase', async () => {
 
 it('returns the internal Supabase code and stage without private payload data', async () => {
   const rpc = jest.fn().mockResolvedValue({ data: null, error: { code: '42703', message: 'missing column' } })
-  ;(createClient as jest.Mock).mockReturnValue({ rpc })
+  ;(createClient as jest.Mock).mockReturnValue({ rpc, from: publishedEventFrom() })
   const response = await POST(request(validBody))
   expect(response.status).toBe(500)
   expect(await response.json()).toEqual(expect.objectContaining({
@@ -62,7 +70,7 @@ it('returns the internal Supabase code and stage without private payload data', 
 
 it('distinguishes a missing user or event', async () => {
   const rpc = jest.fn().mockResolvedValue({ data: null, error: { code: 'P0002', message: 'user_not_found' } })
-  ;(createClient as jest.Mock).mockReturnValue({ rpc })
+  ;(createClient as jest.Mock).mockReturnValue({ rpc, from: publishedEventFrom() })
   const response = await POST(request(validBody))
   expect(response.status).toBe(404)
   expect(await response.json()).toEqual(expect.objectContaining({ stage: 'resolving_user', code: 'P0002' }))

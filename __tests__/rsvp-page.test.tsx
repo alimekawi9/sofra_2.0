@@ -240,10 +240,10 @@ describe('Step 2 — checkbox groups', () => {
   it('no preference clears specifics and a specific choice clears no preference', async () => {
     await navigateToStep2()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Chicken' }))
-    await userEvent.click(screen.getByRole('checkbox', { name: 'No preference — surprise me' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'No preference with a surprise' }))
     expect(screen.getByRole('checkbox', { name: 'Chicken' })).not.toBeChecked()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Fish' }))
-    expect(screen.getByRole('checkbox', { name: 'No preference — surprise me' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'No preference with a surprise' })).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
   })
 

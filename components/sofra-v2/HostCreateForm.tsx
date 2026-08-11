@@ -118,6 +118,17 @@ export function HostCreateForm({
             />
           </label>
 
+          {onCustomizeQuestions && (
+            <button
+              type="button"
+              className="sv2-customize-questions"
+              onClick={onCustomizeQuestions}
+              disabled={submitting || deleting || customizingQuestions}
+            >
+              {customizingQuestions ? 'OPENING…' : 'CUSTOMIZE GUEST QUESTIONS'}
+            </button>
+          )}
+
           <fieldset className="sv2-invitation-image-field">
             <legend>COVER IMAGE <span>OPTIONAL</span></legend>
             {imageDataUrl ? (
@@ -180,20 +191,9 @@ export function HostCreateForm({
             </div>
           </fieldset>
 
-          {onCustomizeQuestions && (
-            <button
-              type="button"
-              className="sv2-customize-questions"
-              onClick={onCustomizeQuestions}
-              disabled={submitting || deleting || customizingQuestions}
-            >
-              {customizingQuestions ? 'OPENING…' : 'CUSTOMIZE GUEST QUESTIONS'}
-            </button>
-          )}
-
           {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
           <button type="submit" disabled={submitting || deleting}>
-            {submitting ? (isEdit ? 'SAVING…' : 'PUBLISHING…') : isEdit ? 'UPDATE INVITE' : 'PUBLISH INVITE'}
+            {submitting ? (isEdit ? 'SAVING…' : 'CONTINUING…') : isEdit ? 'UPDATE INVITE' : 'CONTINUE'}
           </button>
         </form>
 

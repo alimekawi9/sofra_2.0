@@ -97,7 +97,9 @@ function KitchenPageInner() {
 
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [backEvent, setBackEvent] = useState<{ id: string; title: string } | null>(null)
+  const [backEvent, setBackEvent] = useState<{ id: string; title: string; isPublished: boolean } | null>(null)
+  const [publishingDraft, setPublishingDraft] = useState(false)
+  const [publishError, setPublishError] = useState('')
 
   const [signatures, setSignatures] = useState<Signature[]>([])
   const [sigName, setSigName] = useState('')
@@ -141,9 +143,8 @@ function KitchenPageInner() {
       uidRef.current = stored
       const uid = stored
 
-      if (fromEventId) void loadBackEvent(uid, fromEventId)
-
-      const [{ data: sigs, error: e1 }, { data: items, error: e2 }] = await Promise.all([
+      const [backEventResult, { data: sigs, error: e1 }, { data: items, error: e2 }] = await Promise.all([
+        fromEventId ? loadBackEvent(uid, fromEventId) : Promise.resolve(null),
         supabase
           .from('signatures')
           .select('id, name, tags, contains_allergens, novelty_score, is_substantial, preset_key')
@@ -158,6 +159,7 @@ function KitchenPageInner() {
       ])
 
       if (e1 || e2) throw new Error('fetch failed')
+      if (backEventResult) setBackEvent(backEventResult)
       const loadedSignatures = sigs ?? []
       setSignatures(loadedSignatures)
       void backfillLegacyPresetKeys(uid, loadedSignatures)
@@ -191,13 +193,13 @@ function KitchenPageInner() {
   async function loadBackEvent(uid: string, eventId: string) {
     const { data, error } = await supabase
       .from('events')
-      .select('id, host_id, chef_id, title')
+      .select('id, host_id, chef_id, title, is_published')
       .eq('id', eventId)
       .single()
 
-    if (error || !data) return
-    if (data.host_id !== uid && data.chef_id !== uid) return
-    setBackEvent({ id: data.id, title: data.title })
+    if (error || !data) return null
+    if (data.host_id !== uid && data.chef_id !== uid) return null
+    return { id: data.id, title: data.title, isPublished: data.is_published !== false }
   }
 
   function continueSignature() {
@@ -293,7 +295,7 @@ function KitchenPageInner() {
 
     const failed = results.some(result => result.status === 'rejected' || Boolean(result.value.error))
     if (failed) {
-      setDishBatchError("Couldn't update signatures. Your pending changes are still here — try again.")
+      setDishBatchError("Couldn't update signatures. Your pending changes are still here with the option to try again.")
       setSigAdding(false)
       return
     }
@@ -361,7 +363,7 @@ function KitchenPageInner() {
     if (failedNames.length > 0) {
       const list = failedNames.join(', ')
       setIngredientBatchError(
-        `Couldn't add: ${list}. They stay selected — tap "Add selected" again to retry just those.`
+        `Couldn't add: ${list}. They stay selected with the option to tap "Add selected" again to retry just those.`
       )
     }
     setIngredientBatchAdding(false)
@@ -508,7 +510,24 @@ function KitchenPageInner() {
     }
   }
 
-  function handlePantryDone() {
+  async function handlePantryDone() {
+    if (backEvent && !backEvent.isPublished) {
+      if (!uidRef.current || publishingDraft) return
+      setPublishingDraft(true)
+      setPublishError('')
+      const { error } = await supabase
+        .from('events')
+        .update({ is_published: true })
+        .eq('id', backEvent.id)
+        .eq('host_id', uidRef.current)
+      setPublishingDraft(false)
+      if (error) {
+        setPublishError('Could not publish your invite. Try again.')
+        return
+      }
+      router.push(`/events/${backEvent.id}`)
+      return
+    }
     if (backEvent) {
       router.push(`/events/${backEvent.id}/${fromPage}`)
       return
@@ -804,7 +823,7 @@ function KitchenPageInner() {
             <section className="sv2-kitchen-card sv2-kitchen-pantry" style={cardStyle}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>This week’s pantry</span>
-                <span style={faintSm}>what’s fresh — Sofra builds new dishes from it</span>
+                <span style={faintSm}>what’s fresh with Sofra building new dishes from it</span>
               </div>
               <div
                 style={{
@@ -1031,7 +1050,7 @@ function KitchenPageInner() {
 
               <button
                 onClick={handlePantryDone}
-                disabled={pantryDoneSaved}
+                disabled={pantryDoneSaved || publishingDraft}
                 style={{
                   width: '100%',
                   marginTop: 16,
@@ -1043,12 +1062,21 @@ function KitchenPageInner() {
                   fontSize: 14,
                   fontWeight: 600,
                   fontFamily: 'system-ui, sans-serif',
-                  cursor: pantryDoneSaved ? 'default' : 'pointer',
+                  cursor: pantryDoneSaved || publishingDraft ? 'default' : 'pointer',
                   transition: 'all 0.18s',
                 }}
               >
-                {pantryDoneSaved ? 'Saved ✓' : "Done — this week's pantry"}
+                {publishingDraft
+                  ? 'Publishing…'
+                  : backEvent && !backEvent.isPublished
+                    ? 'Publish Invite'
+                    : pantryDoneSaved
+                      ? 'Saved ✓'
+                      : "Done — this week's pantry"}
               </button>
+              {publishError && (
+                <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{publishError}</p>
+              )}
             </section>
 
             {/* Brief */}
@@ -1056,7 +1084,7 @@ function KitchenPageInner() {
               <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
               <span>
                 Signatures give Sofra dishes it can trust. The pantry lets it invent new ones that
-                fit the table — without you writing every recipe.
+                fit the table with no need to write every recipe.
               </span>
             </div>
           </>

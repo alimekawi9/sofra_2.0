@@ -167,7 +167,7 @@ export function EventPaper({
                 <dt>Location</dt>
                 <dd>
                   {venue}
-                  {unlocked && address ? ` — ${address}` : !unlocked ? ' (RSVP to see the address)' : ''}
+                  {unlocked && address ? ` with ${address}` : !unlocked ? ' (RSVP to see the address)' : ''}
                 </dd>
               </div>
               {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}

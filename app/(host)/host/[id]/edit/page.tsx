@@ -149,7 +149,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   async function handleDelete() {
     if (deleting || submitting) return
     const confirmed = window.confirm(
-      'Delete this event? This cannot be undone — RSVPs, the shared album, and menu data will be removed too.'
+      'Delete this event? This cannot be undone with RSVPs, the shared album, and menu data removed too.'
     )
     if (!confirmed) return
 

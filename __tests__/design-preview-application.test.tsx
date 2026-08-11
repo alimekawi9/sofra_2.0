@@ -230,13 +230,13 @@ it("uses every canonical preset and structures custom signature and pantry metad
 it("curates proposed courses with swaps, custom entries, locking, finalization, and export", async () => {
   const user = userEvent.setup();
   const { container } = render(<CuratedMenusPreview detail />);
-  expect(screen.getAllByText("PROPOSED")).toHaveLength(5);
+  expect(screen.getAllByText("PROPOSED")).toHaveLength(4);
   expect(
     screen.queryByRole("button", { name: "EXPORT MENU" }),
   ).not.toBeInTheDocument();
   await user.click(screen.getAllByRole("button", { name: "SWAP" })[0]);
   expect(
-    screen.getByRole("region", { name: "Alternatives for To Begin" }),
+    screen.getByRole("region", { name: "Alternatives for To Start" }),
   ).toBeInTheDocument();
   expect(
     screen
@@ -248,14 +248,14 @@ it("curates proposed courses with swaps, custom entries, locking, finalization, 
   );
   await user.click(screen.getAllByRole("button", { name: "ENTER MY OWN" })[0]);
   await user.type(
-    screen.getByLabelText("Custom dish for To Begin"),
+    screen.getByLabelText("Custom dish for To Start"),
     "My mezze",
   );
   await user.click(screen.getByRole("button", { name: "USE THIS DISH" }));
   expect(screen.getByRole("heading", { name: "My mezze" })).toBeInTheDocument();
   for (const button of screen.getAllByRole("button", { name: "LOCK IN" }))
     await user.click(button);
-  expect(screen.getAllByText("LOCKED")).toHaveLength(5);
+  expect(screen.getAllByText("LOCKED")).toHaveLength(4);
   await user.click(screen.getByRole("button", { name: "FINALIZE MENU" }));
   await user.click(screen.getByRole("button", { name: "EXPORT MENU" }));
   expect(

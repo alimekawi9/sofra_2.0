@@ -39,6 +39,7 @@ type Step = 'status' | 'confirm-preferences' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
 
 type EventRow = {
+  is_published: boolean
   title: string
   tagline: string | null
   event_date: string
@@ -84,6 +85,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [isUnpublished, setIsUnpublished] = useState(false)
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireConfig>(DEFAULT_QUESTIONNAIRE)
   const [customAnswers, setCustomAnswers] = useState<Record<string, CustomResponseValue>>({})
   const customAnswersRef = useRef<Record<string, CustomResponseValue>>({})
@@ -101,7 +103,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
       const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
         supabase.from('events')
-          .select('title,tagline,event_date,venue,dress_code,host:users!events_host_id_fkey(name)')
+          .select('title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(name)')
           .eq('id', params.id)
           .single(),
         supabase.from('rsvps')
@@ -116,6 +118,13 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       ])
 
       if (e0 || e1 || e2) throw new Error('fetch failed')
+
+      if (ev.is_published === false) {
+        setIsUnpublished(true)
+        setEvent(null)
+        return
+      }
+      setIsUnpublished(false)
 
       setEvent(ev as unknown as EventRow)
 
@@ -344,6 +353,17 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setStep(prefilled && isDefaultQuestionnaire(questionnaire) ? 'confirm-preferences' : 'profile')
   }
 
+  if (!loading && isUnpublished) {
+    return (
+      <div className="sv2-root sv2-device-page sv2-app-page">
+        <main className="sv2-device-shell sv2-app-shell" style={{ padding: '72px 24px', textAlign: 'center' }}>
+          <h1>This event isn&apos;t published yet</h1>
+          <p>The host is still getting the table ready. RSVP will open once the invite is published.</p>
+        </main>
+      </div>
+    )
+  }
+
   if (step === 'missing-out') {
     return <MissingOut onReturnToInvite={() => setStep('status')} />
   }
@@ -439,7 +459,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       hostName={event?.host?.name ?? null}
       dateLabel={event ? formatDate(event.event_date) : ''}
       timeLabel={event ? formatTime(event.event_date) : ''}
-      venue={event?.venue ?? '—'}
+      venue={event?.venue ?? 'Venue pending'}
       dressCode={event?.dress_code ?? null}
       unlocked={hasExistingRsvp}
       guests={guests}

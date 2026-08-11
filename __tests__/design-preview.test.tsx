@@ -280,9 +280,9 @@ describe('PreferencesReceipt', () => {
 
   it('reflects a controlled proteinHintVisible prop', () => {
     const { rerender } = render(<PreferencesReceipt {...baseProps} proteinHintVisible={false} />)
-    expect(screen.queryByText('Only two at a time — tap one to swap it out.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Only two at a time with one tap to swap it out.')).not.toBeInTheDocument()
     rerender(<PreferencesReceipt {...baseProps} proteinHintVisible />)
-    expect(screen.getByText('Only two at a time — tap one to swap it out.')).toBeInTheDocument()
+    expect(screen.getByText('Only two at a time with one tap to swap it out.')).toBeInTheDocument()
   })
 
   describe('driven end-to-end with the real protein-preference utility', () => {
@@ -322,7 +322,7 @@ describe('PreferencesReceipt', () => {
       await user.click(screen.getByRole('checkbox', { name: first.label }))
       await user.click(screen.getByRole('checkbox', { name: second.label }))
       await user.click(screen.getByRole('checkbox', { name: third.label }))
-      expect(screen.getByText('Only two at a time — tap one to swap it out.')).toBeInTheDocument()
+      expect(screen.getByText('Only two at a time with one tap to swap it out.')).toBeInTheDocument()
       expect(screen.getByRole('checkbox', { name: first.label })).toBeChecked()
       expect(screen.getByRole('checkbox', { name: second.label })).toBeChecked()
       expect(screen.getByRole('checkbox', { name: third.label })).not.toBeChecked()

@@ -2,6 +2,11 @@
 
 ## Completed
 
+- Event menu recipes now support host-entered or one-time structured Gemini
+  generation, persisted base servings/instructions/ingredient quantities,
+  deterministic guest-count scaling, and visible recipe-level allergen
+  warnings that identify dish-metadata gaps. Shopping and pantry deduction
+  remain deferred.
 - `portionGuidance(slot, guestCount?)` (`lib/menu.ts`) now optionally scales its
   batch estimate with guest count once the dynamic dish-count formula caps out
   at 9 dishes (guestCount > 13), bounded to 4x the static baseline; omitting
@@ -133,3 +138,20 @@
   rejected today; null-phone inserts correctly still fail until the
   migration above is applied. Re-run it after applying the migration to
   confirm null-phone uniqueness end-to-end.
+
+## Draft event publishing lifecycle (2026-08-11)
+
+- New events are saved as unpublished drafts and continue into Kitchen before the invite is published.
+- A draft-aware Kitchen visit publishes the event and returns to its event page; standalone Kitchen behavior remains unchanged.
+- Hosts see drafts under Hosting with a Draft badge. Unpublished events are hidden from invited-event lists, direct non-host views, and RSVP submission.
+- Migration: `20260811000003_add_event_publishing.sql` backfills existing events as published, then defaults new events to unpublished.
+- Focused event-flow tests: 150 passed. TypeScript and isolated production build passed.
+- Local migration application is pending because Docker/Podman is unavailable in the current environment; no remote database was touched.
+
+## Recipe capture review flow (2026-08-11)
+
+- Custom recipes now begin with separate name-only ingredient rows and a general typed/spoken instruction prompt.
+- Recipe generation opens a visible quantity/unit/instruction review form and no longer silently persists before host confirmation.
+- Focused recipe tests, TypeScript, and the isolated production build pass.
+- Recipe capture recommends a base serving count from the current guest count, supports structured import from a pasted recipe, and collapses saved cards to a single View recipe action.
+- Generated, pasted, and edited recipe quantities are now deterministically scaled to the seated guests who can eat each specific dish; base servings are no longer user-selectable.

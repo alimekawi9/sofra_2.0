@@ -251,7 +251,7 @@ export function CuratedMenusPreview({
             <article>
               <p>READY TO CURATE</p>
               <h2>Tonight&apos;s proposal</h2>
-              <span>Layla&apos;s Sofra · 5 courses</span>
+              <span>Layla&apos;s Sofra · {courses.length} courses</span>
               <Link href="/design-preview/curated-menus/demo">
                 Open curated menu →
               </Link>

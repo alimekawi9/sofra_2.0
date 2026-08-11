@@ -816,6 +816,7 @@
   letter-spacing:1px;
   text-transform:uppercase;
 }
+.sv2-draft-badge{display:inline-flex;margin-left:8px;padding:3px 8px;border:1px solid currentColor;border-radius:999px;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
 .sv2-event-card h3{margin:0 0 6px;font:italic 34px/1 var(--sv2-display-family);}
 .sv2-event-card > p:not(.sv2-event-status){margin:4px 0;font-size:12px;opacity:.82;}
 .sv2-event-card a{display:flex;justify-content:space-between;margin-top:24px;color:inherit;font-size:13px;}
@@ -884,6 +885,36 @@
   .sv2-rsvp-options{grid-template-columns:1fr;}
   .sv2-rsvp-options button{min-height:52px;}
 }
+
+/* ---- production recipes ---- */
+.sv2-production-recipes{min-height:100vh;background:var(--sv2-off-white);color:var(--sv2-ink);font-family:var(--sv2-sans-family)}
+.sv2-recipes-shell{max-width:880px!important;min-height:100vh;margin:0 auto!important;padding:38px clamp(20px,5vw,56px) 90px!important;background:var(--sv2-off-white)}
+.sv2-recipes-heading{margin:32px 0 42px}
+.sv2-recipes-heading h1{margin:0;font:italic clamp(36px,7vw,52px)/1 var(--sv2-display-family);color:var(--sv2-ink)}
+.sv2-recipes-heading p{margin:12px 0 0}.sv2-recipes-heading p,.sv2-production-recipes p{font:400 12px/1.5 var(--sv2-sans-family);color:var(--sv2-muted)}
+.sv2-recipe-card{margin:0 0 16px!important;padding:22px!important;border:1px solid var(--sv2-line)!important;border-radius:22px!important;background:rgba(255,255,255,.2)!important}
+.sv2-recipe-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.sv2-recipe-card-head span,.sv2-recipe-card-head small{font:600 10px var(--sv2-sans-family);letter-spacing:.8px;text-transform:uppercase;color:var(--sv2-muted)}
+.sv2-recipe-card-head h2{margin:5px 0 0;font:italic 28px/1.1 var(--sv2-display-family);color:var(--sv2-ink)}
+.sv2-recipe-ingredients{display:grid;gap:0;margin:0 0 18px;padding:0;list-style:none;border-top:1px solid var(--sv2-line)}
+.sv2-recipe-ingredients li{display:grid;grid-template-columns:minmax(100px,150px) 1fr;gap:16px;padding:11px 0;border-bottom:1px solid var(--sv2-line);font:400 13px var(--sv2-sans-family)}
+.sv2-recipe-ingredients strong{font-weight:600;color:#64161A}.sv2-recipe-ingredients span{color:var(--sv2-ink)}
+.sv2-recipe-instructions{white-space:pre-line;font:400 13px/1.65 var(--sv2-sans-family);color:var(--sv2-muted)}
+.sv2-recipe-warning{margin:0 0 14px;padding:13px 15px;border:1px solid rgba(196,163,90,.55);border-radius:16px;background:rgba(196,163,90,.08)}
+.sv2-recipe-warning-gap{border-color:rgba(122,23,30,.45);background:rgba(122,23,30,.06)}
+.sv2-recipe-warning strong{font:600 11px var(--sv2-sans-family);text-transform:uppercase;letter-spacing:.5px;color:#7A171E}.sv2-recipe-warning p{margin:4px 0 0!important}
+.sv2-recipe-form{display:grid;gap:15px}.sv2-recipe-form label{display:grid;gap:7px;font:600 11px var(--sv2-sans-family);letter-spacing:.4px;text-transform:uppercase;color:var(--sv2-ink)}
+.sv2-recipe-form label small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--sv2-muted)}
+.sv2-recipe-form input,.sv2-recipe-form textarea{width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid var(--sv2-line);border-radius:14px;background:rgba(255,255,255,.45);color:var(--sv2-ink);font:400 13px/1.5 var(--sv2-sans-family)}
+.sv2-recipe-name-list,.sv2-recipe-review-list{display:grid;gap:10px;margin:0;padding:0;border:0}.sv2-recipe-name-list legend,.sv2-recipe-review-list legend{margin-bottom:2px;font:600 11px var(--sv2-sans-family);letter-spacing:.4px;text-transform:uppercase}.sv2-recipe-name-list>small{font:400 12px/1.5 var(--sv2-sans-family);color:var(--sv2-muted)}
+.sv2-recipe-name-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.sv2-recipe-name-row button,.sv2-add-ingredient-row{min-height:40px;padding:8px 13px;border:1px solid #64161A;border-radius:999px;background:transparent;color:#64161A;font:600 9px var(--sv2-sans-family);letter-spacing:.4px;text-transform:uppercase}.sv2-add-ingredient-row{justify-self:start}
+.sv2-recipe-review-note{margin:0!important;padding:11px 13px;border-radius:13px;background:rgba(100,22,26,.06);color:#64161A!important}.sv2-recipe-review-row{display:grid;grid-template-columns:minmax(150px,1fr) 100px 110px;gap:8px}
+.sv2-recipe-serving-note{margin:0!important;padding:11px 13px;border:1px solid var(--sv2-line);border-radius:13px;color:var(--sv2-ink)!important}.sv2-recipe-serving-note strong{color:#64161A}
+.sv2-recipe-modal-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:rgba(24,9,10,.58)}.sv2-recipe-modal{width:min(620px,100%);max-height:calc(100vh - 40px);overflow:auto;box-sizing:border-box;padding:26px;border:1px solid rgba(100,22,26,.25);border-radius:24px;background:var(--sv2-off-white);box-shadow:0 24px 80px rgba(24,9,10,.3)}.sv2-recipe-modal h3{margin:0 0 8px;font:italic 32px/1.1 var(--sv2-display-family);color:var(--sv2-ink)}.sv2-recipe-modal p{margin:0 0 16px!important}.sv2-recipe-modal textarea{width:100%;box-sizing:border-box;padding:14px;border:1px solid var(--sv2-line);border-radius:14px;background:rgba(255,255,255,.55);color:var(--sv2-ink);font:400 13px/1.55 var(--sv2-sans-family);resize:vertical}
+.sv2-recipe-instruction-tools{display:grid;grid-template-columns:1fr auto;align-items:end;gap:9px}.sv2-recipe-instruction-tools button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid #64161A;border-radius:50%;background:transparent;color:#64161A}.sv2-recipe-instruction-tools button svg{width:20px;height:20px;fill:currentColor}.sv2-recipe-instruction-tools button.is-listening{background:#64161A;color:#F4EFE4;box-shadow:0 0 0 5px rgba(100,22,26,.12)}.sv2-recipe-instruction-tools button:disabled{opacity:.35}
+.sv2-recipe-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.sv2-recipe-actions button{min-height:44px;padding:11px 18px;border:1px solid #64161A;border-radius:999px;background:#64161A;color:#F4EFE4;font:600 10px var(--sv2-sans-family);letter-spacing:.6px;text-transform:uppercase}.sv2-recipe-actions button.secondary{background:transparent;color:#64161A}.sv2-recipe-actions button:disabled{opacity:.45;cursor:not-allowed}
+.sv2-recipe-error{padding:12px 14px;border-radius:14px;background:rgba(122,23,30,.06);color:#7A171E!important}.sv2-recipe-empty{padding:50px 20px;text-align:center}.sv2-recipe-empty h2{font:italic 30px var(--sv2-display-family)}
+@media(max-width:560px){.sv2-recipe-card{padding:18px!important}.sv2-recipe-card-head{flex-direction:column}.sv2-recipe-ingredients li{grid-template-columns:90px 1fr}.sv2-recipe-instruction-tools{grid-template-columns:1fr}.sv2-recipe-instruction-tools button{justify-self:start}.sv2-recipe-review-row{grid-template-columns:1fr 90px}.sv2-recipe-review-row input:first-child{grid-column:1/-1}}
 .sv2-export-menu{width:100%;min-height:50px;margin-top:24px;border:1px solid var(--sv2-ink);background:var(--sv2-ink);color:var(--sv2-off-white);font-size:11px;letter-spacing:1px}.sv2-export-chooser{margin-top:18px;padding:20px;border:1px solid var(--sv2-line)}.sv2-export-chooser h2{font:italic 28px var(--sv2-display-family)}.sv2-export-chooser>p{font-size:10px;color:var(--sv2-muted)}.sv2-export-chooser>div{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sv2-export-chooser button{min-height:44px;border:1px solid var(--sv2-ink);background:transparent;color:inherit;font-size:10px}.sv2-export-chooser button[aria-pressed="true"],.sv2-export-chooser>button:last-child{background:var(--sv2-ink);color:var(--sv2-off-white)}.sv2-export-chooser>button:last-child{width:100%;margin-top:14px}
 .sv2-inventory-editor{margin-top:26px}.sv2-inventory-editor h2{font:500 12px var(--sv2-sans-family);letter-spacing:1px}.sv2-inventory-chips{display:flex;flex-wrap:wrap;gap:8px}.sv2-inventory-chips>button,.sv2-inventory-chips>span{min-height:40px;padding:10px 13px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:inherit;font-size:10px}.sv2-inventory-chips>button[aria-pressed="true"]{background:var(--sv2-ink);color:var(--sv2-off-white)}.sv2-inventory-chips>span button{margin-left:7px;border:0;background:transparent;color:inherit}.sv2-inventory-add{display:grid;grid-template-columns:1fr auto;margin-top:14px}.sv2-inventory-add input{min-height:46px;padding:10px;border:1px solid var(--sv2-line);background:transparent}.sv2-inventory-add button,.sv2-inventory-save{border:1px solid var(--sv2-ink);background:var(--sv2-ink);color:var(--sv2-off-white);font-size:10px}.sv2-inventory-save{width:100%;min-height:50px;margin-top:30px}.sv2-inventory-saved{text-align:center;font-size:11px}
 

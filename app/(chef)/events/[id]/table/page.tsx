@@ -289,7 +289,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
             {/* Hard limits */}
             <section className="sv2-intel-card sv2-intel-hard-limits" style={{ ...card, borderColor: 'rgba(224,119,107,0.35)' }}>
               <div style={cardHeadRow}>
-                <span style={cardTitle}>Hard Limits — non-negotiable</span>
+                <span style={cardTitle}>Hard Limits with non-negotiable needs</span>
                 <span
                   style={{
                     color: C.danger,
@@ -306,7 +306,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
               <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {intel.hardLimits.length === 0 ? (
                   <div style={{ color: C.faint, fontSize: 14, fontFamily: 'system-ui, sans-serif' }}>
-                    Open table — no hard limits.
+                    Open table with no hard limits.
                   </div>
                 ) : (
                   intel.hardLimits.map((limit) => (

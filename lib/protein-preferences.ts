@@ -5,7 +5,7 @@ export const PROTEIN_PREFERENCE_OPTIONS = [
   { value: 'shellfish', label: 'Shellfish' },
   { value: 'vegetable', label: 'Vegetable-forward' },
   { value: 'grain_pasta', label: 'Grains or pasta' },
-  { value: 'no_preference', label: 'No preference — surprise me' },
+  { value: 'no_preference', label: 'No preference with a surprise' },
 ] as const
 
 export type ProteinPreference = (typeof PROTEIN_PREFERENCE_OPTIONS)[number]['value']

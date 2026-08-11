@@ -135,11 +135,11 @@ describe('form fields', () => {
     expect(screen.getByTestId('date-input')).toBeInTheDocument()
   })
 
-  it('Publish invite is always enabled and validates on submit instead', async () => {
+  it('Continue is always enabled and validates on submit instead', async () => {
     makeSupabase()
     render(<HostNewPage />)
-    expect(screen.getByRole('button', { name: /publish invite/i })).not.toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     expect(
       screen.getByText(/add an event name, date and time, and location/i)
     ).toBeInTheDocument()
@@ -158,7 +158,7 @@ describe('submit handler', () => {
     const sb = makeSupabase()
     render(<HostNewPage />)
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
     expect(sb.upload).not.toHaveBeenCalled()
   })
@@ -169,7 +169,7 @@ describe('submit handler', () => {
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
     expect(sb.upload).toHaveBeenCalledWith(
       expect.stringMatching(/^uid-1\/.+\.jpg$/),
@@ -183,7 +183,7 @@ describe('submit handler', () => {
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() =>
       expect(screen.getByText(/photo upload failed/i)).toBeInTheDocument()
     )
@@ -199,8 +199,8 @@ describe('submit handler', () => {
     fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
     await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
     await userEvent.type(screen.getByRole('textbox', { name: /dress code/i }), 'Smart casual')
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=new-event-id'))
     expect(sb.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         host_id:    'uid-1',
@@ -219,7 +219,7 @@ describe('submit handler', () => {
     makeSupabase({ insertError: { message: 'db error' } })
     render(<HostNewPage />)
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() =>
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
     )
@@ -232,7 +232,7 @@ describe('submit handler', () => {
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
     expect(sb.insert).toHaveBeenCalledWith(
       expect.objectContaining({ cover_url: 'https://cdn.example.com/photo.jpg' })
@@ -243,7 +243,7 @@ describe('submit handler', () => {
     const sb = makeSupabase()
     render(<HostNewPage />)
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
     expect(sb.insert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -283,8 +283,8 @@ describe('CUSTOMIZE GUEST QUESTIONS', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/new-event-id/questionnaire'))
 
     mockPush.mockClear()
-    await userEvent.click(screen.getByRole('button', { name: /publish invite/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=new-event-id'))
 
     expect(sb.insert).toHaveBeenCalledTimes(1)
     expect(sb.update).toHaveBeenCalledTimes(1)

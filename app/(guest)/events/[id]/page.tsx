@@ -19,6 +19,7 @@ type EventRow = {
   dress_code: string | null
   theme: string
   cover_url: string | null
+  is_published: boolean
 }
 
 type GuestRow = {
@@ -51,6 +52,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [guests, setGuests] = useState<EventPaperGuest[]>([])
   const [unlocked, setUnlocked] = useState(false)
   const [isHost, setIsHost] = useState(false)
+  const [isUnpublishedVisitor, setIsUnpublishedVisitor] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
   const [photos, setPhotos] = useState<AlbumPhoto[]>([])
@@ -86,7 +88,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }] = await Promise.all([
         supabase
           .from('events')
-          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,theme,cover_url')
+          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,theme,cover_url,is_published')
           .eq('id', params.id)
           .single(),
         supabase
@@ -97,17 +99,28 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           .maybeSingle(),
       ])
 
-      if (e1) throw new Error('event not found')
-      if (e2) throw new Error('rsvp fetch failed')
-
-      setEvent(ev as EventRow)
+      if (e1 || !ev) throw new Error(e1?.message ?? 'event not found')
+      if (e2) {
+        console.error('Event RSVP lookup failed', { eventId: params.id, code: e2.code, message: e2.message })
+      }
 
       const hostViewing = ev.host_id === stored
-      const hasRsvp = rsvpRow !== null
+      if (ev.is_published === false && !hostViewing) {
+        setIsUnpublishedVisitor(true)
+        setEvent(null)
+        setUnlocked(false)
+        setIsHost(false)
+        return
+      }
+
+      setIsUnpublishedVisitor(false)
+      setEvent(ev as EventRow)
+      const safeRsvpRow = e2 ? null : rsvpRow
+      const hasRsvp = safeRsvpRow !== null
       const isUnlocked = hostViewing || hasRsvp
 
       setHasRsvpRow(hasRsvp)
-      setMyRsvp(rsvpRow?.status ?? null)
+      setMyRsvp(safeRsvpRow?.status ?? null)
       setUnlocked(isUnlocked)
       setIsHost(hostViewing)
 
@@ -128,8 +141,15 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
         await loadPhotos()
       }
-    } catch {
-      setError("Couldn't load this event. Try again.")
+    } catch (loadError) {
+      const detail = loadError instanceof Error ? loadError.message : 'unknown error'
+      console.error('Event detail load failed', {
+        eventId: params.id,
+        message: detail,
+      })
+      setError(process.env.NODE_ENV === 'development'
+        ? `Couldn't load this event. ${detail}`
+        : "Couldn't load this event. Try again.")
     } finally {
       setLoading(false)
     }
@@ -211,6 +231,17 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
   const isPast = event ? new Date(event.event_date).getTime() < Date.now() : false
 
+  if (!loading && isUnpublishedVisitor) {
+    return (
+      <div className="sv2-root sv2-device-page sv2-app-page">
+        <main className="sv2-device-shell sv2-app-shell" style={{ padding: '72px 24px', textAlign: 'center' }}>
+          <h1>This event isn&apos;t published yet</h1>
+          <p>The host is still getting the table ready. Please check back after the invite is published.</p>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <EventPaper
       loading={loading}
@@ -222,7 +253,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       tagline={event?.tagline ?? null}
       dateLabel={event ? formatDate(event.event_date) : ''}
       timeLabel={event ? formatTime(event.event_date) : ''}
-      venue={event?.venue ?? '—'}
+      venue={event?.venue ?? 'Venue pending'}
       address={event?.address ?? null}
       dressCode={event?.dress_code ?? null}
       coverUrl={event?.cover_url ?? null}

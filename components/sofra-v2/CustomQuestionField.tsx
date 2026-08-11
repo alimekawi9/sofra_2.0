@@ -119,7 +119,7 @@ export function CustomQuestionField({ question, value, onChange }: CustomQuestio
       </div>
       {maxHint && (
         <p className="sv2-hint">
-          Choose up to {max} — tap one to swap it out.
+          Choose up to {max} with one tap to swap it out.
         </p>
       )}
     </section>

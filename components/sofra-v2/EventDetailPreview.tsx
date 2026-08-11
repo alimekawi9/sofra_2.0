@@ -18,7 +18,7 @@ export function EventDetailPreview({role='guest',state='upcoming'}:{role?:EventP
   const host=role==='host'
   const inventoryComplete=readPreviewSession().inventoryUpdated
   async function copy(){await navigator.clipboard?.writeText('https://preview.sofra.example/design-preview/invite');setCopied(true)}
-  function whatsapp(){window.open(`https://wa.me/?text=${encodeURIComponent("You're invited to Layla's Sofra — https://preview.sofra.example/design-preview/invite")}`,'_blank','noopener,noreferrer')}
+  function whatsapp(){window.open(`https://wa.me/?text=${encodeURIComponent("You're invited to Layla's Sofra with https://preview.sofra.example/design-preview/invite")}`,'_blank','noopener,noreferrer')}
   return <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
     <main className="sv2-device-shell sv2-app-shell sv2-event-detail-shell">
       <Link className="sv2-back-link" href="/design-preview/events">← Your Sofras</Link>

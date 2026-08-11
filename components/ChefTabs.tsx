@@ -5,7 +5,7 @@ import { C } from '@/lib/theme'
 
 interface ChefTabsProps {
   eventId: string
-  active: 'table' | 'menu'
+  active: 'table' | 'menu' | 'recipes'
   title?: string
   subtitle?: string
 }
@@ -76,6 +76,12 @@ export default function ChefTabs({ eventId, active, title, subtitle }: ChefTabsP
           onClick={() => router.push(`/events/${eventId}/menu`)}
         >
           Drafted Menu
+        </button>
+        <button
+          className={active === 'recipes' ? 'tab on' : 'tab'}
+          onClick={() => router.push(`/events/${eventId}/recipes`)}
+        >
+          Recipes
         </button>
       </div>
     </div>

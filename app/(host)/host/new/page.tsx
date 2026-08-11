@@ -51,7 +51,7 @@ export default function HostNewPage() {
   async function saveEventRow(): Promise<{ id: string | null; error: string | null }> {
     if (!uidRef.current) return { id: null, error: null }
     if (!title.trim() || !dateTime || !location.trim()) {
-      return { id: null, error: 'Add an event name, date and time, and location before publishing.' }
+      return { id: null, error: 'Add an event name, date and time, and location before continuing.' }
     }
 
     let publicUrl: string | null = null
@@ -75,6 +75,7 @@ export default function HostNewPage() {
       dress_code: dressCode.trim() || null,
       theme,
       cover_url: publicUrl,
+      is_published: false,
     }
 
     if (createdEventIdRef.current) {
@@ -107,7 +108,7 @@ export default function HostNewPage() {
       setError(saveError ?? 'Something went wrong. Please try again.')
       return
     }
-    router.push('/events/' + id)
+    router.push('/kitchen?from=' + id)
   }
 
   async function handleCustomizeQuestions() {

@@ -181,7 +181,7 @@ export function PreferencesReceipt({
           ))}
         </div>
         {proteinHintVisible && (
-          <p className="sv2-hint" data-testid="protein-hint">Only two at a time — tap one to swap it out.</p>
+          <p className="sv2-hint" data-testid="protein-hint">Only two at a time with one tap to swap it out.</p>
         )}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -99,7 +99,7 @@ it('switches to PREVIEW and shows the live guest-facing form', async () => {
   await userEvent.click(screen.getByRole('tab', { name: 'PREVIEW' }))
   expect(screen.getByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
   expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
-  expect(screen.getByText('This is a live preview — nothing here is saved.')).toBeInTheDocument()
+  expect(screen.getByText('This is a live preview with nothing here saved.')).toBeInTheDocument()
 })
 
 it('editing a canonical question title and saving persists the override, keyed by canonical question id', async () => {

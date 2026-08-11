@@ -456,7 +456,7 @@ function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
 
   return (
     <div className="sv2-questionnaire-preview">
-      <p className="sv2-questionnaire-preview-note">This is a live preview — nothing here is saved.</p>
+      <p className="sv2-questionnaire-preview-note">This is a live preview with nothing here saved.</p>
       <PreferencesReceipt
         dietary={dietary}
         onToggleDietary={(v) => toggle(dietary, setDietary, v)}

@@ -12,6 +12,7 @@ type EventRow = {
   event_date: string
   venue: string | null
   theme: string
+  is_published: boolean
 }
 
 type HostedRsvpRow = {
@@ -46,10 +47,10 @@ export default function EventsPage() {
       const now = Date.now()
       const [{ data: user }, { data: hostEvents, error: e1 }, { data: rsvpRows, error: e2 }] = await Promise.all([
         supabase.from('users').select('name').eq('id', uid).maybeSingle(),
-        supabase.from('events').select('id,title,event_date,venue,theme').eq('host_id', uid),
+        supabase.from('events').select('id,title,event_date,venue,theme,is_published').eq('host_id', uid),
         supabase
           .from('rsvps')
-          .select('status, events(id,title,event_date,venue,theme,host:users!events_host_id_fkey(name))')
+          .select('status, events(id,title,event_date,venue,theme,is_published,host:users!events_host_id_fkey(name))')
           .eq('user_id', uid)
           .in('status', ['going', 'maybe']),
       ])
@@ -68,12 +69,13 @@ export default function EventsPage() {
         timeLabel: formatTime(ev.event_date),
         rsvpStatus: 'Hosting',
         theme: ev.theme,
+        isDraft: ev.is_published === false,
       }))
 
       const hostingIds = new Set(hosting.map((ev) => ev.id))
 
       const invited: EventsBoardEvent[] = ((rsvpRows ?? []) as unknown as HostedRsvpRow[])
-        .filter((r) => r.events !== null && !hostingIds.has(r.events.id))
+        .filter((r) => r.events !== null && r.events.is_published !== false && !hostingIds.has(r.events.id))
         .map((r) => {
           const ev = r.events!
           const past = new Date(ev.event_date).getTime() < now

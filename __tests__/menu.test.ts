@@ -489,7 +489,7 @@ describe('deriveCourse', () => {
 
   test('shows placeholder when a linked signature was actually deleted', () => {
     const course = deriveCourse(persisted({ source: 'gone' }), [], [], noGuests)
-    expect(course.dishName).toBe('— source deleted, swap or lock —')
+    expect(course.dishName).toBe('Source deleted with swap or lock')
     expect(course.origin).toBe('empty')
   })
 
@@ -513,7 +513,7 @@ describe('deriveCourse', () => {
       [pantryItem('p1', 'Bread')],
       noGuests
     )
-    expect(course.dishName).toBe('— source deleted, swap or lock —')
+    expect(course.dishName).toBe('Source deleted with swap or lock')
   })
 
   test('empty course renders with blank dish name', () => {
@@ -826,7 +826,7 @@ describe('deriveCourse â€” composed dish re-scoring from component_ids', ()
       component_ids: ['gone-1', 'gone-2'],
     }
     const derived = deriveCourse(persisted, [], [], vegIntel)
-    expect(derived.dishName).toBe('— source deleted, swap or lock —')
+    expect(derived.dishName).toBe('Source deleted with swap or lock')
     expect(derived.origin).toBe('empty')
   })
 })
@@ -964,4 +964,3 @@ describe('assignSubstitutions â€” usedNames filter', () => {
     expect(subs[0].dishName).toBe('Chana Masala')
   })
 })
-

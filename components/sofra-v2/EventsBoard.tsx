@@ -16,6 +16,7 @@ export interface EventsBoardEvent {
   timeLabel: string
   rsvpStatus: string
   theme: string
+  isDraft?: boolean
 }
 
 export interface EventsBoardProps {
@@ -88,7 +89,10 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
                     <div className="sv2-event-artwork" role="img" aria-label={`${event.theme} theme`}>
                       <span>{event.theme}</span>
                     </div>
-                    <p className="sv2-event-status">{LABELS[event.status]}</p>
+                    <p className="sv2-event-status">
+                      {LABELS[event.status]}
+                      {event.isDraft && <span className="sv2-draft-badge">Draft</span>}
+                    </p>
                     <h3>{event.title}</h3>
                     {event.host && <p>Hosted by {event.host}</p>}
                     <p>{event.venue}</p>

@@ -66,6 +66,21 @@ export async function POST(request: Request) {
 
   log('saving_preferences', requestId, startedAt)
   const supabase = createClient()
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select('is_published')
+    .eq('id', body.eventId)
+    .maybeSingle()
+
+  if (eventError || !event) {
+    log('resolving_rsvp', requestId, startedAt, { status: 404, code: 'EVENT_NOT_FOUND' })
+    return NextResponse.json({ success: false, stage: 'resolving_rsvp', code: 'EVENT_NOT_FOUND', message: 'This invitation is no longer available.' }, { status: 404 })
+  }
+  if (event.is_published !== true) {
+    log('validating', requestId, startedAt, { status: 403, code: 'EVENT_UNPUBLISHED' })
+    return NextResponse.json({ success: false, stage: 'validating', code: 'EVENT_UNPUBLISHED', message: "This event isn't published yet." }, { status: 403 })
+  }
+
   const { data, error } = await supabase.rpc('submit_rsvp_preferences', {
     p_event_id: body.eventId,
     p_user_id: body.userId,

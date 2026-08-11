@@ -759,7 +759,7 @@ export function deriveCourse(
   const course: Course = {
     slot,
     slotLabel,
-    dishName: sourceDeleted ? '— source deleted, swap or lock —' : persisted.dish_name,
+    dishName: sourceDeleted ? 'Source deleted with swap or lock' : persisted.dish_name,
     origin: sourceDeleted ? 'empty' : ((persisted.dish_origin as CourseOrigin) ?? 'empty'),
     sourceId: persisted.source,
     excludes,
