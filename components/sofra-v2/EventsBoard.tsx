@@ -16,6 +16,7 @@ export interface EventsBoardEvent {
   timeLabel: string
   rsvpStatus: string
   theme: string
+  coverUrl?: string | null
   isDraft?: boolean
 }
 
@@ -86,8 +87,17 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
               <div className="sv2-event-stack">
                 {visible.map((event) => (
                   <article className="sv2-event-card" key={event.id}>
-                    <div className="sv2-event-artwork" role="img" aria-label={`${event.theme} theme`}>
-                      <span>{event.theme}</span>
+                    <div
+                      className={`sv2-event-artwork${event.coverUrl ? ' sv2-event-artwork-photo' : ''}`}
+                      role="img"
+                      aria-label={event.coverUrl ? `${event.title} invitation image` : `${event.theme} theme`}
+                    >
+                      {event.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={event.coverUrl} alt="" />
+                      ) : (
+                        <span>{event.theme}</span>
+                      )}
                     </div>
                     <p className="sv2-event-status">
                       {LABELS[event.status]}

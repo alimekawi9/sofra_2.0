@@ -12,6 +12,7 @@ type EventRow = {
   event_date: string
   venue: string | null
   theme: string
+  cover_url: string | null
   is_published: boolean
 }
 
@@ -47,10 +48,10 @@ export default function EventsPage() {
       const now = Date.now()
       const [{ data: user }, { data: hostEvents, error: e1 }, { data: rsvpRows, error: e2 }] = await Promise.all([
         supabase.from('users').select('name').eq('id', uid).maybeSingle(),
-        supabase.from('events').select('id,title,event_date,venue,theme,is_published').eq('host_id', uid),
+        supabase.from('events').select('id,title,event_date,venue,theme,cover_url,is_published').eq('host_id', uid),
         supabase
           .from('rsvps')
-          .select('status, events(id,title,event_date,venue,theme,is_published,host:users!events_host_id_fkey(name))')
+          .select('status, events(id,title,event_date,venue,theme,cover_url,is_published,host:users!events_host_id_fkey(name))')
           .eq('user_id', uid)
           .in('status', ['going', 'maybe']),
       ])
@@ -69,6 +70,7 @@ export default function EventsPage() {
         timeLabel: formatTime(ev.event_date),
         rsvpStatus: 'Hosting',
         theme: ev.theme,
+        coverUrl: ev.cover_url,
         isDraft: ev.is_published === false,
       }))
 
@@ -91,6 +93,7 @@ export default function EventsPage() {
             timeLabel: formatTime(ev.event_date),
             rsvpStatus,
             theme: ev.theme,
+            coverUrl: ev.cover_url,
           }
         })
 

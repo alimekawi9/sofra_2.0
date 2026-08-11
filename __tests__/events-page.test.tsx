@@ -15,6 +15,7 @@ type EventRow = {
   event_date: string
   venue: string | null
   theme: string
+  cover_url?: string | null
 }
 
 const SAMPLE_EVENT: EventRow = {
@@ -168,6 +169,20 @@ describe('empty state', () => {
 })
 
 describe('Hosting events', () => {
+  it('shows the uploaded invitation image instead of the theme artwork', async () => {
+    makeSupabase({ hostingEvents: [{ ...SAMPLE_EVENT, cover_url: 'https://example.com/invitation.jpg' }] })
+    render(<EventsPage />)
+    await waitFor(() => expect(screen.getByRole('img', { name: /Casa Mekawi invitation image/i })).toBeInTheDocument())
+    expect(document.querySelector('img[src="https://example.com/invitation.jpg"]')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /ember theme/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps the theme artwork when no invitation image was uploaded', async () => {
+    makeSupabase({ hostingEvents: [{ ...SAMPLE_EVENT, cover_url: null }] })
+    render(<EventsPage />)
+    await waitFor(() => expect(screen.getByRole('img', { name: /ember theme/i })).toBeInTheDocument())
+  })
+
   it('shows a HOSTING filter and the hosted event under it', async () => {
     makeSupabase({ hostingEvents: [SAMPLE_EVENT] })
     render(<EventsPage />)

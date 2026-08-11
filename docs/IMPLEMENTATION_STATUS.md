@@ -161,3 +161,4 @@
 - Signature presets and custom dishes now share one card-level action; pantry presets and custom ingredients do the same.
 - The per-item Continue, Save ingredient, and Add selected controls were removed.
 - Each card says Submit when its saved inventory is empty and Update after inventory exists, while preserving the draft-event Publish Invite action.
+- Dashboard event cards display the invitation's uploaded cover image when available and retain the themed artwork as the no-image fallback.
