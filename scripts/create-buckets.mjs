@@ -28,7 +28,7 @@ const supabase = createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-const BUCKETS = ['covers', 'avatars']
+const BUCKETS = ['covers', 'avatars', 'event-photos']
 
 function print(label, value) {
   console.log(`\n=== ${label} ===`)
