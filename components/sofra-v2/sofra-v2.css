@@ -1188,6 +1188,27 @@
 .sv2-print-menu-foot{margin:15px 0 0;font:italic 10px/1 Georgia,serif}
 .sv2-menu-popup-warning{text-align:center;color:#8b4243;font-size:12px}
 @media(max-width:560px){.sv2-menu-design-page{padding:12px}.sv2-menu-design-shell{min-height:calc(100vh - 24px);padding:22px 18px;border-radius:34px}.sv2-menu-design-chooser{padding:28px 18px}.sv2-menu-design-grid{gap:12px}.sv2-menu-design-option{padding:7px 7px 10px}.sv2-print-menu-copy{inset:14% 17% 13%}}
+
+/* Shared-link invitation landing */
+.sv2-invite-landing-page{min-height:100vh;padding:clamp(12px,4vw,36px);background:#4d1014;color:#68171a;font-family:var(--sv2-sans-family)}
+.sv2-invite-landing{width:min(100%,520px);min-height:calc(100vh - clamp(24px,8vw,72px));margin:0 auto;padding:clamp(28px,6vw,48px) clamp(20px,5vw,38px);border-radius:42px;background:#f7f1e8;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 22px 60px rgba(28,3,5,.28)}
+.sv2-invite-landing-kicker{margin:0 0 20px;font:600 17px/1.1 var(--sv2-sans-family);letter-spacing:.06em;text-transform:uppercase}
+.sv2-invite-landing-art{position:relative;width:min(100%,390px);aspect-ratio:2/3;overflow:hidden}
+.sv2-invite-landing-art img{object-fit:cover}
+.sv2-invite-landing-art h1{position:absolute;z-index:1;left:25%;right:25%;top:44%;margin:0;transform:translateY(-50%);color:#68171a;text-align:center;font:italic clamp(15px,4vw,23px)/1.1 var(--sv2-display-family);overflow-wrap:anywhere}
+.sv2-invite-landing-silver .sv2-invite-landing-art h1{left:27%;right:27%;top:51%}
+.sv2-invite-landing-spots .sv2-invite-landing-art h1{left:29%;right:27%;top:59%;font-size:clamp(13px,3.5vw,20px)}
+.sv2-invite-landing-envelope .sv2-invite-landing-art h1{left:27%;right:27%;top:38%}
+.sv2-invite-landing>button{width:min(100%,250px);min-height:48px;margin-top:20px;padding:12px 24px;border:1px solid #68171a;border-radius:999px;background:transparent;color:#68171a;font:600 11px/1 var(--sv2-sans-family);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.sv2-invite-landing>button:hover,.sv2-invite-landing>button:focus-visible{background:#68171a;color:#f7f1e8}
+
+/* RSVP replies stay as three square postcard choices at every viewport. */
+.sv2-invite-choices{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}
+.sv2-invite-choices button{width:100%;min-width:0;min-height:0!important;aspect-ratio:1;padding:10px 7px!important;border:1px solid #68171a!important;border-radius:8px!important;background:
+  radial-gradient(circle at 8px 8px,transparent 4px,#f7f1e8 4.5px) -8px -8px/16px 16px!important;
+  color:#68171a!important;font:italic clamp(10px,2.8vw,14px)/1.25 var(--sv2-display-family)!important;letter-spacing:0!important;box-shadow:0 7px 15px rgba(64,15,17,.11);text-transform:none}
+.sv2-invite-choices button:hover,.sv2-invite-choices button:focus-visible{background:#68171a!important;color:#f7f1e8!important}
+@media(max-width:420px){.sv2-invite-choices{grid-template-columns:repeat(3,minmax(0,1fr))!important}.sv2-invite-landing-page{padding:8px}.sv2-invite-landing{min-height:calc(100vh - 16px);padding:26px 16px;border-radius:34px}}
 .sv2-production-menu-draft button:focus-visible{outline:2px solid var(--sv2-ink);outline-offset:2px}
 .sv2-production-menu-draft button{font-family:var(--sv2-sans-family)!important;font-weight:600!important}
 @media(max-width:560px){.sv2-menu-draft-heading{align-items:flex-start!important;flex-direction:column;gap:16px}.sv2-menu-draft-heading>div:last-child{justify-content:flex-start!important}.sv2-menu-draft-course{padding:18px!important}.sv2-menu-export-row{align-items:flex-start!important;flex-direction:column}.sv2-production-menu-draft .sv2-menu-draft-shell>div:first-of-type>div:first-child{align-items:flex-start!important;gap:14px}}

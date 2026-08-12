@@ -188,3 +188,19 @@
 - Generate Menu PDF now opens a dedicated four-design chooser before showing a full selected-menu preview.
 - Folk Garden, Paper Lace, Garden Stripe, and Red Bloom use print-ready artwork with live event and course text.
 - The selected design carries into the existing browser print flow, preserving print and Save as PDF support.
+
+## Invitation entry experience (2026-08-12)
+
+- First-time shared-link visitors now see an event-name-only invitation landing before the RSVP questionnaire or full event details.
+- Each event receives one stable design from four invitation treatments: lace, silver place setting, spotted envelope, or burgundy envelope.
+- RSVP responses remain three square postcard controls in one horizontal row on desktop and mobile.
+
+## Guest event link-preview metadata (2026-08-12)
+
+- `app/(guest)/events/[id]/page.tsx` was split into a server `page.tsx` (exports `generateMetadata`) and a new client `EventDetailClient.tsx` carrying all existing interactive logic unchanged, because `generateMetadata` cannot be exported from a `'use client'` file.
+- `generateMetadata` does its own minimal server-side Supabase read of `title,tagline,cover_url,is_published` only — never the guest list or address, preserving the locked/unlocked boundary, since link previews render for anyone the link reaches, invited or not.
+- `og:title`/`<title>` use the event title, `og:description` falls back to "You're invited to a Sofra." when no tagline is set, and `og:image` falls back to the existing `/design-preview/arabesque-ornament.png` themed artwork (already used elsewhere as the no-cover-photo fallback) when there's no cover photo.
+- Unpublished draft events and missing/deleted event ids get a fully generic card ("Sofra Invitation") rather than leaking the real draft title to whoever the link reaches before publish.
+- New `lib/site-url.ts` (`getSiteUrl()`) resolves an absolute origin server-side (`NEXT_PUBLIC_SITE_URL` → Vercel's `VERCEL_PROJECT_PRODUCTION_URL`/`VERCEL_URL` → `localhost:3000`) for the fallback image URL and is also wired into `app/layout.tsx`'s new `metadataBase`.
+- **Known limitation:** the fallback image (`arabesque-ornament.png`) is a 1254×1254, ~1.6MB PNG designed for in-app artwork, not an optimized ~1200×630 OG image; some link-preview crawlers (WhatsApp in particular) are known to be unreliable with large images. Live-link testing (WhatsApp/iMessage/Facebook Sharing Debugger) after deploy should confirm whether it renders consistently; if not, it should be resized/compressed into a dedicated OG asset.
+- Full test suite (614 tests, incl. 6 new `generateMetadata` tests), TypeScript, lint, and an isolated production build all pass with no newly introduced failures.
