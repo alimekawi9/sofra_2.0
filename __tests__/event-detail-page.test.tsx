@@ -546,6 +546,15 @@ it('shows the declined RSVP copy without an x', async () => {
   expect(screen.queryByText(/Can't make it/)).not.toBeInTheDocument()
 })
 
+it('shows the going RSVP copy without a star', async () => {
+  localStorage.setItem('sofra_user_id', GUEST_UID)
+  makeSupabase({ rsvpRow: { status: 'going' } })
+  render(<EventDetailPage params={PARAMS} />)
+
+  expect(await screen.findByText('Blessing us with your presence')).toBeInTheDocument()
+  expect(screen.queryByText('Going ✦')).not.toBeInTheDocument()
+})
+
 describe('Locked table preview', () => {
   it('shows the locked card with exact copy for a guest with no RSVP', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)

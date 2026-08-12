@@ -56,7 +56,7 @@ export interface EventPaperProps {
 }
 
 const RSVP_LABELS: Record<string, string> = {
-  going: 'Going ✦',
+  going: 'Blessing us with your presence',
   maybe: 'Maybe ◈',
   cant: 'I have better things to do apparently',
 }
