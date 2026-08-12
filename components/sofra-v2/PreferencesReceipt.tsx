@@ -22,7 +22,7 @@ export interface PreferencesReceiptProps {
   onAdventurousnessChange: (value: number) => void
   onSave: () => void
   prefilled?: boolean
-  showCanonicalQuestions?: boolean
+  visibleCanonicalQuestions?: Array<'dietary' | 'avoid' | 'protein' | 'flavor' | 'adventurousness'>
   saveLabel?: string
   saving?: boolean
   error?: string
@@ -84,7 +84,7 @@ export function PreferencesReceipt({
   onAdventurousnessChange,
   onSave,
   prefilled = false,
-  showCanonicalQuestions = true,
+  visibleCanonicalQuestions,
   saveLabel = 'SAVE MY SEAT',
   saving = false,
   error = '',
@@ -106,6 +106,8 @@ export function PreferencesReceipt({
   adventurousnessMaxLabel,
   extraContent,
 }: PreferencesReceiptProps) {
+  const shows = (key: 'dietary' | 'avoid' | 'protein' | 'flavor' | 'adventurousness') =>
+    visibleCanonicalQuestions === undefined || visibleCanonicalQuestions.includes(key)
   const adventurousnessLabel =
     adventurousness < 25
       ? 'Keep it familiar'
@@ -132,7 +134,7 @@ export function PreferencesReceipt({
         </p>
         {prefilled && <p className="sv2-hint" data-testid="prefilled-badge">✦ Pulled from your profile</p>}
 
-        {showCanonicalQuestions && <>
+        {shows('dietary') && <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{dietaryTitle || 'ANY LANE TO STAY IN?'}</h3>
@@ -155,6 +157,8 @@ export function PreferencesReceipt({
             </Fragment>
           ))}
         </div>
+        </>}
+        {shows('avoid') && <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{avoidTitle || 'ANYTHING YOU AVOID?'}</h3>
@@ -168,7 +172,9 @@ export function PreferencesReceipt({
             />
           ))}
         </div>
+        </>}
 
+        {shows('protein') && <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{proteinTitle || 'WHAT SOUNDS BEST TONIGHT?'}</h3>
@@ -186,7 +192,9 @@ export function PreferencesReceipt({
         {proteinHintVisible && (
           <p className="sv2-hint" data-testid="protein-hint">Only two at a time with one tap to swap it out.</p>
         )}
+        </>}
 
+        {shows('flavor') && <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{flavorTitle || 'FLAVOURS YOU LEAN TOWARDS'}</h3>
@@ -202,7 +210,9 @@ export function PreferencesReceipt({
           ))}
         </div>
         {flavorHintVisible && <p className="sv2-hint" data-testid="flavor-hint">Choose up to three.</p>}
+        </>}
 
+        {shows('adventurousness') && <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{adventurousnessTitle || 'HOW BRAVE IS YOUR PALATE?'}</h3>

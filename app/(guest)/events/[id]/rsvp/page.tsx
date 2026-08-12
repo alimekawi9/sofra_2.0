@@ -23,6 +23,7 @@ import {
   sortedQuestions,
   isCanonical,
   isCustom,
+  isCanonicalQuestionCustomized,
   canonicalOptionsFor,
   resolveCanonicalTitle,
   resolveCanonicalHelperText,
@@ -85,6 +86,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
   const [isPreferenceOnly, setIsPreferenceOnly] = useState(false)
   const [newQuestionIds, setNewQuestionIds] = useState<string[] | null>(null)
+  const [changedCanonicalKeys, setChangedCanonicalKeys] = useState<CanonicalQuestionConfig['canonicalKey'][] | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [isUnpublished, setIsUnpublished] = useState(false)
@@ -358,12 +360,17 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     }
     setStatus(response)
     if (prefilled) {
+      const changedCanonical = sortedQuestions(questionnaire)
+        .filter(isCanonical)
+        .filter(isCanonicalQuestionCustomized)
+        .map((question) => question.canonicalKey)
       const unansweredCustomIds = sortedQuestions(questionnaire)
         .filter(isCustom)
         .filter((question) => customAnswersRef.current[question.id] === undefined)
         .map((question) => question.id)
 
-      if (unansweredCustomIds.length > 0) {
+      if (changedCanonical.length > 0 || unansweredCustomIds.length > 0) {
+        setChangedCanonicalKeys(changedCanonical)
         setNewQuestionIds(unansweredCustomIds)
         setStep('profile')
         return
@@ -374,6 +381,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     }
 
     setNewQuestionIds(null)
+    setChangedCanonicalKeys(null)
     setStep('profile')
   }
 
@@ -436,8 +444,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onAdventurousnessChange={setAdventurousness}
         onSave={handleProfileSubmit}
         prefilled={prefilled}
-        showCanonicalQuestions={newQuestionIds === null}
-        saveLabel={newQuestionIds !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? 'UPDATE PREFERENCES' : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
+        visibleCanonicalQuestions={changedCanonicalKeys ?? undefined}
+        saveLabel={newQuestionIds !== null || changedCanonicalKeys !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? 'UPDATE PREFERENCES' : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
         error={error}
         onBack={() => setStep('status')}

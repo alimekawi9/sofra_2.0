@@ -138,6 +138,16 @@ export function isCustom(q: QuestionConfig): q is CustomQuestionConfig {
   return q.kind === 'custom'
 }
 
+export function isCanonicalQuestionCustomized(q: CanonicalQuestionConfig): boolean {
+  return Boolean(
+    q.title?.trim() ||
+    q.helperText?.trim() ||
+    q.sliderMinLabel?.trim() ||
+    q.sliderMaxLabel?.trim() ||
+    (q.optionLabels && Object.keys(q.optionLabels).length > 0)
+  )
+}
+
 export function customQuestions(config: QuestionnaireConfig): CustomQuestionConfig[] {
   return sortedQuestions(config).filter(isCustom)
 }
@@ -152,11 +162,7 @@ export function isDefaultQuestionnaire(config: QuestionnaireConfig | null | unde
   if (canonical.length !== CANONICAL_KEYS.length) return false
   return canonical.every(
     (q) =>
-      !q.title?.trim() &&
-      !q.helperText?.trim() &&
-      !q.sliderMinLabel?.trim() &&
-      !q.sliderMaxLabel?.trim() &&
-      (!q.optionLabels || Object.keys(q.optionLabels).length === 0)
+      !isCanonicalQuestionCustomized(q)
   )
 }
 

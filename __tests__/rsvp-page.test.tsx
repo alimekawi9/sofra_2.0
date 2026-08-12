@@ -887,20 +887,25 @@ describe('reuse saved preferences (confirm step)', () => {
     expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
   })
 
-  it('does not repeat canonical questions when only their display wording changed', async () => {
+  it('shows only a canonical question whose wording changed', async () => {
     makeSupabase({ profileRow: EXISTING_PROFILE, questionnaireConfig: CUSTOMIZED_CONFIG })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
 
-    expect(await screen.findByText('Same taste as last time?')).toBeInTheDocument()
-    expect(screen.queryByText('A CUSTOM QUESTION')).not.toBeInTheDocument()
+    expect(await screen.findByText('A CUSTOM QUESTION')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(screen.queryByText('ANYTHING YOU AVOID?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Same taste as last time?')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'SAVE MY ANSWERS' })).toBeInTheDocument()
   })
 
   it('shows a returning guest only newly added unanswered custom questions', async () => {
     const configWithCustomQuestions = {
       questions: [
-        ...CUSTOMIZED_CONFIG.questions,
+        ...CUSTOMIZED_CONFIG.questions.map((question) =>
+          question.id === 'dietary' ? { ...question, title: undefined } : question
+        ),
         { id: 'answered-question', kind: 'custom', type: 'text', title: 'Question already answered', order: 5 },
         { id: 'new-question', kind: 'custom', type: 'text', title: 'What should we know now?', order: 6 },
       ],
