@@ -537,6 +537,15 @@ it('shows the event year in the detail date', async () => {
   await waitFor(() => expect(screen.getByText(/September 1, 2026/)).toBeInTheDocument())
 })
 
+it('shows the declined RSVP copy without an x', async () => {
+  localStorage.setItem('sofra_user_id', GUEST_UID)
+  makeSupabase({ rsvpRow: { status: 'cant' } })
+  render(<EventDetailPage params={PARAMS} />)
+
+  expect(await screen.findByText('I have better things to do apparently')).toBeInTheDocument()
+  expect(screen.queryByText(/Can't make it/)).not.toBeInTheDocument()
+})
+
 describe('Locked table preview', () => {
   it('shows the locked card with exact copy for a guest with no RSVP', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)

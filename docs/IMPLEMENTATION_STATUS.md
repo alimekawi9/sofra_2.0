@@ -173,5 +173,6 @@
 - Host table preferences are managed from Profile instead of the event preview. Hosts without a taste profile see a dismissible reminder, and mobile invite sharing keeps Copy Link and WhatsApp side by side.
 - The preference form says Update Preferences when opened from Profile; regular attendee flows retain their RSVP-specific action labels.
 - Returning guests with saved preferences see only newly added, unanswered event questions; previously answered custom questions and canonical profile questions are not repeated.
+- Declined event details label the RSVP as “I have better things to do apparently” without a trailing icon.
 - Published host events automatically move from Hosting to Hosted after their event date passes; unpublished drafts remain under Hosting.
 - Event cards and event-detail date rows include the year so future-year Sofras are unambiguous.

@@ -58,7 +58,7 @@ export interface EventPaperProps {
 const RSVP_LABELS: Record<string, string> = {
   going: 'Going ✦',
   maybe: 'Maybe ◈',
-  cant: "Can't make it ✕",
+  cant: 'I have better things to do apparently',
 }
 
 // Decorative only — stand-ins for hidden guest avatars, not real guest colors.
