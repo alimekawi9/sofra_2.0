@@ -1399,6 +1399,15 @@
   .sv2-add-question-types button,
   .sv2-customize-questions
 ):not(:disabled):is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:rgba(100,22,26,.78)!important;color:var(--sv2-off-white)!important}
+
+/* These outline actions are labels/links or legacy-named controls rather than
+   plain buttons, but share the same visual interaction. */
+.sv2-add-photos-trigger,
+.sv2-profile-preference-link,
+.sv2-root button.regen[aria-label="My kitchen"]{transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+.sv2-add-photos-trigger:is(:hover,:focus-within),
+.sv2-profile-preference-link:is(:hover,:focus-visible),
+.sv2-root button.regen[aria-label="My kitchen"]:is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:rgba(100,22,26,.78)!important;color:var(--sv2-off-white)!important}
 @media(min-width:900px){.sv2-comments-panel{left:auto;right:24px;bottom:24px;width:340px;max-height:60vh;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.4)}}
 
 /* ─── Host questionnaire customization ─── */
