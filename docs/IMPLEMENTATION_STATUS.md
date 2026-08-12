@@ -188,6 +188,7 @@
 - Generate Menu PDF now opens a dedicated four-design chooser before showing a full selected-menu preview.
 - Folk Garden, Paper Lace, Garden Stripe, and Red Bloom use print-ready artwork with live event and course text.
 - The selected design carries into the existing browser print flow, preserving print and Save as PDF support.
+- Printed menus now reuse the preview's guest-facing content, artwork ratio, and safe text insets; operational origin/portion notes no longer collide with the decorative frame.
 
 ## Invitation entry experience (2026-08-12)
 

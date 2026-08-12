@@ -50,44 +50,11 @@ function buildMenuHtml(
   })
 
   const coursesHtml = derivedCourses
-    .map((c) => {
-      const originLabel =
-        c.origin === 'signature'
-          ? 'Signature'
-          : c.origin === 'pantry-composed'
-          ? 'Composed for this table'
-          : c.origin === 'fallback'
-          ? 'Chef’s adaptation'
-          : ''
-      const substitutionsHtml =
-        c.substitutions && c.substitutions.length > 0
-          ? `<div class="subs"><div class="subs-h">Guest alternates</div>${c.substitutions
-              .map(
-                (s) =>
-                  `<div class="sub"><span class="sub-g">${escHtml(s.guests.join(', '))}</span> get instead: ${escHtml(s.dishName)}</div>`
-              )
-              .join('')}</div>`
-          : ''
-      const unmetHtml =
-        c.excludes.length > 0 && (!c.substitutions || c.substitutions.length === 0)
-          ? `<div class="alt">Alternative required for: ${c.excludes
-              .map((e) => `${escHtml(e.guest)} (${escHtml(e.reason)})`)
-              .join(', ')}</div>`
-          : ''
-      const portionHtml =
-        c.origin === 'empty'
-          ? ''
-          : `<div class="portion">${escHtml(portionGuidance(c.slot, guestCount))}</div>`
-      return `
+    .map((c) => `
         <div class="course">
           <div class="slot">${escHtml(c.slotLabel)}</div>
           <div class="dish">${escHtml(c.dishName) || 'TBD'}</div>
-          ${originLabel ? `<div class="origin">${originLabel}</div>` : ''}
-          ${portionHtml}
-          ${substitutionsHtml}
-          ${unmetHtml}
-        </div>`
-    })
+        </div>`)
     .join('')
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} | Menu</title>
@@ -95,36 +62,34 @@ function buildMenuHtml(
       @page { size:A4; margin:0; }
       *{margin:0;padding:0;box-sizing:border-box;}
       body{font-family:Georgia,'Times New Roman',serif;background:#F3E9DD;color:#2A1A1C;
-        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;}
+        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:30px;}
       .menu{width:100%;max-width:600px;aspect-ratio:2/3;background:#FBF5EC url('${escHtml(frameUrl)}') center/100% 100% no-repeat;
-        padding:15% 18% 14%;box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;display:flex;flex-direction:column;justify-content:center;
+        box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;
         -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      .brand{text-align:center;color:#5C1A1B;font-style:italic;font-size:26px;letter-spacing:0.5px;}
-      .rule{width:44px;height:2px;background:#C9A96E;margin:14px auto 26px;}
-      .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.15;margin-bottom:8px;}
-      .meta{text-align:center;color:#8A6A4E;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:40px;font-family:system-ui,-apple-system,sans-serif;}
-      .course{text-align:center;padding:10px 0;border-bottom:1px solid #E8D9C6;}
-      .course:last-of-type{border-bottom:none;}
-      .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
-      .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
-      .origin{color:#8A6A4E;font-size:13px;font-style:italic;margin-top:5px;}
-      .portion{color:#8A6A4E;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-family:system-ui,sans-serif;}
-      .alt{color:#9A7A2B;font-size:12px;margin-top:6px;font-family:system-ui,sans-serif;}
-      .subs{margin-top:10px;padding-top:8px;border-top:1px dashed #C9A96E;font-family:system-ui,sans-serif;}
-      .subs-h{color:#8A6A4E;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
-      .sub{color:#2A1A1C;font-size:12px;line-height:1.5;}
-      .sub-g{color:#5C1A1B;font-style:italic;}
-      .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
-      .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
-      @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;max-width:none;width:210mm;height:297mm;aspect-ratio:auto;}}
+      .copy{position:absolute;inset:14% 18% 13%;display:flex;text-align:center;flex-direction:column;justify-content:center;overflow:hidden;}
+      .menu.folk .copy{inset:16% 17% 13%;}.menu.stripe .copy{inset:12% 16%;}
+      .brand{margin:0 0 6px;text-align:center;color:#5C1A1B;font-style:italic;font-size:24px;}
+      .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.05;margin:0;}
+      .meta{text-align:center;color:#8A6A4E;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;margin:8px 0 14px;font-family:system-ui,-apple-system,sans-serif;}
+      .courses{display:flex;flex-direction:column;gap:8px;}
+      .course{text-align:center;display:flex;flex-direction:column;gap:2px;}
+      .slot{color:#9A7A2B;font-size:7px;letter-spacing:1.3px;text-transform:uppercase;font-family:system-ui,sans-serif;}
+      .dish{font-size:18px;color:#2A1A1C;line-height:1.15;font-weight:normal;}
+      .foot{text-align:center;margin:15px 0 0;color:#8A6A4E;font-size:10px;font-style:italic;}
+      @media print{
+        html,body{width:210mm;height:297mm;overflow:hidden;}
+        body{background:#fff;padding:0;}
+        .menu{box-shadow:none;width:184.667mm;height:277mm;max-width:none;aspect-ratio:auto;}
+      }
     </style></head><body>
-      <div class="menu">
-        <div class="brand">Sofra</div>
-        <div class="rule"></div>
-        <div class="title">${escHtml(event.title)}</div>
-        <div class="meta">${dateStr} · ${guestCount} guest${guestCount !== 1 ? 's' : ''}</div>
-        ${coursesHtml}
-        <div class="foot">Curated for this table · <span class="s">Sofra</span></div>
+      <div class="menu ${design}">
+        <div class="copy">
+          <div class="brand">Sofra</div>
+          <div class="title">${escHtml(event.title)}</div>
+          <div class="meta">${dateStr} · ${guestCount} guest${guestCount !== 1 ? 's' : ''}</div>
+          <div class="courses">${coursesHtml}</div>
+          <div class="foot">Made for this table</div>
+        </div>
       </div>
     </body></html>`
 }
