@@ -122,7 +122,7 @@ function buildMenuHtml(
         <div class="brand">Sofra</div>
         <div class="rule"></div>
         <div class="title">${escHtml(event.title)}</div>
-        <div class="meta">${dateStr} · ${guestCount} cover${guestCount !== 1 ? 's' : ''}</div>
+        <div class="meta">${dateStr} · ${guestCount} guest${guestCount !== 1 ? 's' : ''}</div>
         ${coursesHtml}
         <div class="foot">Curated for this table · <span class="s">Sofra</span></div>
       </div>
@@ -192,7 +192,7 @@ function MenuDesignPreview({
       <div className="sv2-print-menu-copy">
         <p className="sv2-print-menu-brand">Sofra</p>
         <h2>{event.title}</h2>
-        <p className="sv2-print-menu-meta">{date} · {guestCount} cover{guestCount === 1 ? '' : 's'}</p>
+        <p className="sv2-print-menu-meta">{date} · {guestCount} guest{guestCount === 1 ? '' : 's'}</p>
         <div className="sv2-print-menu-courses">
           {courses.map((course, index) => (
             <div key={`${course.slot}-${index}`}>
@@ -599,7 +599,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           title={event?.title}
           subtitle={
             dateSub
-              ? `${dateSub}${intel ? ` · ${intel.guestCount} covers` : ''}`
+              ? `${dateSub}${intel ? ` · ${intel.guestCount} guests` : ''}`
               : undefined
           }
         />
