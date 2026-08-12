@@ -394,7 +394,7 @@ describe('brief text', () => {
     render(<TablePage params={PARAMS} />)
     await waitFor(() =>
       // buildIntel brief always starts with "<N> guest"
-      expect(screen.getByText(/1 guest/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/1 guest/i).length).toBeGreaterThan(0)
     )
   })
 

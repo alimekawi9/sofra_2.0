@@ -205,3 +205,16 @@
 - New `lib/site-url.ts` (`getSiteUrl()`) resolves an absolute origin server-side (`NEXT_PUBLIC_SITE_URL` → Vercel's `VERCEL_PROJECT_PRODUCTION_URL`/`VERCEL_URL` → `localhost:3000`) for the fallback image URL and is also wired into `app/layout.tsx`'s new `metadataBase`.
 - **Known limitation:** the fallback image (`arabesque-ornament.png`) is a 1254×1254, ~1.6MB PNG designed for in-app artwork, not an optimized ~1200×630 OG image; some link-preview crawlers (WhatsApp in particular) are known to be unreliable with large images. Live-link testing (WhatsApp/iMessage/Facebook Sharing Debugger) after deploy should confirm whether it renders consistently; if not, it should be resized/compressed into a dedicated OG asset.
 - Full test suite (614 tests, incl. 6 new `generateMetadata` tests), TypeScript, lint, and an isolated production build all pass with no newly introduced failures.
+
+## Menu RSVP snapshot visibility (2026-08-12)
+
+- Table and Menu show the current count of `going`/`maybe` guests used by deterministic menu planning. Sofra has no invitation roster or expected-headcount field, so the UI intentionally avoids an invented denominator.
+- Migration `20260812000003_add_menu_generation_guest_snapshot.sql` adds nullable, non-negative `menus.generated_guest_count`; existing `generated_at` records the latest explicit generation time.
+- Successful explicit generation updates both snapshot fields. Existing menus never auto-regenerate, and new responses produce a persistent banner with an explicit Regenerate action.
+- Legacy menus with no saved snapshot show current response visibility but no fabricated “generated for” count until their next explicit regeneration.
+
+## Kitchen preset-picker stale name fix (2026-08-12)
+
+- Root cause: renaming a preset-derived signature (e.g. quick-added "Hummus", then renamed via "Edit a saved signature") only ever updates `name`/`tags`/`contains_allergens`/etc. — never `preset_key`. The "Quick add from presets" grid matches its highlighted/selected state by `preset_key`, which survives the rename, but was rendering the button's *label* from the static preset library name (`p.name`) instead of the live saved row's name, so the picker permanently showed the pre-rename name.
+- Fix (`app/(chef)/kitchen/page.tsx`): the preset chip now renders `saved.name` (the persisted signature's current name) when the preset is already saved, falling back to the static `p.name` only when it isn't yet added. Pantry ingredients were separately verified (code review + live reproduction) to already update correctly on rename, since pantry items have no `preset_key` and are matched/rendered by live name.
+- Added a regression test in `__tests__/kitchen-page.test.tsx` seeding a preset-derived signature whose name no longer matches its preset, asserting the picker shows the current name and not the stale preset label; confirmed it fails without the fix. Also hardened the test file's Supabase mock (`order()` now returns a fresh array copy instead of the same mutated reference) since the stale reference was silently defeating React's re-render on the previous version of this test.

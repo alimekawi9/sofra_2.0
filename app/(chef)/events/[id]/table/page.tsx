@@ -15,6 +15,7 @@ import { withoutDishRoles } from '@/lib/dish-presets'
 import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
 import Link from 'next/link'
+import { menuResponseLabel } from '@/lib/menu-generation-snapshot'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -242,7 +243,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
           title={eventTitle}
           subtitle={
             dateSub
-              ? `${dateSub}${intel ? ` · ${intel.guestCount} covers` : ''}`
+              ? `${dateSub}${intel ? ` · ${intel.guestCount} guests` : ''}`
               : undefined
           }
         />
@@ -289,6 +290,11 @@ export default function TablePage({ params }: { params: { id: string } }) {
 
         {!loading && !fetchError && intel && (
           <>
+            <section className="sv2-rsvp-progress" aria-label="RSVP response progress">
+              <strong>{menuResponseLabel(intel.guestCount)}</strong>
+              <span>Going and maybe responses currently included in table planning.</span>
+            </section>
+
             {/* Hard limits */}
             <section className="sv2-intel-card sv2-intel-hard-limits" style={{ ...card, borderColor: 'rgba(224,119,107,0.35)' }}>
               <div style={cardHeadRow}>

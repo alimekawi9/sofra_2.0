@@ -12,6 +12,7 @@ import { draftCourse, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
+import { menuResponseLabel, newMenuResponseCount } from '@/lib/menu-generation-snapshot'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -185,6 +186,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [signatures, setSignatures] = useState<Signature[]>([])
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [event, setEvent] = useState<{ title: string; event_date: string } | null>(null)
+  const [generatedGuestCount, setGeneratedGuestCount] = useState<number | null>(null)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
   const [popupBlocked, setPopupBlocked] = useState(false)
   const [exportStep, setExportStep] = useState<'draft' | 'choose' | 'preview'>('draft')
   const [menuDesign, setMenuDesign] = useState<MenuDesignKey>('folk')
@@ -280,11 +283,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
       const { data: menu } = await supabase
         .from('menus')
-        .select('id')
+        .select('id,generated_guest_count,generated_at')
         .eq('event_id', id)
         .maybeSingle()
 
       if (menu) {
+        setGeneratedGuestCount(menu.generated_guest_count ?? null)
+        setGeneratedAt(menu.generated_at ?? null)
         const { data: rows } = await supabase
           .from('menu_courses')
           .select('*')
@@ -293,6 +298,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         setCourses(rows ?? [])
       } else {
         setCourses([])
+        setGeneratedGuestCount(null)
+        setGeneratedAt(null)
       }
     } catch {
       setFetchError("Couldn't load the menu. Try again.")
@@ -385,6 +392,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         aiFailed: boolean
         fallbackReason?: string
         reasoningByName?: Record<string,string>
+        generatedGuestCount?: number
+        generatedAt?: string
       }
 
       if (result.aiFailed) {
@@ -397,6 +406,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
       if (result.rows) {
         setCourses(result.rows)
+        if (typeof result.generatedGuestCount === 'number') setGeneratedGuestCount(result.generatedGuestCount)
+        if (result.generatedAt) setGeneratedAt(result.generatedAt)
         setReasoningByCourseId(Object.fromEntries(result.rows.flatMap(row => {
           const reasoning = result.reasoningByName?.[row.dish_name]
           return reasoning ? [[row.id, reasoning]] : []
@@ -477,6 +488,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   }
 
   const allLocked = courses.length > 0 && courses.every((c) => c.locked)
+  const responseCount = intel?.guestCount ?? 0
+  const newResponseCount = newMenuResponseCount(responseCount, generatedGuestCount)
 
   const dateSub = event
     ? new Date(event.event_date).toLocaleDateString('en-US', {
@@ -624,6 +637,29 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
             </div>
+
+            <section className="sv2-rsvp-progress" aria-label="RSVP response progress">
+              <strong>{menuResponseLabel(responseCount)}</strong>
+              <span>Going and maybe responses currently included in table planning.</span>
+            </section>
+
+            {courses.length > 0 && generatedGuestCount !== null && (
+              <p className="sv2-menu-generation-stamp" title={generatedAt ? `Generated ${new Date(generatedAt).toLocaleString()}` : undefined}>
+                Generated for {generatedGuestCount} guest{generatedGuestCount === 1 ? '' : 's'}
+              </p>
+            )}
+
+            {courses.length > 0 && newResponseCount > 0 && (
+              <section className="sv2-menu-rsvp-alert" role="status">
+                <div>
+                  <strong>{newResponseCount} new guest{newResponseCount === 1 ? '' : 's'} have responded since this menu was generated.</strong>
+                  <span>The current menu has not changed.</span>
+                </div>
+                <button type="button" onClick={() => void handleRegenerateAI()} disabled={allLocked || aiLoading}>
+                  {aiLoading ? 'Regenerating…' : 'Regenerate'}
+                </button>
+              </section>
+            )}
 
             {aiNotice && (
               <p
@@ -892,6 +928,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               )
             })}
 
+            {responseCount <= 1 && (
+              <p className="sv2-menu-response-notice">
+                Only {responseCount} guest{responseCount === 1 ? ' has' : 's have'} responded so far. You can still generate a menu, but it may not reflect everyone.
+              </p>
+            )}
             <div className="sv2-menu-generate-row">
               <button
                 type="button"

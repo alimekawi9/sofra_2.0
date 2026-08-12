@@ -1,0 +1,20 @@
+import { menuResponseLabel, newMenuResponseCount } from '@/lib/menu-generation-snapshot'
+
+describe('menu generation RSVP snapshots', () => {
+  it('reports three new responses after generating for five guests', () => {
+    expect(newMenuResponseCount(8, 5)).toBe(3)
+  })
+
+  it('never invents a comparison for legacy menus without a snapshot', () => {
+    expect(newMenuResponseCount(8, null)).toBe(0)
+  })
+
+  it('does not report negative changes', () => {
+    expect(newMenuResponseCount(4, 5)).toBe(0)
+  })
+
+  it('uses denominator-free response copy', () => {
+    expect(menuResponseLabel(1)).toBe('1 guest has responded')
+    expect(menuResponseLabel(5)).toBe('5 guests have responded')
+  })
+})
