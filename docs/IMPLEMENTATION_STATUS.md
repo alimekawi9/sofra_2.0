@@ -193,7 +193,7 @@
 ## Invitation entry experience (2026-08-12)
 
 - First-time shared-link visitors now see an event-name-only invitation landing before the RSVP questionnaire or full event details.
-- Each event receives one stable design from four invitation treatments: lace, silver place setting, spotted envelope, or burgundy envelope.
+- Each fresh invite landing randomly selects one of four treatments: lace, silver place setting, spotted envelope, or burgundy envelope.
 - RSVP responses remain three square postcard controls in one horizontal row on desktop and mobile.
 
 ## Guest event link-preview metadata (2026-08-12)

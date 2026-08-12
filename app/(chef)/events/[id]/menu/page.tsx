@@ -66,16 +66,16 @@ function buildMenuHtml(
       .menu{width:100%;max-width:600px;aspect-ratio:2/3;background:#FBF5EC url('${escHtml(frameUrl)}') center/100% 100% no-repeat;
         box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;
         -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      .copy{position:absolute;inset:14% 18% 13%;display:flex;text-align:center;flex-direction:column;justify-content:center;overflow:hidden;}
-      .menu.folk .copy{inset:16% 17% 13%;}.menu.stripe .copy{inset:12% 16%;}
-      .brand{margin:0 0 6px;text-align:center;color:#5C1A1B;font-style:italic;font-size:24px;}
-      .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.05;margin:0;}
-      .meta{text-align:center;color:#8A6A4E;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;margin:8px 0 14px;font-family:system-ui,-apple-system,sans-serif;}
-      .courses{display:flex;flex-direction:column;gap:8px;}
+      .copy{position:absolute;inset:12% 17% 11%;display:flex;text-align:center;flex-direction:column;overflow:hidden;}
+      .menu.folk .copy{inset:14% 16% 11%;}.menu.stripe .copy{inset:11% 15%;}
+      .brand{margin:0 0 9px;text-align:center;color:#5C1A1B;font-style:italic;font-size:29px;}
+      .title{text-align:center;font-size:40px;color:#2A1A1C;line-height:1.04;margin:0;}
+      .meta{text-align:center;color:#8A6A4E;font-size:9px;letter-spacing:1.3px;text-transform:uppercase;margin:11px 0 18px;font-family:system-ui,-apple-system,sans-serif;}
+      .courses{display:flex;min-height:0;flex:1;flex-direction:column;justify-content:space-evenly;gap:6px;}
       .course{text-align:center;display:flex;flex-direction:column;gap:2px;}
-      .slot{color:#9A7A2B;font-size:7px;letter-spacing:1.3px;text-transform:uppercase;font-family:system-ui,sans-serif;}
-      .dish{font-size:18px;color:#2A1A1C;line-height:1.15;font-weight:normal;}
-      .foot{text-align:center;margin:15px 0 0;color:#8A6A4E;font-size:10px;font-style:italic;}
+      .slot{color:#9A7A2B;font-size:8px;letter-spacing:1.4px;text-transform:uppercase;font-family:system-ui,sans-serif;}
+      .dish{font-size:22px;color:#2A1A1C;line-height:1.12;font-weight:normal;}
+      .foot{text-align:center;margin:18px 0 0;color:#8A6A4E;font-size:12px;font-style:italic;}
       @media print{
         html,body{width:210mm;height:297mm;overflow:hidden;}
         body{background:#fff;padding:0;}
