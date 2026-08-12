@@ -445,7 +445,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onSave={handleProfileSubmit}
         prefilled={prefilled}
         visibleCanonicalQuestions={changedCanonicalKeys ?? undefined}
-        saveLabel={newQuestionIds !== null || changedCanonicalKeys !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? 'UPDATE PREFERENCES' : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
+        saveLabel={newQuestionIds !== null || changedCanonicalKeys !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? (prefilled ? 'UPDATE PREFERENCES' : 'SAVE PREFERENCES') : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
         error={error}
         onBack={() => setStep('status')}

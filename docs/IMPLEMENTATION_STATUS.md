@@ -171,7 +171,7 @@
 - Mutual relationships remain derived from RSVP data and are not stored separately.
 - Event hosts are automatically maintained as `going` RSVP attendees, so their taste profile contributes to menu fit and portion counts. Existing events are backfilled and hosts appear in Around this Sofra with a Host badge.
 - Host table preferences are managed from Profile instead of the event preview. Hosts without a taste profile see a dismissible reminder, and mobile invite sharing keeps Copy Link and WhatsApp side by side.
-- The preference form says Update Preferences when opened from Profile; regular attendee flows retain their RSVP-specific action labels.
+- A preference form opened from Profile says Save Preferences for first-time users and Update Preferences only when a saved taste profile exists; regular attendee flows retain RSVP-specific labels.
 - Returning guests see only host-modified canonical questions and newly added unanswered custom questions. Unchanged base questions and previously answered custom questions are not repeated.
 - Declined event details label the RSVP as “I have better things to do apparently” without a trailing icon.
 - Going event details label the RSVP as “Blessing us with your presence” without a star.

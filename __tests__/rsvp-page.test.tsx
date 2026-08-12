@@ -604,11 +604,20 @@ describe('going/maybe submit', () => {
 
   it('reads "UPDATE PREFERENCES" when opened from Profile', async () => {
     window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
-    makeSupabase({ rsvpRow: { status: 'going' } })
+    makeSupabase({ rsvpRow: { status: 'going' }, profileRow: { user_id: 'uid-1' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
 
     expect(await screen.findByRole('button', { name: 'UPDATE PREFERENCES' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'UPDATE RSVP' })).not.toBeInTheDocument()
+  })
+
+  it('reads "SAVE PREFERENCES" for a first-time preference form opened from Profile', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
+    makeSupabase({ rsvpRow: { status: 'going' }, profileRow: null })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+
+    expect(await screen.findByRole('button', { name: 'SAVE PREFERENCES' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'UPDATE PREFERENCES' })).not.toBeInTheDocument()
   })
 })
 
