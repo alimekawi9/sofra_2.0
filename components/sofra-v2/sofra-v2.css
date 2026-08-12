@@ -1339,6 +1339,66 @@
 .sv2-comments-compose input{flex:1;min-width:0;min-height:40px;padding:8px 12px;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family)}
 .sv2-comments-compose button{min-height:40px;padding:0 16px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-off-white);font:500 9px var(--sv2-sans-family);letter-spacing:.6px;cursor:pointer}
 .sv2-comments-compose button:disabled{opacity:.4;cursor:default}
+
+/* Shared outline-button interaction: inactive transparent controls pick up a
+   burgundy wash while their label takes on the warm page-background colour. */
+:is(
+  .sv2-filter-row button:not(.sv2-filter-active),
+  .sv2-host-share-actions button,
+  .sv2-manage-guests,
+  .sv2-profile-logout,
+  .sv2-invite-action,
+  .sv2-invite-choices button:not(:first-child),
+  .sv2-detail-actions button,
+  .sv2-guest-remove-confirm button,
+  .sv2-recipe-name-row button,
+  .sv2-recipe-instruction-tools button:not(.is-listening),
+  .sv2-recipe-actions button.secondary,
+  .sv2-export-chooser button:not([aria-pressed="true"]):not(:last-child),
+  .sv2-inventory-chips>button:not([aria-pressed="true"]),
+  .sv2-menu-action,
+  .sv2-metadata-editor fieldset button:not([aria-pressed="true"]),
+  .sv2-metadata-editor footer button:not(:last-child),
+  .sv2-course-actions button:not(:first-child),
+  .sv2-swap-candidates button,
+  .sv2-artwork-controls button,
+  .sv2-add-photos-sheet-actions button:not(:last-child),
+  .sv2-questionnaire-mode-toggle button:not(.sv2-mode-active),
+  .sv2-question-move button,
+  .sv2-custom-option-row button,
+  .sv2-add-option,
+  .sv2-add-question-types button,
+  .sv2-customize-questions
+):not(:disabled){transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+
+:is(
+  .sv2-filter-row button:not(.sv2-filter-active),
+  .sv2-host-share-actions button,
+  .sv2-manage-guests,
+  .sv2-profile-logout,
+  .sv2-invite-action,
+  .sv2-invite-choices button:not(:first-child),
+  .sv2-detail-actions button,
+  .sv2-guest-remove-confirm button,
+  .sv2-recipe-name-row button,
+  .sv2-recipe-instruction-tools button:not(.is-listening),
+  .sv2-recipe-actions button.secondary,
+  .sv2-export-chooser button:not([aria-pressed="true"]):not(:last-child),
+  .sv2-inventory-chips>button:not([aria-pressed="true"]),
+  .sv2-menu-action,
+  .sv2-metadata-editor fieldset button:not([aria-pressed="true"]),
+  .sv2-metadata-editor footer button:not(:last-child),
+  .sv2-course-actions button:not(:first-child),
+  .sv2-swap-candidates button,
+  .sv2-artwork-controls button,
+  .sv2-add-photos-sheet-actions button:not(:last-child),
+  .sv2-questionnaire-mode-toggle button:not(.sv2-mode-active),
+  .sv2-question-move button,
+  .sv2-custom-option-row button,
+  .sv2-add-option,
+  .sv2-add-question-types button,
+  .sv2-customize-questions
+):not(:disabled):is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:rgba(100,22,26,.78)!important;color:var(--sv2-off-white)!important}
 @media(min-width:900px){.sv2-comments-panel{left:auto;right:24px;bottom:24px;width:340px;max-height:60vh;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.4)}}
 
 /* ─── Host questionnaire customization ─── */
