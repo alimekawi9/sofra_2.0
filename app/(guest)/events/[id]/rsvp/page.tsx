@@ -20,7 +20,6 @@ import { MissingOut } from '@/components/sofra-v2/MissingOut'
 import { CustomQuestionField, type CustomResponseValue } from '@/components/sofra-v2/CustomQuestionField'
 import {
   DEFAULT_QUESTIONNAIRE,
-  isDefaultQuestionnaire,
   sortedQuestions,
   isCanonical,
   isCustom,
@@ -85,6 +84,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [prefilled, setPrefilled] = useState(false)
   const [hasExistingRsvp, setHasExistingRsvp] = useState(false)
   const [isPreferenceOnly, setIsPreferenceOnly] = useState(false)
+  const [newQuestionIds, setNewQuestionIds] = useState<string[] | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [isUnpublished, setIsUnpublished] = useState(false)
@@ -291,7 +291,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     // Custom (event-specific) question answers are stored separately from
     // canonical taste-profile fields and are best-effort: their save never
     // blocks or fails the core RSVP, which has already succeeded above.
-    const customQs = sortedQuestions(questionnaire).filter(isCustom)
+    const customQs = sortedQuestions(questionnaire)
+      .filter(isCustom)
+      .filter((question) => newQuestionIds === null || newQuestionIds.includes(question.id))
     if (customQs.length > 0) {
       const rows = customQs
         .map((q) => ({
@@ -355,10 +357,24 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       return
     }
     setStatus(response)
-    // Already have preferences on file and nothing about this event's
-    // questionnaire differs from the Sofra default -> offer to reuse them
-    // instead of collecting the same answers again.
-    setStep(prefilled && isDefaultQuestionnaire(questionnaire) ? 'confirm-preferences' : 'profile')
+    if (prefilled) {
+      const unansweredCustomIds = sortedQuestions(questionnaire)
+        .filter(isCustom)
+        .filter((question) => customAnswersRef.current[question.id] === undefined)
+        .map((question) => question.id)
+
+      if (unansweredCustomIds.length > 0) {
+        setNewQuestionIds(unansweredCustomIds)
+        setStep('profile')
+        return
+      }
+
+      setStep('confirm-preferences')
+      return
+    }
+
+    setNewQuestionIds(null)
+    setStep('profile')
   }
 
   if (!loading && isUnpublished) {
@@ -392,7 +408,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     const canonicalByKey = Object.fromEntries(
       sortedQuestions(questionnaire).filter(isCanonical).map((q) => [q.canonicalKey, q])
     ) as Partial<Record<CanonicalQuestionConfig['canonicalKey'], CanonicalQuestionConfig>>
-    const customQs = sortedQuestions(questionnaire).filter(isCustom)
+    const customQs = sortedQuestions(questionnaire)
+      .filter(isCustom)
+      .filter((question) => newQuestionIds === null || newQuestionIds.includes(question.id))
 
     const optionLabelMap = (q: CanonicalQuestionConfig | undefined) => {
       if (!q) return undefined
@@ -418,7 +436,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onAdventurousnessChange={setAdventurousness}
         onSave={handleProfileSubmit}
         prefilled={prefilled}
-        saveLabel={isPreferenceOnly ? 'UPDATE PREFERENCES' : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
+        showCanonicalQuestions={newQuestionIds === null}
+        saveLabel={newQuestionIds !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? 'UPDATE PREFERENCES' : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
         error={error}
         onBack={() => setStep('status')}

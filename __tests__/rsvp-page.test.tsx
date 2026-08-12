@@ -887,16 +887,37 @@ describe('reuse saved preferences (confirm step)', () => {
     expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
   })
 
-  it('skips the prompt when the questionnaire differs from the Sofra default, even with saved preferences', async () => {
+  it('does not repeat canonical questions when only their display wording changed', async () => {
     makeSupabase({ profileRow: EXISTING_PROFILE, questionnaireConfig: CUSTOMIZED_CONFIG })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
     await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
 
-    expect(screen.queryByText('Same taste as last time?')).not.toBeInTheDocument()
-    expect(await screen.findByText('A CUSTOM QUESTION')).toBeInTheDocument()
-    // Still prefilled from the saved profile, just without the reuse/update prompt.
-    expect(screen.getByRole('checkbox', { name: 'Vegan' })).toBeChecked()
+    expect(await screen.findByText('Same taste as last time?')).toBeInTheDocument()
+    expect(screen.queryByText('A CUSTOM QUESTION')).not.toBeInTheDocument()
+  })
+
+  it('shows a returning guest only newly added unanswered custom questions', async () => {
+    const configWithCustomQuestions = {
+      questions: [
+        ...CUSTOMIZED_CONFIG.questions,
+        { id: 'answered-question', kind: 'custom', type: 'text', title: 'Question already answered', order: 5 },
+        { id: 'new-question', kind: 'custom', type: 'text', title: 'What should we know now?', order: 6 },
+      ],
+    }
+    makeSupabase({
+      profileRow: EXISTING_PROFILE,
+      questionnaireConfig: configWithCustomQuestions,
+      customResponseRows: [{ question_id: 'answered-question', response: 'Already shared' }],
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+
+    expect(await screen.findByLabelText('What should we know now?')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Question already answered')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Vegan' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'SAVE MY ANSWERS' })).toBeInTheDocument()
   })
 
   it('USE MY SAVED PREFERENCES submits only the RSVP status, leaving taste_profiles untouched', async () => {

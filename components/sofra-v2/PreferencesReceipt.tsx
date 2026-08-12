@@ -22,6 +22,7 @@ export interface PreferencesReceiptProps {
   onAdventurousnessChange: (value: number) => void
   onSave: () => void
   prefilled?: boolean
+  showCanonicalQuestions?: boolean
   saveLabel?: string
   saving?: boolean
   error?: string
@@ -83,6 +84,7 @@ export function PreferencesReceipt({
   onAdventurousnessChange,
   onSave,
   prefilled = false,
+  showCanonicalQuestions = true,
   saveLabel = 'SAVE MY SEAT',
   saving = false,
   error = '',
@@ -130,6 +132,7 @@ export function PreferencesReceipt({
         </p>
         {prefilled && <p className="sv2-hint" data-testid="prefilled-badge">✦ Pulled from your profile</p>}
 
+        {showCanonicalQuestions && <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{dietaryTitle || 'ANY LANE TO STAY IN?'}</h3>
@@ -219,6 +222,7 @@ export function PreferencesReceipt({
           <span>{adventurousnessMaxLabel || 'ANYTHING ONCE'}</span>
         </div>
         <p className="sv2-slider-value">{adventurousnessLabel}</p>
+        </>}
 
         {extraContent}
 
