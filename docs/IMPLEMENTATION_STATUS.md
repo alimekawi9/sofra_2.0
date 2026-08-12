@@ -175,5 +175,6 @@
 - Returning guests see only host-modified canonical questions and newly added unanswered custom questions. Unchanged base questions and previously answered custom questions are not repeated.
 - Declined event details label the RSVP as “I have better things to do apparently” without a trailing icon.
 - Going event details label the RSVP as “Blessing us with your presence” without a star.
+- Profile-photo upload centers its camera affordance and replaces initials on hover/focus over a subtle full-circle burgundy tint.
 - Published host events automatically move from Hosting to Hosted after their event date passes; unpublished drafts remain under Hosting.
 - Event cards and event-detail date rows include the year so future-year Sofras are unambiguous.

@@ -72,11 +72,13 @@ export function ProfileCard({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={photoUrl} alt="Your profile photo" />
             ) : (
-              <>
-                <span>{initials}</span>
-                <small aria-hidden="true">📷</small>
-              </>
+              <span className="sv2-profile-photo-initials">{initials}</span>
             )}
+            <small className="sv2-profile-photo-camera" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M8.5 5 10 3h4l1.5 2H19a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h3.5ZM12 8a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z" />
+              </svg>
+            </small>
             <span className="sv2-sr-only">Choose a profile photo</span>
             <input
               aria-label="Choose a profile photo"
