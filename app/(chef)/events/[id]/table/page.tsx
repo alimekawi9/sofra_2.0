@@ -14,7 +14,7 @@ import { formatTagLabel } from '@/lib/tag-format'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
-import { ProfileIdentityLink } from '@/components/sofra-v2/ProfileIdentityLink'
+import Link from 'next/link'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -345,7 +345,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                           return person?.userId ? (
                             <span key={person.userId}>
                               {index > 0 && ', '}
-                              <ProfileIdentityLink userId={person.userId} name={person.name} photoUrl={person.photoUrl ?? null} />
+                              <Link className="sv2-intel-name-link" href={`/profile/${person.userId}`}>{person.name}</Link>
                             </span>
                           ) : <span key={`${guestName}-${index}`}>{index > 0 && ', '}{guestName}</span>
                         })}
