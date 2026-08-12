@@ -13,6 +13,15 @@ import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 
+type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
+
+const MENU_DESIGNS: Array<{ key: MenuDesignKey; label: string; image: string }> = [
+  { key: 'folk', label: 'Folk Garden', image: '/sofra/menu-frames/folk.png' },
+  { key: 'doily', label: 'Paper Lace', image: '/sofra/menu-frames/doily.png' },
+  { key: 'stripe', label: 'Garden Stripe', image: '/sofra/menu-frames/stripe.png' },
+  { key: 'floral', label: 'Red Bloom', image: '/sofra/menu-frames/floral.png' },
+]
+
 function currentMonday(): string {
   const d = new Date()
   const day = d.getDay()
@@ -28,8 +37,12 @@ function escHtml(s: string): string {
 function buildMenuHtml(
   derivedCourses: Course[],
   guestCount: number,
-  event: { title: string; event_date: string }
+  event: { title: string; event_date: string },
+  design: MenuDesignKey = 'folk',
+  origin = ''
 ): string {
+  const selectedDesign = MENU_DESIGNS.find((option) => option.key === design) ?? MENU_DESIGNS[0]
+  const frameUrl = `${origin}${selectedDesign.image}`
   const dateStr = new Date(event.event_date).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
@@ -83,14 +96,14 @@ function buildMenuHtml(
       *{margin:0;padding:0;box-sizing:border-box;}
       body{font-family:Georgia,'Times New Roman',serif;background:#F3E9DD;color:#2A1A1C;
         display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;}
-      .menu{width:100%;max-width:600px;background:#FBF5EC;padding:64px 56px 56px;
-        border:1px solid #C9A96E;box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;}
-      .menu:before{content:"";position:absolute;inset:14px;border:1px solid #C9A96E;pointer-events:none;}
+      .menu{width:100%;max-width:600px;aspect-ratio:2/3;background:#FBF5EC url('${escHtml(frameUrl)}') center/100% 100% no-repeat;
+        padding:15% 18% 14%;box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;display:flex;flex-direction:column;justify-content:center;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact;}
       .brand{text-align:center;color:#5C1A1B;font-style:italic;font-size:26px;letter-spacing:0.5px;}
       .rule{width:44px;height:2px;background:#C9A96E;margin:14px auto 26px;}
       .title{text-align:center;font-size:34px;color:#2A1A1C;line-height:1.15;margin-bottom:8px;}
       .meta{text-align:center;color:#8A6A4E;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:40px;font-family:system-ui,-apple-system,sans-serif;}
-      .course{text-align:center;padding:18px 0;border-bottom:1px solid #E8D9C6;}
+      .course{text-align:center;padding:10px 0;border-bottom:1px solid #E8D9C6;}
       .course:last-of-type{border-bottom:none;}
       .slot{color:#9A7A2B;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-family:system-ui,sans-serif;margin-bottom:8px;}
       .dish{font-size:23px;color:#2A1A1C;line-height:1.25;}
@@ -103,7 +116,7 @@ function buildMenuHtml(
       .sub-g{color:#5C1A1B;font-style:italic;}
       .foot{text-align:center;margin-top:38px;color:#8A6A4E;font-size:12px;letter-spacing:1px;font-family:system-ui,sans-serif;}
       .foot .s{color:#5C1A1B;font-style:italic;font-family:Georgia,serif;font-size:15px;letter-spacing:0;}
-      @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;border:none;max-width:none;}}
+      @media print{body{background:#FBF5EC;padding:0;}.menu{box-shadow:none;max-width:none;width:210mm;height:297mm;aspect-ratio:auto;}}
     </style></head><body>
       <div class="menu">
         <div class="brand">Sofra</div>
@@ -154,6 +167,46 @@ function mergeGuests(
   })
 }
 
+function MenuDesignPreview({
+  design,
+  event,
+  courses,
+  guestCount,
+}: {
+  design: (typeof MENU_DESIGNS)[number]
+  event: { title: string; event_date: string }
+  courses: Course[]
+  guestCount: number
+}) {
+  const date = new Date(event.event_date).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  return (
+    <article
+      className={`sv2-print-menu-preview sv2-print-menu-${design.key}`}
+      style={{ backgroundImage: `url(${design.image})`, color: design.key === 'stripe' ? '#43522f' : '#651719' }}
+      aria-label={`${design.label} preview for ${event.title}`}
+    >
+      <div className="sv2-print-menu-copy">
+        <p className="sv2-print-menu-brand">Sofra</p>
+        <h2>{event.title}</h2>
+        <p className="sv2-print-menu-meta">{date} · {guestCount} cover{guestCount === 1 ? '' : 's'}</p>
+        <div className="sv2-print-menu-courses">
+          {courses.map((course, index) => (
+            <div key={`${course.slot}-${index}`}>
+              <span>{course.slotLabel}</span>
+              <strong>{course.dishName || 'TBD'}</strong>
+            </div>
+          ))}
+        </div>
+        <p className="sv2-print-menu-foot">Made for this table</p>
+      </div>
+    </article>
+  )
+}
+
 export default function MenuPage({ params }: { params: { id: string } }) {
   const { id } = params
   const router = useRouter()
@@ -168,6 +221,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [event, setEvent] = useState<{ title: string; event_date: string } | null>(null)
   const [popupBlocked, setPopupBlocked] = useState(false)
+  const [exportStep, setExportStep] = useState<'draft' | 'choose' | 'preview'>('draft')
+  const [menuDesign, setMenuDesign] = useState<MenuDesignKey>('folk')
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiNotice, setAiNotice] = useState('')
@@ -451,7 +506,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       setPopupBlocked(true)
       return
     }
-    win.document.write(buildMenuHtml(derivedCourses, intel.guestCount, event))
+    win.document.write(buildMenuHtml(derivedCourses, intel.guestCount, event, menuDesign, window.location.origin))
     win.addEventListener('load', () => setTimeout(() => win.print(), 150))
     win.document.close()
   }
@@ -465,6 +520,64 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         day: 'numeric',
       })
     : undefined
+
+  const selectedMenuDesign = MENU_DESIGNS.find((option) => option.key === menuDesign) ?? MENU_DESIGNS[0]
+
+  if (!loading && !fetchError && event && intel && exportStep !== 'draft') {
+    return (
+      <div className="sv2-root sv2-menu-design-page">
+        <main className="sv2-menu-design-shell">
+          {exportStep === 'choose' ? (
+            <>
+              <button className="sv2-menu-design-back" type="button" onClick={() => setExportStep('draft')}>
+                Back to drafted menu
+              </button>
+              <section className="sv2-menu-design-chooser" aria-labelledby="choose-menu-title">
+                <h1 id="choose-menu-title">Choose your menu</h1>
+                <div className="sv2-menu-design-grid">
+                  {MENU_DESIGNS.map((option) => (
+                    <button
+                      type="button"
+                      key={option.key}
+                      className="sv2-menu-design-option"
+                      aria-pressed={menuDesign === option.key}
+                      onClick={() => setMenuDesign(option.key)}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={option.image} alt={`${option.label} menu design`} />
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button className="sv2-menu-design-confirm" type="button" onClick={() => setExportStep('preview')}>
+                  That one
+                </button>
+              </section>
+            </>
+          ) : (
+            <>
+              <div className="sv2-menu-preview-heading">
+                <button className="sv2-menu-design-back" type="button" onClick={() => setExportStep('choose')}>
+                  Choose another design
+                </button>
+                <h1>Drafted menu</h1>
+              </div>
+              <MenuDesignPreview
+                design={selectedMenuDesign}
+                event={event}
+                courses={derivedCourses}
+                guestCount={intel.guestCount}
+              />
+              <button className="sv2-menu-design-confirm" type="button" onClick={handleGeneratePdf}>
+                Print menu
+              </button>
+              {popupBlocked && <p className="sv2-menu-popup-warning">Allow popups for Sofra, then try printing again.</p>}
+            </>
+          )}
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -836,8 +949,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 flexWrap: 'wrap',
               }}
             >
-              <button className="prim" onClick={handleGeneratePdf}>
-                ⎙ Generate menu PDF
+              <button className="prim" onClick={() => setExportStep('choose')}>
+                Generate menu PDF
               </button>
               <span
                 style={{

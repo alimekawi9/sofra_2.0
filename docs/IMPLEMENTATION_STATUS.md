@@ -182,3 +182,9 @@
 - The same outline hover treatment covers the Add Photos upload label, My Table Preferences link, and My Kitchen navigation control.
 - Published host events automatically move from Hosting to Hosted after their event date passes; unpublished drafts remain under Hosting.
 - Event cards and event-detail date rows include the year so future-year Sofras are unambiguous.
+
+## Menu design chooser (2026-08-12)
+
+- Generate Menu PDF now opens a dedicated four-design chooser before showing a full selected-menu preview.
+- Folk Garden, Paper Lace, Garden Stripe, and Red Bloom use print-ready artwork with live event and course text.
+- The selected design carries into the existing browser print flow, preserving print and Save as PDF support.
