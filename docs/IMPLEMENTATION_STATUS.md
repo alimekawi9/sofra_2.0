@@ -177,5 +177,6 @@
 - Going event details label the RSVP as “Blessing us with your presence” without a star.
 - Profile-photo upload centers its camera affordance and replaces initials on hover/focus over a subtle full-circle burgundy tint.
 - Kitchen pantry capture is binary again: quantity/unit controls are removed, and custom dish/ingredient inputs use complete rounded outlines.
+- Host event details show a compact taste-preference reminder only when the host has no saved profile, linking directly to the preference form.
 - Published host events automatically move from Hosting to Hosted after their event date passes; unpublished drafts remain under Hosting.
 - Event cards and event-detail date rows include the year so future-year Sofras are unambiguous.

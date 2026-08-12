@@ -35,6 +35,7 @@ function makeSupabase({
   photoFetchError = null as { message: string } | null,
   photoInsertError = null as { message: string } | null,
   photoUploadError = null as { message: string } | null,
+  tasteProfile = { user_id: HOST_UID } as { user_id: string } | null,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -78,6 +79,15 @@ function makeSupabase({
         return {
           select: jest.fn().mockReturnValue({ eq: photoEqMock }),
           insert: photoInsertMock,
+        }
+      }
+      if (table === 'taste_profiles') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({ data: tasteProfile, error: null }),
+            }),
+          }),
         }
       }
       // rsvps
@@ -526,6 +536,27 @@ describe('Host membership', () => {
     expect(screen.getByText('Host')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Remove Layla/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /my table preferences/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('Host preference reminder', () => {
+  it('prompts a host without saved preferences and opens the preference form', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ tasteProfile: null })
+    render(<EventDetailPage params={PARAMS} />)
+
+    const action = await screen.findByRole('button', { name: 'ADD PREFERENCES' })
+    await userEvent.click(action)
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/rsvp?preferences=1')
+  })
+
+  it('hides the reminder once host preferences exist', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ tasteProfile: { user_id: HOST_UID } })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByText('Casa Mekawi')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'ADD PREFERENCES' })).not.toBeInTheDocument()
   })
 })
 

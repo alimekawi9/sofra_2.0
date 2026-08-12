@@ -39,6 +39,8 @@ export interface EventPaperProps {
   onCopyInviteLink: () => void
   onShareWhatsApp: () => void
   onViewTable: () => void
+  hostNeedsPreferences: boolean
+  onAddHostPreferences: () => void
   onEditRsvp: () => void
   onRsvp: () => void
   onEditEvent: () => void
@@ -87,6 +89,8 @@ export function EventPaper({
   onCopyInviteLink,
   onShareWhatsApp,
   onViewTable,
+  hostNeedsPreferences,
+  onAddHostPreferences,
   onEditRsvp,
   onRsvp,
   onEditEvent,
@@ -158,6 +162,15 @@ export function EventPaper({
                 <button className="sv2-manage-guests" type="button" onClick={onViewTable}>
                   SET THE SOFRA
                 </button>
+                {hostNeedsPreferences && (
+                  <aside className="sv2-host-preferences-notice">
+                    <div>
+                      <strong>YOUR TASTE BELONGS AT THE TABLE</strong>
+                      <p>Add your preferences so the menu accounts for you too.</p>
+                    </div>
+                    <button type="button" onClick={onAddHostPreferences}>ADD PREFERENCES</button>
+                  </aside>
+                )}
               </>
             )}
 

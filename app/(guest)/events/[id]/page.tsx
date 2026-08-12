@@ -57,6 +57,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [guests, setGuests] = useState<EventPaperGuest[]>([])
   const [unlocked, setUnlocked] = useState(false)
   const [isHost, setIsHost] = useState(false)
+  const [hostNeedsPreferences, setHostNeedsPreferences] = useState(false)
   const [isUnpublishedVisitor, setIsUnpublishedVisitor] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
@@ -90,7 +91,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       }
       uidRef.current = stored
 
-      const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }] = await Promise.all([
+      const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }, { data: tasteProfile }] = await Promise.all([
         supabase
           .from('events')
           .select('id,host_id,title,tagline,event_date,venue,address,dress_code,theme,cover_url,is_published')
@@ -100,6 +101,11 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           .from('rsvps')
           .select('status')
           .eq('event_id', params.id)
+          .eq('user_id', stored)
+          .maybeSingle(),
+        supabase
+          .from('taste_profiles')
+          .select('user_id')
           .eq('user_id', stored)
           .maybeSingle(),
       ])
@@ -128,6 +134,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       setMyRsvp(safeRsvpRow?.status ?? null)
       setUnlocked(isUnlocked)
       setIsHost(hostViewing)
+      setHostNeedsPreferences(hostViewing && !tasteProfile)
 
       if (isUnlocked) {
         const { data: guestRows, error: e3 } = await supabase
@@ -276,6 +283,8 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       onCopyInviteLink={copyInviteLink}
       onShareWhatsApp={shareViaWhatsApp}
       onViewTable={() => router.push('/events/' + params.id + '/table')}
+      hostNeedsPreferences={hostNeedsPreferences}
+      onAddHostPreferences={() => router.push('/events/' + params.id + '/rsvp?preferences=1')}
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onEditEvent={() => router.push('/host/' + params.id + '/edit')}
