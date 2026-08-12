@@ -116,8 +116,6 @@ function KitchenPageInner() {
 
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [pantryName, setPantryName] = useState('')
-  const [pantryQuantityAmount, setPantryQuantityAmount] = useState('')
-  const [pantryQuantityUnit, setPantryQuantityUnit] = useState('')
   const [pantryTagsList, setPantryTagsList] = useState<string[]>([])
   const [pantryAllergensList, setPantryAllergensList] = useState<string[]>([])
   const [editingPantryId, setEditingPantryId] = useState<string | null>(null)
@@ -416,62 +414,9 @@ function KitchenPageInner() {
     setPendingRemovedSignatureIds(prev => prev.includes(signature.id) ? prev.filter(id => id !== signature.id) : [...prev, signature.id])
   }
 
-  // Kept as the single-item persistence primitive used by the combined flow.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function addPantryItem() {
-    const uid = uidRef.current
-    if (!uid || pantryAdding) return
-    const name = pantryName.trim()
-    if (!name) { setPantryAddError('Name is required.'); return }
-    if (!pantryTagsRevealed) { setPantryTagsRevealed(true); return }
-    if (pantryTagsForPersistence(pantryTagsList).length === 0) {
-      setPantryAddError('Choose at least one descriptive tag.'); return
-    }
-    setPantryAdding(true)
-    setPantryAddError('')
-
-    const trimmedAmount = pantryQuantityAmount.trim()
-    const parsedAmount = trimmedAmount === '' ? null : Number(trimmedAmount)
-    const payload = {
-      name,
-      week_of: weekOf,
-      tags: pantryTagsForPersistence(pantryTagsList),
-      contains_allergens: pantryAllergensList,
-      quantity_amount: parsedAmount !== null && Number.isFinite(parsedAmount) ? parsedAmount : null,
-      quantity_unit: pantryQuantityUnit.trim() || null,
-    }
-    const query = editingPantryId
-      ? supabase.from('pantry_items').update(payload).eq('id', editingPantryId).eq('chef_id', uid)
-      : supabase.from('pantry_items').insert({ chef_id: uid, ...payload })
-    const { data, error } = await query
-      .select('id, name, week_of, tags, contains_allergens, quantity_amount, quantity_unit')
-      .single()
-
-    if (error || !data) {
-      setPantryAddError('Failed to add item. Try again.')
-    } else {
-      const clean = { ...data, tags: pantryTagsForPersistence(data.tags) }
-      setPantry((prev) =>
-        editingPantryId
-          ? prev.map((item) => (item.id === editingPantryId ? clean : item))
-          : [clean, ...prev]
-      )
-      setPantryName('')
-      setPantryQuantityAmount('')
-      setPantryQuantityUnit('')
-      setPantryTagsList([])
-      setPantryAllergensList([])
-      setEditingPantryId(null)
-      setPantryTagsRevealed(false)
-    }
-    setPantryAdding(false)
-  }
-
   function editPantryItem(item: PantryItem) {
     setEditingPantryId(item.id)
     setPantryName(item.name)
-    setPantryQuantityAmount(item.quantity_amount != null ? String(item.quantity_amount) : '')
-    setPantryQuantityUnit(item.quantity_unit ?? '')
     setPantryTagsList(pantryTagsForPersistence(item.tags))
     setPantryAllergensList([...item.contains_allergens])
     setPantryAddError('')
@@ -481,8 +426,6 @@ function KitchenPageInner() {
   function cancelPantryEdit() {
     setEditingPantryId(null)
     setPantryName('')
-    setPantryQuantityAmount('')
-    setPantryQuantityUnit('')
     setPantryTagsList([])
     setPantryAllergensList([])
     setPantryTagsRevealed(false)
@@ -539,7 +482,7 @@ function KitchenPageInner() {
     if (!uid || pantryAdding || ingredientBatchAdding || publishingDraft) return
 
     const name = pantryName.trim()
-    const formHasContent = Boolean(name || editingPantryId || pantryTagsList.length || pantryAllergensList.length || pantryQuantityAmount.trim() || pantryQuantityUnit.trim())
+    const formHasContent = Boolean(name || editingPantryId || pantryTagsList.length || pantryAllergensList.length)
     const tags = pantryTagsForPersistence(pantryTagsList)
     if (formHasContent && (!name || tags.length === 0)) {
       setPantryAddError('Enter an ingredient name and choose at least one descriptive tag.')
@@ -552,15 +495,11 @@ function KitchenPageInner() {
     setIngredientBatchError('')
 
     const allergens = pantryAllergensList
-    const trimmedAmount = pantryQuantityAmount.trim()
-    const parsedAmount = trimmedAmount === '' ? null : Number(trimmedAmount)
     const formPayload = {
       name,
       week_of: weekOf,
       tags,
       contains_allergens: allergens,
-      quantity_amount: parsedAmount !== null && Number.isFinite(parsedAmount) ? parsedAmount : null,
-      quantity_unit: pantryQuantityUnit.trim() || null,
     }
     const formOperation = formHasContent
       ? (editingPantryId
@@ -1000,29 +939,6 @@ function KitchenPageInner() {
                   <button onClick={cancelPantryEdit} style={clearBtn}>Cancel</button>
                 )}
               </div>
-              {/* Optional -- availability stays binary either way. Just extra
-                  data for later use (see docs/DECISION_LOG.md). */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <input
-                  className="field sm"
-                  style={{ maxWidth: 90 }}
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="Qty (optional)"
-                  aria-label="Quantity amount"
-                  value={pantryQuantityAmount}
-                  onChange={(e) => setPantryQuantityAmount(e.target.value)}
-                />
-                <input
-                  className="field sm"
-                  style={{ maxWidth: 120 }}
-                  placeholder="Unit (lbs, kg…)"
-                  aria-label="Quantity unit"
-                  value={pantryQuantityUnit}
-                  onChange={(e) => setPantryQuantityUnit(e.target.value)}
-                />
-              </div>
-
               {/* Tag/allergen chips apply to whichever pantry insert fires next —
                   the manual "Add" button OR the preset "Add selected" batch —
                   and clear on success. Same UX pattern as signatures. */}

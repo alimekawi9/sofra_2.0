@@ -170,7 +170,7 @@ test('pantry update strips legacy roles and keeps raw descriptive tags', async (
   })
 })
 
-test('adding a pantry item with no quantity entered saves null amount/unit (binary presence keeps working)', async () => {
+test('adding a pantry item persists binary availability without quantity or unit', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Tomato' })
 
@@ -181,34 +181,16 @@ test('adding a pantry item with no quantity entered saves null amount/unit (bina
 
   await waitFor(() => {
     const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')
-    expect(insert?.payload).toMatchObject({ quantity_amount: null, quantity_unit: null })
+    expect(insert?.payload.name).toBe('Chicken')
+    expect(insert?.payload).not.toHaveProperty('quantity_amount')
+    expect(insert?.payload).not.toHaveProperty('quantity_unit')
   })
 })
 
-test('adding a pantry item with a quantity entered saves the amount and unit', async () => {
+test('does not render pantry quantity or unit controls', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Tomato' })
 
-  fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
-  fireEvent.change(screen.getByLabelText('Quantity amount'), { target: { value: '2' } })
-  fireEvent.change(screen.getByLabelText('Quantity unit'), { target: { value: 'lbs' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Savory' }))
-  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
-  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
-
-  await waitFor(() => {
-    const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')
-    expect(insert?.payload).toMatchObject({ quantity_amount: 2, quantity_unit: 'lbs' })
-  })
-})
-
-test('editing a saved pantry item with no quantity leaves the quantity fields blank', async () => {
-  render(<KitchenPage />)
-  await screen.findByRole('button', { name: 'Tomato' })
-  fireEvent.change(screen.getByLabelText('Edit a saved pantry item'), {
-    target: { value: pantry.id },
-  })
-
-  expect(screen.getByLabelText('Quantity amount')).toHaveValue(null)
-  expect(screen.getByLabelText('Quantity unit')).toHaveValue('')
+  expect(screen.queryByLabelText('Quantity amount')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Quantity unit')).not.toBeInTheDocument()
 })
