@@ -213,6 +213,23 @@
 - Successful explicit generation updates both snapshot fields. Existing menus never auto-regenerate, and new responses produce a persistent banner with an explicit Regenerate action.
 - Legacy menus with no saved snapshot show current response visibility but no fabricated “generated for” count until their next explicit regeneration.
 
+## Event map links (2026-08-16)
+
+- Unlocked event addresses now offer side-by-side Google Maps and Apple Maps links using the saved formatted address; no additional API key is required.
+- Map links follow the existing address privacy boundary and are only rendered when the address itself is unlocked.
+
+## OpenStreetMap location autocomplete (2026-08-16)
+
+- The shared host create/edit location field now searches Nominatim after a 450 ms debounce and displays up to five keyboard-accessible suggestions.
+- A same-origin `/api/locations/search` proxy supplies the required Sofra `User-Agent`/Referer identification, applies a one-request-per-second process-level queue, caches queries for ten minutes, and times out upstream calls after five seconds.
+- Failed or empty searches never block the form: the host's manually typed location remains the submitted value. OpenStreetMap attribution is linked in the suggestion panel.
+
+## Guest-only RSVP readiness (2026-08-16)
+
+- RSVP readiness on Table and Menu now excludes the host while deterministic menu planning continues to include the host's preferences and portions.
+- Fewer than three non-host responses shows a burgundy accuracy warning; three or more shows neutral guidance that the host can generate now.
+- Removed the implementation-oriented going/maybe explanation. Menu generation snapshots now use the same guest-only count, with migration `20260816000001_exclude_host_from_menu_response_snapshots.sql` normalizing existing snapshots.
+
 ## Kitchen preset-picker stale name fix (2026-08-12)
 
 - Root cause: renaming a preset-derived signature (e.g. quick-added "Hummus", then renamed via "Edit a saved signature") only ever updates `name`/`tags`/`contains_allergens`/etc. — never `preset_key`. The "Quick add from presets" grid matches its highlighted/selected state by `preset_key`, which survives the rename, but was rendering the button's *label* from the static preset library name (`p.name`) instead of the live saved row's name, so the picker permanently showed the pre-rename name.

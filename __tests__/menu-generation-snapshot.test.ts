@@ -1,4 +1,4 @@
-import { menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
+import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
 
 describe('menu generation RSVP snapshots', () => {
   it('reports three new responses after generating for five guests', () => {
@@ -14,8 +14,16 @@ describe('menu generation RSVP snapshots', () => {
   })
 
   it('uses denominator-free response copy', () => {
+    expect(menuResponseLabel(0)).toBe('0 guests have responded')
     expect(menuResponseLabel(1)).toBe('1 guest has responded')
     expect(menuResponseLabel(5)).toBe('5 guests have responded')
+  })
+
+  it('recommends waiting below three guest responses', () => {
+    expect(hasEnoughGuestResponses(2)).toBe(false)
+    expect(menuResponseGuidance(2)).toContain('more accurate draft')
+    expect(hasEnoughGuestResponses(3)).toBe(true)
+    expect(menuResponseGuidance(3)).toContain('Feel free to generate now')
   })
 
   it('uses correct singular and plural regeneration copy', () => {

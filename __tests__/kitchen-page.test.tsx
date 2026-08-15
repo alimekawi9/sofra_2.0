@@ -32,13 +32,27 @@ const pantry = {
   contains_allergens: [],
 }
 
+// Mutable "server" rows so order() reflects writes made earlier in a test
+// (e.g. renaming, then reloading). Reset fresh in beforeEach.
+let signatureRows: Array<Record<string, unknown>> = []
+let pantryRows: Array<Record<string, unknown>> = []
+
+function applyUpdate(table: string, id: string, payload: Record<string, unknown>) {
+  const rows = table === 'signatures' ? signatureRows : pantryRows
+  const idx = rows.findIndex((r) => r.id === id)
+  if (idx !== -1) rows[idx] = { ...rows[idx], ...payload }
+}
+
 function builder(table: string) {
   let write: Write | null = null
   const chain: Record<string, jest.Mock> & { then?: Promise<unknown>['then'] } = {
     select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
+    eq: jest.fn((col: string, val: string) => {
+      if (col === 'id' && write?.kind === 'update') applyUpdate(table, val, write.payload)
+      return chain
+    }),
     order: jest.fn(() => Promise.resolve({
-      data: table === 'signatures' ? [signature, savedPreset] : [pantry],
+      data: table === 'signatures' ? [...signatureRows] : [...pantryRows],
       error: null,
     })),
     insert: jest.fn((payload) => {
@@ -51,12 +65,17 @@ function builder(table: string) {
       writes.push(write)
       return chain
     }),
-    single: jest.fn(() => Promise.resolve({
-      data: table === 'signatures'
-        ? { ...signature, ...(write?.payload ?? {}), id: write?.kind === 'insert' ? 'sig-2' : signature.id }
-        : { ...pantry, ...(write?.payload ?? {}), id: write?.kind === 'insert' ? 'pantry-2' : pantry.id },
-      error: null,
-    })),
+    single: jest.fn(() => {
+      const insertedId = table === 'signatures' ? 'sig-2' : 'pantry-2'
+      const data = table === 'signatures'
+        ? { ...signature, ...(write?.payload ?? {}), id: write?.kind === 'insert' ? insertedId : signature.id }
+        : { ...pantry, ...(write?.payload ?? {}), id: write?.kind === 'insert' ? insertedId : pantry.id }
+      if (write?.kind === 'insert') {
+        const rows = table === 'signatures' ? signatureRows : pantryRows
+        rows.push(data)
+      }
+      return Promise.resolve({ data, error: null })
+    }),
     delete: jest.fn(() => chain),
   }
   return chain
@@ -68,6 +87,8 @@ jest.mock('@/lib/supabase/client', () => ({
 
 beforeEach(() => {
   writes = []
+  signatureRows = [{ ...signature }, { ...savedPreset }]
+  pantryRows = [{ ...pantry }]
   localStorage.setItem('sofra_user_id', 'chef-1')
 })
 
@@ -119,6 +140,26 @@ test('stages preset changes until the single signatures UPDATE action', async ()
   fireEvent.click(within(signatureCard as HTMLElement).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some(write => write.table === 'signatures' && write.kind === 'insert')).toBe(true))
+})
+
+test('preset picker shows a preset-derived signature under its current (renamed) name, not the stale preset label', async () => {
+  // Simulates a signature that was originally quick-added from the "Hummus"
+  // preset and later renamed via "Edit a saved signature" -- the update only
+  // ever touches name/tags/allergens, never preset_key, so the picker must
+  // key off the live row's name rather than the static preset library name.
+  signatureRows.push({
+    id: 'sig-renamed-hummus',
+    name: "Grandma's Hummus",
+    tags: ['starter', 'veg'],
+    contains_allergens: [],
+    preset_key: 'Levantine::hummus',
+  })
+
+  render(<KitchenPage />)
+
+  const renamed = await screen.findByRole('button', { name: "Grandma's Hummus" })
+  expect(renamed).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByRole('button', { name: 'Hummus' })).not.toBeInTheDocument()
 })
 
 test('creating and editing a signature persists the raw main role', async () => {

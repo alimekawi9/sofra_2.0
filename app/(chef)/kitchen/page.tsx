@@ -706,7 +706,7 @@ function KitchenPageInner() {
                         aria-pressed={on}
                         title={`${p.cuisine}`}
                       >
-                        {p.name}
+                        {saved ? saved.name : p.name}
                       </button>
                     )
                   })}

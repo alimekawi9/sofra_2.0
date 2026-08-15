@@ -12,7 +12,7 @@ import { draftCourse, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
-import { menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
+import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -187,6 +187,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [event, setEvent] = useState<{ title: string; event_date: string } | null>(null)
   const [generatedGuestCount, setGeneratedGuestCount] = useState<number | null>(null)
+  const [guestResponseCount, setGuestResponseCount] = useState(0)
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
   const [popupBlocked, setPopupBlocked] = useState(false)
   const [exportStep, setExportStep] = useState<'draft' | 'choose' | 'preview'>('draft')
@@ -229,6 +230,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         .in('status', ['going', 'maybe'])
 
       const userIds = (rsvps ?? []).map((r: { user_id: string }) => r.user_id)
+      setGuestResponseCount(userIds.filter((userId) => userId !== ev.host_id).length)
 
       const { data: profiles } = userIds.length
         ? await supabase.from('taste_profiles').select('*').in('user_id', userIds)
@@ -488,7 +490,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   }
 
   const allLocked = courses.length > 0 && courses.every((c) => c.locked)
-  const responseCount = intel?.guestCount ?? 0
+  const responseCount = guestResponseCount
   const newResponseCount = newMenuResponseCount(responseCount, generatedGuestCount)
 
   const dateSub = event
@@ -638,9 +640,9 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <section className="sv2-rsvp-progress" aria-label="RSVP response progress">
+            <section className={`sv2-rsvp-progress ${hasEnoughGuestResponses(responseCount) ? 'is-ready' : 'is-low'}`} aria-label="RSVP response progress">
               <strong>{menuResponseLabel(responseCount)}</strong>
-              <span>Going and maybe responses currently included in table planning.</span>
+              <span>{menuResponseGuidance(responseCount)}</span>
             </section>
 
             {courses.length > 0 && generatedGuestCount !== null && (
@@ -928,11 +930,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               )
             })}
 
-            {responseCount <= 1 && (
-              <p className="sv2-menu-response-notice">
-                Only {responseCount} guest{responseCount === 1 ? ' has' : 's have'} responded so far. You can still generate a menu, but it may not reflect everyone.
-              </p>
-            )}
             <div className="sv2-menu-generate-row">
               <button
                 type="button"

@@ -15,7 +15,7 @@ import { withoutDishRoles } from '@/lib/dish-presets'
 import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
 import Link from 'next/link'
-import { menuResponseLabel } from '@/lib/menu-generation-snapshot'
+import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -95,6 +95,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
   const [eventDate, setEventDate] = useState('')
   const [courses, setCourses] = useState<Course[]>([])
   const [customAnswerSummaries, setCustomAnswerSummaries] = useState<CustomAnswerSummary[]>([])
+  const [guestResponseCount, setGuestResponseCount] = useState(0)
 
   async function loadAll() {
     setLoading(true)
@@ -120,6 +121,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
         .in('status', ['going', 'maybe'])
 
       const userIds = ((rsvps ?? []) as unknown as RsvpRow[]).map((r) => r.user_id)
+      setGuestResponseCount(userIds.filter((userId) => userId !== ev.host_id).length)
 
       const { data: profiles } = userIds.length
         ? await supabase
@@ -290,9 +292,9 @@ export default function TablePage({ params }: { params: { id: string } }) {
 
         {!loading && !fetchError && intel && (
           <>
-            <section className="sv2-rsvp-progress" aria-label="RSVP response progress">
-              <strong>{menuResponseLabel(intel.guestCount)}</strong>
-              <span>Going and maybe responses currently included in table planning.</span>
+            <section className={`sv2-rsvp-progress ${hasEnoughGuestResponses(guestResponseCount) ? 'is-ready' : 'is-low'}`} aria-label="RSVP response progress">
+              <strong>{menuResponseLabel(guestResponseCount)}</strong>
+              <span>{menuResponseGuidance(guestResponseCount)}</span>
             </section>
 
             {/* Hard limits */}

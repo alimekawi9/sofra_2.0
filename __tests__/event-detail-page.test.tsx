@@ -568,6 +568,17 @@ it('shows the event year in the detail date', async () => {
   await waitFor(() => expect(screen.getByText(/September 1, 2026/)).toBeInTheDocument())
 })
 
+it('offers Google Maps and Apple Maps links once the address is unlocked', async () => {
+  localStorage.setItem('sofra_user_id', GUEST_UID)
+  makeSupabase({ rsvpRow: { status: 'going' } })
+  render(<EventDetailPage params={PARAMS} />)
+
+  const google = await screen.findByRole('link', { name: 'Google Maps' })
+  const apple = screen.getByRole('link', { name: 'Apple Maps' })
+  expect(google).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=123%20Main%20St')
+  expect(apple).toHaveAttribute('href', 'https://maps.apple.com/?q=123%20Main%20St')
+})
+
 it('shows the declined RSVP copy without an x', async () => {
   localStorage.setItem('sofra_user_id', GUEST_UID)
   makeSupabase({ rsvpRow: { status: 'cant' } })

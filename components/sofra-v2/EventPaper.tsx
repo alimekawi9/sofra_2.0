@@ -184,6 +184,20 @@ export function EventPaper({
                 <dd>
                   {venue}
                   {unlocked && address ? ` with ${address}` : !unlocked ? ' (RSVP to see the address)' : ''}
+                  {unlocked && address && (
+                    <span className="sv2-map-links" aria-label="Open location in maps">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >Google Maps</a>
+                      <a
+                        href={`https://maps.apple.com/?q=${encodeURIComponent(address)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >Apple Maps</a>
+                    </span>
+                  )}
                 </dd>
               </div>
               {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}

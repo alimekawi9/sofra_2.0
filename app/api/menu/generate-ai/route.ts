@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     supabase.from('menus').select('id').eq('event_id', body.eventId).maybeSingle(),
   ])
   const ids = (rsvps ?? []).map((row) => row.user_id)
+  const guestResponseCount = ids.filter((userId) => userId !== event.host_id).length
   const { data: profiles } = ids.length
     ? await supabase.from('taste_profiles').select('user_id,dietary,avoid,protein_anchor,protein_preferences,flavor_preference,adventurousness').in('user_id', ids)
     : { data: [] }
@@ -98,9 +99,9 @@ export async function POST(req: Request) {
   if(replacement.insert.length){const {data,error}=await supabase.from('menu_courses').insert(replacement.insert.map(row=>({menu_id:menuId,slot:row.role,dish_name:row.dish_name,dish_origin:row.dish_origin,source:row.source,component_ids:row.component_ids??null,locked:false,sort_order:row.sort_order}))).select('*');if(error)return NextResponse.json({error:'Failed to persist menu'},{status:500});inserted=(data??[]) as ExistingMenuRow[]}
   if(replacement.removeIds.length){const {error}=await supabase.from('menu_courses').delete().in('id',replacement.removeIds);if(error){if(inserted.length)await supabase.from('menu_courses').delete().in('id',inserted.map(row=>row.id));return NextResponse.json({error:'Failed to remove stale menu rows'},{status:500})}}
   const snapshotAt=new Date().toISOString()
-  const {error:snapshotError}=await supabase.from('menus').update({generated_guest_count:intel.guestCount,generated_at:snapshotAt}).eq('id',menuId)
+  const {error:snapshotError}=await supabase.from('menus').update({generated_guest_count:guestResponseCount,generated_at:snapshotAt}).eq('id',menuId)
   if(snapshotError)return NextResponse.json({error:'Failed to save menu guest snapshot'},{status:500})
   const rows=[...replacement.preserve,...inserted].sort((a,b)=>a.sort_order-b.sort_order)
   console.info(JSON.stringify({scope:'menu_generation',dataLoadMs,promptChars:plan.gaps.length?buildCompactGapPrompt(brief).length:0,modelMs,validationMs,repairAttempts:repaired.attempts,totalMs:Date.now()-startedAt,model:process.env.GEMINI_MENU_MODEL||'gemini-3.5-flash-lite',guestCount:intel.guestCount,targetDishCount:plan.targetDishCount,selectedSignatureCount:plan.selected.length,generatedDishCount:proposal.generatedDishes.length,ingredientContextCount:plan.ingredients.length,categoryBreakdown:plan.retrievalDiagnostics.categoryBreakdown,usedFallback}))
-  return NextResponse.json({rows,aiFailed:false,generatedGuestCount:intel.guestCount,generatedAt:snapshotAt,repairAttempts:repaired.attempts,reasoningByName:Object.fromEntries(proposal.generatedDishes.map(d=>[d.finalName,d.reasoning])),...(repaired.result.valid?{}:{validationWarnings:repaired.result.issues,warning:repaired.warning})})
+  return NextResponse.json({rows,aiFailed:false,generatedGuestCount:guestResponseCount,generatedAt:snapshotAt,repairAttempts:repaired.attempts,reasoningByName:Object.fromEntries(proposal.generatedDishes.map(d=>[d.finalName,d.reasoning])),...(repaired.result.valid?{}:{validationWarnings:repaired.result.issues,warning:repaired.warning})})
 }
