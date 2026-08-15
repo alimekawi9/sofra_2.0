@@ -12,7 +12,7 @@ import { draftCourse, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
-import { menuResponseLabel, newMenuResponseCount } from '@/lib/menu-generation-snapshot'
+import { menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -652,7 +652,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
             {courses.length > 0 && newResponseCount > 0 && (
               <section className="sv2-menu-rsvp-alert" role="status">
                 <div>
-                  <strong>{newResponseCount} new guest{newResponseCount === 1 ? '' : 's'} have responded since this menu was generated.</strong>
+                  <strong>{newMenuResponseLabel(newResponseCount)}</strong>
                   <span>The current menu has not changed.</span>
                 </div>
                 <button type="button" onClick={() => void handleRegenerateAI()} disabled={allLocked || aiLoading}>
