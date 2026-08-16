@@ -320,3 +320,4 @@
 # Profile caption editing (2026-08-16)
 
 - Saving an About Me caption locks the text field and changes the action to `EDIT CAPTION`; editing must be explicitly re-enabled before the caption can change again. Existing saved captions load in the same locked state.
+- Long survey answer choices span the full checkbox-grid width instead of wrapping inside one narrow column while the neighboring column remains unused.

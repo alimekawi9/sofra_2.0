@@ -472,6 +472,11 @@
   user-select:none;
 }
 
+.sv2-checkbox-row-wide{
+  grid-column:1 / -1;
+  max-width:100%;
+}
+
 .sv2-root .sv2-checkbox-row input{
   position:absolute;
   inset:0;

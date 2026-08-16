@@ -64,7 +64,7 @@ function CheckboxRow({
   onChange: () => void
 }) {
   return (
-    <label className="sv2-checkbox-row">
+    <label className={`sv2-checkbox-row${label.length > 32 ? ' sv2-checkbox-row-wide' : ''}`}>
       <input type="checkbox" checked={checked} onChange={onChange} />
       <span className="sv2-checkbox-box" aria-hidden="true" />
       {label}

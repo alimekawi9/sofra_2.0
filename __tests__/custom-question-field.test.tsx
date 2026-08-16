@@ -18,3 +18,9 @@ it('keeps a ranking question at question number one ahead of canonical questions
   expect(getComputedStyle(ranking.parentElement!).order).toBe('0')
   expect(getComputedStyle(dietary.parentElement!).order).toBe('1')
 })
+
+it('lets a long choice use the full question width', () => {
+  const longLabel = "No, I don't want this once in a lifetime moment to be enhanced or drunk."
+  render(<CustomQuestionField question={{ id: 'choice', kind: 'custom', type: 'single', title: 'Choose', order: 0, options: [{ value: 'long', label: longLabel }] }} onChange={() => {}} value={undefined} />)
+  expect(screen.getByText(longLabel).closest('label')).toHaveClass('sv2-checkbox-row-wide')
+})
