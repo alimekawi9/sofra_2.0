@@ -11,7 +11,7 @@ type SofraTransitionProps = {
 export default function SofraTransition({
   active,
   label = 'Assembling the plates',
-  delayMs = 180,
+  delayMs = 1000,
 }: SofraTransitionProps) {
   const [visible, setVisible] = useState(false)
 
@@ -21,7 +21,7 @@ export default function SofraTransition({
       return
     }
 
-    const timer = window.setTimeout(() => setVisible(true), delayMs)
+    const timer = window.setTimeout(() => setVisible(true), Math.max(1000, delayMs))
     return () => window.clearTimeout(timer)
   }, [active, delayMs])
 

@@ -669,12 +669,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               <span>{menuResponseGuidance(responseCount)}</span>
             </section>
 
-            {courses.length > 0 && generatedGuestCount !== null && (
-              <p className="sv2-menu-generation-stamp" title={generatedAt ? `Generated ${new Date(generatedAt).toLocaleString()}` : undefined}>
-                Generated for {generatedGuestCount} guest{generatedGuestCount === 1 ? '' : 's'}
-              </p>
-            )}
-
             {courses.length > 0 && newResponseCount > 0 && (
               <section className="sv2-menu-rsvp-alert" role="status">
                 <div>
@@ -685,6 +679,12 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   {aiLoading ? 'Regenerating…' : 'Regenerate'}
                 </button>
               </section>
+            )}
+
+            {courses.length > 0 && generatedGuestCount !== null && (
+              <p className="sv2-menu-generation-stamp" title={generatedAt ? `Generated ${new Date(generatedAt).toLocaleString()}` : undefined}>
+                Generated for {generatedGuestCount} guest{generatedGuestCount === 1 ? '' : 's'}
+              </p>
             )}
 
             {aiNotice && (

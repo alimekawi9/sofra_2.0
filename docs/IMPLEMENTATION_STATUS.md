@@ -323,3 +323,9 @@
 - Long survey answer choices span the full checkbox-grid width instead of wrapping inside one narrow column while the neighboring column remains unused.
 - Cover-image `REPLACE` and `REMOVE` controls now use Sofra's rounded pill shape consistently in event creation and editing.
 - Co-host invitation URLs now emit their own Open Graph and large-image social metadata using the event cover image, with the standard Sofra cover as fallback.
+
+# Consistent long-table transitions (2026-08-16)
+
+- Every long-table loading transition uses the shared `SofraTransition` presentation. The artwork now preserves its native 3:1 proportions at every viewport size rather than compressing horizontally on phones.
+- The transition waits one full second before appearing, so operations that complete in under one second never flash a loading preview.
+- On generated menus, the `Generated for X guests` snapshot badge now follows the new-response/regenerate notice so the current-response change is explained before the older generation snapshot is shown.

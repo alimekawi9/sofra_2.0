@@ -928,7 +928,7 @@
 .sf-snake{width:100%;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
   mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);}
 .sf-snake .strip{height:clamp(280px,48vh,420px);width:200%;background-repeat:repeat-x;
-  background-image:url('/sofra/long-table-transition-v2.png');background-size:50% 120%;background-position:0 50%;
+  background-image:url('/sofra/long-table-transition-v2.png');background-size:auto 100%;background-position:0 50%;
   will-change:transform,translate;backface-visibility:hidden;
   animation:sfSnake 8s linear infinite,sfSnakeWave 3.4s ease-in-out infinite alternate;}
 /* transform-only: no layout or background repaint per frame */
