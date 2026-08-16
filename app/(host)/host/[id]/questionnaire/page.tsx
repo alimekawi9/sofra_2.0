@@ -24,7 +24,7 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
   useEffect(() => {
     async function load() {
       const stored = localStorage.getItem('sofra_user_id')
-      if (!stored) { router.push('/join?next=' + encodeURIComponent('/host/' + params.id + '/questionnaire' + (window.location.search || ''))); return }
+      if (!stored) { router.push('/login'); return }
       uidRef.current = stored
 
       const { data: ev, error: fetchError } = await supabase

@@ -102,7 +102,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
     setFetchError('')
     try {
       const stored = localStorage.getItem('sofra_user_id')
-      if (!stored) { router.push('/join?next=' + encodeURIComponent('/events/' + id + '/table' + (window.location.search || ''))); return }
+      if (!stored) { router.push('/login'); return }
 
       const { data: ev, error: evErr } = await supabase
         .from('events')

@@ -1566,4 +1566,3 @@
   background-color:rgba(100,22,26,.78)!important;
   color:var(--sv2-off-white)!important;
 }
-.sv2-join-fields{display:flex;flex-direction:column;gap:10px;width:min(100%,360px);margin:20px auto}.sv2-join-fields label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.sv2-join-fields label span{font-weight:400;opacity:.65}.sv2-join-fields input{border:1px solid rgba(92,21,21,.35);border-radius:999px;background:transparent;color:inherit;padding:14px 18px;font:inherit}.sv2-join-fields input:focus{outline:2px solid rgba(92,21,21,.22);outline-offset:2px}.sv2-join-fields .sv2-hint{margin:4px 0 0;line-height:1.45}

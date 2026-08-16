@@ -56,7 +56,7 @@ export default function ProfilePage() {
     setError('')
     try {
       const stored = localStorage.getItem('sofra_user_id')
-      if (!stored) { router.push('/join?next=%2Fprofile'); return }
+      if (!stored) { router.push('/login'); return }
       setUserId(stored)
 
       const [{ data: user }, { data: rsvps }, { data: tasteProfile }] = await Promise.all([
@@ -110,7 +110,7 @@ export default function ProfilePage() {
 
   function handleLogout() {
     localStorage.removeItem('sofra_user_id')
-    router.push('/join')
+    router.push('/login')
   }
 
   async function onPhotoSelect(file: File) {

@@ -11,7 +11,7 @@ export default function Home() {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    router.replace(stored ? '/events' : '/join')
+    router.replace(stored ? '/events' : '/login')
   }, [router])
 
   return <div style={{ minHeight: '100vh', background: C.ink }} />

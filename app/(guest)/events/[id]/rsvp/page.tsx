@@ -71,7 +71,6 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const flavorsRef = useRef<string[]>([])
 
   const [loading, setLoading] = useState(true)
-  const [identityConfirmed, setIdentityConfirmed] = useState(false)
   const [step, setStep] = useState<Step>('status')
   const [status, setStatus] = useState<RsvpStatus | null>(null)
   const [event, setEvent] = useState<EventRow | null>(null)
@@ -101,11 +100,10 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.push('/join?next=' + encodeURIComponent('/events/' + params.id + '/rsvp' + (window.location.search || '')))
+        router.push('/name?next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
         return
       }
       uidRef.current = stored
-      setIdentityConfirmed(true)
 
       const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
         supabase.from('events')
@@ -387,12 +385,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setStep('profile')
   }
 
-  // Do not mount InviteCard while the client-side identity gate and event
-  // query are unresolved. Rendering its loading state exposed RSVP chrome for
-  // one frame before logged-out visitors were redirected to /join.
-  if (!identityConfirmed || loading) return null
-
-  if (isUnpublished) {
+  if (!loading && isUnpublished) {
     return (
       <div className="sv2-root sv2-device-page sv2-app-page">
         <main className="sv2-device-shell sv2-app-shell" style={{ padding: '72px 24px', textAlign: 'center' }}>
@@ -420,7 +413,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     )
   }
 
-  if (step === 'profile' && !error) {
+  if (step === 'profile' && !loading && !error) {
     const canonicalByKey = Object.fromEntries(
       sortedQuestions(questionnaire).filter(isCanonical).map((q) => [q.canonicalKey, q])
     ) as Partial<Record<CanonicalQuestionConfig['canonicalKey'], CanonicalQuestionConfig>>
@@ -495,7 +488,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
   return (
     <InviteCard
-      loading={false}
+      loading={loading}
       error={error}
       onRetry={loadData}
       title={event?.title ?? ''}

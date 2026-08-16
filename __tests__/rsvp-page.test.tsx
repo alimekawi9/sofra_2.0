@@ -125,11 +125,9 @@ it('redirects a missing local identity before querying RSVP data', async () => {
   const sb = makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
   await waitFor(() =>
-    expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fevents%2Fevent-1%2Frsvp')
+    expect(mockPush).toHaveBeenCalledWith('/name?next=%2Fevents%2Fevent-1%2Frsvp')
   )
   expect(sb.from).not.toHaveBeenCalled()
-  expect(screen.queryByText(/take your seat/i)).not.toBeInTheDocument()
-  expect(screen.queryByText(/save me a seat/i)).not.toBeInTheDocument()
 })
 
 describe('fetch error state', () => {

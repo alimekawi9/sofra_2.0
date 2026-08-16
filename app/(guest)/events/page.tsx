@@ -47,7 +47,7 @@ export default function EventsPage() {
     setLoading(true)
     setError('')
     const uid = localStorage.getItem('sofra_user_id')
-    if (!uid) { router.push('/join?next=%2Fevents'); return }
+    if (!uid) { router.push('/login'); return }
 
     try {
       const now = Date.now()

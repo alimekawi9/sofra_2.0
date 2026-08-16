@@ -2,17 +2,6 @@
 
 ## Completed
 
-- Authentication entry points are consolidated on `/join`. The single flow
-  requires a name and accepts an optional international phone number. A
-  name-only submission always creates a new account and is never used to
-  search for an existing user; when supplied, phone is the sole lookup key.
-  Legacy `/login` and `/name` routes are compatibility redirects only, and all
-  protected-page redirects now preserve their intended destination. The
-  public invite landing remains accessible before identity collection.
-- Logged-out invite claims now enter `/join` directly, and the RSVP route
-  renders no invitation details while its local identity check is unresolved,
-  preventing RSVP content from flashing before name entry.
-
 - Event menu recipes now support host-entered or one-time structured Gemini
   generation, persisted base servings/instructions/ingredient quantities,
   deterministic guest-count scaling, and visible recipe-level allergen

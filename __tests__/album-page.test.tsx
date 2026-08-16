@@ -93,10 +93,10 @@ beforeEach(() => {
 })
 
 describe('access control', () => {
-  it('redirects to the canonical join flow when no local identity is set', async () => {
+  it('redirects to name onboarding when no local identity is set', async () => {
     makeSupabase()
     render(<EventAlbumPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/join?next=%2Fevents%2Fev-1%2Falbum'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/name?next=%2Fevents%2Fev-1%2Falbum'))
   })
 
   it('shows no photos and no upload control for a guest who has not RSVPed, even if photos exist', async () => {

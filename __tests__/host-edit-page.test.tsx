@@ -62,11 +62,11 @@ function makeSupabase({
 
 const PARAMS = { id: 'event-1' }
 
-it('redirects to the canonical join flow when sofra_user_id is absent', async () => {
+it('redirects to /login when sofra_user_id is absent', async () => {
   localStorage.clear()
   makeSupabase()
   render(<HostEditPage params={PARAMS} />)
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fhost%2Fevent-1%2Fedit'))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
 })
 
 it('redirects a non-host viewer back to the event page instead of loading the form', async () => {
