@@ -82,6 +82,27 @@ describe('validateUploadBatch', () => {
   it('exposes the batch limit as 20', () => {
     expect(MAX_UPLOAD_BATCH).toBe(20)
   })
+
+  it('accepts a new batch that exactly fills the remaining room', () => {
+    expect(validateUploadBatch(5, 15)).toEqual({ ok: true })
+  })
+
+  it('rejects a new batch that would push the album over 20 total', () => {
+    const result = validateUploadBatch(6, 15)
+    expect(result.ok).toBe(false)
+    expect(result.message).toBe('You can only add 5 more photos — up to 20 per event.')
+  })
+
+  it('uses singular phrasing when exactly one slot remains', () => {
+    const result = validateUploadBatch(2, 19)
+    expect(result.message).toBe('You can only add 1 more photo — up to 20 per event.')
+  })
+
+  it('rejects any selection once the album is already full', () => {
+    const result = validateUploadBatch(1, 20)
+    expect(result.ok).toBe(false)
+    expect(result.message).toBe('This album is full — up to 20 photos per event.')
+  })
 })
 
 // ─── runBatchWithConcurrency ────────────────────────────────────────────────

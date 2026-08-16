@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
+import SofraTransition from '@/components/SofraTransition'
 import '@/components/sofra-v2/sofra-v2.css'
 
 export default function HostNewPage() {
@@ -125,7 +126,12 @@ export default function HostNewPage() {
   }
 
   return (
-    <HostCreateForm
+    <>
+      <SofraTransition
+        active={submitting || customizing}
+        label={customizing ? 'Preparing your questions' : 'Saving your Sofra'}
+      />
+      <HostCreateForm
       title={title}
       onTitleChange={setTitle}
       tagline={tagline}
@@ -145,6 +151,7 @@ export default function HostNewPage() {
       customizingQuestions={customizing}
       error={error}
       onSubmit={handleSubmit}
-    />
+      />
+    </>
   )
 }

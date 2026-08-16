@@ -323,7 +323,7 @@ export function EventPaper({
                   </div>
                 )}
 
-                <AddPhotosControl disabled={uploadingPhoto} onFilesConfirmed={onFilesConfirmed} />
+                <AddPhotosControl disabled={uploadingPhoto} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
                 <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />
               </section>
             )}

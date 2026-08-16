@@ -17,6 +17,7 @@ import {
 } from '@/lib/dish-presets'
 import { INGREDIENT_PRESETS, INGREDIENT_CATEGORIES } from '@/lib/ingredient-presets'
 import { formatTagLabel } from '@/lib/tag-format'
+import SofraTransition from '@/components/SofraTransition'
 import {
   PANTRY_TAG_GROUPS,
   SIGNATURE_TAG_GROUPS,
@@ -131,6 +132,8 @@ function KitchenPageInner() {
   const [ingredientBatchError, setIngredientBatchError] = useState('')
 
   const weekOf = currentMonday()
+
+  const transitionActive = loading || publishingDraft || pantryAdding || ingredientBatchAdding
 
   async function loadData() {
     setLoading(true)
@@ -548,6 +551,10 @@ function KitchenPageInner() {
         paddingBottom: 120,
       }}
     >
+      <SofraTransition
+        active={transitionActive}
+        label={publishingDraft ? 'Publishing your invite' : 'Setting your kitchen'}
+      />
       <div
         className="fade sv2-device-shell sv2-app-shell sv2-kitchen-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}

@@ -73,7 +73,7 @@ export function SharedAlbumPage({
           <div className="sv2-album-page-meta">
             <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
             {canUpload && (
-              <AddPhotosControl disabled={uploading} onFilesConfirmed={onFilesConfirmed} />
+              <AddPhotosControl disabled={uploading} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
             )}
           </div>
         </header>

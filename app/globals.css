@@ -238,6 +238,13 @@ html, body {
 
 ::-webkit-scrollbar { width: 0; }
 
+/* Shared fallback for the older dark application components. */
+.fade button:not(:disabled):is(:hover,:focus-visible){
+  border-color:var(--burgundy-lit)!important;
+  background-color:rgba(122,35,36,.88)!important;
+  color:var(--cream)!important;
+}
+
 @layer utilities {
   .text-balance { text-wrap: balance; }
 }

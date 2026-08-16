@@ -917,7 +917,7 @@
 [data-motion="reduced"] .sf-page{animation:none;}
 
 /* ============ assembling-the-plates loader ============ */
-.sf-loader{position:fixed;inset:0;z-index:80;background:#5D2027;color:#F4EFE4;
+.sf-loader{position:fixed;inset:0;z-index:2000;background:#5D2027;color:#F4EFE4;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;overflow:hidden;}
 .sf-loader .lh{text-align:center;}
 .sf-loader .est{font-family:var(--font-sans);font-size:8px;letter-spacing:0.34em;text-transform:uppercase;opacity:0.7;}
@@ -927,9 +927,9 @@
   text-transform:uppercase;display:block;opacity:0.75;margin-bottom:2px;}
 .sf-snake{width:100%;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
   mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);}
-.sf-snake .strip{height:clamp(150px,30vh,240px);width:200%;background-repeat:repeat-x;
-  background-size:auto 100%;background-position:0 50%;
-  will-change:transform;backface-visibility:hidden;
+.sf-snake .strip{height:clamp(280px,48vh,420px);width:200%;background-repeat:repeat-x;
+  background-image:url('/sofra/long-table-transition-v2.png');background-size:50% 120%;background-position:0 50%;
+  will-change:transform,translate;backface-visibility:hidden;
   animation:sfSnake 8s linear infinite,sfSnakeWave 3.4s ease-in-out infinite alternate;}
 /* transform-only: no layout or background repaint per frame */
 @keyframes sfSnake{from{transform:translate3d(0,0,0);}to{transform:translate3d(-50%,0,0);}}
@@ -1018,3 +1018,7 @@
 .sf-define-frame p{font-family:var(--font-sans);font-size:clamp(15px,4vw,19px);line-height:1.5;margin:0;color:#EDE7DC;opacity:0.92;}
 .sf-define .btn-outline{border-color:rgba(237,231,220,0.6);color:#EDE7DC;background:transparent;}
 .sf-define .btn-outline:hover{background:rgba(237,231,220,0.08);}
+
+/* Keep legacy Sofra screens aligned with the v2 interaction language. */
+.sf-app button:not(:disabled){transition:background-color .18s ease,color .18s ease,border-color .18s ease,opacity .18s ease,transform .18s ease;}
+.sf-app button:not(:disabled):is(:hover,:focus-visible){border-color:var(--burgundy)!important;background-color:rgba(92,21,21,.82)!important;color:var(--cream)!important;}

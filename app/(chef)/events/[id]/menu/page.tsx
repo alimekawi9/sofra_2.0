@@ -12,6 +12,7 @@ import { draftCourse, deriveMenu, inferSlot, portionGuidance } from '@/lib/menu'
 import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
+import SofraTransition from '@/components/SofraTransition'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
@@ -194,6 +195,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [menuDesign, setMenuDesign] = useState<MenuDesignKey>('folk')
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [printLoading, setPrintLoading] = useState(false)
   const [aiNotice, setAiNotice] = useState('')
   // Reasoning is not persisted; it only exists for the current AI session so
   // the chef can compare the two paths side by side.
@@ -476,6 +479,19 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     }
   }
 
+  function handlePreviewMenu() {
+    setPreviewLoading(true)
+    const image = new Image()
+    const finish = () => {
+      setExportStep('preview')
+      setPreviewLoading(false)
+    }
+    image.onload = finish
+    image.onerror = finish
+    image.src = selectedMenuDesign.image
+    if (image.complete) finish()
+  }
+
   function handleGeneratePdf() {
     setPopupBlocked(false)
     if (!event || !intel) return
@@ -484,8 +500,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       setPopupBlocked(true)
       return
     }
+    setPrintLoading(true)
     win.document.write(buildMenuHtml(derivedCourses, intel.guestCount, event, menuDesign, window.location.origin))
-    win.addEventListener('load', () => setTimeout(() => win.print(), 150))
+    win.addEventListener('load', () => {
+      setPrintLoading(false)
+      setTimeout(() => win.print(), 150)
+    })
+    window.setTimeout(() => setPrintLoading(false), 4000)
     win.document.close()
   }
 
@@ -506,6 +527,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   if (!loading && !fetchError && event && intel && exportStep !== 'draft') {
     return (
       <div className="sv2-root sv2-menu-design-page">
+        <SofraTransition active={previewLoading || printLoading} label={printLoading ? 'Preparing your menu' : 'Setting the menu'} />
         <main className="sv2-menu-design-shell">
           {exportStep === 'choose' ? (
             <>
@@ -529,7 +551,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                     </button>
                   ))}
                 </div>
-                <button className="sv2-menu-design-confirm" type="button" onClick={() => setExportStep('preview')}>
+                <button className="sv2-menu-design-confirm" type="button" onClick={handlePreviewMenu} disabled={previewLoading}>
                   That one
                 </button>
               </section>
@@ -569,6 +591,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         paddingBottom: 120,
       }}
     >
+      <SofraTransition active={loading || aiLoading} label={aiLoading ? 'Assembling the plates' : 'Setting the table'} />
       <div
         className="fade sv2-device-shell sv2-app-shell sv2-menu-draft-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}

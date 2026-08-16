@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const MAX_PREVIEW_TILES = 6
+// Total cap for the whole shared album, not just one upload batch --
+// validateUploadBatch checks new selections against remaining room under
+// this cap (existingCount + fileCount), so a single batch can never exceed
+// it either when starting from an empty album.
 export const MAX_UPLOAD_BATCH = 20
 export const UPLOAD_CONCURRENCY = 3
 
@@ -50,10 +54,20 @@ export function buildPreviewTiles<T>(photos: T[], max: number = MAX_PREVIEW_TILE
   }
 }
 
-export function validateUploadBatch(fileCount: number): { ok: boolean; message?: string } {
+export function validateUploadBatch(fileCount: number, existingCount: number = 0): { ok: boolean; message?: string } {
   if (fileCount === 0) return { ok: false, message: 'Choose at least one photo.' }
-  if (fileCount > MAX_UPLOAD_BATCH) {
-    return { ok: false, message: `You can upload up to ${MAX_UPLOAD_BATCH} photos at a time.` }
+  const remaining = MAX_UPLOAD_BATCH - existingCount
+  if (fileCount > remaining) {
+    if (existingCount === 0) {
+      return { ok: false, message: `You can upload up to ${MAX_UPLOAD_BATCH} photos at a time.` }
+    }
+    if (remaining <= 0) {
+      return { ok: false, message: `This album is full — up to ${MAX_UPLOAD_BATCH} photos per event.` }
+    }
+    return {
+      ok: false,
+      message: `You can only add ${remaining} more ${remaining === 1 ? 'photo' : 'photos'} — up to ${MAX_UPLOAD_BATCH} per event.`,
+    }
   }
   return { ok: true }
 }

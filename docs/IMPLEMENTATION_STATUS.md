@@ -251,3 +251,21 @@
 - Root cause: renaming a preset-derived signature (e.g. quick-added "Hummus", then renamed via "Edit a saved signature") only ever updates `name`/`tags`/`contains_allergens`/etc. — never `preset_key`. The "Quick add from presets" grid matches its highlighted/selected state by `preset_key`, which survives the rename, but was rendering the button's *label* from the static preset library name (`p.name`) instead of the live saved row's name, so the picker permanently showed the pre-rename name.
 - Fix (`app/(chef)/kitchen/page.tsx`): the preset chip now renders `saved.name` (the persisted signature's current name) when the preset is already saved, falling back to the static `p.name` only when it isn't yet added. Pantry ingredients were separately verified (code review + live reproduction) to already update correctly on rename, since pantry items have no `preset_key` and are matched/rendered by live name.
 - Added a regression test in `__tests__/kitchen-page.test.tsx` seeding a preset-derived signature whose name no longer matches its preset, asserting the picker shows the current name and not the stale preset label; confirmed it fails without the fix. Also hardened the test file's Supabase mock (`order()` now returns a fresh array copy instead of the same mutated reference) since the stale reference was silently defeating React's re-render on the previous version of this test.
+
+## Site-wide button hover consistency (2026-08-16)
+
+- Every enabled button in the current Sofra UI now receives the shared burgundy wash with warm light text on hover and keyboard focus; disabled controls remain unchanged.
+- The rule is scoped across Sofra v2, production Kitchen/Table/Menu screens, legacy application surfaces, and file-upload labels that visually act as buttons, so newly added controls inherit the interaction without manual selector updates.
+
+## Long-running action transition coverage (2026-08-16)
+
+- The assembling-the-plates transition now has a reusable React overlay and appears after a 180 ms delay, avoiding flashes for instantaneous interactions.
+- It covers menu generation/regeneration, menu-design preview artwork loading, print preparation, event draft creation/questionnaire setup, Kitchen loading/saving, and final invite publishing.
+- The overlay now sits above every known application layer while preserving the separate horizontal snake and vertical wave animations and the existing reduced-motion behavior.
+- The transition uses a high-resolution, continuous reconstruction of the supplied long-table artwork with no baked-in cutoff; the welcome wordmark block has been removed.
+- The long-table band now occupies substantially more of the viewport and has a fuller vertical profile instead of reading as a compressed ribbon.
+
+## Shared album cap and slider touch fixes (2026-08-16)
+
+- `validateUploadBatch` (`lib/shared-album.ts`) now checks a new selection against the album's existing photo count, not just the size of the new batch, so uploads across multiple sessions can no longer push a shared album past 20 photos total. `AddPhotosControl` takes a `currentCount` prop, hides the upload trigger once the album is full, and surfaces how many more photos (if any) can still be added. A native OS multi-photo picker can't be capped mid-selection from the web app; this enforces the cap before and after that picker runs.
+- The shared `.sv2-slider` thumb (used by the adventurousness slider and custom questionnaire sliders) was 14×14px with no `touch-action`, well under mobile touch-target guidance and prone to the browser mistaking a drag for a page-scroll gesture. Enlarged the thumb to 26px, the control height to 28px, and added `touch-action: none`.

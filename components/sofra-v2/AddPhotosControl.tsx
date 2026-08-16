@@ -6,19 +6,22 @@ import { MAX_UPLOAD_BATCH, validateUploadBatch } from '@/lib/shared-album'
 export interface AddPhotosControlProps {
   disabled?: boolean
   label?: string
+  currentCount: number
   onFilesConfirmed: (files: File[], caption: string) => void
 }
 
-export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', onFilesConfirmed }: AddPhotosControlProps) {
+export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', currentCount, onFilesConfirmed }: AddPhotosControlProps) {
   const inputId = useId()
   const [selected, setSelected] = useState<File[]>([])
   const [caption, setCaption] = useState('')
   const [validationError, setValidationError] = useState('')
+  const remaining = MAX_UPLOAD_BATCH - currentCount
+  const albumFull = remaining <= 0
 
   function handleFilesSelected(files: FileList | null) {
     if (!files || files.length === 0) return
     const list = Array.from(files)
-    const result = validateUploadBatch(list.length)
+    const result = validateUploadBatch(list.length, currentCount)
     if (!result.ok) {
       setValidationError(result.message ?? 'Choose fewer photos.')
       return
@@ -41,21 +44,25 @@ export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', onFilesConfir
 
   return (
     <>
-      <label className="sv2-add-photos-trigger" htmlFor={inputId}>
-        {label}
-        <input
-          id={inputId}
-          aria-label={label}
-          type="file"
-          accept="image/*"
-          multiple
-          disabled={disabled}
-          onChange={(e) => {
-            handleFilesSelected(e.target.files)
-            e.target.value = ''
-          }}
-        />
-      </label>
+      {albumFull ? (
+        <p className="sv2-add-photos-full">This album is full — up to {MAX_UPLOAD_BATCH} photos per event.</p>
+      ) : (
+        <label className="sv2-add-photos-trigger" htmlFor={inputId}>
+          {label}
+          <input
+            id={inputId}
+            aria-label={label}
+            type="file"
+            accept="image/*"
+            multiple
+            disabled={disabled}
+            onChange={(e) => {
+              handleFilesSelected(e.target.files)
+              e.target.value = ''
+            }}
+          />
+        </label>
+      )}
       {validationError && (
         <p role="alert" className="sv2-add-photos-error">{validationError}</p>
       )}
@@ -85,7 +92,7 @@ export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', onFilesConfir
           </div>
         </div>
       )}
-      <p className="sv2-sr-only">Up to {MAX_UPLOAD_BATCH} photos per upload.</p>
+      {!albumFull && <p className="sv2-sr-only">Up to {MAX_UPLOAD_BATCH} photos per event.</p>}
     </>
   )
 }

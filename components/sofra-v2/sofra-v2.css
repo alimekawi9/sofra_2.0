@@ -509,10 +509,11 @@
   -webkit-appearance:none;
   appearance:none;
   width:100%;
-  height:14px;
+  height:28px;
   background:transparent;
   margin:6px 0 8px;
   cursor:pointer;
+  touch-action:none;
 }
 .sv2-slider::-webkit-slider-runnable-track{
   height:1px;
@@ -521,11 +522,11 @@
 .sv2-slider::-webkit-slider-thumb{
   -webkit-appearance:none;
   appearance:none;
-  width:14px;
-  height:14px;
+  width:26px;
+  height:26px;
   border-radius:50%;
   background:var(--sv2-ink);
-  margin-top:-6.5px;
+  margin-top:-12.5px;
   cursor:pointer;
 }
 .sv2-slider::-moz-range-track{
@@ -533,8 +534,8 @@
   background:var(--sv2-line);
 }
 .sv2-slider::-moz-range-thumb{
-  width:14px;
-  height:14px;
+  width:26px;
+  height:26px;
   border:none;
   border-radius:50%;
   background:var(--sv2-ink);
@@ -1345,6 +1346,7 @@
 .sv2-add-photos-trigger{position:relative;display:grid;place-items:center;min-height:44px;margin-top:4px;border:1px solid var(--sv2-ink);border-radius:8px;font:500 10px var(--sv2-sans-family);letter-spacing:1px;cursor:pointer}
 .sv2-add-photos-trigger input{position:absolute;width:1px;height:1px;opacity:0}
 .sv2-add-photos-error{margin:8px 0 0;color:var(--sv2-ink);font-size:11px}
+.sv2-add-photos-full{margin:4px 0 0;color:var(--sv2-muted);font:500 10px var(--sv2-sans-family);letter-spacing:0.5px}
 
 .sv2-add-photos-sheet{position:fixed;inset:0;z-index:1100;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,8,8,.45)}
 .sv2-add-photos-sheet-body{width:100%;max-width:480px;padding:20px;border-radius:20px 20px 0 0;background:var(--sv2-card-bg);color:var(--sv2-ink)}
@@ -1549,3 +1551,18 @@
 }
 
 .sv2-invitation-photo.sv2-event-default-cover img{object-position:center 50%}
+
+/* Universal interactive treatment: every enabled button in the Sofra v2
+   surface receives the same burgundy wash on pointer hover and keyboard
+   focus. This intentionally sits last so new controls cannot silently miss
+   the shared interaction merely because their class is not in a hand-kept
+   selector list. File-upload labels are included because they function as
+   buttons in the interface. */
+.sv2-root :is(button,[role="button"],label.sv2-upload-drop,label.sv2-upload-replace):not(:disabled){
+  transition:background-color .18s ease,color .18s ease,border-color .18s ease,opacity .18s ease;
+}
+.sv2-root :is(button,[role="button"],label.sv2-upload-drop,label.sv2-upload-replace):not(:disabled):is(:hover,:focus-visible,:focus-within){
+  border-color:var(--sv2-ink)!important;
+  background-color:rgba(100,22,26,.78)!important;
+  color:var(--sv2-off-white)!important;
+}
