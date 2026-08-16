@@ -316,3 +316,7 @@
 - Removed Sofra questions and choices are omitted from both the live preview and the real guest questionnaire, including saved surveys with no canonical questions remaining.
 - Ranking is available as a question type. Guests order every option with accessible up/down controls, responses persist as ordered option IDs, and hosts see the aggregate order ranked by average position in table insights.
 - Guest and preview rendering now honors the saved order across both Sofra profile questions and custom questions, so a ranking question placed first remains first.
+
+# Profile caption editing (2026-08-16)
+
+- Saving an About Me caption locks the text field and changes the action to `EDIT CAPTION`; editing must be explicitly re-enabled before the caption can change again. Existing saved captions load in the same locked state.

@@ -42,7 +42,7 @@ export default function ProfilePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [savingCaption, setSavingCaption] = useState(false)
-  const [captionSaved, setCaptionSaved] = useState(false)
+  const [captionEditing, setCaptionEditing] = useState(true)
   const [hostPreferenceHref, setHostPreferenceHref] = useState<string | null>(null)
   const [showPreferenceWarning, setShowPreferenceWarning] = useState(false)
   const [preferencesSummary, setPreferencesSummary] = useState<string | null>(null)
@@ -77,6 +77,7 @@ export default function ProfilePage() {
         setPhone(user.phone || null)
         setPhotoUrl(user.photo_url || null)
         setCaption(user.caption || '')
+        setCaptionEditing(!user.caption)
       }
 
       setPreferencesSummary(buildPreferencesSummary(tasteProfile as TasteProfileRow | null))
@@ -153,7 +154,6 @@ export default function ProfilePage() {
   async function saveCaption() {
     if (!userId || savingCaption) return
     setSavingCaption(true)
-    setCaptionSaved(false)
     const { error: captionError } = await supabase
       .from('users')
       .update({ caption: caption.trim() || null })
@@ -163,7 +163,7 @@ export default function ProfilePage() {
       setError('Could not save your caption. Try again.')
       return
     }
-    setCaptionSaved(true)
+    setCaptionEditing(false)
   }
 
   return (
@@ -172,10 +172,11 @@ export default function ProfilePage() {
       phone={phone}
       photoUrl={photoUrl}
       caption={caption}
-      onCaptionChange={(value) => { setCaption(value); setCaptionSaved(false) }}
+      onCaptionChange={setCaption}
       onCaptionSave={saveCaption}
       savingCaption={savingCaption}
-      captionSaved={captionSaved}
+      captionEditing={captionEditing}
+      onCaptionEdit={() => setCaptionEditing(true)}
       hostPreferenceHref={hostPreferenceHref}
       showPreferenceWarning={showPreferenceWarning}
       onDismissPreferenceWarning={() => {

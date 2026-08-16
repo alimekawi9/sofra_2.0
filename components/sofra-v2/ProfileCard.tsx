@@ -18,7 +18,8 @@ export interface ProfileCardProps {
   onCaptionChange: (value: string) => void
   onCaptionSave: () => void
   savingCaption: boolean
-  captionSaved: boolean
+  captionEditing: boolean
+  onCaptionEdit: () => void
   hostPreferenceHref: string | null
   showPreferenceWarning: boolean
   onDismissPreferenceWarning: () => void
@@ -42,7 +43,8 @@ export function ProfileCard({
   onCaptionChange,
   onCaptionSave,
   savingCaption,
-  captionSaved,
+  captionEditing,
+  onCaptionEdit,
   hostPreferenceHref,
   showPreferenceWarning,
   onDismissPreferenceWarning,
@@ -108,15 +110,20 @@ export function ProfileCard({
 
         <section className="sv2-profile-caption-editor">
           <label htmlFor="profile-caption">About me</label>
-          <textarea
-            id="profile-caption"
-            maxLength={240}
-            value={caption}
-            onChange={(event) => onCaptionChange(event.target.value)}
-            placeholder="A little about you around the table"
-          />
-          <button type="button" disabled={savingCaption} onClick={onCaptionSave}>
-            {savingCaption ? 'SAVING...' : captionSaved ? 'SAVED' : 'SAVE CAPTION'}
+          {captionEditing ? (
+            <textarea
+              className="sv2-caption-editing"
+              id="profile-caption"
+              maxLength={240}
+              value={caption}
+              onChange={(event) => onCaptionChange(event.target.value)}
+              placeholder="A little about you around the table"
+            />
+          ) : (
+            <p className="sv2-caption-locked">{caption}</p>
+          )}
+          <button type="button" className={captionEditing ? 'sv2-caption-save' : 'sv2-caption-edit'} disabled={savingCaption} onClick={captionEditing ? onCaptionSave : onCaptionEdit}>
+            {savingCaption ? 'SAVING...' : captionEditing ? 'SAVE CAPTION' : 'EDIT CAPTION'}
           </button>
         </section>
 
