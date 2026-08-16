@@ -10,7 +10,7 @@ const push = jest.fn()
 
 type UserRow = { name: string; phone: string | null; photo_url: string | null; caption?: string | null }
 
-function makeSupabase(user: UserRow, hostedEventId: string | null = null) {
+function makeSupabase(user: UserRow, hostedEventId: string | null = null, rsvps: unknown[] = []) {
   const updateEq = jest.fn().mockResolvedValue({ error: null })
   const update = jest.fn().mockReturnValue({ eq: updateEq })
   const from = jest.fn((table: string) => {
@@ -25,7 +25,7 @@ function makeSupabase(user: UserRow, hostedEventId: string | null = null) {
     if (table === 'rsvps') {
       return {
         select: () => ({
-          eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+          eq: jest.fn().mockResolvedValue({ data: rsvps, error: null }),
         }),
       }
     }
@@ -123,4 +123,14 @@ it('locks a saved caption until Edit caption is pressed', async () => {
   fireEvent.click(screen.getByRole('button', { name: /edit caption/i }))
   expect(screen.getByRole('textbox', { name: /about me/i })).toHaveValue('Always brings dessert.')
   expect(screen.getByRole('button', { name: /save caption/i })).toBeInTheDocument()
+})
+
+it('opens an event when its profile-history title is clicked', async () => {
+  localStorage.setItem('sofra_user_id', 'history-user')
+  makeSupabase({ name: 'Layla', phone: null, photo_url: null }, null, [{ id: 'rsvp-1', status: 'going', events: { id: 'event-1', title: 'Garden Sofra', event_date: '2030-08-12T18:00:00Z', venue: 'Ramla' } }])
+  render(<ProfilePage />)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Garden Sofra' }))
+  expect(push).toHaveBeenCalledWith('/events/event-1')
+  expect(screen.getByText(/at Ramla/)).toBeInTheDocument()
 })

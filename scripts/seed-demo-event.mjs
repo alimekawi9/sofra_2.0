@@ -56,6 +56,50 @@ const GUESTS = [
   { name: 'Priya', phone: '+10000000009', dietary: ['Vegetarian'], avoid: [], protein_anchor: 'No preference', protein_preferences: ['no_preference'], flavor_preference: ['Spicy', 'Umami'], adventurousness: 65 },
 ]
 
+const DEMO_QUESTIONNAIRE = {
+  header: "A FEW THINGS BEFORE WE SET THE TABLE",
+  questions: [
+    { id: 'demo_date_rank', kind: 'custom', type: 'ranking', title: 'Which date works best?', helperText: 'Rank from most preferred to least preferred.', options: [
+      { value: 'wednesday', label: 'Wednesday, September 9th' }, { value: 'thursday', label: 'Thursday, September 10th' }, { value: 'friday', label: 'Friday, September 11th' },
+    ], order: 0 },
+    { id: 'demo_table_mood', kind: 'custom', type: 'single', title: 'What kind of table are you hoping for?', options: [
+      { value: 'lively', label: 'Lively and loud' }, { value: 'intimate', label: 'Intimate and slow' }, { value: 'surprising', label: 'A little unexpected' },
+    ], order: 1 },
+    { id: 'demo_flavor_direction', kind: 'custom', type: 'multiple', title: 'Which flavors should lead the evening?', helperText: 'Choose up to two.', options: [
+      { value: 'bright', label: 'Bright and fresh' }, { value: 'smoky', label: 'Smoky and rich' }, { value: 'spicy', label: 'Spicy' }, { value: 'comforting', label: 'Comforting' },
+    ], maxSelections: 2, order: 2 },
+    { id: 'demo_note', kind: 'custom', type: 'text', title: 'Anything the host should know?', order: 3 },
+  ],
+}
+
+function demoAnswers(index, name) {
+  // Deliberately skew the demo answers so Table intelligence demonstrates a
+  // clear signal rather than an artificial three-way tie.
+  const rankings = [
+    ['thursday', 'wednesday', 'friday'],
+    ['thursday', 'wednesday', 'friday'],
+    ['thursday', 'friday', 'wednesday'],
+    ['thursday', 'wednesday', 'friday'],
+    ['wednesday', 'thursday', 'friday'],
+    ['thursday', 'friday', 'wednesday'],
+    ['thursday', 'wednesday', 'friday'],
+    ['friday', 'thursday', 'wednesday'],
+    ['thursday', 'wednesday', 'friday'],
+  ]
+  const moods = ['intimate', 'intimate', 'intimate', 'lively', 'intimate', 'intimate', 'surprising', 'intimate', 'lively']
+  const flavors = [
+    ['bright', 'comforting'], ['bright', 'comforting'], ['bright', 'smoky'],
+    ['bright', 'comforting'], ['smoky', 'comforting'], ['bright', 'comforting'],
+    ['bright', 'spicy'], ['bright', 'comforting'], ['bright', 'smoky'],
+  ]
+  return {
+    demo_date_rank: rankings[index % rankings.length],
+    demo_table_mood: moods[index % moods.length],
+    demo_flavor_direction: flavors[index % flavors.length],
+    demo_note: index % 3 === 0 ? `${name} would love a relaxed seat near friends.` : '',
+  }
+}
+
 async function ensureUser(name, phone) {
   const { data: existing, error: selErr } = await supabase
     .from('users')
@@ -132,6 +176,21 @@ async function ensureRsvp(eventId, userId) {
   if (error) throw new Error(`upsert rsvps(${eventId}, ${userId}) failed: ${error.message}`)
 }
 
+async function seedQuestionnaire(eventId, attendees) {
+  const { error: questionnaireError } = await supabase.from('event_questionnaires').upsert(
+    { event_id: eventId, config: DEMO_QUESTIONNAIRE, updated_at: new Date().toISOString() },
+    { onConflict: 'event_id' }
+  )
+  if (questionnaireError) throw new Error(`upsert demo questionnaire failed: ${questionnaireError.message}`)
+
+  const now = new Date().toISOString()
+  const rows = attendees.flatMap((attendee, index) => Object.entries(demoAnswers(index, attendee.name))
+    .filter(([, response]) => response !== '')
+    .map(([question_id, response]) => ({ event_id: eventId, user_id: attendee.id, question_id, response, updated_at: now })))
+  const { error: responseError } = await supabase.from('event_question_responses').upsert(rows, { onConflict: 'event_id,user_id,question_id' })
+  if (responseError) throw new Error(`upsert demo questionnaire responses failed: ${responseError.message}`)
+}
+
 async function main() {
   const host = await ensureUser(HOST.name, HOST.phone)
   console.log(`Host: ${HOST.name} (${HOST.phone}) — ${host.created ? 'created' : 'reused'} [${host.id}]`)
@@ -153,6 +212,8 @@ async function main() {
     await ensureRsvp(event.id, user.id)
     rsvpResults.push({ name: guest.name })
   }
+
+  await seedQuestionnaire(event.id, userResults)
 
   const expectedUserCount = GUESTS.length + 1 // 8 guests + host
   const expectedRsvpCount = GUESTS.length + 1

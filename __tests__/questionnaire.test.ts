@@ -14,12 +14,26 @@ import {
   validateQuestionnaire,
   generateOptionValue,
   sortedQuestions,
+  inferCanonicalTopic,
+  relevantCanonicalTopics,
   type CanonicalQuestionConfig,
   type CustomQuestionConfig,
   type QuestionnaireConfig,
 } from '@/lib/questionnaire'
 import { DIETARY, NOGOS, FLAVORS } from '@/lib/theme'
 import { PROTEIN_PREFERENCE_OPTIONS } from '@/lib/protein-preferences'
+
+describe('semantic questionnaire topics', () => {
+  it('recognizes similar host-written preference questions', () => {
+    expect(inferCanonicalTopic('How brave are you about trying something new?')).toBe('adventurousness')
+    expect(inferCanonicalTopic('Any allergies or ingredients you cannot eat?')).toBe('avoid')
+  })
+
+  it('keeps only configured or semantically related Table topics', () => {
+    const config: QuestionnaireConfig = { questions: [{ id: 'custom', kind: 'custom', type: 'text', title: 'Tell us a dinner story', order: 0 }] }
+    expect(relevantCanonicalTopics(config)).toEqual([])
+  })
+})
 
 describe('DEFAULT_QUESTIONNAIRE', () => {
   it('has exactly the five canonical questions, in order, with no overrides', () => {

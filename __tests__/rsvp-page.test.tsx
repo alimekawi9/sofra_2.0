@@ -628,6 +628,26 @@ describe('going/maybe submit', () => {
     expect(await screen.findByRole('button', { name: 'SAVE PREFERENCES' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'UPDATE PREFERENCES' })).not.toBeInTheDocument()
   })
+
+  it('preference-only Back returns to event details without showing RSVP choices', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
+    makeSupabase({ profileRow: { user_id: 'uid-1' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await userEvent.click(await screen.findByRole('button', { name: /back/i }))
+    expect(mockPush).toHaveBeenCalledWith('/events/event-1')
+    expect(screen.queryByRole('button', { name: /save me a seat/i })).not.toBeInTheDocument()
+  })
+
+  it('preference-only save does not create or update an RSVP or show the profile badge', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
+    const sb = makeSupabase({ profileRow: { user_id: 'uid-1', dietary: [], avoid: [], flavor_preference: [], adventurousness: 50 } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    expect(await screen.findByRole('button', { name: 'UPDATE PREFERENCES' })).toBeInTheDocument()
+    expect(screen.queryByTestId('prefilled-badge')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'UPDATE PREFERENCES' }))
+    await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
+    expect(sb.rsvpUpsert).not.toHaveBeenCalled()
+  })
 })
 
 describe('prefill from existing data', () => {
@@ -763,14 +783,14 @@ describe('host-customized questionnaire', () => {
 
     await waitFor(() => expect(sb.customResponseUpsert).toHaveBeenCalled())
     expect(sb.customResponseUpsert).toHaveBeenCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({
           event_id: 'event-1',
           user_id: 'uid-1',
           question_id: 'q_custom1',
           response: 'Grandma’s knafeh',
         }),
-      ],
+      ]),
       expect.anything()
     )
   })
@@ -784,7 +804,8 @@ describe('host-customized questionnaire', () => {
     await userEvent.click(screen.getByRole('button', { name: 'SAVE MY SEAT' }))
 
     await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalled())
-    expect(sb.customResponseUpsert).not.toHaveBeenCalled()
+    expect(sb.customResponseUpsert).toHaveBeenCalled()
+    expect(sb.customResponseUpsert.mock.calls[0][0].some((row: { question_id: string }) => row.question_id === 'q_custom1')).toBe(false)
   })
 
   it('behaves exactly as the default questionnaire when no event_questionnaires row exists', async () => {
@@ -851,14 +872,14 @@ describe('host-customized questionnaire', () => {
 
     await waitFor(() => expect(sb.customResponseUpsert).toHaveBeenCalled())
     expect(sb.customResponseUpsert).toHaveBeenCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({
           event_id: 'event-1',
           user_id: 'uid-1',
           question_id: 'q_slider1',
           response: 5,
         }),
-      ],
+      ]),
       expect.anything()
     )
     // Canonical adventurousness (0-100 continuous) must be untouched by the custom slider.

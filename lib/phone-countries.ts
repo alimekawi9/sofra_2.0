@@ -1,4 +1,4 @@
-export type PhoneCountry = { iso: string; dialCode: string; lengths?: number[] }
+export type PhoneCountry = { iso: string; name: string; dialCode: string; lengths?: number[] }
 
 // ISO countries and territories. NANP members share the +1 calling code and
 // remain individually selectable by ISO code.
@@ -34,7 +34,16 @@ const EXACT_LENGTHS: Readonly<Record<string, number[]>> = {
   EG:[10],US:[10],CA:[10],MX:[10],BR:[10,11],AR:[10],CO:[10],GB:[10],LB:[7,8],AE:[9],SA:[9],JO:[9],KW:[8],QA:[8],BH:[8],OM:[8],IQ:[10],SY:[9],PS:[9],FR:[9],IT:[9,10],DE:[10,11],ES:[9],PT:[9],NL:[9],BE:[9],CH:[9],GR:[10],TR:[10],MA:[9],DZ:[9],TN:[8],ZA:[9],NG:[10],KE:[9],IN:[10],PK:[10],CN:[11],JP:[10],KR:[9,10],SG:[8],AU:[9],NZ:[8,9],
 }
 
-export const PHONE_COUNTRIES: PhoneCountry[] = DIAL_CODES.map(([iso, dialCode]) => ({ iso, dialCode, lengths: EXACT_LENGTHS[iso] }))
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
+
+export const PHONE_COUNTRIES: PhoneCountry[] = DIAL_CODES
+  .map(([iso, dialCode]) => ({
+    iso,
+    name: regionNames.of(iso) ?? iso,
+    dialCode,
+    lengths: EXACT_LENGTHS[iso],
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'en'))
 
 export function phoneLengths(country: PhoneCountry): number[] {
   if (country.lengths) return country.lengths

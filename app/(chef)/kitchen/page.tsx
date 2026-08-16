@@ -906,22 +906,18 @@ function KitchenPageInner() {
                     paddingRight: 2,
                   }}
                 >
-                  {customPantry.map((item) => (
-                    <span className="sv2-production-saved-chip" key={item.id}>
-                      <button type="button" aria-pressed="true" onClick={() => void deletePantryItem(item)}>
-                        {item.name}
-                      </button>
-                    </span>
+                  {customPantry.map((item) => nothingInPantry ? (
+                    <button key={item.id} type="button" aria-pressed="false" style={presetChip(false)} onClick={() => setNothingInPantry(false)}>{item.name}</button>
+                  ) : (
+                    <button key={item.id} type="button" aria-pressed="true" style={presetChip(true)} onClick={() => void deletePantryItem(item)}>{item.name}</button>
                   ))}
                   {filteredIngredients.map((name) => {
                     const saved = pantry.find((item) => item.name.toLowerCase() === name.toLowerCase())
-                    const on = Boolean(saved) || selectedIngredients.includes(name)
-                    return saved ? (
-                      <span className="sv2-production-saved-chip" key={name}>
-                        <button type="button" aria-pressed="true" onClick={() => void deletePantryItem(saved)}>
-                          {name}
-                        </button>
-                      </span>
+                    const on = (!nothingInPantry && Boolean(saved)) || selectedIngredients.includes(name)
+                    return saved && !nothingInPantry ? (
+                      <button key={name} type="button" aria-pressed="true" style={presetChip(true)} onClick={() => void deletePantryItem(saved)}>{name}</button>
+                    ) : saved ? (
+                      <button key={name} type="button" onClick={() => setNothingInPantry(false)} style={presetChip(false)} aria-pressed="false">{name}</button>
                     ) : (
                       <button
                         key={name}

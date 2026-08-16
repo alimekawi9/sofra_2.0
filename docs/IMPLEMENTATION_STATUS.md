@@ -1,5 +1,9 @@
 # Implementation Status
 
+- Table ranking summaries now translate ordinal results into a clear winner or an explicit tie and show first-choice votes instead of unexplained average-position numbers. Choice summaries show counts against the response total.
+- Table includes an AI planning-recommendations section generated from aggregate dietary, preference, atmosphere, timing, and event-specific survey context. Guest names are removed from the aggregate profile sent to Gemini, written responses are treated as untrusted data, and the advice is explicitly separated from menu generation.
+- Phone login country picker now includes the complete country/territory list ordered alphabetically by English country name and uses an explicitly downward-opening menu.
+
 ## Completed
 
 - Shared-link invitation landing titles now use a narrower, balanced text box
@@ -307,6 +311,8 @@
 
 - Signatures and pantry each provide a compact `CLEAR ALL` action beside their preset heading. Clearing remains staged until the relevant submit action is pressed.
 - The former large empty-pantry control was removed. When the effective pantry selection is empty, the existing submit button reads `I LITERALLY HAVE NOTHING` and persists that intentional empty state.
+- Pressing Pantry `CLEAR ALL` immediately renders every saved and pending ingredient chip as unselected, while database deletion remains deferred until the empty-pantry submit action is pressed.
+- Saved pantry ingredients use the same explicit selected-chip colors as newly selected presets, preventing labels from disappearing into the burgundy background until hover.
 - Choosing or typing an ingredient automatically exits the empty-inventory state, keeping the two states mutually exclusive.
 
 # Fully editable event questionnaires (2026-08-16)
@@ -316,10 +322,15 @@
 - Removed Sofra questions and choices are omitted from both the live preview and the real guest questionnaire, including saved surveys with no canonical questions remaining.
 - Ranking is available as a question type. Guests order every option with accessible up/down controls, responses persist as ordered option IDs, and hosts see the aggregate order ranked by average position in table insights.
 - Guest and preview rendering now honors the saved order across both Sofra profile questions and custom questions, so a ranking question placed first remains first.
+- Returning hosts are prompted to answer customized canonical questions and any unanswered event-specific questions, using the same event questionnaire response checks as returning guests.
+- Table intelligence hides fixed topic cards when their source question was removed. Lightweight semantic matching preserves a topic only when a host-written question clearly covers the same concept; unrelated custom answers remain in the type-appropriate event-specific summaries.
+- Host preference-only mode never creates an RSVP or exposes RSVP choices. Back returns directly to host event details, and event-specific follow-up questions omit the `Pulled from your profile` badge.
+- The linked Demo Host event is seeded with a fully custom four-question survey and deliberately unbalanced event-specific answers for the host and eight demo guests, allowing Table insights to demonstrate a clear majority rather than artificial ties.
 
 # Profile caption editing (2026-08-16)
 
 - Saving an About Me caption locks the text field and changes the action to `EDIT CAPTION`; editing must be explicitly re-enabled before the caption can change again. Existing saved captions load in the same locked state.
+- Profile history formats venues as `date at location`, and each Sofra title is an interactive control that opens its event page.
 - Long survey answer choices span the full checkbox-grid width instead of wrapping inside one narrow column while the neighboring column remains unused.
 - Cover-image `REPLACE` and `REMOVE` controls now use Sofra's rounded pill shape consistently in event creation and editing.
 - Co-host invitation URLs now emit their own Open Graph and large-image social metadata using the event cover image, with the standard Sofra cover as fallback.

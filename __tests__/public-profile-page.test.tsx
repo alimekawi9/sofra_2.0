@@ -46,7 +46,7 @@ it('does not fetch or render history for a non-mutual viewer', async () => {
 it('fetches and displays history after the mutual gate passes', async () => {
   ;(areMutuals as jest.Mock).mockResolvedValue(true)
   ;(fetchProfileHistory as jest.Mock).mockResolvedValue([
-    { id: 'event-1', title: 'Garden Sofra', date: 'Aug 12 with Ramla', went: 'Went' },
+    { id: 'event-1', title: 'Garden Sofra', date: 'Aug 12 at Ramla', went: 'Went' },
   ])
   render(<PublicProfilePage params={{ userId: 'profile-2' }} />)
 
@@ -54,4 +54,3 @@ it('fetches and displays history after the mutual gate passes', async () => {
   expect(fetchProfileHistory).toHaveBeenCalledWith(expect.anything(), 'profile-2')
   expect(screen.queryByText(/RSVP to a shared Sofra/i)).not.toBeInTheDocument()
 })
-

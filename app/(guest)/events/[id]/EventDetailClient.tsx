@@ -10,6 +10,7 @@ import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/share
 import { rememberPendingInvite } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
 import { isEventDateUndecided } from '@/lib/event-date'
+import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 
 type EventRow = {
   id: string
@@ -152,7 +153,25 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       setUnlocked(isUnlocked)
       setIsHost(hostViewing)
       setCanInviteCohost(ev.host_id === stored)
-      setHostNeedsPreferences(hostViewing && !tasteProfile)
+      let needsHostPreferences = hostViewing && !tasteProfile
+      if (hostViewing && tasteProfile) {
+        try {
+          const [{ data: questionnaireRow }, { data: answerRows }] = await Promise.all([
+            supabase.from('event_questionnaires').select('config').eq('event_id', params.id).maybeSingle(),
+            supabase.from('event_question_responses').select('question_id').eq('event_id', params.id).eq('user_id', stored),
+          ])
+          const config = questionnaireRow?.config as QuestionnaireConfig | undefined
+          if (config?.questions) {
+            const answered = new Set((answerRows ?? []).map((row: { question_id: string }) => row.question_id))
+            needsHostPreferences = sortedQuestions(config).some(question =>
+              isCanonical(question) ? isCanonicalQuestionCustomized(question) : isCustom(question) && !answered.has(question.id)
+            )
+          }
+        } catch {
+          // Keep the taste-profile fallback when optional questionnaire tables fail.
+        }
+      }
+      setHostNeedsPreferences(needsHostPreferences)
 
       if (isUnlocked) {
         const { data: guestRows, error: e3 } = await supabase

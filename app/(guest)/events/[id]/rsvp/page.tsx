@@ -267,7 +267,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setSubmitting(true)
     setError('')
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from('rsvps').upsert(
+      isPreferenceOnly ? Promise.resolve({ error: null }) : supabase.from('rsvps').upsert(
         { event_id: params.id, user_id: uidRef.current, status },
         { onConflict: 'event_id,user_id' }
       ),
@@ -297,8 +297,13 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     const customQs = sortedQuestions(questionnaire)
       .filter(isCustom)
       .filter((question) => newQuestionIds === null || newQuestionIds.includes(question.id))
-    if (customQs.length > 0) {
-      const rows = customQs
+    const canonicalMarkers = sortedQuestions(questionnaire)
+      .filter(isCanonical)
+      .filter(isCanonicalQuestionCustomized)
+      .filter(question => changedCanonicalKeys === null || changedCanonicalKeys.includes(question.canonicalKey))
+      .map(question => ({ event_id: params.id, user_id: uidRef.current!, question_id: question.id, response: 'answered', updated_at: new Date().toISOString() }))
+    if (customQs.length > 0 || canonicalMarkers.length > 0) {
+      const rows = [...customQs
         .map((q) => ({
           event_id: params.id,
           user_id: uidRef.current!,
@@ -309,7 +314,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         .filter((r) => {
           const v = r.response
           return v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
-        })
+        }), ...canonicalMarkers]
 
       if (rows.length > 0) {
         try {
@@ -364,6 +369,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       const changedCanonical = sortedQuestions(questionnaire)
         .filter(isCanonical)
         .filter(isCanonicalQuestionCustomized)
+        .filter(question => customAnswersRef.current[question.id] === undefined)
         .map((question) => question.canonicalKey)
       const unansweredCustomIds = sortedQuestions(questionnaire)
         .filter(isCustom)
@@ -438,7 +444,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         adventurousness={adventurousness}
         onAdventurousnessChange={setAdventurousness}
         onSave={handleProfileSubmit}
-        prefilled={prefilled}
+        prefilled={prefilled && !isPreferenceOnly && newQuestionIds === null && changedCanonicalKeys === null}
         headline={questionnaire.header}
         visibleCanonicalQuestions={changedCanonicalKeys ?? Object.keys(canonicalByKey) as CanonicalQuestionConfig['canonicalKey'][]}
         questionOrders={Object.fromEntries(Object.values(canonicalByKey).filter((q): q is CanonicalQuestionConfig => Boolean(q)).map((q) => [q.canonicalKey, q.order]))}
@@ -446,7 +452,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         saveLabel={newQuestionIds !== null || changedCanonicalKeys !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? (prefilled ? 'UPDATE PREFERENCES' : 'SAVE PREFERENCES') : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
         error={error}
-        onBack={() => setStep('status')}
+        onBack={() => isPreferenceOnly ? router.push('/events/' + params.id) : setStep('status')}
         tentative={status === 'maybe'}
         dietaryTitle={canonicalByKey.dietary ? resolveCanonicalTitle(canonicalByKey.dietary) : undefined}
         dietaryOptionLabels={optionLabelMap(canonicalByKey.dietary)}

@@ -6,6 +6,7 @@
 - Use the LLM for focused culinary invention and signature refinement.
 - Use MCP as a thin interface over shared services.
 - The website should call shared services directly for lower latency.
+- Event-planning advice is a separate structured Gemini task over aggregate Table intelligence and event-specific survey summaries. It may explain consensus, disagreement, logistics, atmosphere, and communication, but it must not alter deterministic menu scoring or menu generation.
 
 ## Menu structure
 

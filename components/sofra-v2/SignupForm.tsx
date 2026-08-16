@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { PHONE_COUNTRIES, phoneLengths, type PhoneCountry } from '@/lib/phone-countries'
 import { sv2Display, sv2Sans } from './fonts'
 
@@ -53,11 +53,12 @@ import { sv2Display, sv2Sans } from './fonts'
 */
 
 function initialCountry(phone: string): PhoneCountry {
-  if (!phone.startsWith('+')) return PHONE_COUNTRIES[0]
-  if (phone.startsWith('+1')) return PHONE_COUNTRIES.find((country) => country.iso === 'US') ?? PHONE_COUNTRIES[0]
+  const defaultCountry = PHONE_COUNTRIES.find((country) => country.iso === 'EG') ?? PHONE_COUNTRIES[0]
+  if (!phone.startsWith('+')) return defaultCountry
+  if (phone.startsWith('+1')) return PHONE_COUNTRIES.find((country) => country.iso === 'US') ?? defaultCountry
   return [...PHONE_COUNTRIES]
     .sort((a, b) => b.dialCode.length - a.dialCode.length)
-    .find((country) => phone.startsWith(country.dialCode)) ?? PHONE_COUNTRIES[0]
+    .find((country) => phone.startsWith(country.dialCode)) ?? defaultCountry
 }
 
 function placeholderFor(length: number): string {
@@ -80,6 +81,8 @@ export interface SignupFormProps {
 
 export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = false }: SignupFormProps) {
   const [countryIso, setCountryIso] = useState(() => initialCountry(phone).iso)
+  const [countryMenuOpen, setCountryMenuOpen] = useState(false)
+  const countryPickerRef = useRef<HTMLDivElement>(null)
   const country = PHONE_COUNTRIES.find((option) => option.iso === countryIso) ?? PHONE_COUNTRIES[0]
   const nationalDigits = (phone.startsWith(country.dialCode) ? phone.slice(country.dialCode.length) : phone)
     .replace(/\D/g, '')
@@ -93,6 +96,14 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
   const formattedNumber = displayNumber(country.iso, nationalDigits)
   const formattedPlaceholder = displayNumber(country.iso, placeholderFor(maxDigits))
 
+  useEffect(() => {
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!countryPickerRef.current?.contains(event.target as Node)) setCountryMenuOpen(false)
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+  }, [])
+
   function setNationalNumber(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, maxDigits)
     onPhoneChange(digits ? `${country.dialCode}${digits}` : '')
@@ -101,6 +112,7 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
   function changeCountry(nextIso: string) {
     const next = PHONE_COUNTRIES.find((option) => option.iso === nextIso) ?? PHONE_COUNTRIES[0]
     setCountryIso(next.iso)
+    setCountryMenuOpen(false)
     const digits = nationalDigits.slice(0, Math.max(...phoneLengths(next)))
     onPhoneChange(digits ? `${next.dialCode}${digits}` : '')
   }
@@ -120,20 +132,38 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
 
         <div className="sv2-plate-wrap sv2-plate-wrap--burgundy" data-testid="phone-plate">
           <Image className="sv2-plate-image" src="/design-preview/burgundy-plate.png" alt="" aria-hidden="true" width={1254} height={1254} priority />
-          <div className="sv2-plate-bowl">
+          <div className="sv2-plate-bowl sv2-phone-plate-bowl">
             <div className="sv2-phone-entry">
               <div className="sv2-phone-entry-row">
-                <label className="sv2-visually-hidden" htmlFor="sv2-signup-country">Country code</label>
-                <select
+                <div className="sv2-country-picker" ref={countryPickerRef}>
+                <button
                   id="sv2-signup-country"
+                  type="button"
+                  className="sv2-country-trigger"
                   aria-label="Country code"
-                  value={country.iso}
-                  onChange={(event) => changeCountry(event.target.value)}
+                  role="combobox"
+                  aria-expanded={countryMenuOpen}
+                  aria-controls="sv2-country-options"
+                  onClick={() => setCountryMenuOpen((open) => !open)}
                 >
-                  {PHONE_COUNTRIES.map((option) => (
-                    <option key={option.iso} value={option.iso}>{option.dialCode} {option.iso}</option>
-                  ))}
-                </select>
+                  <span>{country.dialCode} {country.iso}</span><span aria-hidden="true">⌄</span>
+                </button>
+                {countryMenuOpen ? (
+                  <div id="sv2-country-options" className="sv2-country-options" role="listbox" aria-label="Countries">
+                    {PHONE_COUNTRIES.map((option) => (
+                      <button
+                        key={option.iso}
+                        type="button"
+                        role="option"
+                        aria-selected={option.iso === country.iso}
+                        onClick={() => changeCountry(option.iso)}
+                      >
+                        <span>{option.name}</span><span>{option.dialCode}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                </div>
                 <label className="sv2-visually-hidden" htmlFor="sv2-signup-phone">Phone number</label>
                 <input
                   id="sv2-signup-phone"
@@ -158,7 +188,7 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
         </div>
 
         <button type="submit" className="sv2-yalla-btn sv2-plate-action" disabled={submitDisabled}>
-          {isSubmitting ? 'ENTERINGâ€¦' : 'CONTINUE'}
+          {isSubmitting ? 'ENTERING...' : 'CONTINUE'}
         </button>
       </form>
     </div>

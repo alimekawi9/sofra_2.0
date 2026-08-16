@@ -48,3 +48,9 @@ it('only transforms going and maybe rows into profile history', () => {
     { id: '2', status: 'cant', events: { ...event, id: 'event-2' } },
   ], Date.parse('2026-01-01'))).toHaveLength(1)
 })
+
+it('formats a history venue with at rather than with', () => {
+  const [entry] = transformProfileHistory([{ id: '1', status: 'going', events: { id: 'event-1', title: 'Sofra', event_date: '2020-01-01T00:00:00Z', venue: 'Ramla' } }], Date.parse('2026-01-01'))
+  expect(entry.date).toContain(' at Ramla')
+  expect(entry.date).not.toContain(' with Ramla')
+})

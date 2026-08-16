@@ -135,6 +135,12 @@ test('rehydrates a saved preset with the exact filled pending-selection style', 
   expect(saved).toHaveStyle({ background: '#5C1515', color: '#F7F4ED' })
 })
 
+test('renders a saved pantry preset with visible selected text colors', async () => {
+  render(<KitchenPage />)
+  const tomato = await screen.findByRole('button', { name: 'Tomato' })
+  expect(tomato).toHaveStyle({ background: '#5C1515', color: '#F7F4ED' })
+})
+
 test('stages preset changes until the single signatures UPDATE action', async () => {
   render(<KitchenPage />)
   const hummus = await screen.findByRole('button', { name: 'Hummus' })
@@ -251,6 +257,7 @@ test('offers clear-all controls for signatures and pantry, with the empty pantry
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
   expect(within(signatureCard).getByRole('button', { name: 'CLEAR ALL' })).toBeInTheDocument()
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
+  expect(within(pantryCard).getByRole('button', { name: 'Tomato' })).toHaveAttribute('aria-pressed', 'false')
   expect(within(pantryCard).queryByRole('button', { name: 'I HAVE NOTHING' })).not.toBeInTheDocument()
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'I LITERALLY HAVE NOTHING' }))
   await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))

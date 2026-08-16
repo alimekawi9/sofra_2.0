@@ -413,11 +413,12 @@ describe('SignupForm', () => {
   it('offers country codes and shows a live country-aware digit counter', async () => {
     const onPhoneChange = jest.fn()
     const { rerender } = render(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+20555" />)
-    expect(screen.getByRole('combobox', { name: 'Country code' })).toHaveValue('EG')
+    expect(screen.getByRole('combobox', { name: 'Country code' })).toHaveTextContent('+20 EG')
     expect(screen.getByText('3/10 digits')).toBeInTheDocument()
     expect(screen.getByLabelText('Phone number')).toHaveAttribute('aria-invalid', 'true')
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Country code' }), 'LB')
+    await userEvent.click(screen.getByRole('combobox', { name: 'Country code' }))
+    await userEvent.click(screen.getByRole('option', { name: 'Lebanon +961' }))
     expect(onPhoneChange).toHaveBeenLastCalledWith('+961555')
     rerender(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+9615550555" />)
     expect(screen.getByText('7/7-8 digits')).toBeInTheDocument()
@@ -425,21 +426,30 @@ describe('SignupForm', () => {
   })
 
   it('contains no password field', () => {
-    const options = render(<SignupForm {...baseProps} />).getAllByRole('option')
+    render(<SignupForm {...baseProps} />)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Country code' }))
+    const options = screen.getAllByRole('option')
     expect(options.length).toBeGreaterThanOrEqual(240)
-    expect(screen.getByRole('option', { name: '+93 AF' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: '+354 IS' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: '+688 TV' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: '+383 XK' })).toBeInTheDocument()
+    expect(options[0]).toHaveTextContent('Afghanistan')
+    expect(screen.getByRole('option', { name: 'Afghanistan +93' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Iceland +354' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Tuvalu +688' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Kosovo +383' })).toBeInTheDocument()
 
     const { container } = render(<SignupForm {...baseProps} />)
     expect(container.querySelector('input[type="password"]')).toBeNull()
   })
 
+  it('shows a clean loading label while entering', () => {
+    render(<SignupForm {...baseProps} isSubmitting />)
+    expect(screen.getByRole('button', { name: 'ENTERING...' })).toBeDisabled()
+  })
+
   it('formats North American numbers with automatic area-code brackets', async () => {
     const onPhoneChange = jest.fn()
     const { rerender } = render(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} />)
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Country code' }), 'US')
+    await userEvent.click(screen.getByRole('combobox', { name: 'Country code' }))
+    await userEvent.click(screen.getByRole('option', { name: 'United States +1' }))
     rerender(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+15550555055" />)
     expect(screen.getByLabelText('Phone number')).toHaveValue('(555) 055-5055')
     expect(screen.getByLabelText('Phone number')).toHaveAttribute('placeholder', '(555) 055-5055')

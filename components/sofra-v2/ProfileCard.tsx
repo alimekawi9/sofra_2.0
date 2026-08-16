@@ -158,7 +158,7 @@ export function ProfileCard({
                 <article key={event.id}>
                   <SofraHistoryArtwork index={index} />
                   <div>
-                    <h3>{event.title}</h3>
+                    <h3><button type="button" className="sv2-profile-history-title" onClick={() => onHistorySelect(event.id)}>{event.title}</button></h3>
                     <p>{event.date}</p>
                   </div>
                   <button

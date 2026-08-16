@@ -101,6 +101,16 @@ beforeEach(() => {
   mockPush.mockReset()
   mockReplace.mockReset()
   localStorage.clear()
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      overview: 'The room is balanced.',
+      recommendations: [
+        { title: 'Set the tone', action: 'Keep the evening relaxed.', reason: 'Guest preferences support it.' },
+        { title: 'Confirm details', action: 'Send one concise update.', reason: 'It keeps everyone aligned.' },
+      ],
+    }),
+  } as Response)
 })
 
 // ─── Auth & access ───────────────────────────────────────────────────────────

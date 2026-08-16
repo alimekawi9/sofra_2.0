@@ -158,6 +158,36 @@ export function customQuestions(config: QuestionnaireConfig): CustomQuestionConf
   return sortedQuestions(config).filter(isCustom)
 }
 
+const TOPIC_TERMS: Record<CanonicalKey, string[]> = {
+  dietary: ['diet', 'dietary', 'vegetarian', 'vegan', 'pescatarian', 'pork', 'dairy'],
+  avoid: ['avoid', 'allergy', 'allergies', 'allergen', 'cannot eat', 'can not eat', 'intolerance'],
+  protein: ['protein', 'meat', 'chicken', 'fish', 'seafood', 'beef', 'lamb', 'main ingredient'],
+  flavor: ['flavor', 'flavour', 'taste', 'spicy', 'savory', 'sweet', 'tangy'],
+  adventurousness: ['adventurous', 'adventure', 'brave', 'familiar', 'experimental', 'try something new'],
+}
+
+export function inferCanonicalTopic(title: string): CanonicalKey | null {
+  const normalized = title.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
+  let best: { key: CanonicalKey; score: number } | null = null
+  for (const key of CANONICAL_KEYS) {
+    const score = TOPIC_TERMS[key].reduce((total, term) => total + (normalized.includes(term) ? term.split(' ').length : 0), 0)
+    if (score > 0 && (!best || score > best.score)) best = { key, score }
+  }
+  return best?.key ?? null
+}
+
+export function relevantCanonicalTopics(config: QuestionnaireConfig): CanonicalKey[] {
+  const topics = new Set<CanonicalKey>()
+  for (const question of config.questions) {
+    if (isCanonical(question)) topics.add(question.canonicalKey)
+    else {
+      const inferred = inferCanonicalTopic(question.title)
+      if (inferred) topics.add(inferred)
+    }
+  }
+  return CANONICAL_KEYS.filter(key => topics.has(key))
+}
+
 // True only when nothing a host could see as "customized" has happened --
 // used to decide whether the guest RSVP flow needs to load this config at
 // all, or can behave exactly as it does today.

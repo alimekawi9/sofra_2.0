@@ -13,16 +13,19 @@ import ChefTabs from '@/components/ChefTabs'
 import { formatTagLabel } from '@/lib/tag-format'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
-import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
+import { sortedQuestions, isCustom, relevantCanonicalTopics, CANONICAL_KEYS, type CanonicalKey, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
 import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
 import { isEventManager } from '@/lib/event-access'
+import { rankingInsight, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
+  responseCount: number
   counts?: { label: string; count: number }[]
   texts?: string[]
-  rankings?: { label: string; averageRank: number }[]
+  rankings?: { label: string; averageRank: number; firstChoiceVotes: number }[]
+  average?: { value: number; responses: number }
 }
 
 function summarizeCustomAnswers(
@@ -33,15 +36,19 @@ function summarizeCustomAnswers(
     const answers = rows.filter((r) => r.question_id === q.id).map((r) => r.response)
     if (q.type === 'text') {
       const texts = answers.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
-      return { question: q, texts }
+      return { question: q, texts, responseCount: texts.length }
     }
     if (q.type === 'ranking') {
       const rankedAnswers = answers.filter((answer): answer is string[] => Array.isArray(answer) && answer.every((value) => typeof value === 'string'))
       const rankings = (q.options ?? []).map((option) => {
         const positions = rankedAnswers.map((answer) => answer.indexOf(option.value)).filter((position) => position >= 0)
-        return { label: option.label, averageRank: positions.length ? positions.reduce((sum, position) => sum + position + 1, 0) / positions.length : Number.POSITIVE_INFINITY }
+        return { label: option.label, averageRank: positions.length ? positions.reduce((sum, position) => sum + position + 1, 0) / positions.length : Number.POSITIVE_INFINITY, firstChoiceVotes: rankedAnswers.filter((answer) => answer[0] === option.value).length }
       }).filter((item) => Number.isFinite(item.averageRank)).sort((a, b) => a.averageRank - b.averageRank)
-      return { question: q, rankings }
+      return { question: q, rankings, responseCount: rankedAnswers.length }
+    }
+    if (q.type === 'slider') {
+      const values = answers.filter((answer): answer is number => typeof answer === 'number' && Number.isFinite(answer))
+      return { question: q, average: values.length ? { value: values.reduce((sum, value) => sum + value, 0) / values.length, responses: values.length } : undefined, responseCount: values.length }
     }
     const tally = new Map<string, number>()
     for (const a of answers) {
@@ -52,7 +59,26 @@ function summarizeCustomAnswers(
       .map((opt) => ({ label: opt.label, count: tally.get(opt.value) ?? 0 }))
       .filter((c) => c.count > 0)
       .sort((a, b) => b.count - a.count)
-    return { question: q, counts }
+    return { question: q, counts, responseCount: answers.length }
+  })
+}
+
+function planningAnswerSummaries(summaries: CustomAnswerSummary[]): PlanningAnswerSummary[] {
+  return summaries.map(({ question, responseCount, counts, texts, rankings, average }) => {
+    if (question.type === 'ranking') return {
+      question: question.title,
+      type: 'ranking',
+      insight: rankingInsight(rankings ?? [], responseCount),
+      evidence: (rankings ?? []).map((item, index) => `${index + 1}. ${item.label}; ${item.firstChoiceVotes} first-choice vote${item.firstChoiceVotes === 1 ? '' : 's'}`),
+    }
+    if (question.type === 'text') return { question: question.title, type: 'text', insight: `${responseCount} written response${responseCount === 1 ? '' : 's'}`, evidence: texts ?? [] }
+    if (question.type === 'slider') return { question: question.title, type: 'slider', insight: average ? `Typical response: ${average.value.toFixed(1)} out of ${question.sliderSteps ?? 5}` : 'No responses yet.', evidence: [] }
+    return {
+      question: question.title,
+      type: 'choice',
+      insight: counts?.length ? `${counts[0].label} was selected most often.` : 'No responses yet.',
+      evidence: (counts ?? []).map((item) => `${item.label}: ${item.count} selection${item.count === 1 ? '' : 's'}`),
+    }
   })
 }
 
@@ -106,6 +132,11 @@ export default function TablePage({ params }: { params: { id: string } }) {
   const [courses, setCourses] = useState<Course[]>([])
   const [customAnswerSummaries, setCustomAnswerSummaries] = useState<CustomAnswerSummary[]>([])
   const [guestResponseCount, setGuestResponseCount] = useState(0)
+  const [relevantTopics, setRelevantTopics] = useState<CanonicalKey[]>(CANONICAL_KEYS)
+  const [questionnaireLoaded, setQuestionnaireLoaded] = useState(false)
+  const [planning, setPlanning] = useState<EventPlanningResult | null>(null)
+  const [planningLoading, setPlanningLoading] = useState(false)
+  const [planningError, setPlanningError] = useState('')
 
   async function loadAll() {
     setLoading(true)
@@ -198,9 +229,9 @@ export default function TablePage({ params }: { params: { id: string } }) {
           .eq('event_id', id)
           .maybeSingle()
 
-        const customQs = qRow?.config?.questions?.length
-          ? sortedQuestions(qRow.config as QuestionnaireConfig).filter(isCustom)
-          : []
+        const config = qRow?.config?.questions ? qRow.config as QuestionnaireConfig : null
+        const customQs = config ? sortedQuestions(config).filter(isCustom) : []
+        if (config) setRelevantTopics(relevantCanonicalTopics(config))
 
         if (customQs.length > 0) {
           const { data: responseRows } = userIds.length
@@ -215,6 +246,8 @@ export default function TablePage({ params }: { params: { id: string } }) {
         }
       } catch {
         // Swallowed deliberately -- see comment above.
+      } finally {
+        setQuestionnaireLoaded(true)
       }
     } catch {
       setFetchError("Couldn't load table intel. Try again.")
@@ -224,6 +257,28 @@ export default function TablePage({ params }: { params: { id: string } }) {
   }
 
   useEffect(() => { void loadAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!intel || !questionnaireLoaded || intel.guestCount === 0) return
+    const controller = new AbortController()
+    setPlanningLoading(true)
+    setPlanningError('')
+    void fetch(`/api/events/${id}/planning-recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventTitle, eventDate, intel, answers: planningAnswerSummaries(customAnswerSummaries) }),
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error('Planning request failed')
+      setPlanning(await response.json() as EventPlanningResult)
+    }).catch((error) => {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setPlanningError("Couldn't generate planning recommendations right now.")
+    }).finally(() => {
+      if (!controller.signal.aborted) setPlanningLoading(false)
+    })
+    return () => controller.abort()
+  }, [customAnswerSummaries, eventDate, eventTitle, id, intel, questionnaireLoaded])
 
   const dateSub = eventDate
     ? new Date(eventDate).toLocaleDateString('en-US', {
@@ -308,7 +363,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
             </section>
 
             {/* Hard limits */}
-            <section className="sv2-intel-card sv2-intel-hard-limits" style={{ ...card, borderColor: 'rgba(224,119,107,0.35)' }}>
+            {(relevantTopics.includes('dietary') || relevantTopics.includes('avoid')) && <section className="sv2-intel-card sv2-intel-hard-limits" style={{ ...card, borderColor: 'rgba(224,119,107,0.35)' }}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Hard Limits with non-negotiable needs</span>
                 <span
@@ -372,11 +427,11 @@ export default function TablePage({ params }: { params: { id: string } }) {
                   ))
                 )}
               </div>
-            </section>
+            </section>}
 
             {/* Diet mix + protein anchor grid */}
-            <div className="sv2-intel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <section className="sv2-intel-card" style={card}>
+            {(relevantTopics.includes('dietary') || relevantTopics.includes('protein')) && <div className="sv2-intel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {relevantTopics.includes('dietary') && <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Diet Mix</div>
                 <div style={{ marginTop: 12 }}>
                   {intel.dietMix.length === 0 ? (
@@ -401,8 +456,8 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     ))
                   )}
                 </div>
-              </section>
-              <section className="sv2-intel-card" style={card}>
+              </section>}
+              {relevantTopics.includes('protein') && <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Tonight&apos;s Picks</div>
                 <div style={{ marginTop: 12 }}>
                   {intel.proteinCounts.length === 0 ? (
@@ -428,11 +483,11 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     ))
                   )}
                 </div>
-              </section>
-            </div>
+              </section>}
+            </div>}
 
             {/* Flavor preference */}
-            <section className="sv2-intel-card" style={card}>
+            {relevantTopics.includes('flavor') && <section className="sv2-intel-card" style={card}>
               <div style={cardTitle}>Flavor Preference</div>
               <div style={{ marginTop: 12 }}>
                 {intel.flavorCounts.length === 0 ? (
@@ -457,10 +512,10 @@ export default function TablePage({ params }: { params: { id: string } }) {
                   ))
                 )}
               </div>
-            </section>
+            </section>}
 
             {/* Adventurousness */}
-            <section className="sv2-intel-card sv2-intel-adventurousness" style={card}>
+            {relevantTopics.includes('adventurousness') && <section className="sv2-intel-card sv2-intel-adventurousness" style={card}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Adventurousness</span>
                 <span
@@ -527,20 +582,20 @@ export default function TablePage({ params }: { params: { id: string } }) {
                 <span>Keep it familiar</span>
                 <span>Chef, surprise me</span>
               </div>
-            </section>
+            </section>}
 
             {/* Brief */}
-            <aside className="sv2-intel-brief" style={brief}>
+            {relevantTopics.length > 0 && <aside className="sv2-intel-brief" style={brief}>
               <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
               <span>{intel.brief}</span>
-            </aside>
+            </aside>}
 
             {/* Event-specific custom question answers — kept fully separate
                 from canonical taste-profile data and menu scoring above. */}
             {customAnswerSummaries.length > 0 && (
               <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Event-Specific Answers</div>
-                {customAnswerSummaries.map(({ question, counts, texts, rankings }) => (
+                {customAnswerSummaries.map(({ question, responseCount, counts, texts, rankings, average }) => (
                   <div key={question.id} style={{ marginTop: 14 }}>
                     <div style={{ color: C.cream, fontSize: 14, fontFamily: 'system-ui, sans-serif', marginBottom: 6 }}>
                       {question.title}
@@ -553,10 +608,13 @@ export default function TablePage({ params }: { params: { id: string } }) {
                       ) : (
                         <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
                       )
+                    ) : question.type === 'slider' ? (
+                      average ? <div style={{ color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}>Average: <span style={{ color: C.cream }}>{average.value.toFixed(1)} / {question.sliderSteps ?? 5}</span> · {average.responses} response{average.responses === 1 ? '' : 's'}</div> : <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
                     ) : question.type === 'ranking' ? (
                       rankings && rankings.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {rankings.map((item, index) => <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}><span>{index + 1}. {item.label}</span><span style={{ color: C.cream }}>avg. {item.averageRank.toFixed(1)}</span></div>)}
+                          <div style={{ color: C.gold, fontSize: 12, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45, marginBottom: 3 }}>{rankingInsight(rankings, responseCount)}</div>
+                          {rankings.map((item, index) => <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}><span>{index + 1}. {item.label}</span><span style={{ color: C.cream }}>{item.firstChoiceVotes} first</span></div>)}
                         </div>
                       ) : <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
                     ) : counts && counts.length > 0 ? (
@@ -567,7 +625,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                             style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}
                           >
                             <span>{c.label}</span>
-                            <span style={{ color: C.cream }}>{c.count}</span>
+                            <span style={{ color: C.cream }}>{c.count} of {responseCount}</span>
                           </div>
                         ))}
                       </div>
@@ -576,6 +634,28 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     )}
                   </div>
                 ))}
+              </section>
+            )}
+
+            {(planningLoading || planning || planningError) && (
+              <section className="sv2-intel-card" style={card} aria-live="polite">
+                <div style={cardTitle}>Sofra&apos;s Planning Recommendations</div>
+                {planningLoading ? (
+                  <div style={{ color: C.faint, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}>Reading the room…</div>
+                ) : planning ? (
+                  <>
+                    <p style={{ color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif', lineHeight: 1.55, margin: '0 0 14px' }}>{planning.overview}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {planning.recommendations.map((recommendation) => (
+                        <div key={`${recommendation.title}-${recommendation.action}`}>
+                          <div style={{ color: C.cream, fontSize: 14, fontFamily: 'system-ui, sans-serif', marginBottom: 4 }}>{recommendation.title}</div>
+                          <div style={{ color: C.gold, fontSize: 13, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45 }}>{recommendation.action}</div>
+                          <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45, marginTop: 3 }}>{recommendation.reason}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>{planningError}</div>}
               </section>
             )}
 

@@ -36,7 +36,7 @@ export function NamePlateForm({ name, onNameChange, onSubmit, isSubmitting = fal
         </div>
 
         <button type="submit" className="sv2-yalla-btn sv2-plate-action" disabled={submitDisabled}>
-          {isSubmitting ? 'ENTERING…' : 'CONTINUE'}
+          {isSubmitting ? 'ENTERING...' : 'CONTINUE'}
         </button>
       </form>
     </div>

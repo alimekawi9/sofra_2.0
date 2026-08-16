@@ -36,7 +36,7 @@ export function transformProfileHistory(rows: ProfileHistoryRow[], now = Date.no
       return {
         id: event.id,
         title: event.title,
-        date: `${formatShort(event.event_date)}${event.venue ? ` with ${event.venue}` : ''}`,
+        date: `${formatShort(event.event_date)}${event.venue ? ` at ${event.venue}` : ''}`,
         went: new Date(event.event_date).getTime() < now ? 'Went' as const : 'Going' as const,
       }
     })
