@@ -308,6 +308,16 @@ function KitchenPageInner() {
     )
   }
 
+  function selectEmptyPantry() {
+    setNothingInPantry(true)
+    setSelectedIngredients([])
+    setPantryName('')
+    setPantryTagsList([])
+    setPantryAllergensList([])
+    setPantryTagsRevealed(false)
+    cancelPantryEdit()
+  }
+
   function togglePantryTag(t: string) {
     setPantryTagsList((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
   }
@@ -666,26 +676,6 @@ function KitchenPageInner() {
                 >
                   Quick add from presets
                 </div>
-                <button
-                  type="button"
-                  className="sv2-pantry-nothing-option"
-                  aria-pressed={nothingInPantry}
-                  onClick={() => {
-                    const next = !nothingInPantry
-                    setNothingInPantry(next)
-                    if (next) {
-                      setSelectedIngredients([])
-                      setPantryName('')
-                      setPantryTagsList([])
-                      setPantryAllergensList([])
-                      setPantryTagsRevealed(false)
-                      cancelPantryEdit()
-                    }
-                  }}
-                >
-                  <strong>I HAVE NOTHING</strong>
-                  <span>No ingredients in my inventory this week</span>
-                </button>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {CUISINE_FILTERS.map((c) => {
                     const on = presetCuisine === c
@@ -858,6 +848,7 @@ function KitchenPageInner() {
                 }}
               >
                 <div
+                  className="sv2-pantry-preset-heading"
                   style={{
                     color: C.faint,
                     fontSize: 11,
@@ -866,8 +857,24 @@ function KitchenPageInner() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Quick add from presets
+                  <span>Quick add from presets</span>
+                  {(pantry.length > 0 || selectedIngredients.length > 0) && (
+                    <button type="button" onClick={selectEmptyPantry}>CLEAR ALL</button>
+                  )}
                 </div>
+                <button
+                  type="button"
+                  className="sv2-pantry-nothing-option"
+                  aria-pressed={nothingInPantry}
+                  onClick={() => {
+                    const next = !nothingInPantry
+                    if (next) selectEmptyPantry()
+                    else setNothingInPantry(false)
+                  }}
+                >
+                  <strong>I HAVE NOTHING</strong>
+                  <span>No ingredients in my inventory this week</span>
+                </button>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {INGREDIENT_CATEGORY_FILTERS.map((c) => {
                     const on = ingredientCategory === c

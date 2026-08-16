@@ -255,3 +255,14 @@ test('offers a prominent intentional empty-inventory option and removes saved pa
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
   await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
 })
+
+test('offers a small clear-all control for selected pantry items', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+  const clear = screen.getByRole('button', { name: 'CLEAR ALL' })
+  fireEvent.click(clear)
+  expect(screen.getByRole('button', { name: /i have nothing/i })).toHaveAttribute('aria-pressed', 'true')
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
+  await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
+})

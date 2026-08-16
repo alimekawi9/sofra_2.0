@@ -307,3 +307,4 @@
 
 - The weekly pantry now offers a large, prominent `I HAVE NOTHING` choice. Selecting it clears pending ingredient input and selections; saving removes that week's persisted pantry items and records completion through the existing Kitchen flow.
 - Choosing or typing an ingredient automatically exits the empty-inventory state, keeping the two states mutually exclusive.
+- A compact `CLEAR ALL` action appears beside the pantry preset heading whenever saved or pending ingredients exist. It stages the same safe, deferred clearing operation and applies it only through the existing update action.
