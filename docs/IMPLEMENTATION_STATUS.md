@@ -321,3 +321,5 @@
 
 - Saving an About Me caption locks the text field and changes the action to `EDIT CAPTION`; editing must be explicitly re-enabled before the caption can change again. Existing saved captions load in the same locked state.
 - Long survey answer choices span the full checkbox-grid width instead of wrapping inside one narrow column while the neighboring column remains unused.
+- Cover-image `REPLACE` and `REMOVE` controls now use Sofra's rounded pill shape consistently in event creation and editing.
+- Co-host invitation URLs now emit their own Open Graph and large-image social metadata using the event cover image, with the standard Sofra cover as fallback.

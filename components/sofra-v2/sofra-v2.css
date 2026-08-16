@@ -1566,6 +1566,8 @@
   .sv2-add-question-types{flex-direction:column}
 }
 
+.sv2-upload-preview button,.sv2-upload-replace{border-radius:999px}
+
 .sv2-invitation-photo.sv2-event-default-cover img{object-position:center 50%}
 
 /* Universal interactive treatment: every enabled button in the Sofra v2
