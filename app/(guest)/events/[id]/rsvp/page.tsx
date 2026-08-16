@@ -408,6 +408,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onUseSaved={handleUseSavedPreferences}
         onUpdate={() => setStep('profile')}
         onBack={() => setStep('status')}
+        tentative={status === 'maybe'}
       />
     )
   }
@@ -449,6 +450,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         saving={submitting}
         error={error}
         onBack={() => setStep('status')}
+        tentative={status === 'maybe'}
         dietaryTitle={canonicalByKey.dietary ? resolveCanonicalTitle(canonicalByKey.dietary) : undefined}
         dietaryOptionLabels={optionLabelMap(canonicalByKey.dietary)}
         avoidTitle={canonicalByKey.avoid ? resolveCanonicalTitle(canonicalByKey.avoid) : undefined}

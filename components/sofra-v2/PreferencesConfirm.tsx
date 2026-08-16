@@ -9,6 +9,7 @@ export interface PreferencesConfirmProps {
   onUseSaved: () => void
   onUpdate: () => void
   onBack: () => void
+  tentative?: boolean
 }
 
 const buttonStyle: CSSProperties = {
@@ -22,12 +23,13 @@ const buttonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-export function PreferencesConfirm({ saving, error, onUseSaved, onUpdate, onBack }: PreferencesConfirmProps) {
+export function PreferencesConfirm({ saving, error, onUseSaved, onUpdate, onBack, tentative = false }: PreferencesConfirmProps) {
   return (
     <div className={`sv2-root sv2-device-page sv2-invite-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-missing-out">
         <p className="sv2-event-kicker">WELCOME BACK</p>
         <h1>Same taste as last time?</h1>
+        {tentative && <p className="sv2-tentative-planning-note">Help us plan, even if you haven&apos;t made up your mind yet.</p>}
         <p>We already have your dietary, protein, flavor, and adventurousness preferences on file.</p>
         <div>
           <button type="button" onClick={onUseSaved} disabled={saving} style={{ ...buttonStyle, background: 'var(--sv2-ink)', color: 'var(--sv2-off-white)' }}>

@@ -190,8 +190,6 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       onPlaceSelect={setPlace}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
-      theme={theme}
-      onThemeChange={setTheme}
       imageDataUrl={imageDataUrl}
       onImageChange={onImageChange}
       onImageRemove={onImageRemove}

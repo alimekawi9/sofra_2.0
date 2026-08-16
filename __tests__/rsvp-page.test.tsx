@@ -192,6 +192,7 @@ describe('Step 1 — the invite', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /think about it/i }))
     await userEvent.click(screen.getByRole('button', { name: /think about it/i }))
+    expect(screen.getByText(/help us plan, even if you haven't made up your mind yet/i)).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Vegetarian' })).toBeInTheDocument()
   })
 })
@@ -453,6 +454,8 @@ describe('declining', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /maybe next time/i }))
     await userEvent.click(screen.getByRole('button', { name: /maybe next time/i }))
+    await userEvent.click(screen.getByRole('button', { name: /are you sure/i }))
+    await userEvent.click(screen.getByRole('button', { name: /really sure/i }))
     await waitFor(() => expect(screen.getByText(/you'll be missed/i)).toBeInTheDocument())
     expect(sb.rsvpUpsert).toHaveBeenCalledWith(
       { event_id: 'event-1', user_id: 'uid-1', status: 'cant' },
@@ -466,6 +469,8 @@ describe('declining', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /maybe next time/i }))
     await userEvent.click(screen.getByRole('button', { name: /maybe next time/i }))
+    await userEvent.click(screen.getByRole('button', { name: /are you sure/i }))
+    await userEvent.click(screen.getByRole('button', { name: /really sure/i }))
     await waitFor(() =>
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
     )
@@ -477,6 +482,8 @@ describe('declining', () => {
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /maybe next time/i }))
     await userEvent.click(screen.getByRole('button', { name: /maybe next time/i }))
+    await userEvent.click(screen.getByRole('button', { name: /are you sure/i }))
+    await userEvent.click(screen.getByRole('button', { name: /really sure/i }))
     await waitFor(() => screen.getByText(/you'll be missed/i))
     await userEvent.click(screen.getByRole('button', { name: /return to invitation/i }))
     expect(screen.getByRole('button', { name: /save me a seat/i })).toBeInTheDocument()

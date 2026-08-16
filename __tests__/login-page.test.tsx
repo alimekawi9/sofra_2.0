@@ -60,7 +60,7 @@ it('an existing phone logs the user in directly, without ever asking for a name'
   makeSupabase('existing-user-id')
   render(<LoginPage />)
   await goToPhoneStep()
-  await userEvent.type(screen.getByLabelText(/phone number/i), '+201234567890')
+  await userEvent.type(screen.getByLabelText(/phone number/i), '1234567890')
   await userEvent.click(screen.getByRole('button', { name: /continue/i }))
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-1'))
   expect(localStorage.getItem('sofra_user_id')).toBe('existing-user-id')
@@ -74,7 +74,7 @@ it('a new phone number advances to the name step, then creates the user with bot
   const { insert } = makeSupabase(null)
   render(<LoginPage />)
   await goToPhoneStep()
-  await userEvent.type(screen.getByLabelText(/phone number/i), '+201234567890')
+  await userEvent.type(screen.getByLabelText(/phone number/i), '1234567890')
   await userEvent.click(screen.getByRole('button', { name: /continue/i }))
 
   await waitFor(() => expect(screen.getByLabelText(/your name/i)).toBeInTheDocument())
@@ -92,7 +92,7 @@ it('falls back to /events when next is missing', async () => {
   makeSupabase('existing-user-id')
   render(<LoginPage />)
   await goToPhoneStep()
-  await userEvent.type(screen.getByLabelText(/phone number/i), '+201234567890')
+  await userEvent.type(screen.getByLabelText(/phone number/i), '1234567890')
   await userEvent.click(screen.getByRole('button', { name: /continue/i }))
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/events'))
 })
@@ -105,15 +105,12 @@ it('redirects immediately to next if an identity is already stored', async () =>
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-2'))
 })
 
-it('offers a name-only path from the phone step, preserving next', async () => {
+it('requires the phone step and does not offer a name-only bypass', async () => {
   query.set('next', '/events/ev-1')
   makeSupabase(null)
   render(<LoginPage />)
   await goToPhoneStep()
-  expect(screen.getByRole('link', { name: /continue with just your name/i })).toHaveAttribute(
-    'href',
-    '/name?next=%2Fevents%2Fev-1'
-  )
+  expect(screen.queryByRole('link', { name: /continue with just your name/i })).not.toBeInTheDocument()
 })
 
 it.each(['https://evil.example/path', '//evil.example/path', 'events/ev-1'])(

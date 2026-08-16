@@ -86,7 +86,7 @@ it('shows edit-mode copy and prefills every field from the existing event', asyn
   expect(screen.getByRole('textbox', { name: /tagline/i })).toHaveValue('A cozy evening')
   expect(screen.getByRole('combobox', { name: /location/i })).toHaveValue('The Garden Room')
   expect(screen.getByRole('textbox', { name: /dress code/i })).toHaveValue('Smart casual')
-  expect(screen.getByRole('radio', { name: 'Olive' })).toBeChecked()
+  expect(screen.queryByRole('radio', { name: 'Olive' })).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: /selected cover preview/i })).toHaveAttribute(
     'src', 'https://cdn.example.com/existing.jpg'
   )

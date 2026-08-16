@@ -1,6 +1,7 @@
 'use client'
 
 import { sv2Display, sv2Sans } from './fonts'
+import { SofraHistoryArtwork } from './SofraHistoryArtwork'
 
 export interface ProfileHistoryEntry {
   id: string
@@ -146,9 +147,9 @@ export function ProfileCard({
             <p style={{ fontSize: 12 }}>No dinners yet. Your invites will show up here.</p>
           ) : (
             <div>
-              {history.map((event) => (
+              {history.map((event, index) => (
                 <article key={event.id}>
-                  <span className="sv2-profile-history-icon">◇</span>
+                  <SofraHistoryArtwork index={index} />
                   <div>
                     <h3>{event.title}</h3>
                     <p>{event.date}</p>

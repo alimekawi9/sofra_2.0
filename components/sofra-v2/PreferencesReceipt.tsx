@@ -27,6 +27,7 @@ export interface PreferencesReceiptProps {
   saving?: boolean
   error?: string
   onBack?: () => void
+  tentative?: boolean
   // Host-customizable display text only. The values passed to onToggle*
   // callbacks above are always the raw canonical strings/values, regardless
   // of any override here -- these never change what gets persisted.
@@ -89,6 +90,7 @@ export function PreferencesReceipt({
   saving = false,
   error = '',
   onBack,
+  tentative = false,
   dietaryTitle,
   dietaryHelperText,
   dietaryOptionLabels,
@@ -132,6 +134,7 @@ export function PreferencesReceipt({
           <br />
           BEFORE IT&apos;S ON YOUR PLATE
         </p>
+        {tentative && <p className="sv2-tentative-planning-note">Help us plan, even if you haven&apos;t made up your mind yet.</p>}
         {prefilled && <p className="sv2-hint" data-testid="prefilled-badge">✦ Pulled from your profile</p>}
 
         {shows('dietary') && <>

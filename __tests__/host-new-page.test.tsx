@@ -96,26 +96,11 @@ describe('cover image', () => {
 })
 
 describe('theme swatches', () => {
-  it('renders all five theme options', () => {
+  it('does not show obsolete color themes now that events have a shared default cover', () => {
     makeSupabase()
     render(<HostNewPage />)
-    for (const name of ['Ember', 'Olive', 'Midnight', 'Saffron', 'Plum']) {
-      expect(screen.getByRole('radio', { name })).toBeInTheDocument()
-    }
-  })
-
-  it('Ember is pre-selected on first render', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.getByRole('radio', { name: 'Ember' })).toBeChecked()
-  })
-
-  it('clicking Olive selects it and deselects Ember', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.click(screen.getByRole('radio', { name: 'Olive' }))
-    expect(screen.getByRole('radio', { name: 'Olive' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Ember' })).not.toBeChecked()
+    expect(screen.queryByText(/used if no cover image/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Ember' })).not.toBeInTheDocument()
   })
 })
 

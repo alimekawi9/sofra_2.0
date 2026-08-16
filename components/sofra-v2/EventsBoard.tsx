@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
+import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 
 export type EventsBoardStatus = 'invited' | 'hosting' | 'going' | 'hosted' | 'went'
 
@@ -92,21 +93,22 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
                 {visible.map((event) => (
                   <article className="sv2-event-card" key={event.id}>
                     <div
-                      className={`sv2-event-card-artwork${event.coverUrl ? ' sv2-event-card-artwork-photo' : ''}`}
+                      className={`sv2-event-card-artwork sv2-event-card-artwork-photo${event.coverUrl ? '' : ' sv2-event-default-cover'}`}
                       role="img"
-                      aria-label={event.coverUrl ? `${event.title} invitation image` : `${event.theme} theme`}
+                      aria-label={`${event.title} invitation image`}
                     >
-                      {event.coverUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img className="sv2-event-cover-image" src={event.coverUrl} alt="" />
-                      ) : (
-                        <span>{event.theme}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="sv2-event-cover-image" src={event.coverUrl ?? DEFAULT_EVENT_IMAGE_PATH} alt="" />
+                    </div>
+                    <div className={event.isDraft ? 'sv2-event-status-row' : undefined}>
+                      <p className="sv2-event-status">
+                        {LABELS[event.status]}
+                        {event.isDraft && <span className="sv2-draft-badge">Draft</span>}
+                      </p>
+                      {event.isDraft && (
+                        <p className="sv2-draft-explanation">Finish setting up your Kitchen to publish this Sofra.</p>
                       )}
                     </div>
-                    <p className="sv2-event-status">
-                      {LABELS[event.status]}
-                      {event.isDraft && <span className="sv2-draft-badge">Draft</span>}
-                    </p>
                     <h3>{event.title}</h3>
                     {event.host && (event.hostId ? (
                       <ProfileIdentityLink userId={event.hostId} name={event.host} photoUrl={event.hostPhotoUrl ?? null} prefix="Hosted by " />

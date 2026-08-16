@@ -112,6 +112,9 @@ export function QuestionnaireEditor({
         <header className="sv2-questionnaire-header">
           <h1>Questionnaire</h1>
           <p className="sv2-album-page-subtitle">{eventTitle}</p>
+          <p className="sv2-questionnaire-default-note">
+            These are Sofra&apos;s default questions. Change, reorder, remove, or add questions as you see fit.
+          </p>
           <div className="sv2-questionnaire-mode-toggle" role="tablist">
             <button
               type="button"

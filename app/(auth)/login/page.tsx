@@ -118,12 +118,6 @@ function LoginInner() {
     <>
       <SignupForm phone={phone} onPhoneChange={setPhone} onSubmit={handlePhoneSubmit} isSubmitting={submitting} />
       {error && <p className="sv2-hint" role="alert" style={{ textAlign: 'center' }}>{error}</p>}
-      <a
-        href={`/name?next=${encodeURIComponent(next)}`}
-        style={{ display: 'block', textAlign: 'center', fontSize: 12, marginTop: -12, textDecoration: 'underline' }}
-      >
-        Or continue with just your name
-      </a>
     </>
   )
 }

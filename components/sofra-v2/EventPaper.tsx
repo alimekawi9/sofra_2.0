@@ -8,6 +8,7 @@ import { AddPhotosControl } from './AddPhotosControl'
 import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProgress'
 import { buildPreviewTiles } from '@/lib/shared-album'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
+import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 
 export interface EventPaperGuest {
   id: string
@@ -127,14 +128,7 @@ export function EventPaper({
               // eslint-disable-next-line @next/next/no-img-element
               <img className="sv2-event-artwork sv2-event-cover-image" src={coverUrl} alt="" />
             ) : (
-              <div className="sv2-event-artwork sv2-invitation-motif" aria-hidden="true" style={{ position: 'relative' }}>
-                <Image
-                  src="/design-preview/arabesque-ornament.png"
-                  alt=""
-                  fill
-                  style={{ objectFit: 'cover', objectPosition: 'center' }}
-                />
-              </div>
+              <Image className="sv2-event-artwork sv2-event-cover-image sv2-event-default-cover" src={DEFAULT_EVENT_IMAGE_PATH} alt="" width={1125} height={1401} />
             )}
 
             <p className="sv2-event-kicker">

@@ -2,10 +2,10 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getSiteUrl } from '@/lib/site-url'
 import EventDetailClient from './EventDetailClient'
+import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 
 // Themed fallback used whenever an event has no uploaded cover photo —
 // matches the "no cover" fallback rendered by EventPaper itself.
-const FALLBACK_IMAGE_PATH = '/design-preview/arabesque-ornament.png'
 const GENERIC_TITLE = 'Sofra Invitation'
 const DEFAULT_DESCRIPTION = "You're invited to a Sofra."
 
@@ -18,7 +18,7 @@ type EventMetaRow = {
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const siteUrl = getSiteUrl()
-  const fallbackImage = new URL(FALLBACK_IMAGE_PATH, siteUrl).toString()
+  const fallbackImage = new URL(DEFAULT_EVENT_IMAGE_PATH, siteUrl).toString()
 
   const supabase = createClient()
   // Public preview fields only — never the guest list or address, which stay

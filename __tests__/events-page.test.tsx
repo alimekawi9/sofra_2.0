@@ -178,10 +178,11 @@ describe('Hosting events', () => {
     expect(screen.queryByRole('img', { name: /ember theme/i })).not.toBeInTheDocument()
   })
 
-  it('keeps the theme artwork when no invitation image was uploaded', async () => {
+  it('uses the shared default event cover when no invitation image was uploaded', async () => {
     makeSupabase({ hostingEvents: [{ ...SAMPLE_EVENT, cover_url: null }] })
     render(<EventsPage />)
-    await waitFor(() => expect(screen.getByRole('img', { name: /ember theme/i })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('img', { name: /Casa Mekawi invitation image/i })).toBeInTheDocument())
+    expect(document.querySelector('img[src="/sofra/default-event-cover.jpeg"]')).toBeInTheDocument()
   })
 
   it('shows a HOSTING filter and the hosted event under it', async () => {
@@ -213,6 +214,7 @@ describe('Hosting events', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'HOSTING' })).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'HOSTED' })).not.toBeInTheDocument()
     expect(screen.getByText('Draft')).toBeInTheDocument()
+    expect(screen.getByText('Finish setting up your Kitchen to publish this Sofra.')).toBeInTheDocument()
   })
 
   it('clicking View event navigates to /events/[id]', async () => {

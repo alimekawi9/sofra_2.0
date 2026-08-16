@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AlbumAvatar } from '@/components/sofra-v2/AlbumAvatar'
+import { SofraHistoryArtwork } from '@/components/sofra-v2/SofraHistoryArtwork'
 import { areMutuals, fetchProfileHistory, type ProfileHistoryEntry } from '@/lib/profiles'
 import '@/components/sofra-v2/sofra-v2.css'
 
@@ -76,9 +77,9 @@ export default function PublicProfilePage({ params }: { params: { userId: string
                 <p>No Sofras to show yet.</p>
               ) : (
                 <div>
-                  {history.map((event) => (
+                  {history.map((event, index) => (
                     <article key={event.id}>
-                      <span className="sv2-profile-history-icon">◇</span>
+                      <SofraHistoryArtwork index={index} />
                       <div><h3>{event.title}</h3><p>{event.date}</p></div>
                       <strong>{event.went}</strong>
                     </article>

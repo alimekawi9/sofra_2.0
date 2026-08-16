@@ -17,7 +17,7 @@ export default function HostNewPage() {
   // instead of inserting a duplicate event.
   const createdEventIdRef = useRef<string | null>(null)
 
-  const [theme, setTheme] = useState('ember')
+  const [theme] = useState('ember')
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined)
   const [title, setTitle] = useState('')
   const [tagline, setTagline] = useState('')
@@ -137,8 +137,6 @@ export default function HostNewPage() {
       onPlaceSelect={setPlace}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
-      theme={theme}
-      onThemeChange={setTheme}
       imageDataUrl={imageDataUrl}
       onImageChange={onImageChange}
       onImageRemove={onImageRemove}

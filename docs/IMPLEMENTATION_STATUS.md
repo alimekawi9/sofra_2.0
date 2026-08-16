@@ -213,6 +213,22 @@
 - Successful explicit generation updates both snapshot fields. Existing menus never auto-regenerate, and new responses produce a persistent banner with an explicit Regenerate action.
 - Legacy menus with no saved snapshot show current response visibility but no fabricated “generated for” count until their next explicit regeneration.
 
+## Country-aware plate phone input (2026-08-16)
+
+- The existing burgundy plate is unchanged; only its phone input now includes a country-code selector, numeric national-number field, repeating-555 placeholder, live digit counter, and country-aware length validation.
+- Submitted/stored phone values are normalized as dial code plus national digits, and Continue remains disabled until the selected country's accepted digit count is reached.
+
+## Shared default event cover (2026-08-16)
+
+- Events without an uploaded cover now use the supplied ivory-envelope and burgundy-wax-seal image across dashboard cards, event headers, RSVP invitations, editable invitation previews, and Open Graph/WhatsApp previews.
+- Uploaded event covers continue to take priority. The fallback path is centralized in `lib/event-images.ts` so rendered and social-preview defaults cannot drift apart.
+- Event creation/editing no longer shows obsolete fallback-color choices. The default cover crop is biased slightly upward so the wax seal lands lower and centered in wide preview containers.
+
+## Profile history lace artwork cycle (2026-08-16)
+
+- Replaced the plain diamond marker beside profile table-history rows with eight supplied lace artworks.
+- The sequence starts with the ivory-on-burgundy treatment, advances by history-row position, and repeats from burgundy after every eighth event on both private and mutual-visible public profiles.
+
 ## Event map links (2026-08-16)
 
 - Unlocked event addresses now offer side-by-side Google Maps and Apple Maps links using the saved formatted address; no additional API key is required.

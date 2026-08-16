@@ -2,8 +2,10 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
+import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 
 export interface InviteCardGuest {
   id: string
@@ -50,6 +52,25 @@ export function InviteCard({
   submitting,
   onRespond,
 }: InviteCardProps) {
+  const [declineStep, setDeclineStep] = useState(0)
+
+  function handleDecline() {
+    if (declineStep < 2) {
+      setDeclineStep((step) => step + 1)
+      return
+    }
+    setDeclineStep(3)
+    window.setTimeout(() => onRespond('cant'), 800)
+  }
+
+  const declineLabel = declineStep === 0
+    ? 'MAYBE NEXT TIME'
+    : declineStep === 1
+      ? 'ARE YOU SURE?'
+      : declineStep === 2
+        ? 'REALLY SURE?'
+        : 'FINE'
+
   return (
     <div className={`sv2-root sv2-device-page sv2-invite-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-invite-shell">
@@ -71,7 +92,7 @@ export function InviteCard({
 
             <article className="sv2-invite-card">
               <div className="sv2-invite-ornament" aria-hidden="true">
-                <Image src="/design-preview/arabesque-ornament.png" alt="" width={1254} height={1254} />
+                <Image src={DEFAULT_EVENT_IMAGE_PATH} alt="" width={1125} height={1401} />
               </div>
               <p>YOU&apos;RE INVITED TO</p>
               <h2>{title}</h2>
@@ -100,7 +121,14 @@ export function InviteCard({
             <div className="sv2-invite-choices">
               <button type="button" disabled={submitting} onClick={() => onRespond('going')}>SAVE ME A SEAT</button>
               <button type="button" disabled={submitting} onClick={() => onRespond('maybe')}>I&apos;LL THINK ABOUT IT</button>
-              <button type="button" disabled={submitting} onClick={() => onRespond('cant')}>MAYBE NEXT TIME</button>
+              <button
+                type="button"
+                className={`sv2-decline-choice sv2-decline-choice-${declineStep}`}
+                disabled={submitting || declineStep === 3}
+                onClick={handleDecline}
+              >
+                {declineLabel}
+              </button>
             </div>
           </>
         )}

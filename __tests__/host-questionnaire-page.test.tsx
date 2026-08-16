@@ -81,6 +81,7 @@ it('starts in EDIT mode showing all five canonical questions by their Sofra defa
   makeSupabase()
   render(<HostQuestionnairePage params={PARAMS} />)
   await waitFor(() => expect(screen.getByRole('tab', { name: 'EDIT' })).toHaveAttribute('aria-selected', 'true'))
+  expect(screen.getByText(/these are Sofra's default questions/i)).toBeInTheDocument()
   for (const title of [
     'ANY LANE TO STAY IN?',
     'ANYTHING YOU AVOID?',

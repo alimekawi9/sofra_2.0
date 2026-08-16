@@ -359,9 +359,9 @@ describe('SignupForm', () => {
     const input = screen.getByLabelText('Phone number')
     expect(input).toHaveAttribute('type', 'tel')
     expect(input).toHaveAttribute('inputmode', 'numeric')
-    expect(input).toHaveAttribute('autocomplete', 'tel')
-    expect(input).toHaveAttribute('pattern', '[0-9+ ]*')
-    expect(input).toHaveAttribute('placeholder', 'e.g. +20 10 1234 5678')
+    expect(input).toHaveAttribute('autocomplete', 'tel-national')
+    expect(input).toHaveAttribute('pattern', '[0-9() -]*')
+    expect(input).toHaveAttribute('placeholder', '5550555055')
     expect(input).toHaveValue('')
     expect(input).toHaveClass('sv2-plate-input')
     expect(input.closest('.sv2-plate-bowl')).toBeInTheDocument()
@@ -371,10 +371,10 @@ describe('SignupForm', () => {
 
   it('shows only the new heading above a dedicated enlarged phone plate', () => {
     render(<SignupForm {...baseProps} />)
-    const heading = screen.getByRole('heading', { name: 'Enter your phone number' })
+    const heading = screen.getByRole('heading', { name: "But first, What's your number?" })
     expect(Array.from(heading.querySelectorAll('span')).map((line) => line.textContent)).toEqual([
-      'Enter your',
-      'phone number',
+      'But first,',
+      "What's your number?",
     ])
     expect(screen.getByTestId('phone-plate')).toHaveClass('sv2-plate-wrap')
     expect(screen.queryByText('EST. 2026')).not.toBeInTheDocument()
@@ -388,31 +388,54 @@ describe('SignupForm', () => {
     const user = userEvent.setup()
     render(<SignupForm {...baseProps} />)
     await user.type(screen.getByLabelText('Phone number'), '5')
-    expect(baseProps.onPhoneChange).toHaveBeenCalledWith('5')
+    expect(baseProps.onPhoneChange).toHaveBeenCalledWith('+205')
   })
 
   it('disables submit for empty or whitespace-only values', () => {
     const { rerender } = render(<SignupForm {...baseProps} />)
     expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeDisabled()
-    rerender(<SignupForm {...baseProps} phone="   " />)
+    rerender(<SignupForm {...baseProps} phone="+20555" />)
     expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeDisabled()
   })
 
-  it('enables submit when the controlled phone value is meaningful', () => {
-    render(<SignupForm {...baseProps} phone="5551234567" />)
+  it('enables submit only when the selected country digit count is valid', () => {
+    render(<SignupForm {...baseProps} phone="+205550555055" />)
     expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeEnabled()
   })
 
   it('prevents browser submission and calls onSubmit', () => {
     const onSubmit = jest.fn()
-    render(<SignupForm {...baseProps} phone="5551234567" onSubmit={onSubmit} />)
+    render(<SignupForm {...baseProps} phone="+205550555055" onSubmit={onSubmit} />)
     fireEvent.submit(screen.getByRole('button', { name: 'CONTINUE' }).closest('form')!)
     expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers country codes and shows a live country-aware digit counter', async () => {
+    const onPhoneChange = jest.fn()
+    const { rerender } = render(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+20555" />)
+    expect(screen.getByRole('combobox', { name: 'Country code' })).toHaveValue('EG')
+    expect(screen.getByText('3/10 digits')).toBeInTheDocument()
+    expect(screen.getByLabelText('Phone number')).toHaveAttribute('aria-invalid', 'true')
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Country code' }), 'LB')
+    expect(onPhoneChange).toHaveBeenLastCalledWith('+961555')
+    rerender(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+9615550555" />)
+    expect(screen.getByText('7/7-8 digits')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeEnabled()
   })
 
   it('contains no password field', () => {
     const { container } = render(<SignupForm {...baseProps} />)
     expect(container.querySelector('input[type="password"]')).toBeNull()
+  })
+
+  it('formats North American numbers with automatic area-code brackets', async () => {
+    const onPhoneChange = jest.fn()
+    const { rerender } = render(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} />)
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Country code' }), 'US')
+    rerender(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+15550555055" />)
+    expect(screen.getByLabelText('Phone number')).toHaveValue('(555) 055-5055')
+    expect(screen.getByLabelText('Phone number')).toHaveAttribute('placeholder', '(555) 055-5055')
   })
 })
 
@@ -425,7 +448,7 @@ describe('NamePlateForm', () => {
     const { container } = render(<NamePlateForm {...baseProps} />)
     const input = screen.getByLabelText('Your name')
     expect(input).toHaveAttribute('autocomplete', 'name')
-    expect(input).toHaveAttribute('placeholder', 'e.g. Alia')
+    expect(input).toHaveAttribute('placeholder', 'e.g. Giada')
     expect(input).toHaveValue('')
     expect(input).toHaveClass('sv2-plate-input')
     expect(input.closest('.sv2-plate-bowl')).toBeInTheDocument()
@@ -435,17 +458,17 @@ describe('NamePlateForm', () => {
 
   it('renders the name heading as the same explicit two-line structure', () => {
     render(<NamePlateForm {...baseProps} />)
-    const heading = screen.getByRole('heading', { name: 'Enter your name' })
+    const heading = screen.getByRole('heading', { name: '...and your name?' })
     expect(Array.from(heading.querySelectorAll('span')).map((line) => line.textContent)).toEqual([
-      'Enter your',
-      'name',
+      '...and your',
+      'name?',
     ])
   })
 
   it('shares the plate-step structure with the phone form', () => {
     const name = render(<NamePlateForm {...baseProps} />)
     expect(name.container.querySelector('.sv2-plate-step')).toHaveClass('sv2-receipt-surface')
-    expect(screen.getByRole('heading', { name: 'Enter your name' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '...and your name?' })).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-bowl .sv2-plate-input')).toBeInTheDocument()
     expect(name.container.querySelector('.sv2-plate-action')).toHaveTextContent('CONTINUE')
@@ -453,7 +476,7 @@ describe('NamePlateForm', () => {
 
     const phone = render(<SignupForm phone="" onPhoneChange={jest.fn()} onSubmit={jest.fn()} />)
     expect(phone.container.querySelector('.sv2-plate-step')).toHaveClass('sv2-receipt-surface')
-    expect(screen.getByRole('heading', { name: 'Enter your phone number' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: "But first, What's your number?" })).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-wrap')).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-bowl .sv2-plate-input')).toBeInTheDocument()
     expect(phone.container.querySelector('.sv2-plate-action')).toHaveTextContent('CONTINUE')

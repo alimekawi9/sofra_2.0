@@ -3,7 +3,6 @@
 import type { ChangeEvent, DragEvent } from 'react'
 import { HostLocationAutocomplete, type PreviewPlace } from './HostLocationAutocomplete'
 import { sv2Display, sv2Sans } from './fonts'
-import { THEMES } from '@/lib/theme'
 
 export interface HostCreateFormProps {
   mode?: 'create' | 'edit'
@@ -18,8 +17,6 @@ export interface HostCreateFormProps {
   onPlaceSelect: (place: PreviewPlace | null) => void
   dressCode: string
   onDressCodeChange: (value: string) => void
-  theme: string
-  onThemeChange: (value: string) => void
   imageDataUrl: string | undefined
   onImageChange: (file: File) => void
   onImageRemove: () => void
@@ -45,8 +42,6 @@ export function HostCreateForm({
   onPlaceSelect,
   dressCode,
   onDressCodeChange,
-  theme,
-  onThemeChange,
   imageDataUrl,
   onImageChange,
   onImageRemove,
@@ -114,19 +109,22 @@ export function HostCreateForm({
               name="dressCode"
               value={dressCode}
               onChange={(event) => onDressCodeChange(event.target.value)}
-              placeholder="A touch of red"
+              placeholder="A touch of red, or paste a Pinterest link"
             />
           </label>
 
           {onCustomizeQuestions && (
-            <button
-              type="button"
-              className="sv2-customize-questions"
-              onClick={onCustomizeQuestions}
-              disabled={submitting || deleting || customizingQuestions}
-            >
-              {customizingQuestions ? 'OPENING…' : 'CUSTOMIZE GUEST QUESTIONS'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="sv2-customize-questions"
+                onClick={onCustomizeQuestions}
+                disabled={submitting || deleting || customizingQuestions}
+              >
+                {customizingQuestions ? 'OPENING…' : 'CUSTOMIZE GUEST QUESTIONS'}
+              </button>
+              {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
+            </>
           )}
 
           <fieldset className="sv2-invitation-image-field">
@@ -166,32 +164,7 @@ export function HostCreateForm({
             )}
           </fieldset>
 
-          <fieldset className="sv2-theme-picker">
-            <legend>THEME <span>USED IF NO COVER IMAGE</span></legend>
-            <div>
-              {THEMES.map((option) => (
-                <label key={option.id} className="sv2-theme-card">
-                  <input
-                    type="radio"
-                    name="theme"
-                    value={option.id}
-                    checked={theme === option.id}
-                    onChange={() => onThemeChange(option.id)}
-                  />
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      background: option.bg,
-                      boxShadow: theme === option.id ? `0 0 0 2px ${option.accent}` : undefined,
-                    }}
-                  />
-                  <strong>{option.name}</strong>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
+          {!onCustomizeQuestions && error && <p className="sv2-host-form-error" role="alert">{error}</p>}
           <button type="submit" disabled={submitting || deleting}>
             {submitting ? (isEdit ? 'SAVING…' : 'CONTINUING…') : isEdit ? 'UPDATE INVITE' : 'CONTINUE'}
           </button>
