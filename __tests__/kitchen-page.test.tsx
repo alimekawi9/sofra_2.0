@@ -244,25 +244,14 @@ test('does not render pantry quantity or unit controls', async () => {
   expect(screen.queryByLabelText('Quantity unit')).not.toBeInTheDocument()
 })
 
-test('offers a prominent intentional empty-inventory option and removes saved pantry items on update', async () => {
+test('offers clear-all controls for signatures and pantry, with the empty pantry action on submit', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Tomato' })
-  const empty = screen.getByRole('button', { name: /i have nothing/i })
-  expect(empty).toHaveAttribute('aria-pressed', 'false')
-  fireEvent.click(empty)
-  expect(empty).toHaveAttribute('aria-pressed', 'true')
+  const signatureCard = document.querySelector('.sv2-kitchen-signatures') as HTMLElement
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
-  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
-  await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
-})
-
-test('offers a small clear-all control for selected pantry items', async () => {
-  render(<KitchenPage />)
-  await screen.findByRole('button', { name: 'Tomato' })
-  const clear = screen.getByRole('button', { name: 'CLEAR ALL' })
-  fireEvent.click(clear)
-  expect(screen.getByRole('button', { name: /i have nothing/i })).toHaveAttribute('aria-pressed', 'true')
-  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
-  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
+  expect(within(signatureCard).getByRole('button', { name: 'CLEAR ALL' })).toBeInTheDocument()
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
+  expect(within(pantryCard).queryByRole('button', { name: 'I HAVE NOTHING' })).not.toBeInTheDocument()
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'I LITERALLY HAVE NOTHING' }))
   await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
 })

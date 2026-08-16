@@ -305,9 +305,9 @@
 - Undecided dates persist through a centralized sentinel and render as `Date undecided` / `Time undecided` across event dashboards, guest RSVP previews, co-host previews, and event details instead of appearing as an arbitrary date.
 # Explicit empty inventory choice (2026-08-16)
 
-- The weekly pantry now offers a large, prominent `I HAVE NOTHING` choice. Selecting it clears pending ingredient input and selections; saving removes that week's persisted pantry items and records completion through the existing Kitchen flow.
+- Signatures and pantry each provide a compact `CLEAR ALL` action beside their preset heading. Clearing remains staged until the relevant submit action is pressed.
+- The former large empty-pantry control was removed. When the effective pantry selection is empty, the existing submit button reads `I LITERALLY HAVE NOTHING` and persists that intentional empty state.
 - Choosing or typing an ingredient automatically exits the empty-inventory state, keeping the two states mutually exclusive.
-- A compact `CLEAR ALL` action appears beside the pantry preset heading whenever saved or pending ingredients exist. It stages the same safe, deferred clearing operation and applies it only through the existing update action.
 
 # Fully editable event questionnaires (2026-08-16)
 

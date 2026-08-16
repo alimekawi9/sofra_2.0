@@ -429,6 +429,12 @@ function KitchenPageInner() {
     setPendingRemovedSignatureIds(prev => prev.includes(signature.id) ? prev.filter(id => id !== signature.id) : [...prev, signature.id])
   }
 
+  function clearAllSignatures() {
+    setSelectedDishKeys([])
+    setPendingRemovedSignatureIds(signatures.map(signature => signature.id))
+    cancelSignatureEdit()
+  }
+
   function editPantryItem(item: PantryItem) {
     setEditingPantryId(item.id)
     setPantryName(item.name)
@@ -666,6 +672,7 @@ function KitchenPageInner() {
                 }}
               >
                 <div
+                  className="sv2-pantry-preset-heading"
                   style={{
                     color: C.faint,
                     fontSize: 11,
@@ -674,7 +681,10 @@ function KitchenPageInner() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Quick add from presets
+                  <span>Quick add from presets</span>
+                  {(signatures.length > 0 || selectedDishKeys.length > 0) && (
+                    <button type="button" onClick={clearAllSignatures}>CLEAR ALL</button>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {CUISINE_FILTERS.map((c) => {
@@ -862,19 +872,6 @@ function KitchenPageInner() {
                     <button type="button" onClick={selectEmptyPantry}>CLEAR ALL</button>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="sv2-pantry-nothing-option"
-                  aria-pressed={nothingInPantry}
-                  onClick={() => {
-                    const next = !nothingInPantry
-                    if (next) selectEmptyPantry()
-                    else setNothingInPantry(false)
-                  }}
-                >
-                  <strong>I HAVE NOTHING</strong>
-                  <span>No ingredients in my inventory this week</span>
-                </button>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {INGREDIENT_CATEGORY_FILTERS.map((c) => {
                     const on = ingredientCategory === c
@@ -1039,7 +1036,9 @@ function KitchenPageInner() {
                     ? 'Publish Invite'
                   : pantryDoneSaved
                     ? 'Saved ✓'
-                    : pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
+                    : nothingInPantry || (pantry.length === 0 && selectedIngredients.length === 0 && !pantryName.trim())
+                      ? 'I LITERALLY HAVE NOTHING'
+                      : pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
               </button>
               {publishError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{publishError}</p>
