@@ -61,7 +61,24 @@ function makeSupabase(user: UserRow, hostedEventId: string | null = null, rsvps:
 beforeEach(() => {
   jest.clearAllMocks()
   localStorage.clear()
+  document.documentElement.setAttribute('data-theme', 'light')
   ;(useRouter as jest.Mock).mockReturnValue({ push })
+})
+
+it('defaults to light mode and persists the profile dark-mode toggle', async () => {
+  localStorage.setItem('sofra_user_id', 'theme-user')
+  makeSupabase({ name: 'Layla', phone: null, photo_url: null })
+  const { container } = render(<ProfilePage />)
+
+  const toggle = await screen.findByRole('switch', { name: 'Switch to dark mode' })
+  expect(toggle).toHaveAttribute('aria-checked', 'false')
+  expect(container.querySelector('.sv2-profile-page')).toHaveClass('sv2-profile-page--light')
+
+  fireEvent.click(toggle)
+  await waitFor(() => expect(screen.getByRole('switch', { name: 'Switch to light mode' })).toHaveAttribute('aria-checked', 'true'))
+  expect(localStorage.getItem('sofra_theme')).toBe('dark')
+  expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+  expect(container.querySelector('.sv2-profile-page')).toHaveClass('sv2-profile-page--dark')
 })
 
 afterEach(() => {

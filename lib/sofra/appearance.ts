@@ -8,8 +8,8 @@ export type Appearance = 'light' | 'dark'
 const KEY = 'sofra_theme'
 
 export function getAppearance(): Appearance {
-  if (typeof window === 'undefined') return 'dark'
-  return window.localStorage.getItem(KEY) === 'light' ? 'light' : 'dark'
+  if (typeof window === 'undefined') return 'light'
+  return window.localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'
 }
 
 export function applyAppearance(t: Appearance) {
@@ -25,7 +25,7 @@ export function setAppearance(t: Appearance) {
 }
 
 export function useAppearance(): [Appearance, (t: Appearance) => void] {
-  const [theme, setLocal] = useState<Appearance>('dark')
+  const [theme, setLocal] = useState<Appearance>('light')
   useEffect(() => {
     const t = getAppearance()
     setLocal(t)

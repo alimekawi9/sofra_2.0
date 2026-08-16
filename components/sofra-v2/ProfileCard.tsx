@@ -2,6 +2,7 @@
 
 import { sv2Display, sv2Sans } from './fonts'
 import { SofraHistoryArtwork } from './SofraHistoryArtwork'
+import type { Appearance } from '@/lib/sofra/appearance'
 
 export interface ProfileHistoryEntry {
   id: string
@@ -33,6 +34,8 @@ export interface ProfileCardProps {
   error: string
   onHistorySelect: (id: string) => void
   onLogout: () => void
+  appearance: Appearance
+  onAppearanceChange: (appearance: Appearance) => void
 }
 
 export function ProfileCard({
@@ -58,6 +61,8 @@ export function ProfileCard({
   error,
   onHistorySelect,
   onLogout,
+  appearance,
+  onAppearanceChange,
 }: ProfileCardProps) {
   const initials = name
     .split(/\s+/)
@@ -67,8 +72,25 @@ export function ProfileCard({
     .toUpperCase()
 
   return (
-    <div className={`sv2-root ${sv2Display.variable} ${sv2Sans.variable}`}>
+    <div className={`sv2-root sv2-profile-page sv2-profile-page--${appearance} ${sv2Display.variable} ${sv2Sans.variable}`}>
       <div className="sv2-device-shell sv2-app-shell sv2-profile-shell">
+        <section className="sv2-profile-appearance" aria-labelledby="profile-appearance-heading">
+          <div>
+            <h2 id="profile-appearance-heading">Appearance</h2>
+            <p>Light is the default. Choose what feels best.</p>
+          </div>
+          <button
+            type="button"
+            className="sv2-profile-theme-switch"
+            role="switch"
+            aria-checked={appearance === 'dark'}
+            aria-label={appearance === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => onAppearanceChange(appearance === 'dark' ? 'light' : 'dark')}
+          >
+            <span aria-hidden="true" />
+            {appearance === 'dark' ? 'DARK' : 'LIGHT'}
+          </button>
+        </section>
         <section className="sv2-profile-identity" aria-labelledby="sv2-profile-name">
           <label className="sv2-profile-photo" tabIndex={0}>
             {photoUrl ? (

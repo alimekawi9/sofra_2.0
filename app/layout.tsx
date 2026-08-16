@@ -17,7 +17,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: "try{document.documentElement.dataset.theme=localStorage.getItem('sofra_theme')==='dark'?'dark':'light'}catch(e){}" }} />
+      </head>
       <body
         className={`${sv2Display.variable} ${sv2Sans.variable} antialiased`}
       >

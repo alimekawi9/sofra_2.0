@@ -697,7 +697,7 @@ function KitchenPageInner() {
                         style={{
                           background: on ? C.burgundy : 'transparent',
                           borderColor: on ? C.gold : 'rgba(243,233,221,0.18)',
-                          color: on ? C.cream : C.dim,
+                          color: on ? C.onBurgundy : C.dim,
                           padding: '5px 11px',
                           fontSize: 12,
                           fontFamily: 'system-ui, sans-serif',
@@ -883,7 +883,7 @@ function KitchenPageInner() {
                         style={{
                           background: on ? C.burgundy : 'transparent',
                           borderColor: on ? C.gold : 'rgba(243,233,221,0.18)',
-                          color: on ? C.cream : C.dim,
+                          color: on ? C.onBurgundy : C.dim,
                           padding: '5px 11px',
                           fontSize: 12,
                           fontFamily: 'system-ui, sans-serif',

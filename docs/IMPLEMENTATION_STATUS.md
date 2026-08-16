@@ -1,5 +1,12 @@
 # Implementation Status
 
+- Profile now exposes the app-wide production light/dark appearance toggle. Light is the default for new visitors; the selected mode is persisted and restored before paint. Shared production shells, navigation, authentication, event, album, kitchen, Table, and menu-intelligence palettes all consume the same appearance tokens, while invitation artwork and uploaded imagery remain unchanged.
+- Dark-mode contrast states keep labels visible on filled and hovered controls, including the appearance switch, event-status filters, album upload action, menu generation/PDF actions, and Kitchen Quick Add selections.
+- Location autocomplete results retain a cream suggestion surface with burgundy result text in dark mode, and the questionnaire save action uses explicit contrasting foreground/background pairs on hover and keyboard focus.
+- Host edit submit and delete-event controls now use explicit inverse hover/focus colors in both themes, preventing `UPDATE INVITE` and `DELETE EVENT` labels from blending into their button surfaces.
+- The final catch-all interactive hover rule now uses the same paired foreground/surface tokens as component-specific states. This keeps file controls such as `Choose a cover image`, including their nested icon and helper copy, readable in both themes and prevents later CSS from undoing earlier contrast fixes.
+- Filled hover/focus states retain a visible inverse-color border instead of matching the fill and visually losing their outline.
+- The cover-image chooser has its own visible dashed resting border and a two-pixel gold border plus focus ring during hover/focus, independent of shared button styling.
 - Table ranking summaries now translate ordinal results into a clear winner or an explicit tie and show first-choice votes instead of unexplained average-position numbers. Choice summaries show counts against the response total.
 - Table includes an AI planning-recommendations section generated from aggregate dietary, preference, atmosphere, timing, and event-specific survey context. Guest names are removed from the aggregate profile sent to Gemini, written responses are treated as untrusted data, and the advice is explicitly separated from menu generation.
 - Phone login country picker now includes the complete country/territory list ordered alphabetically by English country name and uses an explicitly downward-opening menu.

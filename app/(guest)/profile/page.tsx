@@ -7,6 +7,7 @@ import { formatProteinPreferenceLabel } from '@/lib/protein-preferences'
 import { ProfileCard, type ProfileHistoryEntry } from '@/components/sofra-v2/ProfileCard'
 import { transformProfileHistory, type ProfileHistoryRow } from '@/lib/profiles'
 import '@/components/sofra-v2/sofra-v2.css'
+import { useAppearance } from '@/lib/sofra/appearance'
 
 type TasteProfileRow = {
   dietary: string[] | null
@@ -34,6 +35,7 @@ function buildPreferencesSummary(profile: TasteProfileRow | null): string | null
 export default function ProfilePage() {
   const router = useRouter()
   const supabase = createClient()
+  const [appearance, setAppearance] = useAppearance()
 
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -193,6 +195,8 @@ export default function ProfilePage() {
       error={error}
       onHistorySelect={(id) => router.push('/events/' + id)}
       onLogout={handleLogout}
+      appearance={appearance}
+      onAppearanceChange={setAppearance}
     />
   )
 }
