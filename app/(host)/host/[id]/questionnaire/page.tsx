@@ -53,7 +53,7 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
         .eq('event_id', params.id)
         .maybeSingle()
 
-      if (questionnaireRow?.config?.questions?.length) {
+      if (questionnaireRow?.config?.questions) {
         setConfig(questionnaireRow.config as QuestionnaireConfig)
       }
 

@@ -181,7 +181,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           .eq('event_id', params.id)
           .maybeSingle()
 
-        if (questionnaireRow?.config?.questions?.length) {
+        if (questionnaireRow?.config?.questions) {
           const config = questionnaireRow.config as QuestionnaireConfig
           setQuestionnaire(config)
 
@@ -439,7 +439,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onAdventurousnessChange={setAdventurousness}
         onSave={handleProfileSubmit}
         prefilled={prefilled}
-        visibleCanonicalQuestions={changedCanonicalKeys ?? undefined}
+        headline={questionnaire.header}
+        visibleCanonicalQuestions={changedCanonicalKeys ?? Object.keys(canonicalByKey) as CanonicalQuestionConfig['canonicalKey'][]}
+        hiddenCanonicalOptions={{ dietary: canonicalByKey.dietary?.hiddenOptionValues, avoid: canonicalByKey.avoid?.hiddenOptionValues, protein: canonicalByKey.protein?.hiddenOptionValues, flavor: canonicalByKey.flavor?.hiddenOptionValues }}
         saveLabel={newQuestionIds !== null || changedCanonicalKeys !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? (prefilled ? 'UPDATE PREFERENCES' : 'SAVE PREFERENCES') : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
         error={error}

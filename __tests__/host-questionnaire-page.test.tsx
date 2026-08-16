@@ -164,11 +164,14 @@ it('blocks save and shows an error for a custom question with a blank option', a
   expect(sb.upsert).not.toHaveBeenCalled()
 })
 
-it('cannot remove a canonical question -- there is no remove control for it', async () => {
-  makeSupabase()
+it('can remove a canonical question from the saved config', async () => {
+  const sb = makeSupabase()
   render(<HostQuestionnairePage params={PARAMS} />)
   await waitFor(() => screen.getByPlaceholderText('ANY LANE TO STAY IN?'))
-  expect(screen.queryAllByRole('button', { name: 'REMOVE' })).toHaveLength(0)
+  await userEvent.click(screen.getByRole('button', { name: /Remove question ANY LANE/i }))
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalled())
+  expect(sb.upsert.mock.calls[0][0].config.questions.some((q: { canonicalKey?: string }) => q.canonicalKey === 'dietary')).toBe(false)
 })
 
 it('removing a custom question drops it from the saved config', async () => {
@@ -178,7 +181,7 @@ it('removing a custom question drops it from the saved config', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: 'Short text' }))
   await userEvent.type(screen.getByPlaceholderText('Ask your guests something…'), 'Craving anything?')
-  await userEvent.click(screen.getByRole('button', { name: 'REMOVE' }))
+  await userEvent.click(screen.getByRole('button', { name: /Remove question Craving anything/i }))
   await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
 
   await waitFor(() => expect(sb.upsert).toHaveBeenCalled())

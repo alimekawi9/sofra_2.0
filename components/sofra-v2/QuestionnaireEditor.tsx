@@ -21,6 +21,7 @@ import {
   DEFAULT_SLIDER_STEPS,
   MIN_SLIDER_STEPS,
   MAX_SLIDER_STEPS,
+  DEFAULT_QUESTIONNAIRE_HEADER,
   type QuestionnaireConfig,
   type QuestionConfig,
   type CanonicalQuestionConfig,
@@ -68,17 +69,35 @@ export function QuestionnaireEditor({
     if (index < 0 || target < 0 || target >= sorted.length) return
     const reordered = [...sorted]
     ;[reordered[index], reordered[target]] = [reordered[target], reordered[index]]
-    onChange({ questions: reordered.map((q, i) => ({ ...q, order: i })) })
+    onChange({ ...config, questions: reordered.map((q, i) => ({ ...q, order: i })) })
   }
 
   function updateQuestion(id: string, patch: Partial<QuestionConfig>) {
-    onChange({
+    onChange({ ...config,
       questions: config.questions.map((q) => (q.id === id ? ({ ...q, ...patch } as QuestionConfig) : q)),
     })
   }
 
   function removeQuestion(id: string) {
-    onChange({ questions: config.questions.filter((q) => q.id !== id) })
+    onChange({ ...config, questions: config.questions.filter((q) => q.id !== id) })
+  }
+
+  function convertCanonicalQuestion(question: CanonicalQuestionConfig, type: CustomQuestionType) {
+    const options = canonicalOptionsFor(question.canonicalKey)
+      .filter((option) => !question.hiddenOptionValues?.includes(option.value))
+      .map((option) => ({ ...option, label: resolveCanonicalOptionLabel(question, option.value, option.label) }))
+    const converted: CustomQuestionConfig = {
+      id: question.id,
+      kind: 'custom',
+      type,
+      title: resolveCanonicalTitle(question),
+      helperText: resolveCanonicalHelperText(question),
+      order: question.order,
+      ...((type === 'single' || type === 'multiple') ? { options: options.length ? options : [{ value: 'option_1', label: '' }] } : {}),
+      ...(type === 'multiple' ? { maxSelections: Math.max(1, options.length) } : {}),
+      ...(type === 'slider' ? { sliderMinLabel: resolveCanonicalSliderMinLabel(question), sliderMaxLabel: resolveCanonicalSliderMaxLabel(question), sliderSteps: DEFAULT_SLIDER_STEPS } : {}),
+    }
+    onChange({ ...config, questions: config.questions.map((q) => q.id === question.id ? converted : q) })
   }
 
   function addCustomQuestion(type: CustomQuestionType) {
@@ -92,7 +111,7 @@ export function QuestionnaireEditor({
       ...(type === 'single' || type === 'multiple' ? { options: [{ value: 'option_1', label: '' }] } : {}),
       ...(type === 'slider' ? { sliderMinLabel: '', sliderMaxLabel: '', sliderSteps: DEFAULT_SLIDER_STEPS } : {}),
     }
-    onChange({ questions: [...config.questions, base] })
+    onChange({ ...config, questions: [...config.questions, base] })
   }
 
   if (loading) return <p style={{ fontSize: 13, padding: 20 }}>Loading…</p>
@@ -144,6 +163,9 @@ export function QuestionnaireEditor({
             <button type="button" className="sv2-reset-questionnaire" onClick={onReset} disabled={resetting}>
               {resetting ? 'RESETTING…' : 'RESET TO SOFRA DEFAULTS'}
             </button>
+            <label className="sv2-question-field">Survey header
+              <textarea aria-label="Survey header" value={config.header ?? DEFAULT_QUESTIONNAIRE_HEADER} onChange={(e) => onChange({ ...config, header: e.target.value })} />
+            </label>
 
             {sortedQuestions(config).map((q, i, arr) => (
               <div key={q.id} className="sv2-question-card">
@@ -156,7 +178,7 @@ export function QuestionnaireEditor({
                 </div>
 
                 {isCanonical(q) ? (
-                  <CanonicalQuestionCard question={q} onUpdate={(patch) => updateQuestion(q.id, patch)} />
+                  <CanonicalQuestionCard question={q} onUpdate={(patch) => updateQuestion(q.id, patch)} onRemove={() => removeQuestion(q.id)} onConvert={(type) => convertCanonicalQuestion(q, type)} />
                 ) : (
                   <CustomQuestionCard
                     question={q}
@@ -203,14 +225,23 @@ function questionLabel(q: QuestionConfig): string {
 function CanonicalQuestionCard({
   question,
   onUpdate,
+  onRemove,
+  onConvert,
 }: {
   question: CanonicalQuestionConfig
   onUpdate: (patch: Partial<CanonicalQuestionConfig>) => void
+  onRemove: () => void
+  onConvert: (type: CustomQuestionType) => void
 }) {
-  const options = canonicalOptionsFor(question.canonicalKey)
+  const options = canonicalOptionsFor(question.canonicalKey).filter((option) => !question.hiddenOptionValues?.includes(option.value))
   return (
     <div>
-      <span className="sv2-question-kind">Sofra question</span>
+      <div className="sv2-question-card-headrow"><span className="sv2-question-kind">Sofra question</span><button type="button" aria-label={`Remove question ${resolveCanonicalTitle(question)}`} className="sv2-remove-question" onClick={onRemove}>REMOVE</button></div>
+      <label className="sv2-question-field">Answer type
+        <select aria-label={`Answer type for ${resolveCanonicalTitle(question)}`} value={question.canonicalKey === 'adventurousness' ? 'slider' : 'multiple'} onChange={(e) => onConvert(e.target.value as CustomQuestionType)}>
+          <option value="single">One answer</option><option value="multiple">Multiple answers</option><option value="text">Short text</option><option value="slider">Slider</option>
+        </select>
+      </label>
       <label className="sv2-question-field">
         Question title
         <input
@@ -244,6 +275,7 @@ function CanonicalQuestionCard({
                   })
                 }
               />
+              <button type="button" aria-label={`Remove ${opt.label}`} onClick={() => onUpdate({ hiddenOptionValues: [...(question.hiddenOptionValues ?? []), opt.value] })}>✕</button>
             </div>
           ))}
         </div>
@@ -293,6 +325,16 @@ function CustomQuestionCard({
 }) {
   const options = question.options ?? []
 
+  function changeQuestionType(type: CustomQuestionType) {
+    if (type === 'single' || type === 'multiple') {
+      onUpdate({ type, options: options.length ? options : [{ value: 'option_1', label: '' }], maxSelections: type === 'multiple' ? (question.maxSelections ?? 1) : undefined, sliderMinLabel: undefined, sliderMaxLabel: undefined, sliderSteps: undefined })
+    } else if (type === 'slider') {
+      onUpdate({ type, options: undefined, maxSelections: undefined, sliderMinLabel: question.sliderMinLabel ?? '', sliderMaxLabel: question.sliderMaxLabel ?? '', sliderSteps: question.sliderSteps ?? DEFAULT_SLIDER_STEPS })
+    } else {
+      onUpdate({ type, options: undefined, maxSelections: undefined, sliderMinLabel: undefined, sliderMaxLabel: undefined, sliderSteps: undefined })
+    }
+  }
+
   function updateOption(index: number, label: string) {
     const next = options.map((o, i) => (i === index ? { ...o, label } : o))
     onUpdate({ options: next })
@@ -328,8 +370,17 @@ function CustomQuestionCard({
                 ? 'Slider'
                 : 'Short text'}
         </span>
-        <button type="button" className="sv2-remove-question" onClick={onRemove}>REMOVE</button>
+        <button type="button" aria-label={`Remove question ${question.title || 'Untitled question'}`} className="sv2-remove-question" onClick={onRemove}>REMOVE</button>
       </div>
+      <label className="sv2-question-field">
+        Answer type
+        <select aria-label="Answer type" value={question.type} onChange={(e) => changeQuestionType(e.target.value as CustomQuestionType)}>
+          <option value="single">One answer</option>
+          <option value="multiple">Multiple answers</option>
+          <option value="text">Short text</option>
+          <option value="slider">Slider</option>
+        </select>
+      </label>
       <label className="sv2-question-field">
         Question title
         <input
@@ -461,6 +512,9 @@ function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
     <div className="sv2-questionnaire-preview">
       <p className="sv2-questionnaire-preview-note">This is a live preview with nothing here saved.</p>
       <PreferencesReceipt
+        headline={config.header ?? DEFAULT_QUESTIONNAIRE_HEADER}
+        visibleCanonicalQuestions={canonical.map((q) => q.canonicalKey)}
+        hiddenCanonicalOptions={Object.fromEntries(canonical.map((q) => [q.canonicalKey, q.hiddenOptionValues ?? []]))}
         dietary={dietary}
         onToggleDietary={(v) => toggle(dietary, setDietary, v)}
         onSelectNoDietaryRestriction={() => setDietary([])}

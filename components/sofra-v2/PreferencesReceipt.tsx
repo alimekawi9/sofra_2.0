@@ -28,6 +28,8 @@ export interface PreferencesReceiptProps {
   error?: string
   onBack?: () => void
   tentative?: boolean
+  headline?: string
+  hiddenCanonicalOptions?: Partial<Record<'dietary' | 'avoid' | 'protein' | 'flavor', string[]>>
   // Host-customizable display text only. The values passed to onToggle*
   // callbacks above are always the raw canonical strings/values, regardless
   // of any override here -- these never change what gets persisted.
@@ -91,6 +93,8 @@ export function PreferencesReceipt({
   error = '',
   onBack,
   tentative = false,
+  headline = "WHAT'S ON YOUR MIND,\nBEFORE IT'S ON YOUR PLATE",
+  hiddenCanonicalOptions = {},
   dietaryTitle,
   dietaryHelperText,
   dietaryOptionLabels,
@@ -129,11 +133,7 @@ export function PreferencesReceipt({
         )}
         <div className="sv2-perforation" data-testid="receipt-perforation" aria-hidden="true" />
         <p className="sv2-receipt-wordmark" dir="auto" lang="ar">سفرة</p>
-        <p className="sv2-receipt-headline">
-          WHAT&apos;S ON YOUR MIND,
-          <br />
-          BEFORE IT&apos;S ON YOUR PLATE
-        </p>
+        <p className="sv2-receipt-headline" style={{ whiteSpace: 'pre-line' }}>{headline}</p>
         {tentative && <p className="sv2-tentative-planning-note">Help us plan, even if you haven&apos;t made up your mind yet.</p>}
         {prefilled && <p className="sv2-hint" data-testid="prefilled-badge">✦ Pulled from your profile</p>}
 
@@ -143,7 +143,7 @@ export function PreferencesReceipt({
         <h3 className="sv2-section-label">{dietaryTitle || 'ANY LANE TO STAY IN?'}</h3>
         {dietaryHelperText && <p className="sv2-section-sub">{dietaryHelperText}</p>}
         <div className="sv2-checkbox-grid">
-          {DIETARY.map((item) => (
+          {DIETARY.filter((item) => !hiddenCanonicalOptions.dietary?.includes(item)).map((item) => (
             <Fragment key={item}>
               <CheckboxRow
                 label={dietaryOptionLabels?.[item] || item}
@@ -166,7 +166,7 @@ export function PreferencesReceipt({
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{avoidTitle || 'ANYTHING YOU AVOID?'}</h3>
         <div className="sv2-checkbox-grid">
-          {NOGOS.map((item) => (
+          {NOGOS.filter((item) => !hiddenCanonicalOptions.avoid?.includes(item)).map((item) => (
             <CheckboxRow
               key={item}
               label={avoidOptionLabels?.[item] || item}
@@ -183,7 +183,7 @@ export function PreferencesReceipt({
         <h3 className="sv2-section-label">{proteinTitle || 'WHAT SOUNDS BEST TONIGHT?'}</h3>
         <p className="sv2-section-sub">{proteinHelperText || 'Choose up to two.'}</p>
         <div className="sv2-checkbox-grid">
-          {PROTEIN_PREFERENCE_OPTIONS.map((option) => (
+          {PROTEIN_PREFERENCE_OPTIONS.filter((option) => !hiddenCanonicalOptions.protein?.includes(option.value)).map((option) => (
             <CheckboxRow
               key={option.value}
               label={proteinOptionLabels?.[option.value] || option.label}
@@ -203,7 +203,7 @@ export function PreferencesReceipt({
         <h3 className="sv2-section-label">{flavorTitle || 'FLAVOURS YOU LEAN TOWARDS'}</h3>
         {!flavorHintVisible && <p className="sv2-section-sub">{flavorHelperText || 'Choose up to three.'}</p>}
         <div className="sv2-checkbox-grid">
-          {FLAVORS.map((item) => (
+          {FLAVORS.filter((item) => !hiddenCanonicalOptions.flavor?.includes(item)).map((item) => (
             <CheckboxRow
               key={item}
               label={flavorOptionLabels?.[item] || item}

@@ -19,6 +19,7 @@ export interface CanonicalQuestionConfig {
   // label. The stored value is never a key in reverse -- renaming a label
   // never changes what gets written to taste_profiles.
   optionLabels?: Record<string, string>
+  hiddenOptionValues?: string[]
   // Display-only endpoint labels for the one canonical slider question
   // (adventurousness). The underlying 0-100 scale/persistence never changes.
   sliderMinLabel?: string
@@ -56,8 +57,11 @@ export interface CustomQuestionConfig {
 export type QuestionConfig = CanonicalQuestionConfig | CustomQuestionConfig
 
 export interface QuestionnaireConfig {
+  header?: string
   questions: QuestionConfig[]
 }
+
+export const DEFAULT_QUESTIONNAIRE_HEADER = "WHAT'S ON YOUR MIND,\nBEFORE IT'S ON YOUR PLATE"
 
 export const CANONICAL_DEFAULTS: Record<
   CanonicalKey,
@@ -71,6 +75,7 @@ export const CANONICAL_DEFAULTS: Record<
 }
 
 export const DEFAULT_QUESTIONNAIRE: QuestionnaireConfig = {
+  header: DEFAULT_QUESTIONNAIRE_HEADER,
   questions: CANONICAL_KEYS.map((canonicalKey, order) => ({
     id: canonicalKey,
     kind: 'canonical',
@@ -144,7 +149,8 @@ export function isCanonicalQuestionCustomized(q: CanonicalQuestionConfig): boole
     q.helperText?.trim() ||
     q.sliderMinLabel?.trim() ||
     q.sliderMaxLabel?.trim() ||
-    (q.optionLabels && Object.keys(q.optionLabels).length > 0)
+    (q.optionLabels && Object.keys(q.optionLabels).length > 0) ||
+    (q.hiddenOptionValues && q.hiddenOptionValues.length > 0)
   )
 }
 
@@ -158,6 +164,7 @@ export function customQuestions(config: QuestionnaireConfig): CustomQuestionConf
 export function isDefaultQuestionnaire(config: QuestionnaireConfig | null | undefined): boolean {
   if (!config) return true
   if (config.questions.some(isCustom)) return false
+  if (config.header !== undefined && config.header.trim() !== DEFAULT_QUESTIONNAIRE_HEADER) return false
   const canonical = config.questions.filter(isCanonical)
   if (canonical.length !== CANONICAL_KEYS.length) return false
   return canonical.every(
@@ -190,12 +197,7 @@ export function generateQuestionId(): string {
 // empty means the config is safe to save.
 export function validateQuestionnaire(config: QuestionnaireConfig): string[] {
   const errors: string[] = []
-  const canonicalPresent = new Set(config.questions.filter(isCanonical).map((q) => q.canonicalKey))
-  for (const key of CANONICAL_KEYS) {
-    if (!canonicalPresent.has(key)) {
-      errors.push(`The "${CANONICAL_DEFAULTS[key].title}" question is required and cannot be removed.`)
-    }
-  }
+  if (!(config.header ?? DEFAULT_QUESTIONNAIRE_HEADER).trim()) errors.push('The questionnaire header cannot be blank.')
 
   for (const q of config.questions) {
     if (isCustom(q)) {

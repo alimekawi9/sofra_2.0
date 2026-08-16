@@ -1515,12 +1515,14 @@
 .sv2-remove-question{border:0;background:none;padding:0;color:var(--sv2-muted);font:500 9px var(--sv2-sans-family);letter-spacing:.6px;text-decoration:underline;cursor:pointer}
 
 .sv2-question-field{display:grid;gap:6px;margin-bottom:12px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--sv2-muted)}
-.sv2-question-field input{min-height:42px;padding:10px 12px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font:400 14px var(--sv2-sans-family);text-transform:none;letter-spacing:0}
+.sv2-question-field input,.sv2-question-field textarea,.sv2-question-field select{min-height:42px;padding:10px 12px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font:400 14px var(--sv2-sans-family);text-transform:none;letter-spacing:0}
+.sv2-question-field textarea{min-height:76px;resize:vertical}
 .sv2-max-selections input{max-width:90px}
 
 .sv2-question-options{margin-top:6px}
 .sv2-question-options-label{display:block;margin-bottom:8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--sv2-muted)}
-.sv2-canonical-option{margin-bottom:8px}
+.sv2-canonical-option{display:grid;grid-template-columns:1fr 40px;gap:8px;margin-bottom:8px}
+.sv2-canonical-option button{border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 .sv2-canonical-option input{width:100%;min-height:40px;padding:9px 12px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family)}
 .sv2-custom-option-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:6px;margin-bottom:8px}
 .sv2-custom-option-row input{min-height:40px;padding:9px 12px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;font:400 13px var(--sv2-sans-family)}
