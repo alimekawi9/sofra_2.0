@@ -314,3 +314,5 @@
 - Hosts can edit the guest-survey headline, remove any question, remove individual answer choices, and change any question between one answer, multiple answers, short text, and slider formats.
 - Multiple-answer questions retain a host-controlled maximum selection count. Converting a Sofra profile question into another format makes it a custom event question so fixed taste-profile fields are never populated with incompatible response data.
 - Removed Sofra questions and choices are omitted from both the live preview and the real guest questionnaire, including saved surveys with no canonical questions remaining.
+- Ranking is available as a question type. Guests order every option with accessible up/down controls, responses persist as ordered option IDs, and hosts see the aggregate order ranked by average position in table insights.
+- Guest and preview rendering now honors the saved order across both Sofra profile questions and custom questions, so a ranking question placed first remains first.

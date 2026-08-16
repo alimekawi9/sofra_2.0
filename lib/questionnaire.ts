@@ -27,7 +27,7 @@ export interface CanonicalQuestionConfig {
   order: number
 }
 
-export type CustomQuestionType = 'single' | 'multiple' | 'text' | 'slider'
+export type CustomQuestionType = 'single' | 'multiple' | 'ranking' | 'text' | 'slider'
 
 export interface CustomOption {
   value: string
@@ -206,7 +206,7 @@ export function validateQuestionnaire(config: QuestionnaireConfig): string[] {
         errors.push('Every question needs a title.')
       }
 
-      if (q.type === 'single' || q.type === 'multiple') {
+      if (q.type === 'single' || q.type === 'multiple' || q.type === 'ranking') {
         const options = q.options ?? []
         if (options.length === 0) {
           errors.push(`"${label}" needs at least one answer option.`)

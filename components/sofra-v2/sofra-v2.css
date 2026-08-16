@@ -1548,6 +1548,11 @@
 .sv2-questionnaire-preview-note{margin:0 0 14px;padding:10px 14px;border:1px solid var(--sv2-line);border-radius:10px;color:var(--sv2-muted);font-size:11px;text-align:center}
 
 .sv2-custom-text{width:100%;min-height:80px;padding:12px;border:1px solid var(--sv2-line);border-radius:10px;background:transparent;color:inherit;font:400 14px var(--sv2-sans-family);resize:vertical}
+.sv2-ranking-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.sv2-ranking-list li{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;min-height:48px;padding:7px 9px;border:1px solid var(--sv2-line);border-radius:10px;font:400 13px var(--sv2-sans-family)}
+.sv2-ranking-position{display:grid;width:26px;height:26px;place-items:center;border:1px solid var(--sv2-line);border-radius:50%;font-size:11px}
+.sv2-ranking-actions{display:flex;gap:5px}.sv2-ranking-actions button{width:30px;height:30px;border:1px solid var(--sv2-line);border-radius:8px;background:transparent;color:inherit;cursor:pointer}.sv2-ranking-actions button:disabled{opacity:.25;cursor:default}
+.sv2-ordered-questions{display:flex;flex-direction:column}
 
 @media(max-width:420px){
   .sv2-custom-option-row{grid-template-columns:1fr auto auto auto}

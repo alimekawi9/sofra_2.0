@@ -93,7 +93,7 @@ export function QuestionnaireEditor({
       title: resolveCanonicalTitle(question),
       helperText: resolveCanonicalHelperText(question),
       order: question.order,
-      ...((type === 'single' || type === 'multiple') ? { options: options.length ? options : [{ value: 'option_1', label: '' }] } : {}),
+      ...((type === 'single' || type === 'multiple' || type === 'ranking') ? { options: options.length ? options : [{ value: 'option_1', label: '' }] } : {}),
       ...(type === 'multiple' ? { maxSelections: Math.max(1, options.length) } : {}),
       ...(type === 'slider' ? { sliderMinLabel: resolveCanonicalSliderMinLabel(question), sliderMaxLabel: resolveCanonicalSliderMaxLabel(question), sliderSteps: DEFAULT_SLIDER_STEPS } : {}),
     }
@@ -108,7 +108,7 @@ export function QuestionnaireEditor({
       type,
       title: '',
       order,
-      ...(type === 'single' || type === 'multiple' ? { options: [{ value: 'option_1', label: '' }] } : {}),
+      ...(type === 'single' || type === 'multiple' || type === 'ranking' ? { options: [{ value: 'option_1', label: '' }] } : {}),
       ...(type === 'slider' ? { sliderMinLabel: '', sliderMaxLabel: '', sliderSteps: DEFAULT_SLIDER_STEPS } : {}),
     }
     onChange({ ...config, questions: [...config.questions, base] })
@@ -194,6 +194,7 @@ export function QuestionnaireEditor({
               <div className="sv2-add-question-types">
                 <button type="button" onClick={() => addCustomQuestion('single')}>Single choice</button>
                 <button type="button" onClick={() => addCustomQuestion('multiple')}>Multiple choice</button>
+                <button type="button" onClick={() => addCustomQuestion('ranking')}>Ranking</button>
                 <button type="button" onClick={() => addCustomQuestion('text')}>Short text</button>
                 <button type="button" onClick={() => addCustomQuestion('slider')}>Slider</button>
               </div>
@@ -239,7 +240,7 @@ function CanonicalQuestionCard({
       <div className="sv2-question-card-headrow"><span className="sv2-question-kind">Sofra question</span><button type="button" aria-label={`Remove question ${resolveCanonicalTitle(question)}`} className="sv2-remove-question" onClick={onRemove}>REMOVE</button></div>
       <label className="sv2-question-field">Answer type
         <select aria-label={`Answer type for ${resolveCanonicalTitle(question)}`} value={question.canonicalKey === 'adventurousness' ? 'slider' : 'multiple'} onChange={(e) => onConvert(e.target.value as CustomQuestionType)}>
-          <option value="single">One answer</option><option value="multiple">Multiple answers</option><option value="text">Short text</option><option value="slider">Slider</option>
+          <option value="single">One answer</option><option value="multiple">Multiple answers</option><option value="ranking">Ranking</option><option value="text">Short text</option><option value="slider">Slider</option>
         </select>
       </label>
       <label className="sv2-question-field">
@@ -326,7 +327,7 @@ function CustomQuestionCard({
   const options = question.options ?? []
 
   function changeQuestionType(type: CustomQuestionType) {
-    if (type === 'single' || type === 'multiple') {
+    if (type === 'single' || type === 'multiple' || type === 'ranking') {
       onUpdate({ type, options: options.length ? options : [{ value: 'option_1', label: '' }], maxSelections: type === 'multiple' ? (question.maxSelections ?? 1) : undefined, sliderMinLabel: undefined, sliderMaxLabel: undefined, sliderSteps: undefined })
     } else if (type === 'slider') {
       onUpdate({ type, options: undefined, maxSelections: undefined, sliderMinLabel: question.sliderMinLabel ?? '', sliderMaxLabel: question.sliderMaxLabel ?? '', sliderSteps: question.sliderSteps ?? DEFAULT_SLIDER_STEPS })
@@ -366,6 +367,8 @@ function CustomQuestionCard({
             ? 'Single choice'
             : question.type === 'multiple'
               ? 'Multiple choice'
+              : question.type === 'ranking'
+                ? 'Ranking'
               : question.type === 'slider'
                 ? 'Slider'
                 : 'Short text'}
@@ -377,6 +380,7 @@ function CustomQuestionCard({
         <select aria-label="Answer type" value={question.type} onChange={(e) => changeQuestionType(e.target.value as CustomQuestionType)}>
           <option value="single">One answer</option>
           <option value="multiple">Multiple answers</option>
+          <option value="ranking">Ranking</option>
           <option value="text">Short text</option>
           <option value="slider">Slider</option>
         </select>
@@ -397,7 +401,7 @@ function CustomQuestionCard({
         />
       </label>
 
-      {(question.type === 'single' || question.type === 'multiple') && (
+      {(question.type === 'single' || question.type === 'multiple' || question.type === 'ranking') && (
         <div className="sv2-question-options">
           <span className="sv2-question-options-label">Answers</span>
           {options.map((opt, i) => (
@@ -514,6 +518,7 @@ function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
       <PreferencesReceipt
         headline={config.header ?? DEFAULT_QUESTIONNAIRE_HEADER}
         visibleCanonicalQuestions={canonical.map((q) => q.canonicalKey)}
+        questionOrders={Object.fromEntries(canonical.map((q) => [q.canonicalKey, q.order]))}
         hiddenCanonicalOptions={Object.fromEntries(canonical.map((q) => [q.canonicalKey, q.hiddenOptionValues ?? []]))}
         dietary={dietary}
         onToggleDietary={(v) => toggle(dietary, setDietary, v)}
@@ -548,7 +553,7 @@ function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
           custom.length > 0 ? (
             <>
               {custom.map((q) => (
-                <div key={q.id} style={{ marginTop: 8 }}>
+                <div key={q.id} style={{ marginTop: 8, order: q.order }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
                   <CustomQuestionField

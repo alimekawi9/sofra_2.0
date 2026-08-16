@@ -441,6 +441,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         prefilled={prefilled}
         headline={questionnaire.header}
         visibleCanonicalQuestions={changedCanonicalKeys ?? Object.keys(canonicalByKey) as CanonicalQuestionConfig['canonicalKey'][]}
+        questionOrders={Object.fromEntries(Object.values(canonicalByKey).filter((q): q is CanonicalQuestionConfig => Boolean(q)).map((q) => [q.canonicalKey, q.order]))}
         hiddenCanonicalOptions={{ dietary: canonicalByKey.dietary?.hiddenOptionValues, avoid: canonicalByKey.avoid?.hiddenOptionValues, protein: canonicalByKey.protein?.hiddenOptionValues, flavor: canonicalByKey.flavor?.hiddenOptionValues }}
         saveLabel={newQuestionIds !== null || changedCanonicalKeys !== null ? 'SAVE MY ANSWERS' : isPreferenceOnly ? (prefilled ? 'UPDATE PREFERENCES' : 'SAVE PREFERENCES') : hasExistingRsvp ? 'UPDATE RSVP' : 'SAVE MY SEAT'}
         saving={submitting}
@@ -465,7 +466,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           customQs.length > 0 ? (
             <>
               {customQs.map((q) => (
-                <div key={q.id}>
+                <div key={q.id} style={{ order: q.order }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
                   <CustomQuestionField

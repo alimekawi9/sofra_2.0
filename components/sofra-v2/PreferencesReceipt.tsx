@@ -30,6 +30,7 @@ export interface PreferencesReceiptProps {
   tentative?: boolean
   headline?: string
   hiddenCanonicalOptions?: Partial<Record<'dietary' | 'avoid' | 'protein' | 'flavor', string[]>>
+  questionOrders?: Partial<Record<'dietary' | 'avoid' | 'protein' | 'flavor' | 'adventurousness', number>>
   // Host-customizable display text only. The values passed to onToggle*
   // callbacks above are always the raw canonical strings/values, regardless
   // of any override here -- these never change what gets persisted.
@@ -95,6 +96,7 @@ export function PreferencesReceipt({
   tentative = false,
   headline = "WHAT'S ON YOUR MIND,\nBEFORE IT'S ON YOUR PLATE",
   hiddenCanonicalOptions = {},
+  questionOrders = {},
   dietaryTitle,
   dietaryHelperText,
   dietaryOptionLabels,
@@ -137,7 +139,8 @@ export function PreferencesReceipt({
         {tentative && <p className="sv2-tentative-planning-note">Help us plan, even if you haven&apos;t made up your mind yet.</p>}
         {prefilled && <p className="sv2-hint" data-testid="prefilled-badge">✦ Pulled from your profile</p>}
 
-        {shows('dietary') && <>
+        <div className="sv2-ordered-questions">
+        {shows('dietary') && <div style={{ order: questionOrders.dietary ?? 0 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{dietaryTitle || 'ANY LANE TO STAY IN?'}</h3>
@@ -160,8 +163,8 @@ export function PreferencesReceipt({
             </Fragment>
           ))}
         </div>
-        </>}
-        {shows('avoid') && <>
+        </div>}
+        {shows('avoid') && <div style={{ order: questionOrders.avoid ?? 1 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{avoidTitle || 'ANYTHING YOU AVOID?'}</h3>
@@ -175,9 +178,9 @@ export function PreferencesReceipt({
             />
           ))}
         </div>
-        </>}
+        </div>}
 
-        {shows('protein') && <>
+        {shows('protein') && <div style={{ order: questionOrders.protein ?? 2 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{proteinTitle || 'WHAT SOUNDS BEST TONIGHT?'}</h3>
@@ -195,9 +198,9 @@ export function PreferencesReceipt({
         {proteinHintVisible && (
           <p className="sv2-hint" data-testid="protein-hint">Only two at a time with one tap to swap it out.</p>
         )}
-        </>}
+        </div>}
 
-        {shows('flavor') && <>
+        {shows('flavor') && <div style={{ order: questionOrders.flavor ?? 3 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{flavorTitle || 'FLAVOURS YOU LEAN TOWARDS'}</h3>
@@ -213,9 +216,9 @@ export function PreferencesReceipt({
           ))}
         </div>
         {flavorHintVisible && <p className="sv2-hint" data-testid="flavor-hint">Choose up to three.</p>}
-        </>}
+        </div>}
 
-        {shows('adventurousness') && <>
+        {shows('adventurousness') && <div style={{ order: questionOrders.adventurousness ?? 4 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{adventurousnessTitle || 'HOW BRAVE IS YOUR PALATE?'}</h3>
@@ -235,9 +238,10 @@ export function PreferencesReceipt({
           <span>{adventurousnessMaxLabel || 'ANYTHING ONCE'}</span>
         </div>
         <p className="sv2-slider-value">{adventurousnessLabel}</p>
-        </>}
+        </div>}
 
         {extraContent}
+        </div>
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />

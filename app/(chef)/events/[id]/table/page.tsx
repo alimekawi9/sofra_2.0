@@ -22,6 +22,7 @@ type CustomAnswerSummary = {
   question: CustomQuestionConfig
   counts?: { label: string; count: number }[]
   texts?: string[]
+  rankings?: { label: string; averageRank: number }[]
 }
 
 function summarizeCustomAnswers(
@@ -33,6 +34,14 @@ function summarizeCustomAnswers(
     if (q.type === 'text') {
       const texts = answers.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
       return { question: q, texts }
+    }
+    if (q.type === 'ranking') {
+      const rankedAnswers = answers.filter((answer): answer is string[] => Array.isArray(answer) && answer.every((value) => typeof value === 'string'))
+      const rankings = (q.options ?? []).map((option) => {
+        const positions = rankedAnswers.map((answer) => answer.indexOf(option.value)).filter((position) => position >= 0)
+        return { label: option.label, averageRank: positions.length ? positions.reduce((sum, position) => sum + position + 1, 0) / positions.length : Number.POSITIVE_INFINITY }
+      }).filter((item) => Number.isFinite(item.averageRank)).sort((a, b) => a.averageRank - b.averageRank)
+      return { question: q, rankings }
     }
     const tally = new Map<string, number>()
     for (const a of answers) {
@@ -531,7 +540,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
             {customAnswerSummaries.length > 0 && (
               <section className="sv2-intel-card" style={card}>
                 <div style={cardTitle}>Event-Specific Answers</div>
-                {customAnswerSummaries.map(({ question, counts, texts }) => (
+                {customAnswerSummaries.map(({ question, counts, texts, rankings }) => (
                   <div key={question.id} style={{ marginTop: 14 }}>
                     <div style={{ color: C.cream, fontSize: 14, fontFamily: 'system-ui, sans-serif', marginBottom: 6 }}>
                       {question.title}
@@ -544,6 +553,12 @@ export default function TablePage({ params }: { params: { id: string } }) {
                       ) : (
                         <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
                       )
+                    ) : question.type === 'ranking' ? (
+                      rankings && rankings.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {rankings.map((item, index) => <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}><span>{index + 1}. {item.label}</span><span style={{ color: C.cream }}>avg. {item.averageRank.toFixed(1)}</span></div>)}
+                        </div>
+                      ) : <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>
                     ) : counts && counts.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {counts.map((c) => (

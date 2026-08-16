@@ -136,10 +136,10 @@ describe('validateQuestionnaire', () => {
     expect(validateQuestionnaire(DEFAULT_QUESTIONNAIRE)).toEqual([])
   })
 
-  it('requires all five canonical questions to remain present', () => {
+  it('allows canonical questions to be removed', () => {
     const config: QuestionnaireConfig = { questions: DEFAULT_QUESTIONNAIRE.questions.slice(1) }
     const errors = validateQuestionnaire(config)
-    expect(errors.some((e) => e.includes('required'))).toBe(true)
+    expect(errors).toEqual([])
   })
 
   it('rejects a blank custom question title', () => {
