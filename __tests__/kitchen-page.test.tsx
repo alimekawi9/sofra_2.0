@@ -7,7 +7,7 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 
-type Write = { table: string; kind: 'insert' | 'update'; payload: Record<string, unknown> }
+type Write = { table: string; kind: 'insert' | 'update' | 'delete'; payload: Record<string, unknown> }
 let writes: Write[] = []
 
 const signature = {
@@ -49,6 +49,10 @@ function builder(table: string) {
     select: jest.fn(() => chain),
     eq: jest.fn((col: string, val: string) => {
       if (col === 'id' && write?.kind === 'update') applyUpdate(table, val, write.payload)
+      if (col === 'id' && write?.kind === 'delete') {
+        if (table === 'pantry_items') pantryRows = pantryRows.filter((row) => row.id !== val)
+        if (table === 'signatures') signatureRows = signatureRows.filter((row) => row.id !== val)
+      }
       return chain
     }),
     order: jest.fn(() => Promise.resolve({
@@ -76,7 +80,11 @@ function builder(table: string) {
       }
       return Promise.resolve({ data, error: null })
     }),
-    delete: jest.fn(() => chain),
+    delete: jest.fn(() => {
+      write = { table, kind: 'delete', payload: {} }
+      writes.push(write)
+      return chain
+    }),
   }
   return chain
 }
@@ -234,4 +242,16 @@ test('does not render pantry quantity or unit controls', async () => {
 
   expect(screen.queryByLabelText('Quantity amount')).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Quantity unit')).not.toBeInTheDocument()
+})
+
+test('offers a prominent intentional empty-inventory option and removes saved pantry items on update', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+  const empty = screen.getByRole('button', { name: /i have nothing/i })
+  expect(empty).toHaveAttribute('aria-pressed', 'false')
+  fireEvent.click(empty)
+  expect(empty).toHaveAttribute('aria-pressed', 'true')
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
+  await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
 })

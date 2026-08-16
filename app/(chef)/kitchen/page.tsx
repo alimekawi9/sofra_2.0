@@ -128,6 +128,7 @@ function KitchenPageInner() {
   const pantryDoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ingredientCategory, setIngredientCategory] = useState<IngredientCategoryFilter>('All')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
+  const [nothingInPantry, setNothingInPantry] = useState(false)
   const [ingredientBatchAdding, setIngredientBatchAdding] = useState(false)
   const [ingredientBatchError, setIngredientBatchError] = useState('')
 
@@ -301,6 +302,7 @@ function KitchenPageInner() {
   }
 
   function toggleIngredientSelection(name: string) {
+    setNothingInPantry(false)
     setSelectedIngredients((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     )
@@ -510,6 +512,7 @@ function KitchenPageInner() {
           : supabase.from('pantry_items').insert({ chef_id: uid, ...formPayload }))
       : null
     const results = await Promise.allSettled([
+      ...(nothingInPantry ? pantry.map((item) => supabase.from('pantry_items').delete().eq('id', item.id).eq('chef_id', uid)) : []),
       ...selectedIngredients.map((selectedName) =>
         supabase.from('pantry_items').insert({
           chef_id: uid,
@@ -530,6 +533,7 @@ function KitchenPageInner() {
     }
 
     setSelectedIngredients([])
+    setNothingInPantry(false)
     cancelPantryEdit()
     await loadData()
     await handlePantryDone()
@@ -662,6 +666,26 @@ function KitchenPageInner() {
                 >
                   Quick add from presets
                 </div>
+                <button
+                  type="button"
+                  className="sv2-pantry-nothing-option"
+                  aria-pressed={nothingInPantry}
+                  onClick={() => {
+                    const next = !nothingInPantry
+                    setNothingInPantry(next)
+                    if (next) {
+                      setSelectedIngredients([])
+                      setPantryName('')
+                      setPantryTagsList([])
+                      setPantryAllergensList([])
+                      setPantryTagsRevealed(false)
+                      cancelPantryEdit()
+                    }
+                  }}
+                >
+                  <strong>I HAVE NOTHING</strong>
+                  <span>No ingredients in my inventory this week</span>
+                </button>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {CUISINE_FILTERS.map((c) => {
                     const on = presetCuisine === c
@@ -937,6 +961,7 @@ function KitchenPageInner() {
                   placeholder="Add an ingredient…"
                   value={pantryName}
                   onChange={(e) => {
+                    setNothingInPantry(false)
                     setPantryName(e.target.value)
                     setPantryAddError('')
                     if (e.target.value.trim()) setPantryTagsRevealed(true)
