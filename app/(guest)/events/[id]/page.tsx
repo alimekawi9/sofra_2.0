@@ -32,9 +32,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
   const event = ev as EventMetaRow | null
 
-  // Unpublished drafts (or a missing/bad id) get a generic card instead of
-  // leaking the draft title to whoever the link reaches before it's public.
-  if (!event || event.is_published === false) {
+  if (!event) {
     return {
       title: GENERIC_TITLE,
       description: DEFAULT_DESCRIPTION,

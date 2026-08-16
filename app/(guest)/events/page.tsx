@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EventsBoard, type EventsBoardEvent, type EventsBoardStatus } from '@/components/sofra-v2/EventsBoard'
+import { readPendingInvites } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
 
 type EventRow = {
@@ -20,6 +21,8 @@ type HostedRsvpRow = {
   status: string
   events: (EventRow & { host: { id: string; name: string; photo_url: string | null } | null }) | null
 }
+
+type CohostRow = { events: EventRow | null }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -84,10 +87,24 @@ export default function EventsPage() {
         }
       })
 
+      const { data: cohostRows } = await supabase.from('event_cohosts')
+        .select('events(id,title,event_date,venue,theme,cover_url,is_published)').eq('user_id', uid)
+      const cohosting: EventsBoardEvent[] = ((cohostRows ?? []) as unknown as CohostRow[])
+        .filter((row) => row.events !== null && !hosting.some((event) => event.id === row.events!.id))
+        .map((row) => {
+          const ev = row.events!
+          const isDraft = ev.is_published === false
+          const isPast = new Date(ev.event_date).getTime() < now
+          const status: EventsBoardStatus = !isDraft && isPast ? 'hosted' : 'hosting'
+          return { id: ev.id, status, title: ev.title, host: null, venue: ev.venue ?? '', dateLabel: formatDate(ev.event_date), timeLabel: formatTime(ev.event_date), rsvpStatus: status === 'hosted' ? 'Co-hosted' : 'Co-hosting', theme: ev.theme, coverUrl: ev.cover_url, isDraft }
+        })
+
+      hosting.push(...cohosting)
+
       const hostingIds = new Set(hosting.map((ev) => ev.id))
 
       const invited: EventsBoardEvent[] = ((rsvpRows ?? []) as unknown as HostedRsvpRow[])
-        .filter((r) => r.events !== null && r.events.is_published !== false && !hostingIds.has(r.events.id))
+        .filter((r) => r.events !== null && !hostingIds.has(r.events.id))
         .map((r) => {
           const ev = r.events!
           const past = new Date(ev.event_date).getTime() < now
@@ -109,7 +126,23 @@ export default function EventsPage() {
           }
         })
 
-      setEvents([...hosting, ...invited])
+      const knownIds = new Set([...hosting.map((ev) => ev.id), ...invited.map((ev) => ev.id)])
+      const pending: EventsBoardEvent[] = readPendingInvites()
+        .filter((ev) => ev.event_date && !knownIds.has(ev.id) && new Date(ev.event_date).getTime() >= now)
+        .map((ev) => ({
+          id: ev.id,
+          status: 'invited',
+          title: ev.title,
+          host: null,
+          venue: ev.venue ?? '',
+          dateLabel: formatDate(ev.event_date),
+          timeLabel: formatTime(ev.event_date),
+          rsvpStatus: 'Awaiting your reply',
+          theme: ev.theme,
+          coverUrl: ev.cover_url,
+        }))
+
+      setEvents([...hosting, ...invited, ...pending])
     } catch {
       setError("Couldn't load your events. Try again.")
     } finally {

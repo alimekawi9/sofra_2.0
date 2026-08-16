@@ -14,6 +14,7 @@ import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 import SofraTransition from '@/components/SofraTransition'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
+import { isEventManager } from '@/lib/event-access'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -220,7 +221,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         .eq('id', id)
         .single()
       if (evErr || !ev) { router.replace(`/events/${id}`); return }
-      if (stored !== ev.host_id && stored !== ev.chef_id) {
+      if (stored !== ev.chef_id && !(await isEventManager(supabase, id, stored, ev.host_id))) {
         router.replace(`/events/${id}`)
         return
       }

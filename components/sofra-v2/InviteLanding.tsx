@@ -11,17 +11,18 @@ const INVITE_DESIGNS = [
   { key: 'envelope', image: '/sofra/invite-landings/envelope.png' },
 ] as const
 
-export function InviteLanding({ title, onClaimSeat }: { eventId: string; title: string; onClaimSeat: () => void }) {
+export function InviteLanding({ title, onClaimSeat, kicker = 'You are invited!', buttonLabel = 'Claim my seat' }: { eventId: string; title: string; onClaimSeat: () => void; kicker?: string; buttonLabel?: string }) {
   const [design] = useState(() => INVITE_DESIGNS[Math.floor(Math.random() * INVITE_DESIGNS.length)])
+  const titleSize = title.length > 40 ? 'is-very-long' : title.length > 22 ? 'is-long' : ''
   return (
     <div className={`sv2-root sv2-invite-landing-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className={`sv2-invite-landing sv2-invite-landing-${design.key}`}>
-        <p className="sv2-invite-landing-kicker">You are invited!</p>
+        <p className="sv2-invite-landing-kicker">{kicker}</p>
         <div className="sv2-invite-landing-art">
           <Image src={design.image} alt="" fill priority sizes="(max-width: 560px) 92vw, 520px" />
-          <h1>{title}</h1>
+          <h1 className={titleSize}>{title}</h1>
         </div>
-        <button type="button" onClick={onClaimSeat}>Claim my seat</button>
+        <button type="button" onClick={onClaimSeat}>{buttonLabel}</button>
       </main>
     </div>
   )

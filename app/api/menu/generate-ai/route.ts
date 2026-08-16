@@ -33,8 +33,9 @@ export async function POST(req: Request) {
 
   const supabase = createClient()
   const loadStarted = Date.now()
-  const { data: event } = await supabase.from('events').select('host_id,chef_id').eq('id', body.eventId).maybeSingle()
+  const { data: event } = await supabase.from('events').select('host_id,chef_id,is_published').eq('id', body.eventId).maybeSingle()
   if (!event || event.host_id !== body.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (event.is_published === false) return NextResponse.json({ error: 'Complete your Kitchen inventory before generating a menu.' }, { status: 409 })
   const chefId = event.chef_id ?? event.host_id
   const [{ data: rsvps }, { data: signatures }, { data: pantry }, { data: menu }] = await Promise.all([
     supabase.from('rsvps').select('user_id,users(name)').eq('event_id', body.eventId).in('status', ['going', 'maybe']),

@@ -2,16 +2,10 @@
 
 import Image from 'next/image'
 import { useState, type FormEvent } from 'react'
+import { PHONE_COUNTRIES, phoneLengths, type PhoneCountry } from '@/lib/phone-countries'
 import { sv2Display, sv2Sans } from './fonts'
 
-type PhoneCountry = {
-  iso: string
-  name: string
-  dialCode: string
-  lengths: number[]
-}
-
-const PHONE_COUNTRIES: PhoneCountry[] = [
+/*
   { iso: 'EG', name: 'Egypt', dialCode: '+20', lengths: [10] },
   { iso: 'US', name: 'United States', dialCode: '+1', lengths: [10] },
   { iso: 'CA', name: 'Canada', dialCode: '+1', lengths: [10] },
@@ -56,9 +50,11 @@ const PHONE_COUNTRIES: PhoneCountry[] = [
   { iso: 'AU', name: 'Australia', dialCode: '+61', lengths: [9] },
   { iso: 'NZ', name: 'New Zealand', dialCode: '+64', lengths: [8, 9] },
 ] as const
+*/
 
 function initialCountry(phone: string): PhoneCountry {
   if (!phone.startsWith('+')) return PHONE_COUNTRIES[0]
+  if (phone.startsWith('+1')) return PHONE_COUNTRIES.find((country) => country.iso === 'US') ?? PHONE_COUNTRIES[0]
   return [...PHONE_COUNTRIES]
     .sort((a, b) => b.dialCode.length - a.dialCode.length)
     .find((country) => phone.startsWith(country.dialCode)) ?? PHONE_COUNTRIES[0]
@@ -87,11 +83,12 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
   const country = PHONE_COUNTRIES.find((option) => option.iso === countryIso) ?? PHONE_COUNTRIES[0]
   const nationalDigits = (phone.startsWith(country.dialCode) ? phone.slice(country.dialCode.length) : phone)
     .replace(/\D/g, '')
-  const maxDigits = Math.max(...country.lengths)
-  const valid = country.lengths.includes(nationalDigits.length)
-  const countTarget = country.lengths.length === 1
-    ? String(country.lengths[0])
-    : `${Math.min(...country.lengths)}-${maxDigits}`
+  const lengths = phoneLengths(country)
+  const maxDigits = Math.max(...lengths)
+  const valid = lengths.includes(nationalDigits.length)
+  const countTarget = lengths.length === 1
+    ? String(lengths[0])
+    : `${Math.min(...lengths)}-${maxDigits}`
   const submitDisabled = !valid || isSubmitting
   const formattedNumber = displayNumber(country.iso, nationalDigits)
   const formattedPlaceholder = displayNumber(country.iso, placeholderFor(maxDigits))
@@ -104,7 +101,7 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
   function changeCountry(nextIso: string) {
     const next = PHONE_COUNTRIES.find((option) => option.iso === nextIso) ?? PHONE_COUNTRIES[0]
     setCountryIso(next.iso)
-    const digits = nationalDigits.slice(0, Math.max(...next.lengths))
+    const digits = nationalDigits.slice(0, Math.max(...phoneLengths(next)))
     onPhoneChange(digits ? `${next.dialCode}${digits}` : '')
   }
 

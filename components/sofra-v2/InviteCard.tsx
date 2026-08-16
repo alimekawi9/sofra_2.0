@@ -32,6 +32,7 @@ export interface InviteCardProps {
   guests: InviteCardGuest[]
   submitting: boolean
   onRespond: (response: InviteResponse) => void
+  mode?: 'guest' | 'cohost'
 }
 
 export function InviteCard({
@@ -51,6 +52,7 @@ export function InviteCard({
   guests,
   submitting,
   onRespond,
+  mode = 'guest',
 }: InviteCardProps) {
   const [declineStep, setDeclineStep] = useState(0)
 
@@ -64,7 +66,7 @@ export function InviteCard({
   }
 
   const declineLabel = declineStep === 0
-    ? 'MAYBE NEXT TIME'
+    ? mode === 'cohost' ? 'NO, THANK YOU' : 'MAYBE NEXT TIME'
     : declineStep === 1
       ? 'ARE YOU SURE?'
       : declineStep === 2
@@ -86,15 +88,15 @@ export function InviteCard({
         ) : (
           <>
             <header>
-              <p>YOU ARE INVITED!</p>
-              <h1>Take your seat.</h1>
+              <p>{mode === 'cohost' ? 'YOU ARE INVITED TO CO-HOST!' : 'YOU ARE INVITED!'}</p>
+              <h1>{mode === 'cohost' ? 'Take your place beside the host.' : 'Take your seat.'}</h1>
             </header>
 
             <article className="sv2-invite-card">
               <div className="sv2-invite-ornament" aria-hidden="true">
                 <Image src={DEFAULT_EVENT_IMAGE_PATH} alt="" width={1125} height={1401} />
               </div>
-              <p>YOU&apos;RE INVITED TO</p>
+              <p>{mode === 'cohost' ? 'YOU&apos;RE INVITED TO CO-HOST' : 'YOU&apos;RE INVITED TO'}</p>
               <h2>{title}</h2>
               {note && <p className="sv2-invite-message">{note}</p>}
               <dl>
@@ -113,14 +115,14 @@ export function InviteCard({
                     ))}
                   </div>
                 ) : (
-                  <p>RSVP TO MEET THE REST OF THE TABLE.</p>
+                  <p>{mode === 'cohost' ? 'ACCEPT TO MEET THE REST OF THE TABLE.' : 'RSVP TO MEET THE REST OF THE TABLE.'}</p>
                 )}
               </section>
             </article>
 
             <div className="sv2-invite-choices">
-              <button type="button" disabled={submitting} onClick={() => onRespond('going')}>SAVE ME A SEAT</button>
-              <button type="button" disabled={submitting} onClick={() => onRespond('maybe')}>I&apos;LL THINK ABOUT IT</button>
+              <button type="button" disabled={submitting} onClick={() => onRespond('going')}>{mode === 'cohost' ? 'YES, I’LL CO-HOST' : 'SAVE ME A SEAT'}</button>
+              {mode === 'guest' && <button type="button" disabled={submitting} onClick={() => onRespond('maybe')}>I&apos;LL THINK ABOUT IT</button>}
               <button
                 type="button"
                 className={`sv2-decline-choice sv2-decline-choice-${declineStep}`}

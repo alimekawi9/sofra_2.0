@@ -36,6 +36,17 @@ function makeSupabase({
           }),
         }
       }
+      if (table === 'event_cohosts') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          }),
+        }
+      }
       // event_questionnaires
       return {
         select: jest.fn().mockReturnValue({

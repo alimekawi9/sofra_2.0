@@ -16,6 +16,7 @@ import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib
 import { sortedQuestions, isCustom, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
 import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
+import { isEventManager } from '@/lib/event-access'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -110,7 +111,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
         .eq('id', id)
         .single()
       if (evErr || !ev) { router.replace(`/events/${id}`); return }
-      if (stored !== ev.host_id) { router.replace(`/events/${id}`); return }
+      if (!(await isEventManager(supabase, id, stored, ev.host_id))) { router.replace(`/events/${id}`); return }
       setEventTitle(ev.title)
       setEventDate(ev.event_date)
 

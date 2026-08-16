@@ -19,6 +19,7 @@ import {
   type RecipeIngredient,
 } from "@/lib/recipes";
 import "@/components/sofra-v2/sofra-v2.css";
+import { isEventManager } from "@/lib/event-access";
 
 type StoredRecipe = Omit<Recipe, "ingredients"> & {
   recipe_ingredients: RecipeIngredient[];
@@ -90,7 +91,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
         .select("host_id,chef_id,title,event_date")
         .eq("id", id)
         .maybeSingle();
-      if (!event || event.host_id !== userId) {
+      if (!event || (event.chef_id !== userId && !(await isEventManager(supabase, id, userId, event.host_id)))) {
         router.replace(`/events/${id}`);
         return;
       }

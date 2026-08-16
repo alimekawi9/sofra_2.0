@@ -425,6 +425,13 @@ describe('SignupForm', () => {
   })
 
   it('contains no password field', () => {
+    const options = render(<SignupForm {...baseProps} />).getAllByRole('option')
+    expect(options.length).toBeGreaterThanOrEqual(240)
+    expect(screen.getByRole('option', { name: '+93 AF' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '+354 IS' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '+688 TV' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '+383 XK' })).toBeInTheDocument()
+
     const { container } = render(<SignupForm {...baseProps} />)
     expect(container.querySelector('input[type="password"]')).toBeNull()
   })

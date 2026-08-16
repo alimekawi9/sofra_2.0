@@ -50,6 +50,17 @@ it('calls the atomic idempotent RPC with correctly serialized production fields'
   })
 })
 
+it('allows RSVP submission while the event is still a draft', async () => {
+  const rpc = jest.fn().mockResolvedValue({ data: { success: true }, error: null })
+  const from = jest.fn(() => ({
+    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: validBody.eventId, is_published: false }, error: null }) }) }),
+  }))
+  ;(createClient as jest.Mock).mockReturnValue({ rpc, from })
+  const response = await POST(request(validBody))
+  expect(response.status).toBe(200)
+  expect(rpc).toHaveBeenCalledWith('submit_rsvp_preferences', expect.any(Object))
+})
+
 it('rejects invalid event identity before calling Supabase', async () => {
   const rpc = jest.fn()
   ;(createClient as jest.Mock).mockReturnValue({ rpc, from: publishedEventFrom() })

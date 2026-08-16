@@ -233,6 +233,23 @@ describe('Hosting events', () => {
 })
 
 describe('Invited events', () => {
+  it('keeps an opened invitation in INVITED before an RSVP exists', async () => {
+    localStorage.setItem('sofra_pending_invites', JSON.stringify([{
+      id: 'pending-1',
+      title: 'Layla’s Long Table',
+      event_date: '2099-09-01T19:00:00Z',
+      venue: 'The Garden Room',
+      theme: 'ember',
+      cover_url: null,
+    }]))
+    makeSupabase()
+    render(<EventsPage />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'INVITED' })).toBeInTheDocument())
+    expect(screen.getByText('Layla’s Long Table')).toBeInTheDocument()
+    expect(screen.getByText('Awaiting your reply')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view event/i })).toHaveAttribute('href', '/events/pending-1')
+  })
+
   it('a going RSVP for a future event shows a GOING filter with the event and host name', async () => {
     makeSupabase({
       invitedRsvps: [{ status: 'going', events: { ...SAMPLE_EVENT, id: 'ev-2', title: 'Rooftop Night', host: { name: 'Layla' } } }],

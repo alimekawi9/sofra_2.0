@@ -298,7 +298,7 @@
   opacity:.3;
 }
 
-.sv2-phone-entry{width:84%;max-width:100%;margin-left:auto;margin-right:auto;color:#E7DED0}.sv2-phone-entry-row{display:grid;grid-template-columns:70px minmax(0,1fr);align-items:center;gap:2px;width:100%;border-bottom:1px dashed currentColor}.sv2-phone-entry select{width:70px;max-width:100%;padding:6px 1px;border:0;background:transparent;color:inherit;font:500 clamp(.64rem,2.5vw,.82rem)/1 var(--sv2-sans-family);outline:none}.sv2-phone-entry select option{color:#5C1515;background:#F4EFE4}.sv2-phone-entry .sv2-plate-input{min-width:0;font-size:clamp(.72rem,3vw,.92rem);text-align:left;text-overflow:clip}.sv2-phone-counter{display:block;margin-top:6px;margin-left:0;color:inherit;font:400 clamp(.58rem,2.2vw,.72rem)/1 var(--sv2-sans-family);letter-spacing:.04em;opacity:.65}.sv2-phone-counter.is-invalid{opacity:1}
+.sv2-phone-entry{width:86%;max-width:100%;margin-left:auto;margin-right:auto;color:#E7DED0}.sv2-phone-entry-row{display:grid;grid-template-columns:80px minmax(0,1fr);align-items:center;gap:0;width:100%;border-bottom:1px dashed currentColor}.sv2-phone-entry select{width:80px;min-width:80px;max-width:100%;padding:6px 2px 6px 1px;border:0;background:transparent;color:inherit;font:500 clamp(.6rem,2.2vw,.76rem)/1 var(--sv2-sans-family);outline:none}.sv2-phone-entry select option{color:#5C1515;background:#F4EFE4}.sv2-phone-entry .sv2-plate-input{min-width:0;padding-right:12px;font-size:clamp(.68rem,2.7vw,.86rem);text-align:left;text-overflow:clip}.sv2-phone-counter{display:block;margin-top:6px;margin-left:0;color:inherit;font:400 clamp(.58rem,2.2vw,.72rem)/1 var(--sv2-sans-family);letter-spacing:.04em;opacity:.65}.sv2-phone-counter.is-invalid{opacity:1}
 
 .sv2-plate-input{
   display:block;
@@ -327,7 +327,7 @@
 }
 
 .sv2-plate-wrap--silver .sv2-plate-input{
-  color:var(--sv2-ink);
+  color:#68171a;
 }
 
 .sv2-plate-wrap--burgundy .sv2-plate-input{
@@ -1215,10 +1215,12 @@
 .sv2-invite-landing-kicker{margin:0 0 20px;font:600 17px/1.1 var(--sv2-sans-family);letter-spacing:.06em;text-transform:uppercase}
 .sv2-invite-landing-art{position:relative;width:min(100%,390px);aspect-ratio:2/3;overflow:hidden}
 .sv2-invite-landing-art img{object-fit:cover}
-.sv2-invite-landing-art h1{position:absolute;z-index:1;left:25%;right:25%;top:44%;margin:0;transform:translateY(-50%);color:#68171a;text-align:center;font:italic clamp(15px,4vw,23px)/1.1 var(--sv2-display-family);overflow-wrap:anywhere}
+.sv2-invite-landing-art h1{position:absolute;z-index:1;left:28%;right:28%;top:44%;max-width:44%;margin:0 auto;transform:translateY(-50%);color:#68171a;text-align:center;text-wrap:balance;font:italic clamp(14px,3.6vw,21px)/1.08 var(--sv2-display-family);overflow-wrap:anywhere;word-break:normal}
 .sv2-invite-landing-silver .sv2-invite-landing-art h1{left:27%;right:27%;top:51%}
 .sv2-invite-landing-spots .sv2-invite-landing-art h1{left:29%;right:27%;top:59%;font-size:clamp(13px,3.5vw,20px)}
 .sv2-invite-landing-envelope .sv2-invite-landing-art h1{left:27%;right:27%;top:38%}
+.sv2-invite-landing .sv2-invite-landing-art h1.is-long{font-size:clamp(13px,3.2vw,18px);line-height:1.06}
+.sv2-invite-landing .sv2-invite-landing-art h1.is-very-long{font-size:clamp(11px,2.8vw,15px);line-height:1.04}
 .sv2-invite-landing>button{width:min(100%,250px);min-height:48px;margin-top:20px;padding:12px 24px;border:1px solid #68171a;border-radius:999px;background:transparent;color:#68171a;font:600 11px/1 var(--sv2-sans-family);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
 .sv2-invite-landing>button:hover,.sv2-invite-landing>button:focus-visible{background:#68171a;color:#f7f1e8}
 
@@ -1566,3 +1568,4 @@
   background-color:rgba(100,22,26,.78)!important;
   color:var(--sv2-off-white)!important;
 }
+.sv2-event-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.sv2-event-topbar .sv2-back-link{margin-bottom:0}.sv2-cohost-trigger{flex:0 0 auto;padding:8px 16px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:var(--sv2-ink);font:600 11px/1 var(--sv2-sans-family);letter-spacing:.12em}.sv2-cohost-trigger[aria-expanded="true"]{background:var(--sv2-ink);color:var(--sv2-paper)}.sv2-cohost-share{display:grid;gap:8px;margin:-10px 0 18px;padding:12px;border:1px solid rgba(92,21,21,.22);border-radius:18px;background:rgba(244,239,228,.72);box-shadow:0 8px 24px rgba(92,21,21,.08)}.sv2-cohost-share p{margin:0;font-size:12px;color:#7a2324}

@@ -18,6 +18,7 @@ import { PreferencesConfirm } from '@/components/sofra-v2/PreferencesConfirm'
 import { InviteCard, type InviteCardGuest, type InviteResponse } from '@/components/sofra-v2/InviteCard'
 import { MissingOut } from '@/components/sofra-v2/MissingOut'
 import { CustomQuestionField, type CustomResponseValue } from '@/components/sofra-v2/CustomQuestionField'
+import { forgetPendingInvite } from '@/lib/pending-invites'
 import {
   DEFAULT_QUESTIONNAIRE,
   sortedQuestions,
@@ -71,6 +72,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const flavorsRef = useRef<string[]>([])
 
   const [loading, setLoading] = useState(true)
+  const [identityConfirmed, setIdentityConfirmed] = useState(false)
   const [step, setStep] = useState<Step>('status')
   const [status, setStatus] = useState<RsvpStatus | null>(null)
   const [event, setEvent] = useState<EventRow | null>(null)
@@ -89,7 +91,6 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [changedCanonicalKeys, setChangedCanonicalKeys] = useState<CanonicalQuestionConfig['canonicalKey'][] | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [isUnpublished, setIsUnpublished] = useState(false)
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireConfig>(DEFAULT_QUESTIONNAIRE)
   const [customAnswers, setCustomAnswers] = useState<Record<string, CustomResponseValue>>({})
   const customAnswersRef = useRef<Record<string, CustomResponseValue>>({})
@@ -100,10 +101,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.push('/name?next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
+        router.push('/login?invite=1&next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
         return
       }
       uidRef.current = stored
+      setIdentityConfirmed(true)
 
       const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
         supabase.from('events')
@@ -122,13 +124,6 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       ])
 
       if (e0 || e1 || e2) throw new Error('fetch failed')
-
-      if (ev.is_published === false && ev.host_id !== stored) {
-        setIsUnpublished(true)
-        setEvent(null)
-        return
-      }
-      setIsUnpublished(false)
 
       setEvent(ev as unknown as EventRow)
 
@@ -233,6 +228,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       setError('Something went wrong. Please try again.')
       return
     }
+    forgetPendingInvite(params.id)
     setStatus('cant')
     setStep('missing-out')
   }
@@ -254,6 +250,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       setError('Something went wrong. Please try again.')
       return
     }
+    forgetPendingInvite(params.id)
     router.push('/events/' + params.id)
   }
 
@@ -289,6 +286,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       setSubmitting(false)
       return
     }
+    forgetPendingInvite(params.id)
 
     // Custom (event-specific) question answers are stored separately from
     // canonical taste-profile fields and are best-effort: their save never
@@ -385,16 +383,9 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setStep('profile')
   }
 
-  if (!loading && isUnpublished) {
-    return (
-      <div className="sv2-root sv2-device-page sv2-app-page">
-        <main className="sv2-device-shell sv2-app-shell" style={{ padding: '72px 24px', textAlign: 'center' }}>
-          <h1>This event isn&apos;t published yet</h1>
-          <p>The host is still getting the table ready. RSVP will open once the invite is published.</p>
-        </main>
-      </div>
-    )
-  }
+  // Keep all RSVP content unmounted until the local identity check succeeds.
+  // This prevents the RSVP card flashing before the phone/name sequence.
+  if (!identityConfirmed || loading) return null
 
   if (step === 'missing-out') {
     return <MissingOut onReturnToInvite={() => setStep('status')} />
@@ -413,7 +404,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     )
   }
 
-  if (step === 'profile' && !loading && !error) {
+  if (step === 'profile' && !error) {
     const canonicalByKey = Object.fromEntries(
       sortedQuestions(questionnaire).filter(isCanonical).map((q) => [q.canonicalKey, q])
     ) as Partial<Record<CanonicalQuestionConfig['canonicalKey'], CanonicalQuestionConfig>>
@@ -488,7 +479,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
   return (
     <InviteCard
-      loading={loading}
+      loading={false}
       error={error}
       onRetry={loadData}
       title={event?.title ?? ''}

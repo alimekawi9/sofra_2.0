@@ -88,7 +88,7 @@ it('falls back to the branded themed image when there is no cover photo', async 
   ])
 })
 
-it('does not leak the real title of an unpublished draft event', async () => {
+it('keeps invitation metadata active while an event is still a draft', async () => {
   const supabase = makeSupabase({
     title: 'Secret Surprise Party',
     tagline: 'Do not tell the guest of honor',
@@ -99,11 +99,11 @@ it('does not leak the real title of an unpublished draft event', async () => {
 
   const metadata = await generateMetadata(PARAMS)
 
-  expect(metadata.title).toBe('Sofra Invitation')
-  expect(metadata.description).toBe("You're invited to a Sofra.")
-  expect(metadata.openGraph?.title).toBe('Sofra Invitation')
+  expect(metadata.title).toBe('Secret Surprise Party')
+  expect(metadata.description).toBe('Do not tell the guest of honor')
+  expect(metadata.openGraph?.title).toBe('Secret Surprise Party')
   expect(metadata.openGraph?.images).toEqual([
-    { url: 'http://localhost:3000/sofra/default-event-cover.jpeg' },
+    { url: 'https://storage.example.com/covers/ev-1.jpg' },
   ])
 })
 

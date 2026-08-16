@@ -7,6 +7,7 @@ import { EventPaper, type EventPaperGuest } from '@/components/sofra-v2/EventPap
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
 import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/shared-album'
+import { rememberPendingInvite } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
 
 type EventRow = {
@@ -25,6 +26,10 @@ type EventRow = {
 
 type GuestRow = {
   status: string
+  users: { id: string; name: string; photo_url: string | null } | null
+}
+
+type CohostGuestRow = {
   users: { id: string; name: string; photo_url: string | null } | null
 }
 
@@ -59,10 +64,14 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [unlocked, setUnlocked] = useState(false)
   const [isHost, setIsHost] = useState(false)
   const [hostNeedsPreferences, setHostNeedsPreferences] = useState(false)
-  const [isUnpublishedVisitor, setIsUnpublishedVisitor] = useState(false)
   const [showInviteLanding, setShowInviteLanding] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
+  const [canInviteCohost, setCanInviteCohost] = useState(false)
+  const [cohostSharing, setCohostSharing] = useState(false)
+  const [cohostToken, setCohostToken] = useState('')
+  const [cohostCopied, setCohostCopied] = useState(false)
+  const [cohostShareError, setCohostShareError] = useState('')
   const [photos, setPhotos] = useState<AlbumPhoto[]>([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState('')
@@ -94,13 +103,8 @@ export default function EventDetailClient({ params }: { params: { id: string } }
           .eq('id', params.id)
           .single()
         if (publicEventError || !publicEvent) throw new Error(publicEventError?.message ?? 'event not found')
-        if (publicEvent.is_published === false) {
-          setIsUnpublishedVisitor(true)
-          setEvent(null)
-          return
-        }
-        setIsUnpublishedVisitor(false)
         setEvent(publicEvent as EventRow)
+        rememberPendingInvite(publicEvent as EventRow)
         setShowInviteLanding(true)
         return
       }
@@ -130,16 +134,9 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         console.error('Event RSVP lookup failed', { eventId: params.id, code: e2.code, message: e2.message })
       }
 
-      const hostViewing = ev.host_id === stored
-      if (ev.is_published === false && !hostViewing) {
-        setIsUnpublishedVisitor(true)
-        setEvent(null)
-        setUnlocked(false)
-        setIsHost(false)
-        return
-      }
-
-      setIsUnpublishedVisitor(false)
+      const { data: cohostRow } = ev.host_id === stored ? { data: null } : await supabase
+        .from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', stored).maybeSingle()
+      const hostViewing = ev.host_id === stored || Boolean(cohostRow)
       setEvent(ev as EventRow)
       const safeRsvpRow = e2 ? null : rsvpRow
       const hasRsvp = safeRsvpRow !== null
@@ -147,9 +144,11 @@ export default function EventDetailClient({ params }: { params: { id: string } }
 
       setHasRsvpRow(hasRsvp)
       setShowInviteLanding(!hostViewing && !hasRsvp)
+      if (!hostViewing && !hasRsvp) rememberPendingInvite(ev as EventRow)
       setMyRsvp(safeRsvpRow?.status ?? null)
       setUnlocked(isUnlocked)
       setIsHost(hostViewing)
+      setCanInviteCohost(ev.host_id === stored)
       setHostNeedsPreferences(hostViewing && !tasteProfile)
 
       if (isUnlocked) {
@@ -159,17 +158,23 @@ export default function EventDetailClient({ params }: { params: { id: string } }
           .eq('event_id', params.id)
           .in('status', ['going', 'maybe'])
 
-        if (!e3 && guestRows) {
-          setGuests(
-            (guestRows as unknown as GuestRow[])
-              .filter((g) => g.users !== null)
-              .map((g) => ({
-                id: g.users!.id,
-                name: g.users!.name,
-                photoUrl: g.users!.photo_url,
-                isHost: g.users!.id === ev.host_id,
-              }))
-          )
+        const { data: cohostRows } = await supabase
+          .from('event_cohosts')
+          .select('users(id,name,photo_url)')
+          .eq('event_id', params.id)
+
+        if (!e3) {
+          const rsvpGuests = (guestRows ?? []) as unknown as GuestRow[]
+          const roster = rsvpGuests
+            .filter((g) => g.users !== null)
+            .map((g) => ({ id: g.users!.id, name: g.users!.name, photoUrl: g.users!.photo_url, isHost: g.users!.id === ev.host_id }))
+          const knownIds = new Set(roster.map((guest) => guest.id))
+          for (const row of (cohostRows ?? []) as unknown as CohostGuestRow[]) {
+            if (!row.users || knownIds.has(row.users.id)) continue
+            roster.push({ id: row.users.id, name: row.users.name, photoUrl: row.users.photo_url, isHost: true })
+            knownIds.add(row.users.id)
+          }
+          setGuests(roster)
         }
 
         await loadPhotos()
@@ -238,6 +243,11 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     }
   }
 
+  function claimSeat() {
+    const rsvpPath = '/events/' + params.id + '/rsvp'
+    router.push('/login?invite=1&next=' + encodeURIComponent(rsvpPath))
+  }
+
   async function handleRemoveGuest(guestId: string) {
     if (!isHost) return
     setRemovingGuestId(guestId)
@@ -262,25 +272,49 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank')
   }
 
-  const isPast = event ? new Date(event.event_date).getTime() < Date.now() : false
-
-  if (!loading && isUnpublishedVisitor) {
-    return (
-      <div className="sv2-root sv2-device-page sv2-app-page">
-        <main className="sv2-device-shell sv2-app-shell" style={{ padding: '72px 24px', textAlign: 'center' }}>
-          <h1>This event isn&apos;t published yet</h1>
-          <p>The host is still getting the table ready. Please check back after the invite is published.</p>
-        </main>
-      </div>
-    )
+  async function ensureCohostLink(): Promise<string | null> {
+    if (cohostToken) return new URL(`/events/${params.id}/cohost?token=${cohostToken}`, window.location.origin).toString()
+    setCohostShareError('')
+    const { data, error: inviteError } = await supabase.from('event_cohost_invites')
+      .insert({ event_id: params.id }).select('token').single()
+    if (inviteError || !data?.token) {
+      setCohostShareError('Could not create a co-host link. Try again.')
+      return null
+    }
+    setCohostToken(data.token)
+    return new URL(`/events/${params.id}/cohost?token=${data.token}`, window.location.origin).toString()
   }
+
+  async function toggleCohostSharing() {
+    const opening = !cohostSharing
+    setCohostSharing(opening)
+    if (opening) await ensureCohostLink()
+  }
+
+  async function copyCohostLink() {
+    const url = await ensureCohostLink()
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      setCohostCopied(true)
+      setTimeout(() => setCohostCopied(false), 2000)
+    } catch { setCohostShareError('Could not copy the link. Try WhatsApp instead.') }
+  }
+
+  async function shareCohostWhatsApp() {
+    const url = await ensureCohostLink()
+    if (!url || !event) return
+    window.open('https://wa.me/?text=' + encodeURIComponent(`Will you co-host ${event.title} with me? ${url}`), '_blank')
+  }
+
+  const isPast = event ? new Date(event.event_date).getTime() < Date.now() : false
 
   if (!loading && event && showInviteLanding) {
     return (
       <InviteLanding
         eventId={params.id}
         title={event.title}
-        onClaimSeat={() => router.push('/events/' + params.id + '/rsvp')}
+        onClaimSeat={claimSeat}
       />
     )
   }
@@ -308,6 +342,13 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       copyFallbackUrl={copyFallbackUrl}
       onCopyInviteLink={copyInviteLink}
       onShareWhatsApp={shareViaWhatsApp}
+      canInviteCohost={canInviteCohost}
+      cohostSharing={cohostSharing}
+      cohostCopied={cohostCopied}
+      cohostShareError={cohostShareError}
+      onToggleCohostSharing={toggleCohostSharing}
+      onCopyCohostLink={copyCohostLink}
+      onShareCohostWhatsApp={shareCohostWhatsApp}
       onViewTable={() => router.push('/events/' + params.id + '/table')}
       hostNeedsPreferences={hostNeedsPreferences}
       onAddHostPreferences={() => router.push('/events/' + params.id + '/rsvp?preferences=1')}

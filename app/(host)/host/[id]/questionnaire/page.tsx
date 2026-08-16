@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { QuestionnaireEditor } from '@/components/sofra-v2/QuestionnaireEditor'
 import { DEFAULT_QUESTIONNAIRE, validateQuestionnaire, type QuestionnaireConfig } from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
+import { isEventManager } from '@/lib/event-access'
 
 export default function HostQuestionnairePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -39,7 +40,7 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
         return
       }
 
-      if (ev.host_id !== stored) {
+      if (!(await isEventManager(supabase, params.id, stored, ev.host_id))) {
         router.replace('/events/' + params.id)
         return
       }

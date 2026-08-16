@@ -23,6 +23,7 @@ const SAMPLE_EVENT = {
   dress_code: 'Smart casual',
   theme: 'ember',
   cover_url: null,
+  is_published: true,
 }
 
 function makeSupabase({
@@ -36,6 +37,7 @@ function makeSupabase({
   photoInsertError = null as { message: string } | null,
   photoUploadError = null as { message: string } | null,
   tasteProfile = { user_id: HOST_UID } as { user_id: string } | null,
+  cohostRows = [] as Array<{ users: { id: string; name: string; photo_url: string | null } | null }>,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -90,6 +92,28 @@ function makeSupabase({
           }),
         }
       }
+      if (table === 'event_cohosts') {
+        return {
+          select: jest.fn((columns: string) => columns.startsWith('users') ? {
+            eq: jest.fn().mockResolvedValue({ data: cohostRows, error: null }),
+          } : {
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          }),
+        }
+      }
+      if (table === 'event_cohost_invites') {
+        return {
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({ data: { token: 'cohost-token' }, error: null }),
+            }),
+          }),
+        }
+      }
       // rsvps
       return {
         select: jest.fn().mockReturnValue({ eq: outerEqMock }),
@@ -127,22 +151,39 @@ beforeEach(() => {
 const PARAMS = { id: 'ev-1' }
 
 describe('fresh-browser initialization', () => {
-  it('redirects to name-only onboarding with the original event as next, without querying or showing an error', async () => {
-    const sb = makeSupabase()
+  it('keeps the invitation active while the event is still a draft', async () => {
+    makeSupabase({ event: { ...SAMPLE_EVENT, is_published: false } })
+    render(<EventDetailPage params={PARAMS} />)
+    expect(await screen.findByRole('button', { name: /claim my seat/i })).toBeInTheDocument()
+    expect(screen.queryByText(/isn't published yet/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the random landing first and sends Claim my seat directly to the phone-first invite flow', async () => {
+    makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
 
-    await waitFor(() =>
-      expect(mockReplace).toHaveBeenCalledWith('/name?next=%2Fevents%2Fev-1')
-    )
-    expect(sb.from).not.toHaveBeenCalled()
-    expect(screen.queryByText(/couldn't load this event/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/invalid or unavailable/i)).not.toBeInTheDocument()
+    const claim = await screen.findByRole('button', { name: /claim my seat/i })
+    expect(screen.queryByText('The Garden Room')).not.toBeInTheDocument()
+    expect(localStorage.getItem('sofra_pending_invites')).toContain('ev-1')
+    await userEvent.click(claim)
+    expect(mockPush).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fev-1%2Frsvp')
   })
 })
 
 // ─── Copy invite link ───────────────────────────────────────────────────────
 
 describe('Copy invite link button', () => {
+  it('keeps co-host sharing choices collapsed until the host asks for them', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase()
+    render(<EventDetailPage params={PARAMS} />)
+    const cohost = await screen.findByRole('button', { name: 'CO-HOST' })
+    expect(screen.queryByRole('button', { name: /copy co-host link/i })).not.toBeInTheDocument()
+    await userEvent.click(cohost)
+    expect(await screen.findByRole('button', { name: /copy co-host link/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /send via whatsapp/i })).toBeInTheDocument()
+  })
+
   it('shows "Copy invite link" button when user is the host', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
@@ -457,6 +498,14 @@ describe('Shared album', () => {
 })
 
 describe('Remove guest', () => {
+  it('shows an accepted co-host in Around this Sofra with a Host badge', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ cohostRows: [{ users: { id: 'cohost-1', name: 'Mariam', photo_url: null } }] })
+    render(<EventDetailPage params={PARAMS} />)
+    expect(await screen.findByText('Mariam')).toBeInTheDocument()
+    expect(screen.getAllByText('Host').length).toBeGreaterThan(0)
+  })
+
   const REMOVABLE_GUEST = { status: 'going', users: { id: 'guest-abc', name: 'Omar' } }
 
   it('shows a Remove control per guest for the host', async () => {
@@ -598,22 +647,21 @@ it('shows the going RSVP copy without a star', async () => {
 })
 
 describe('Locked table preview', () => {
-  it('shows the locked card with exact copy for a guest with no RSVP', async () => {
+  it('does not reveal the table preview before a guest claims the invite', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByText('The table')).toBeInTheDocument())
-    expect(screen.getByText('🔒 RSVP to see who')).toBeInTheDocument()
-    expect(screen.getByText("The table’s filling up. Reply to meet them.")).toBeInTheDocument()
+    await screen.findByRole('button', { name: /claim my seat/i })
+    expect(screen.queryByText('The table')).not.toBeInTheDocument()
     expect(screen.queryByText('Around this Sofra')).not.toBeInTheDocument()
   })
 
-  it('renders 6 blurred decorative dots, not real guest data', async () => {
+  it('does not render decorative RSVP preview data before identity entry', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     const { container } = render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByText('The table')).toBeInTheDocument())
-    expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(6)
+    await screen.findByRole('button', { name: /claim my seat/i })
+    expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(0)
   })
 
   it('is replaced by the real guest grid once unlocked', async () => {

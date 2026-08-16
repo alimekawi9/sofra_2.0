@@ -39,6 +39,13 @@ export interface EventPaperProps {
   copyFallbackUrl: string
   onCopyInviteLink: () => void
   onShareWhatsApp: () => void
+  canInviteCohost?: boolean
+  cohostSharing?: boolean
+  cohostCopied?: boolean
+  cohostShareError?: string
+  onToggleCohostSharing?: () => void
+  onCopyCohostLink?: () => void
+  onShareCohostWhatsApp?: () => void
   onViewTable: () => void
   hostNeedsPreferences: boolean
   onAddHostPreferences: () => void
@@ -89,6 +96,13 @@ export function EventPaper({
   copyFallbackUrl,
   onCopyInviteLink,
   onShareWhatsApp,
+  canInviteCohost = false,
+  cohostSharing = false,
+  cohostCopied = false,
+  cohostShareError = '',
+  onToggleCohostSharing,
+  onCopyCohostLink,
+  onShareCohostWhatsApp,
   onViewTable,
   hostNeedsPreferences,
   onAddHostPreferences,
@@ -113,7 +127,23 @@ export function EventPaper({
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-event-detail-shell">
-        <Link className="sv2-back-link" href="/events">← Your Sofras</Link>
+        <div className="sv2-event-topbar">
+          <Link className="sv2-back-link" href="/events">← Your Sofras</Link>
+          {canInviteCohost && (
+            <button className="sv2-cohost-trigger" type="button" onClick={onToggleCohostSharing} aria-expanded={cohostSharing}>
+              CO-HOST
+            </button>
+          )}
+        </div>
+        {canInviteCohost && cohostSharing && (
+          <div className="sv2-cohost-share">
+            <div className="sv2-host-share-actions" aria-label="Co-host sharing options">
+              <button type="button" onClick={onCopyCohostLink}>{cohostCopied ? 'COPIED!' : 'COPY CO-HOST LINK'}</button>
+              <button type="button" onClick={onShareCohostWhatsApp}>SEND VIA WHATSAPP</button>
+            </div>
+            {cohostShareError && <p role="alert">{cohostShareError}</p>}
+          </div>
+        )}
 
         {loading ? (
           <p style={{ fontSize: 13 }}>Loading…</p>

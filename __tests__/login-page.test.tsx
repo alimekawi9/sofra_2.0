@@ -54,6 +54,25 @@ it('shows the welcome splash first, with no form fields', async () => {
   expect(screen.queryByLabelText(/phone/i)).not.toBeInTheDocument()
 })
 
+it('opens the existing phone page immediately for an invite entry', () => {
+  query.set('invite', '1')
+  query.set('next', '/events/ev-1/rsvp')
+  makeSupabase(null)
+  render(<LoginPage />)
+  expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /yalla/i })).not.toBeInTheDocument()
+})
+
+it('always asks for phone on an invite entry even when a local identity exists', () => {
+  localStorage.setItem('sofra_user_id', 'stored-user')
+  query.set('invite', '1')
+  query.set('next', '/events/ev-1/rsvp')
+  makeSupabase(null)
+  render(<LoginPage />)
+  expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument()
+  expect(replace).not.toHaveBeenCalled()
+})
+
 it('an existing phone logs the user in directly, without ever asking for a name', async () => {
   const setItem = jest.spyOn(Storage.prototype, 'setItem')
   query.set('next', '/events/ev-1')

@@ -43,8 +43,7 @@ function makeSupabase({
   const upload = jest.fn().mockResolvedValue({ error: uploadError })
   const getPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/new.jpg' } })
 
-  const sb = {
-    from: jest.fn().mockReturnValue({
+  const defaultTable = {
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({ data: event, error: fetchError }),
@@ -52,7 +51,11 @@ function makeSupabase({
       }),
       update,
       delete: del,
-    }),
+    }
+  const sb = {
+    from: jest.fn((table: string) => table === 'event_cohosts'
+      ? { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }) }) }) }
+      : defaultTable),
     storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) },
     update, upload, getPublicUrl, delete: del, deleteEq,
   }

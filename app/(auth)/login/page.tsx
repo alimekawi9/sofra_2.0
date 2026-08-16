@@ -29,8 +29,9 @@ function LoginInner() {
   const supabase = createClient()
 
   const next = safeNext(searchParams?.get('next') ?? null)
+  const inviteEntry = searchParams?.get('invite') === '1'
 
-  const [step, setStep] = useState<Step>('welcome')
+  const [step, setStep] = useState<Step>(() => inviteEntry ? 'phone' : 'welcome')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
@@ -39,12 +40,12 @@ function LoginInner() {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
+    if (stored && !inviteEntry) {
       router.replace(next)
     } else {
       setLoading(false)
     }
-  }, [router, next])
+  }, [router, next, inviteEntry])
 
   // Phone-first: an existing account (matched by phone) logs straight in.
   // Only a genuinely new phone number continues to the name step.

@@ -55,6 +55,9 @@ function makeSupabase({
           }),
         }
       }
+      if (table === 'event_cohosts') {
+        return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }) }) }) }
+      }
       if (table === 'taste_profiles') {
         return {
           select: jest.fn().mockReturnValue({

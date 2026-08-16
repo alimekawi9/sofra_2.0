@@ -2,6 +2,20 @@
 
 ## Completed
 
+- Shared-link invitation landing titles now use a narrower, balanced text box
+  with length-aware type scaling so long event names remain inside the artwork
+  label instead of leaking across its edges.
+- Invite entry ordering is now strictly landing → existing phone page → name
+  page only for an unknown phone → RSVP status. Invite claims always open the
+  phone page immediately, while the RSVP route mounts no details until local
+  identity is confirmed. Existing page content and RSVP button destinations
+  are unchanged; typed name text is burgundy.
+- Opened but unanswered shared-link invitations are retained locally and
+  merged into the existing Invited dashboard tab until an RSVP is saved, so
+  backing out to Your Sofras does not lose the invitation. The phone plate now
+  reserves a fixed-width country selector and right-side input breathing room,
+  keeping long dial-code labels and placeholders inside the inner circle.
+
 - Event menu recipes now support host-entered or one-time structured Gemini
   generation, persisted base servings/instructions/ingredient quantities,
   deterministic guest-count scaling, and visible recipe-level allergen
@@ -269,3 +283,19 @@
 
 - `validateUploadBatch` (`lib/shared-album.ts`) now checks a new selection against the album's existing photo count, not just the size of the new batch, so uploads across multiple sessions can no longer push a shared album past 20 photos total. `AddPhotosControl` takes a `currentCount` prop, hides the upload trigger once the album is full, and surfaces how many more photos (if any) can still be added. A native OS multi-photo picker can't be capped mid-selection from the web app; this enforces the cap before and after that picker runs.
 - The shared `.sv2-slider` thumb (used by the adventurousness slider and custom questionnaire sliders) was 14×14px with no `touch-action`, well under mobile touch-target guidance and prone to the browser mistaking a drag for a page-scroll gesture. Enlarged the thumb to 26px, the control height to 28px, and added `touch-action: none`.
+# International phone-country coverage (2026-08-16)
+
+- Replaced the invite phone form's hand-picked selector with comprehensive ISO country and territory coverage, including individually selectable regions that share the `+1` calling code.
+- Existing country-specific lengths remain enforced where defined. Other countries use the E.164 15-digit ceiling as a permissive fallback so valid numbering-plan variations are not incorrectly rejected.
+# Co-host invitations and shared event management (2026-08-16)
+
+- Original hosts can expand a compact `CO-HOST` action on an event and then copy a unique co-host link or send it through WhatsApp; the sharing controls remain hidden until requested.
+- Co-host recipients follow the existing randomized invite landing and phone/name onboarding before event details are revealed. They then accept or reject co-hosting instead of submitting an RSVP.
+- Accepted co-hosts see the Sofra in their `HOSTING` tab and receive event edit, questionnaire, table, menu, and recipe access. Only the original host can issue co-host links or delete the event.
+- Added tokenized co-host invites, explicit event membership, and an atomic database response function so a link cannot create multiple co-hosts after it has been consumed.
+- The co-host landing now explicitly says the recipient is invited to co-host, and its CTA describes opening the co-host invitation. After onboarding, co-hosts see the same invitation artwork and event-detail card as guests, with co-host-specific acceptance copy and the same progressively shrinking three-step rejection interaction.
+- Accepted co-hosts are included in the event's `Around this Sofra` roster with the same `Host` badge as the original host, without duplicating a person who also has an RSVP row.
+# Draft invitations remain active (2026-08-16)
+
+- Event invite landing pages, onboarding, RSVP submission, dashboard visibility, and social-link metadata no longer reject an event merely because `is_published` is false. Draft status describes host setup progress; it is not an invitation-access boundary.
+- The existing `is_published` setup flag now acts only as the Kitchen/inventory readiness gate in menu generation. An incomplete setup returns a clear menu-generation error without disabling invite links or RSVP.

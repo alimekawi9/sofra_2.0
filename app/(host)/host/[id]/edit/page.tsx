@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import '@/components/sofra-v2/sofra-v2.css'
+import { isEventManager } from '@/lib/event-access'
 
 // Formats an ISO timestamp for the <input type="datetime-local"> value
 // (which needs local time with no timezone/seconds, e.g. 2026-09-01T19:00).
@@ -35,6 +36,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const [dressCode, setDressCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -55,12 +57,13 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
         return
       }
 
-      if (ev.host_id !== stored) {
+      if (!(await isEventManager(supabase, params.id, stored, ev.host_id))) {
         router.replace('/events/' + params.id)
         return
       }
 
       setTitle(ev.title ?? '')
+      setCanDelete(ev.host_id === stored)
       setTagline(ev.tagline ?? '')
       setDateTime(toDateTimeLocal(ev.event_date))
       setLocation(ev.venue ?? '')
@@ -196,7 +199,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}
-      onDelete={handleDelete}
+      onDelete={canDelete ? handleDelete : undefined}
       deleting={deleting}
       onCustomizeQuestions={() => router.push('/host/' + params.id + '/questionnaire')}
     />
