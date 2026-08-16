@@ -90,12 +90,17 @@ export function HostCreateForm({
             Date and time
             <input
               name="dateTime"
-              required
+              required={dateTime !== 'undecided'}
               value={dateTime}
               onChange={(event) => onDateTimeChange(event.target.value)}
               type="datetime-local"
+              disabled={dateTime === 'undecided'}
               data-testid="date-input"
             />
+            <span className="sv2-date-undecided-option">
+              <input aria-label="Date undecided" type="checkbox" checked={dateTime === 'undecided'} onChange={(event) => onDateTimeChange(event.target.checked ? 'undecided' : '')} />
+              Date undecided
+            </span>
           </label>
 
           <label>

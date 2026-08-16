@@ -35,6 +35,7 @@ import {
   type CanonicalQuestionConfig,
 } from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
+import { isEventDateUndecided } from '@/lib/event-date'
 
 type Step = 'status' | 'confirm-preferences' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
@@ -56,10 +57,12 @@ type GuestRow = {
 }
 
 function formatDate(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'Date undecided'
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
 function formatTime(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'Time undecided'
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 

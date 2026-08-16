@@ -6,14 +6,17 @@ import { createClient } from '@/lib/supabase/client'
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import { InviteCard, type InviteResponse } from '@/components/sofra-v2/InviteCard'
 import '@/components/sofra-v2/sofra-v2.css'
+import { isEventDateUndecided } from '@/lib/event-date'
 
 type EventRow = { id: string; title: string; tagline: string | null; event_date: string; venue: string | null; dress_code: string | null; host_id: string; host: { id: string; name: string; photo_url: string | null } | null }
 
 function formatDate(iso: string) {
+  if (isEventDateUndecided(iso)) return 'Date undecided'
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
 function formatTime(iso: string) {
+  if (isEventDateUndecided(iso)) return 'Time undecided'
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 

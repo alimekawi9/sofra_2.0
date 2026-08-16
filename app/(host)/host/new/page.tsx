@@ -7,6 +7,7 @@ import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import SofraTransition from '@/components/SofraTransition'
 import '@/components/sofra-v2/sofra-v2.css'
+import { eventDateForStorage } from '@/lib/event-date'
 
 export default function HostNewPage() {
   const router = useRouter()
@@ -70,7 +71,7 @@ export default function HostNewPage() {
       host_id: uidRef.current,
       title: title.trim(),
       tagline: tagline.trim() || null,
-      event_date: new Date(dateTime).toISOString(),
+      event_date: eventDateForStorage(dateTime),
       venue: place?.venueName || location.trim(),
       address: place?.formattedAddress || null,
       dress_code: dressCode.trim() || null,

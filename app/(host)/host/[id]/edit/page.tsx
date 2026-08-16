@@ -7,10 +7,12 @@ import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import '@/components/sofra-v2/sofra-v2.css'
 import { isEventManager } from '@/lib/event-access'
+import { eventDateForStorage, isEventDateUndecided } from '@/lib/event-date'
 
 // Formats an ISO timestamp for the <input type="datetime-local"> value
 // (which needs local time with no timezone/seconds, e.g. 2026-09-01T19:00).
 function toDateTimeLocal(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'undecided'
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
@@ -131,7 +133,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       .update({
         title: title.trim(),
         tagline: tagline.trim() || null,
-        event_date: new Date(dateTime).toISOString(),
+        event_date: eventDateForStorage(dateTime),
         venue: place?.venueName || location.trim(),
         address,
         dress_code: dressCode.trim() || null,

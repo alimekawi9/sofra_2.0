@@ -299,3 +299,7 @@
 
 - Event invite landing pages, onboarding, RSVP submission, dashboard visibility, and social-link metadata no longer reject an event merely because `is_published` is false. Draft status describes host setup progress; it is not an invitation-access boundary.
 - The existing `is_published` setup flag now acts only as the Kitchen/inventory readiness gate in menu generation. An incomplete setup returns a clear menu-generation error without disabling invite links or RSVP.
+# Undecided event dates (2026-08-16)
+
+- Event creation and editing now offer an explicit `Date undecided` option alongside the existing date/time picker.
+- Undecided dates persist through a centralized sentinel and render as `Date undecided` / `Time undecided` across event dashboards, guest RSVP previews, co-host previews, and event details instead of appearing as an arbitrary date.

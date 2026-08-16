@@ -9,6 +9,7 @@ import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgr
 import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/shared-album'
 import { rememberPendingInvite } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
+import { isEventDateUndecided } from '@/lib/event-date'
 
 type EventRow = {
   id: string
@@ -34,6 +35,7 @@ type CohostGuestRow = {
 }
 
 function formatDate(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'Date undecided'
   return new Date(iso).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -43,6 +45,7 @@ function formatDate(iso: string): string {
 }
 
 function formatTime(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'Time undecided'
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
@@ -307,7 +310,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     window.open('https://wa.me/?text=' + encodeURIComponent(`Will you co-host ${event.title} with me? ${url}`), '_blank')
   }
 
-  const isPast = event ? new Date(event.event_date).getTime() < Date.now() : false
+  const isPast = event ? !isEventDateUndecided(event.event_date) && new Date(event.event_date).getTime() < Date.now() : false
 
   if (!loading && event && showInviteLanding) {
     return (

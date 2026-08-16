@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import HostNewPage from '@/app/(host)/host/new/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { UNDECIDED_EVENT_DATE } from '@/lib/event-date'
 
 jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
@@ -198,6 +199,17 @@ describe('submit handler', () => {
         cover_url:  null,
       })
     )
+  })
+
+  it('allows the event date to remain undecided', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Open Date Dinner')
+    await userEvent.click(screen.getByRole('checkbox', { name: /date undecided/i }))
+    await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=new-event-id'))
+    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ event_date: UNDECIDED_EVENT_DATE }))
   })
 
   it('shows insert error and does not redirect when insert fails', async () => {

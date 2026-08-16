@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { EventsBoard, type EventsBoardEvent, type EventsBoardStatus } from '@/components/sofra-v2/EventsBoard'
 import { readPendingInvites } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
+import { isEventDateUndecided } from '@/lib/event-date'
 
 type EventRow = {
   id: string
@@ -25,6 +26,7 @@ type HostedRsvpRow = {
 type CohostRow = { events: EventRow | null }
 
 function formatDate(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'Date undecided'
   return new Date(iso).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -34,6 +36,7 @@ function formatDate(iso: string): string {
 }
 
 function formatTime(iso: string): string {
+  if (isEventDateUndecided(iso)) return 'Time undecided'
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
@@ -70,7 +73,7 @@ export default function EventsPage() {
 
       const hosting: EventsBoardEvent[] = ((hostEvents ?? []) as EventRow[]).map((ev) => {
         const isDraft = ev.is_published === false
-        const isPast = new Date(ev.event_date).getTime() < now
+        const isPast = !isEventDateUndecided(ev.event_date) && new Date(ev.event_date).getTime() < now
         const status: EventsBoardStatus = !isDraft && isPast ? 'hosted' : 'hosting'
         return {
           id: ev.id,
@@ -94,7 +97,7 @@ export default function EventsPage() {
         .map((row) => {
           const ev = row.events!
           const isDraft = ev.is_published === false
-          const isPast = new Date(ev.event_date).getTime() < now
+          const isPast = !isEventDateUndecided(ev.event_date) && new Date(ev.event_date).getTime() < now
           const status: EventsBoardStatus = !isDraft && isPast ? 'hosted' : 'hosting'
           return { id: ev.id, status, title: ev.title, host: null, venue: ev.venue ?? '', dateLabel: formatDate(ev.event_date), timeLabel: formatTime(ev.event_date), rsvpStatus: status === 'hosted' ? 'Co-hosted' : 'Co-hosting', theme: ev.theme, coverUrl: ev.cover_url, isDraft }
         })
@@ -107,7 +110,7 @@ export default function EventsPage() {
         .filter((r) => r.events !== null && !hostingIds.has(r.events.id))
         .map((r) => {
           const ev = r.events!
-          const past = new Date(ev.event_date).getTime() < now
+          const past = !isEventDateUndecided(ev.event_date) && new Date(ev.event_date).getTime() < now
           const status: EventsBoardStatus = past ? 'went' : r.status === 'maybe' ? 'invited' : 'going'
           const rsvpStatus = past ? 'Attended' : r.status === 'maybe' ? 'Awaiting your reply' : 'Going'
           return {
@@ -128,7 +131,7 @@ export default function EventsPage() {
 
       const knownIds = new Set([...hosting.map((ev) => ev.id), ...invited.map((ev) => ev.id)])
       const pending: EventsBoardEvent[] = readPendingInvites()
-        .filter((ev) => ev.event_date && !knownIds.has(ev.id) && new Date(ev.event_date).getTime() >= now)
+        .filter((ev) => ev.event_date && !knownIds.has(ev.id) && (isEventDateUndecided(ev.event_date) || new Date(ev.event_date).getTime() >= now))
         .map((ev) => ({
           id: ev.id,
           status: 'invited',
