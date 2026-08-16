@@ -103,10 +103,10 @@ beforeEach(() => {
 // ─── Auth & access ───────────────────────────────────────────────────────────
 
 describe('auth & access guards', () => {
-  it('redirects to /login when no sofra_user_id in localStorage', async () => {
+  it('redirects to the canonical join flow when no sofra_user_id is stored', async () => {
     makeSupabase()
     render(<TablePage params={PARAMS} />)
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fevents%2Fev-1%2Ftable'))
   })
 
   it('redirects to /events/[id] when current user is not the host', async () => {

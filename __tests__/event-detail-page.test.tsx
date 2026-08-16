@@ -127,16 +127,15 @@ beforeEach(() => {
 const PARAMS = { id: 'ev-1' }
 
 describe('fresh-browser initialization', () => {
-  it('redirects to name-only onboarding with the original event as next, without querying or showing an error', async () => {
-    const sb = makeSupabase()
+  it('shows only the public landing, then sends a logged-out claim directly to join before RSVP details', async () => {
+    makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
 
-    await waitFor(() =>
-      expect(mockReplace).toHaveBeenCalledWith('/name?next=%2Fevents%2Fev-1')
-    )
-    expect(sb.from).not.toHaveBeenCalled()
-    expect(screen.queryByText(/couldn't load this event/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/invalid or unavailable/i)).not.toBeInTheDocument()
+    const claim = await screen.findByRole('button', { name: /claim my seat/i })
+    expect(screen.queryByText('The Garden Room')).not.toBeInTheDocument()
+    expect(screen.queryByText('Smart casual')).not.toBeInTheDocument()
+    await userEvent.click(claim)
+    expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fevents%2Fev-1%2Frsvp')
   })
 })
 
@@ -598,22 +597,21 @@ it('shows the going RSVP copy without a star', async () => {
 })
 
 describe('Locked table preview', () => {
-  it('shows the locked card with exact copy for a guest with no RSVP', async () => {
+  it('keeps event and table details behind the claim step for a guest with no RSVP', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByText('The table')).toBeInTheDocument())
-    expect(screen.getByText('🔒 RSVP to see who')).toBeInTheDocument()
-    expect(screen.getByText("The table’s filling up. Reply to meet them.")).toBeInTheDocument()
+    await screen.findByRole('button', { name: /claim my seat/i })
+    expect(screen.queryByText('The table')).not.toBeInTheDocument()
     expect(screen.queryByText('Around this Sofra')).not.toBeInTheDocument()
   })
 
-  it('renders 6 blurred decorative dots, not real guest data', async () => {
+  it('does not render decorative table-preview data before the claim step', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     const { container } = render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByText('The table')).toBeInTheDocument())
-    expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(6)
+    await screen.findByRole('button', { name: /claim my seat/i })
+    expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(0)
   })
 
   it('is replaced by the real guest grid once unlocked', async () => {

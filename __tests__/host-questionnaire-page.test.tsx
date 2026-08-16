@@ -63,11 +63,11 @@ beforeEach(() => {
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
 })
 
-it('redirects to /login when no local identity is set', async () => {
+it('redirects to the canonical join flow when no local identity is set', async () => {
   localStorage.clear()
   makeSupabase()
   render(<HostQuestionnairePage params={PARAMS} />)
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fhost%2Fevent-1%2Fquestionnaire'))
 })
 
 it('redirects a non-host viewer back to the event page', async () => {

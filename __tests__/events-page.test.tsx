@@ -79,18 +79,18 @@ it('renders without crashing', () => {
 })
 
 describe('auth guard', () => {
-  it('redirects to /login when sofra_user_id is absent', async () => {
+  it('redirects to the canonical join flow when sofra_user_id is absent', async () => {
     localStorage.clear()
     makeSupabase()
     render(<EventsPage />)
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fevents'))
   })
 
   it('does not redirect when sofra_user_id is present', async () => {
     makeSupabase()
     render(<EventsPage />)
     await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument())
-    expect(mockPush).not.toHaveBeenCalledWith('/login')
+    expect(mockPush).not.toHaveBeenCalledWith(expect.stringContaining('/join'))
   })
 })
 

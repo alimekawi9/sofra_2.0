@@ -83,9 +83,9 @@ it('loads a name-only user with a null phone without crashing or showing a phone
   expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument()
 })
 
-it('redirects to /login when no identity is stored', async () => {
+it('redirects to the canonical join flow when no identity is stored', async () => {
   render(<ProfilePage />)
-  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'))
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/join?next=%2Fprofile'))
 })
 
 it('prompts a host with no preferences on Profile and allows dismissal', async () => {

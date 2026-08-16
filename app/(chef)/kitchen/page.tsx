@@ -140,7 +140,7 @@ function KitchenPageInner() {
     setFetchError('')
     try {
       const stored = localStorage.getItem('sofra_user_id')
-      if (!stored) { router.push('/login'); return }
+      if (!stored) { router.push('/join?next=' + encodeURIComponent(window.location.pathname + window.location.search)); return }
       uidRef.current = stored
       const uid = stored
 

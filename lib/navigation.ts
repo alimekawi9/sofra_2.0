@@ -4,3 +4,7 @@ export function safeNext(raw: string | null): string {
   if (!raw?.startsWith('/') || raw.startsWith('//')) return '/events'
   return raw
 }
+
+export function joinHref(next: string): string {
+  return `/join?next=${encodeURIComponent(safeNext(next))}`
+}

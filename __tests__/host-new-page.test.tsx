@@ -52,11 +52,11 @@ it('renders the create-a-sofra heading', () => {
   expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument()
 })
 
-it('redirects to /login when sofra_user_id is absent', async () => {
+it('redirects to the canonical join flow when sofra_user_id is absent', async () => {
   localStorage.clear()
   makeSupabase()
   render(<HostNewPage />)
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/join?next=%2Fhost%2Fnew'))
 })
 
 describe('cover image', () => {

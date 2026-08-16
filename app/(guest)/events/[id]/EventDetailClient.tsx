@@ -188,6 +188,15 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     }
   }
 
+  function claimSeat() {
+    const rsvpPath = '/events/' + params.id + '/rsvp'
+    if (!localStorage.getItem('sofra_user_id')) {
+      router.push('/join?next=' + encodeURIComponent(rsvpPath))
+      return
+    }
+    router.push(rsvpPath)
+  }
+
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function copyInviteLink() {
@@ -280,7 +289,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       <InviteLanding
         eventId={params.id}
         title={event.title}
-        onClaimSeat={() => router.push('/events/' + params.id + '/rsvp')}
+        onClaimSeat={claimSeat}
       />
     )
   }

@@ -31,7 +31,7 @@ export default function PublicProfilePage({ params }: { params: { userId: string
     try {
       const viewerId = localStorage.getItem('sofra_user_id')
       if (!viewerId) {
-        router.push('/name?next=' + encodeURIComponent(`/profile/${params.userId}`))
+        router.push('/join?next=' + encodeURIComponent(`/profile/${params.userId}${window.location.search || ''}`))
         return
       }
 

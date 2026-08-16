@@ -87,7 +87,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.replace('/name?next=' + encodeURIComponent('/events/' + params.id + '/album'))
+        router.replace('/join?next=' + encodeURIComponent('/events/' + params.id + '/album' + (window.location.search || '')))
         return
       }
       uidRef.current = stored

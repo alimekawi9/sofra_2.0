@@ -32,7 +32,7 @@ export default function HostNewPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem('sofra_user_id')
-    if (!stored) { router.push('/login'); return }
+    if (!stored) { router.push('/join?next=%2Fhost%2Fnew'); return }
     uidRef.current = stored
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

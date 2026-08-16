@@ -212,7 +212,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     setFetchError('')
     try {
       const stored = localStorage.getItem('sofra_user_id')
-      if (!stored) { router.push('/login'); return }
+      if (!stored) { router.push('/join?next=' + encodeURIComponent('/events/' + id + '/menu' + (window.location.search || ''))); return }
 
       const { data: ev, error: evErr } = await supabase
         .from('events')

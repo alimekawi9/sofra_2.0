@@ -82,7 +82,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
     try {
       const userId = localStorage.getItem("sofra_user_id");
       if (!userId) {
-        router.push("/login");
+        router.push('/join?next=' + encodeURIComponent(`/events/${id}/recipes${window.location.search || ''}`));
         return;
       }
       const { data: event } = await supabase
