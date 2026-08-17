@@ -11,6 +11,7 @@ import { rememberPendingInvite } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
 import { isEventDateUndecided } from '@/lib/event-date'
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
+import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
 
 type EventRow = {
   id: string
@@ -82,6 +83,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null)
   const [removeGuestError, setRemoveGuestError] = useState('')
+  const [messages, setMessages] = useState<EventChatMessage[]>([])
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatError, setChatError] = useState('')
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   async function loadPhotos() {
     const { photos: loaded, error: photosError } = await fetchAlbumPhotos(supabase, params.id)
@@ -92,6 +97,21 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     }
     setPhotos(loaded)
     setPhotoError('')
+    return true
+  }
+
+  async function loadMessages() {
+    setChatLoading(true)
+    const { messages: loaded, error: messagesError } = await fetchEventMessages(supabase, params.id)
+    setChatLoading(false)
+    if (messagesError) {
+      console.error('Event chat fetch failed', { eventId: params.id, message: messagesError })
+      setChatError('Could not refresh the chat.')
+      return false
+    }
+    setMessages(loaded)
+    if (uidRef.current) setUnreadMessages(countUnreadEventMessages(loaded, params.id, uidRef.current, localStorage))
+    setChatError('')
     return true
   }
 
@@ -199,7 +219,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
           setGuests(roster)
         }
 
-        await loadPhotos()
+        await Promise.all([loadPhotos(), loadMessages()])
       }
     } catch (loadError) {
       const detail = loadError instanceof Error ? loadError.message : 'unknown error'
@@ -216,6 +236,16 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   }
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!unlocked || typeof supabase.channel !== 'function') return
+    const channel = supabase.channel(`event-chat:${params.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'event_messages', filter: `event_id=eq.${params.id}` }, () => {
+        void loadMessages()
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [unlocked]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function copyInviteLink() {
     const url = canonicalEventUrl(params.id)
@@ -390,6 +420,17 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       onOpenAlbum={(photoId) =>
         router.push('/events/' + params.id + '/album' + (photoId ? '?photo=' + photoId : ''))
       }
+      currentUserId={uidRef.current}
+      messages={messages}
+      unreadMessages={unreadMessages}
+      chatLoading={chatLoading}
+      chatError={chatError}
+      onRetryChat={loadMessages}
+      onOpenChat={() => {
+        if (uidRef.current) markEventChatRead(localStorage, params.id, uidRef.current)
+        setUnreadMessages(0)
+        router.push('/events/' + params.id + '/chat')
+      }}
     />
   )
 }

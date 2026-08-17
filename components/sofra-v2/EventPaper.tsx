@@ -9,6 +9,7 @@ import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProg
 import { buildPreviewTiles } from '@/lib/shared-album'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
+import type { EventChatMessage } from '@/lib/event-chat'
 
 export interface EventPaperGuest {
   id: string
@@ -63,6 +64,13 @@ export interface EventPaperProps {
   onDismissUploadProgress: () => void
   onFilesConfirmed: (files: File[], caption: string) => void
   onOpenAlbum: (photoId?: string) => void
+  currentUserId: string | null
+  messages: EventChatMessage[]
+  unreadMessages: number
+  chatLoading: boolean
+  chatError: string
+  onRetryChat: () => void
+  onOpenChat: () => void
 }
 
 const RSVP_LABELS: Record<string, string> = {
@@ -120,8 +128,16 @@ export function EventPaper({
   onDismissUploadProgress,
   onFilesConfirmed,
   onOpenAlbum,
+  currentUserId,
+  messages,
+  unreadMessages,
+  chatLoading,
+  chatError,
+  onRetryChat,
+  onOpenChat,
 }: EventPaperProps) {
   const [confirmingGuestId, setConfirmingGuestId] = useState<string | null>(null)
+  const [communityView, setCommunityView] = useState<'album' | 'chat'>('album')
   const { tiles: previewTiles, overflowCount } = buildPreviewTiles(photos)
   const overflowBackgroundUrl = overflowCount > 0 ? photos[previewTiles.length]?.url : undefined
   return (
@@ -304,7 +320,20 @@ export function EventPaper({
             )}
 
             {unlocked && (
-              <section className="sv2-shared-album" aria-labelledby="sv2-album-heading">
+              <section className="sv2-event-community" aria-label="Event album and chat">
+                <div className="sv2-community-tabs" role="tablist" aria-label="Event community">
+                  <button type="button" role="tab" aria-selected={communityView === 'album'}
+                    className={communityView === 'album' ? 'is-active' : ''} onClick={() => setCommunityView('album')}>
+                    SHARED ALBUM
+                  </button>
+                  <button type="button" role="tab" aria-selected={communityView === 'chat'}
+                    className={communityView === 'chat' ? 'is-active' : ''} onClick={() => setCommunityView('chat')}>
+                    CHAT{unreadMessages > 0 ? ` · ${unreadMessages}` : ''}
+                  </button>
+                </div>
+
+                {communityView === 'album' ? (
+                <div className="sv2-shared-album" role="tabpanel" aria-labelledby="sv2-album-heading">
                 <div className="sv2-section-heading">
                   <h2 id="sv2-album-heading">Shared Album</h2>
                   <div className="sv2-album-heading-actions">
@@ -355,6 +384,34 @@ export function EventPaper({
 
                 <AddPhotosControl disabled={uploadingPhoto} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
                 <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />
+                </div>
+                ) : (
+                  <div className="sv2-chat-preview" role="tabpanel" aria-labelledby="sv2-chat-preview-heading">
+                    <div className="sv2-section-heading">
+                      <h2 id="sv2-chat-preview-heading">Chat</h2>
+                      <div className="sv2-album-heading-actions">
+                        <span>{messages.length} {messages.length === 1 ? 'message' : 'messages'}</span>
+                        <button type="button" className="sv2-view-album-link" onClick={onOpenChat}>OPEN CHAT</button>
+                      </div>
+                    </div>
+                    {chatError && <p className="sv2-chat-error" role="alert">{chatError} <button type="button" onClick={onRetryChat}>Retry</button></p>}
+                    {chatLoading && messages.length === 0 ? <p className="sv2-chat-empty">Loading messages...</p> : null}
+                    {!chatLoading && messages.length === 0 ? <p className="sv2-chat-empty">No messages yet. Open chat to start the conversation.</p> : null}
+                    {messages.length > 0 && (
+                      <div className="sv2-chat-preview-list">
+                        {messages.slice(-3).map((message) => (
+                          <article key={message.id} className={`sv2-chat-message${message.userId === currentUserId ? ' sv2-chat-message-mine' : ''}`}>
+                            <div className="sv2-chat-message-meta">
+                              <ProfileIdentityLink userId={message.userId} name={message.senderName} photoUrl={message.senderPhotoUrl} />
+                              <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+                            </div>
+                            <p>{message.body}</p>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 

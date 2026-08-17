@@ -347,3 +347,12 @@
 - Every long-table loading transition uses the shared `SofraTransition` presentation. The artwork now preserves its native 3:1 proportions at every viewport size rather than compressing horizontally on phones.
 - The transition waits one full second before appearing, so operations that complete in under one second never flash a loading preview.
 - On generated menus, the `Generated for X guests` snapshot badge now follows the new-response/regenerate notice so the current-response change is explained before the older generation snapshot is shown.
+
+# Event chat (2026-08-17)
+
+- Event Details now places an event-scoped `CHAT` view directly beside the existing Shared Album view. The album remains the default, preserving its existing layout and behavior.
+- Hosts, co-hosts, and guests with an RSVP row can read and send persisted messages. Every message includes the sender's linked profile photo/name and timestamp; the current user's messages use an inverse background and align separately from everyone else's.
+- Chat history is ordered chronologically, capped to the latest bounded query, refreshable after errors, and subscribed to Supabase inserts for live updates while the event is open.
+- The `event_messages` migration is applied to the linked database with Realtime enabled. RLS remains disabled under the explicitly accepted anonymous-access MVP model, so true database-enforced event membership remains future security work.
+- Event Details now mirrors the Shared Album interaction: the adjacent `CHAT` view previews only the latest three messages and opens the complete conversation on `/events/[id]/chat`. The dedicated page owns message composition and the full live history, and all visible headings use the concise label `Chat`.
+- The number beside `CHAT` is a per-user unread count, excluding the current user's own messages. Opening the full chat records it as read, and incoming messages received while the full chat remains open are immediately read, so the badge disappears on return.
