@@ -1487,7 +1487,7 @@
 .sv2-chat-compose button:disabled{opacity:.45;cursor:default}
 .sv2-chat-preview-list{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--sv2-line);border-radius:18px;background:color-mix(in srgb,var(--sv2-card-bg) 92%,var(--sv2-ink) 8%)}
 .sv2-chat-preview-list .sv2-chat-message{width:min(88%,430px)}
-.sv2-chat-page-shell{padding-block:28px 90px}.sv2-chat-page-header{margin:34px 0 28px;text-align:center}.sv2-chat-page-header p{margin:0 0 8px;color:var(--sv2-muted);font-size:10px;letter-spacing:1px;text-transform:uppercase}.sv2-chat-page-header h1{margin:0;font:italic clamp(48px,11vw,72px)/1 var(--sv2-display-family)}
+.sv2-chat-page-shell{padding-block:28px 90px}.sv2-chat-page-header{margin:34px 0 28px;text-align:center}.sv2-chat-page-header p{margin:0;color:var(--sv2-muted);font-size:10px;letter-spacing:1px;text-transform:uppercase}
 .sv2-chat-page-shell .sv2-chat-log{max-height:min(58vh,620px);min-height:320px}
 .sv2-chat-access-error{margin-top:32px;padding:24px;border:1px solid var(--sv2-line);border-radius:18px;text-align:center}.sv2-chat-access-error p{font-size:12px}.sv2-chat-access-error a{display:inline-grid;min-height:40px;margin-top:12px;padding:10px 18px;place-items:center;border:1px solid var(--sv2-ink);border-radius:999px;color:inherit;font-size:9px;letter-spacing:1px;text-decoration:none}
 

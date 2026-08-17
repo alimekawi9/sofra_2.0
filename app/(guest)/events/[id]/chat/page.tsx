@@ -97,7 +97,6 @@ export default function EventChatPage({ params }: { params: { id: string } }) {
         <Link className="sv2-back-link" href={'/events/' + params.id}>← Event details</Link>
         <header className="sv2-chat-page-header">
           <p>{event?.title ?? 'Your Sofra'}</p>
-          <h1>Chat</h1>
         </header>
         {canChat || loading ? (
           <EventChat messages={messages} currentUserId={uidRef.current} loading={loading} sending={sending}
