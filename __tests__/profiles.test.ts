@@ -1,44 +1,65 @@
-import { fetchMutuals, transformProfileHistory } from '@/lib/profiles'
+import { areMutuals, fetchMutuals, fetchProfileHistory, transformProfileHistory } from '@/lib/profiles'
 
-it('derives unique mutuals from qualifying shared RSVP rows and excludes the subject', async () => {
-  const statusCalls: string[][] = []
-  const client = {
-    from: jest.fn(() => ({
+function profileClient(rows: Record<string, unknown[]>) {
+  return {
+    from: jest.fn((table: string) => ({
       select: jest.fn((selection: string) => {
-        if (selection === 'event_id') {
-          const chain: Record<string, jest.Mock> = {
-            eq: jest.fn(() => chain),
-            in: jest.fn((_field: string, statuses: string[]) => {
-              statusCalls.push(statuses)
-              return Promise.resolve({ data: [{ event_id: 'event-1' }], error: null })
-            }),
-          }
-          return chain
+        const result = { data: rows[`${table}:${selection}`] ?? [], error: null }
+        type QueryChain = {
+          eq: jest.Mock<QueryChain>
+          in: jest.Mock<QueryChain>
+          then: (resolve: (value: typeof result) => unknown) => Promise<unknown>
         }
-        const chain: Record<string, jest.Mock> = {
-          in: jest.fn((_field: string, values: string[]) => {
-            if (_field === 'status') {
-              statusCalls.push(values)
-              return Promise.resolve({
-                data: [
-                  { user_id: 'viewer-1', users: { id: 'viewer-1', name: 'Viewer', photo_url: null } },
-                  { user_id: 'mutual-2', users: { id: 'mutual-2', name: 'Mutual', photo_url: '/avatar.jpg' } },
-                  { user_id: 'mutual-2', users: { id: 'mutual-2', name: 'Mutual', photo_url: '/avatar.jpg' } },
-                ],
-                error: null,
-              })
-            }
-            return chain
-          }),
-        }
+        const chain = {} as QueryChain
+        chain.eq = jest.fn(() => chain)
+        chain.in = jest.fn(() => chain)
+        chain.then = (resolve) => Promise.resolve(result).then(resolve)
         return chain
       }),
     })),
   }
+}
+
+it('derives mutuals from RSVP, original-host, and co-host event membership', async () => {
+  const client = profileClient({
+    'rsvps:event_id': [{ event_id: 'event-1' }],
+    'events:id': [{ id: 'event-2' }],
+    'event_cohosts:event_id': [{ event_id: 'event-3' }],
+    'rsvps:user_id': [{ user_id: 'guest-2' }],
+    'events:host_id': [{ host_id: 'host-2' }],
+    'event_cohosts:user_id': [{ user_id: 'cohost-2' }, { user_id: 'cohost-2' }],
+    'users:id,name,photo_url': [
+      { id: 'guest-2', name: 'Guest', photo_url: null },
+      { id: 'host-2', name: 'Host', photo_url: '/host.jpg' },
+      { id: 'cohost-2', name: 'Co-host', photo_url: '/cohost.jpg' },
+    ],
+  })
 
   const mutuals = await fetchMutuals(client as never, 'viewer-1')
-  expect(mutuals).toEqual([{ id: 'mutual-2', name: 'Mutual', photoUrl: '/avatar.jpg' }])
-  expect(statusCalls).toEqual([['going', 'maybe'], ['going', 'maybe']])
+  expect(mutuals.map((user) => user.id)).toEqual(['guest-2', 'host-2', 'cohost-2'])
+})
+
+it('treats an original host and accepted co-host on the same event as mutuals', async () => {
+  const client = profileClient({
+    'rsvps:event_id': [],
+    'events:id': [{ id: 'shared-event' }],
+    'event_cohosts:event_id': [{ event_id: 'shared-event' }],
+  })
+  await expect(areMutuals(client as never, 'host-1', 'cohost-1')).resolves.toBe(true)
+})
+
+it('includes hosted and co-hosted events in profile history without an RSVP', async () => {
+  const client = profileClient({
+    'rsvps:event_id': [],
+    'events:id': [{ id: 'hosted-event' }],
+    'event_cohosts:event_id': [{ event_id: 'cohosted-event' }],
+    'events:id,title,event_date,venue': [
+      { id: 'hosted-event', title: 'Hosted Sofra', event_date: '2027-01-01T00:00:00Z', venue: null },
+      { id: 'cohosted-event', title: 'Co-hosted Sofra', event_date: '2027-02-01T00:00:00Z', venue: null },
+    ],
+  })
+  const history = await fetchProfileHistory(client as never, 'host-1')
+  expect(history.map((event) => event.title)).toEqual(['Hosted Sofra', 'Co-hosted Sofra'])
 })
 
 it('only transforms going and maybe rows into profile history', () => {

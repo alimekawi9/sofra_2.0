@@ -9,6 +9,21 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: "Sofra",
   description: "Private dining, beautifully hosted.",
+  icons: {
+    icon: "/sofra-logo.jpeg",
+    apple: "/sofra-logo.jpeg",
+  },
+  openGraph: {
+    title: "Sofra",
+    description: "Private dining, beautifully hosted.",
+    images: [{ url: "/sofra-logo.jpeg", width: 960, height: 1280, alt: "Sofra" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sofra",
+    description: "Private dining, beautifully hosted.",
+    images: ["/sofra-logo.jpeg"],
+  },
 };
 
 export default function RootLayout({

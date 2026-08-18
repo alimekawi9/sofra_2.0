@@ -375,3 +375,9 @@
 - Generated-dish scoring metadata now persists with each menu course and is reused after reload. Composed dishes are scored once as complete dishes rather than requiring every raw pantry ingredient to independently prove vegan/vegetarian/no-pork compatibility; component names and declarations are still unioned for allergen safety, including inference such as almonds → nuts.
 - Migration `20260818000002_persist_generated_dish_scoring.sql` is applied to the linked Supabase project.
 - Ingredient safety is centralized in `lib/ingredient-safety.ts` and shared by proposal validation, persisted menu re-scoring, recipe imports, and recipe warnings. It recognizes the complete canonical allergen set, reconciles all declared and missing ingredients, and deterministically removes contradictory vegan/vegetarian/no-pork claims instead of trusting an LLM label.
+
+# Sharing, chat counts, and co-host history (2026-08-18)
+
+- Sofra's supplied table logo is now the site icon, Apple touch icon, and default social-sharing image; the former Vercel favicon has been removed.
+- Chat unread values are normalized to a non-negative integer both when calculated and when rendered, so the tab can never display a negative badge.
+- Shared-Sofra membership now includes qualifying guest RSVPs, original event hosts, and accepted co-hosts. Co-hosting the same event unlocks each person's public history, and hosted/co-hosted events appear in that history even without an RSVP row.

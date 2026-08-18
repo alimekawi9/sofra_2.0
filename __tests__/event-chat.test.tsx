@@ -58,3 +58,8 @@ it('clears the unread count when chat is marked read', () => {
   markEventChatRead(localStorage, 'event-1', 'me', new Date('2026-08-18T00:00:00.000Z'))
   expect(countUnreadEventMessages(messages, 'event-1', 'me', localStorage)).toBe(0)
 })
+
+it('never returns a negative unread count', () => {
+  markEventChatRead(localStorage, 'event-1', 'me', new Date('2099-01-01T00:00:00.000Z'))
+  expect(countUnreadEventMessages([], 'event-1', 'me', localStorage)).toBe(0)
+})

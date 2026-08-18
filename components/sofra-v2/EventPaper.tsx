@@ -136,6 +136,7 @@ export function EventPaper({
   onRetryChat,
   onOpenChat,
 }: EventPaperProps) {
+  const safeUnreadMessages = Number.isFinite(unreadMessages) ? Math.max(0, Math.floor(unreadMessages)) : 0
   const [confirmingGuestId, setConfirmingGuestId] = useState<string | null>(null)
   const [communityView, setCommunityView] = useState<'album' | 'chat'>('album')
   const { tiles: previewTiles, overflowCount } = buildPreviewTiles(photos)
@@ -328,7 +329,7 @@ export function EventPaper({
                   </button>
                   <button type="button" role="tab" aria-selected={communityView === 'chat'}
                     className={communityView === 'chat' ? 'is-active' : ''} onClick={() => setCommunityView('chat')}>
-                    CHAT{unreadMessages > 0 ? ` · ${unreadMessages}` : ''}
+                    CHAT{safeUnreadMessages > 0 ? ` · ${safeUnreadMessages}` : ''}
                   </button>
                 </div>
 

@@ -28,10 +28,12 @@ export function countUnreadEventMessages(
   storage: Pick<Storage, 'getItem'>
 ): number {
   const stored = storage.getItem(chatLastReadKey(eventId, currentUserId))
-  const lastRead = stored ? Date.parse(stored) : Number.NEGATIVE_INFINITY
-  return messages.filter((message) =>
+  const parsedLastRead = stored ? Date.parse(stored) : Number.NEGATIVE_INFINITY
+  const lastRead = Number.isNaN(parsedLastRead) ? Number.NEGATIVE_INFINITY : parsedLastRead
+  const unread = messages.filter((message) =>
     message.userId !== currentUserId && new Date(message.createdAt).getTime() > lastRead
   ).length
+  return Math.max(0, unread)
 }
 
 type MessageRow = {
