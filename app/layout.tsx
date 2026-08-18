@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   title: "Sofra",
   description: "Private dining, beautifully hosted.",
   icons: {
-    icon: "/sofra-logo.jpeg",
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/sofra-logo.jpeg", type: "image/jpeg" },
+    ],
+    shortcut: "/favicon.ico",
     apple: "/sofra-logo.jpeg",
   },
   openGraph: {

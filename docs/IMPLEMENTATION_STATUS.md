@@ -378,6 +378,6 @@
 
 # Sharing, chat counts, and co-host history (2026-08-18)
 
-- Sofra's supplied table logo is now the site icon, Apple touch icon, and default social-sharing image; the former Vercel favicon has been removed.
+- Sofra's supplied table logo is now the site favicon (including a real multi-size `/favicon.ico` for browser search/history), Apple touch icon, and default social-sharing image.
 - Chat unread values are normalized to a non-negative integer both when calculated and when rendered, so the tab can never display a negative badge.
 - Shared-Sofra membership now includes qualifying guest RSVPs, original event hosts, and accepted co-hosts. Co-hosting the same event unlocks each person's public history, and hosted/co-hosted events appear in that history even without an RSVP row.
