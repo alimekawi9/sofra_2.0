@@ -75,7 +75,8 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
     [editing, setEditing] = useState<string | null>(null),
     [viewing, setViewing] = useState<string | null>(null),
     [draft, setDraft] = useState<Draft>(emptyDraft),
-    [busy, setBusy] = useState<string | null>(null);
+    [busy, setBusy] = useState<string | null>(null),
+    [restrictedChef, setRestrictedChef] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -91,10 +92,12 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
         .select("host_id,chef_id,title,event_date")
         .eq("id", id)
         .maybeSingle();
-      if (!event || (event.chef_id !== userId && !(await isEventManager(supabase, id, userId, event.host_id)))) {
+      const manager = event ? await isEventManager(supabase, id, userId, event.host_id) : false;
+      if (!event || (event.chef_id !== userId && !manager)) {
         router.replace(`/events/${id}`);
         return;
       }
+      setRestrictedChef(event.chef_id === userId && event.host_id !== userId && !manager);
       setEventTitle(event.title);
       setEventDate(event.event_date);
       const { data: rsvps } = await supabase
@@ -334,11 +337,12 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
       })
     : "";
   return (
-    <div className="sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft sv2-production-recipes">
+    <div className={`sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft sv2-production-recipes${restrictedChef ? ' sv2-restricted-chef-page' : ''}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-menu-draft-shell sv2-recipes-shell">
         <ChefTabs
           eventId={id}
           active="recipes"
+          restrictedChef={restrictedChef}
           title={eventTitle}
           subtitle={
             dateSub
@@ -347,8 +351,13 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
           }
         />
         <header className="sv2-recipes-heading">
-          <h1>Recipes</h1>
-          <p>Scaled for {intel?.guestCount ?? 0} guests</p>
+          <div>
+            <h1>Recipes</h1>
+            <p>Scaled for {intel?.guestCount ?? 0} guests</p>
+          </div>
+          <button type="button" className="sv2-recipes-print" onClick={() => window.print()} disabled={!courses.some((course) => course.recipe)}>
+            Print recipes
+          </button>
         </header>
         {loading && <p>Loading recipes…</p>}
         {error && <p className="sv2-recipe-error">{error}</p>}
@@ -358,6 +367,27 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
             <p>Generate a menu, then return here to add recipes.</p>
           </div>
         )}
+        <section className="sv2-recipes-print-sheet" aria-hidden="true">
+          <header>
+            <p>Sofra</p>
+            <h1>{eventTitle} recipes</h1>
+            <span>{dateSub}{dateSub ? " · " : ""}{intel?.guestCount ?? 0} guests</span>
+          </header>
+          {courses.filter((course) => course.recipe).map((course) => {
+            const recipe = course.recipe!;
+            const scaledIngredients = scaleRecipeIngredients(recipe.ingredients, recipe.base_servings, dishEaterCount(course, intel));
+            return (
+              <article key={course.id}>
+                <span>{course.slot}</span>
+                <h2>{course.dish_name}</h2>
+                <ul>
+                  {scaledIngredients.map((item) => <li key={item.id ?? item.sort_order}><strong>{amount(item.scaled_amount)} {item.quantity_unit}</strong><span>{item.ingredient_name}</span></li>)}
+                </ul>
+                <p>{recipe.instructions}</p>
+              </article>
+            );
+          })}
+        </section>
         {courses.map((course) => (
           <RecipeCard
             key={course.id}

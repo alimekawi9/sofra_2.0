@@ -358,7 +358,6 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     if (!url || !event) return
     window.open('https://wa.me/?text=' + encodeURIComponent(`Will you co-host ${event.title} with me? ${url}`), '_blank')
   }
-
   const isPast = event ? !isEventDateUndecided(event.event_date) && new Date(event.event_date).getTime() < Date.now() : false
 
   if (!loading && event && showInviteLanding) {

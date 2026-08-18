@@ -199,6 +199,9 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [printLoading, setPrintLoading] = useState(false)
   const [aiNotice, setAiNotice] = useState('')
+  const [kitchenStatus, setKitchenStatus] = useState<'pending' | 'complete'>('complete')
+  const [kitchenWarningOpen, setKitchenWarningOpen] = useState(false)
+  const [restrictedChef, setRestrictedChef] = useState(false)
   // Reasoning is not persisted; it only exists for the current AI session so
   // the chef can compare the two paths side by side.
   const [reasoningByCourseId, setReasoningByCourseId] = useState<Record<string, string>>({})
@@ -217,7 +220,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
       const { data: ev, error: evErr } = await supabase
         .from('events')
-        .select('host_id, chef_id, title, event_date')
+        .select('host_id, chef_id, title, event_date, kitchen_status')
         .eq('id', id)
         .single()
       if (evErr || !ev) { router.replace(`/events/${id}`); return }
@@ -226,6 +229,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         return
       }
       setEvent({ title: ev.title, event_date: ev.event_date })
+      setKitchenStatus(ev.kitchen_status === 'pending' ? 'pending' : 'complete')
+      setRestrictedChef(stored === ev.chef_id && stored !== ev.host_id && !(await isEventManager(supabase, id, stored, ev.host_id)))
 
       const { data: rsvps } = await supabase
         .from('rsvps')
@@ -256,15 +261,16 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       const builtIntel = buildIntel(guests)
       setIntel(builtIntel)
 
+      const kitchenOwnerId = ev.chef_id ?? ev.host_id
       const [{ data: sigs }, { data: pantryItems }] = await Promise.all([
         supabase
           .from('signatures')
           .select('id, name, tags, contains_allergens, slot, novelty_score, is_substantial')
-          .eq('chef_id', stored),
+          .eq('chef_id', kitchenOwnerId),
         supabase
           .from('pantry_items')
           .select('id, name, tags, contains_allergens')
-          .eq('chef_id', stored)
+          .eq('chef_id', kitchenOwnerId)
           .eq('week_of', currentMonday()),
       ])
 
@@ -372,8 +378,13 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     }
   }
 
-  async function handleRegenerateAI() {
+  async function handleRegenerateAI(proceedWithoutKitchen = false) {
     if (!id || !intel || aiLoading) return
+    if (kitchenStatus === 'pending' && !proceedWithoutKitchen) {
+      setKitchenWarningOpen(true)
+      return
+    }
+    setKitchenWarningOpen(false)
     setActionError('')
     setAiNotice('')
     const unlocked = courses.filter((c) => !c.locked)
@@ -384,11 +395,16 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       const res = await fetch('/api/menu/generate-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: id, userId: localStorage.getItem('sofra_user_id') }),
+        body: JSON.stringify({ eventId: id, userId: localStorage.getItem('sofra_user_id'), proceedWithoutKitchen }),
       })
 
       if (!res.ok) {
-        setActionError('Menu generation failed. Try again.')
+        const body = await res.json().catch(() => ({})) as { code?: string; error?: string }
+        if (body.code === 'KITCHEN_UNFILLED') {
+          setKitchenWarningOpen(true)
+          return
+        }
+        setActionError(body.error ?? 'Menu generation failed. Try again.')
         return
       }
 
@@ -584,7 +600,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
   return (
     <div
-      className="sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft"
+      className={`sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft${restrictedChef ? ' sv2-restricted-chef-page' : ''}`}
       style={{
         minHeight: '100vh',
         background: C.ink,
@@ -600,6 +616,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         <ChefTabs
           eventId={id}
           active="menu"
+          restrictedChef={restrictedChef}
           title={event?.title}
           subtitle={
             dateSub
@@ -668,6 +685,17 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               <strong>{menuResponseLabel(responseCount)}</strong>
               <span>{menuResponseGuidance(responseCount)}</span>
             </section>
+
+            {kitchenWarningOpen && (
+              <section className="sv2-kitchen-warning" role="alert">
+                <strong>THE KITCHEN IS STILL UNFILLED</strong>
+                <p>You can complete the inventory first for a more grounded menu, or continue without it.</p>
+                <div>
+                  <button type="button" onClick={() => router.push(`/kitchen?from=${id}&from_page=menu${restrictedChef ? '&delegate=1' : ''}`)}>OPEN KITCHEN</button>
+                  <button type="button" onClick={() => void handleRegenerateAI(true)}>CONTINUE ANYWAY</button>
+                </div>
+              </section>
+            )}
 
             {courses.length > 0 && newResponseCount > 0 && (
               <section className="sv2-menu-rsvp-alert" role="status">

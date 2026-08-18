@@ -27,6 +27,8 @@ export interface HostCreateFormProps {
   deleting?: boolean
   onCustomizeQuestions?: () => void
   customizingQuestions?: boolean
+  kitchenPlan?: 'now' | 'later' | 'chef'
+  onKitchenPlanChange?: (value: 'now' | 'later' | 'chef') => void
 }
 
 export function HostCreateForm({
@@ -52,6 +54,8 @@ export function HostCreateForm({
   deleting = false,
   onCustomizeQuestions,
   customizingQuestions = false,
+  kitchenPlan = 'now',
+  onKitchenPlanChange,
 }: HostCreateFormProps) {
   function chooseImage(file?: File) {
     if (file) onImageChange(file)
@@ -168,6 +172,24 @@ export function HostCreateForm({
               </label>
             )}
           </fieldset>
+
+          {!isEdit && onKitchenPlanChange && (
+            <fieldset className="sv2-kitchen-plan-field">
+              <legend>KITCHEN SETUP</legend>
+              <p>The kitchen can be completed now, later, or by someone cooking with you.</p>
+              <div>
+                {([
+                  ['later', 'FILL IN LATER'],
+                  ['now', 'FILL KITCHEN NOW'],
+                  ['chef', 'SEND TO A CHEF'],
+                ] as const).map(([value, label]) => (
+                  <button key={value} type="button" aria-pressed={kitchenPlan === value} onClick={() => onKitchenPlanChange(value)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           {!onCustomizeQuestions && error && <p className="sv2-host-form-error" role="alert">{error}</p>}
           <button type="submit" disabled={submitting || deleting}>

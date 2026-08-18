@@ -37,6 +37,8 @@
 - Quantity (amount + unit) is optional, additive metadata on pantry items — nullable `quantity_amount`/`quantity_unit` columns, not required, and not wired into any deduction or shopping-cart logic yet.
 - Tags are used internally.
 - The LLM receives ingredient names grouped by useful categories, not raw tags.
+- Event publishing and Kitchen readiness are separate states. A pending Kitchen never blocks event creation or invitations; generation presents a warning and requires an explicit continue action before producing a menu without Kitchen context.
+- Kitchen setup may be delegated to a single assigned chef. The assigned chef owns the signatures and current-week pantry used for that event and receives only Kitchen, Drafted Menu, and Recipes navigation.
 
 ## Portions ("variety vs. quantity" rule)
 

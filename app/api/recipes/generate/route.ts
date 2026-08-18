@@ -98,10 +98,13 @@ export async function POST(req: Request) {
   const db = createClient(),
     { data: event } = await db
       .from("events")
-      .select("host_id")
+      .select("host_id,chef_id")
       .eq("id", body.eventId)
       .maybeSingle();
-  if (!event || event.host_id !== body.userId)
+  const { data: cohost } = !event || event.host_id === body.userId || event.chef_id === body.userId
+    ? { data: null }
+    : await db.from("event_cohosts").select("user_id").eq("event_id", body.eventId).eq("user_id", body.userId).maybeSingle();
+  if (!event || (event.host_id !== body.userId && event.chef_id !== body.userId && !cohost))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { data: menu } = await db
     .from("menus")

@@ -30,6 +30,7 @@ export default function HostNewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [customizing, setCustomizing] = useState(false)
   const [error, setError] = useState('')
+  const [kitchenPlan, setKitchenPlan] = useState<'now' | 'later' | 'chef'>('now')
 
   useEffect(() => {
     const stored = localStorage.getItem('sofra_user_id')
@@ -50,7 +51,7 @@ export default function HostNewPage() {
   // Shared by publish and CUSTOMIZE GUEST QUESTIONS. Updates the draft row
   // in place if one was already created this session (e.g. an earlier
   // customize click) instead of inserting a duplicate event.
-  async function saveEventRow(): Promise<{ id: string | null; error: string | null }> {
+  async function saveEventRow(publish = false): Promise<{ id: string | null; error: string | null }> {
     if (!uidRef.current) return { id: null, error: null }
     if (!title.trim() || !dateTime || !location.trim()) {
       return { id: null, error: 'Add an event name, date and time, and location before continuing.' }
@@ -77,7 +78,8 @@ export default function HostNewPage() {
       dress_code: dressCode.trim() || null,
       theme,
       cover_url: publicUrl,
-      is_published: false,
+      is_published: publish,
+      kitchen_status: 'pending',
     }
 
     if (createdEventIdRef.current) {
@@ -104,13 +106,15 @@ export default function HostNewPage() {
     if (submitting) return
     setSubmitting(true)
     setError('')
-    const { id, error: saveError } = await saveEventRow()
+    const { id, error: saveError } = await saveEventRow(true)
     setSubmitting(false)
     if (saveError || !id) {
       setError(saveError ?? 'Something went wrong. Please try again.')
       return
     }
-    router.push('/kitchen?from=' + id)
+    if (kitchenPlan === 'now') router.push('/kitchen?from=' + id)
+    else if (kitchenPlan === 'chef') router.push('/events/' + id + '/table?kitchenShare=1')
+    else router.push('/events/' + id)
   }
 
   async function handleCustomizeQuestions() {
@@ -151,6 +155,8 @@ export default function HostNewPage() {
       onCustomizeQuestions={handleCustomizeQuestions}
       customizingQuestions={customizing}
       error={error}
+      kitchenPlan={kitchenPlan}
+      onKitchenPlanChange={setKitchenPlan}
       onSubmit={handleSubmit}
       />
     </>

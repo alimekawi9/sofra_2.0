@@ -356,3 +356,14 @@
 - The `event_messages` migration is applied to the linked database with Realtime enabled. RLS remains disabled under the explicitly accepted anonymous-access MVP model, so true database-enforced event membership remains future security work.
 - Event Details now mirrors the Shared Album interaction: the adjacent `CHAT` view previews only the latest three messages and opens the complete conversation on `/events/[id]/chat`. The dedicated page owns message composition and the full live history, and all visible headings use the concise label `Chat`.
 - The number beside `CHAT` is a per-user unread count, excluding the current user's own messages. Opening the full chat records it as read, and incoming messages received while the full chat remains open are immediately read, so the badge disappears on return.
+
+# Delegated Kitchen setup (2026-08-18)
+
+- Event creation now explicitly offers `FILL KITCHEN NOW`, `FILL IN LATER`, and `SEND TO A CHEF`. Kitchen readiness is stored independently from invitation publishing, so choosing either deferred option opens the event without requiring inventory.
+- In `Set the Sofra`, original hosts see two matching actions: `FILL KITCHEN MYSELF` and `SEND TO A CHEF`. The latter reveals copy and WhatsApp sharing only after it is selected; it no longer appears on Event Details. Choosing self-fill clears any prior chef assignment, while the one-time chef link assigns its accepting account after the existing phone/name onboarding.
+- Assigned chefs are restricted in the visible workflow to Kitchen, Drafted Menu, and Recipes; Table, general Kitchen, and the global production navigation are omitted. Menu and recipe APIs now recognize the assigned chef as an authorized collaborator.
+- Submitting the event Kitchen marks it complete. Attempting generation while it is pending shows a warning first, offering either Kitchen setup or an explicit inventory-free continuation; the API independently enforces the same confirmation handshake.
+- Migration `20260818000001_add_kitchen_delegation.sql` is applied to the linked Supabase project. Its chef-invite table follows the explicitly accepted MVP anonymous-access model with RLS disabled; database-enforced identity remains future security work.
+- Chef invitations no longer collect a phone number. A new chef supplies only a name, while an existing local session accepts immediately. Kitchen, Drafted Menu, and Recipes share the Drafted Menu navigation width and remain available throughout the delegated workflow.
+- Recipes now include a `PRINT RECIPES` action. The print stylesheet omits navigation and editing controls, printing only completed recipe content with browser print/PDF support.
+- The shared chef-workspace header now owns its typography and tab styling directly. Kitchen, Drafted Menu, and Recipes all use the Drafted Menu shell width, large Sofra wordmark, uppercase tabs, spacing, and active underline without page-specific selector overrides.

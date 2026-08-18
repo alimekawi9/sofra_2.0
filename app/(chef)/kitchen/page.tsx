@@ -18,6 +18,7 @@ import {
 import { INGREDIENT_PRESETS, INGREDIENT_CATEGORIES } from '@/lib/ingredient-presets'
 import { formatTagLabel } from '@/lib/tag-format'
 import SofraTransition from '@/components/SofraTransition'
+import ChefTabs from '@/components/ChefTabs'
 import {
   PANTRY_TAG_GROUPS,
   SIGNATURE_TAG_GROUPS,
@@ -98,7 +99,7 @@ function KitchenPageInner() {
 
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [backEvent, setBackEvent] = useState<{ id: string; title: string; isPublished: boolean } | null>(null)
+  const [backEvent, setBackEvent] = useState<{ id: string; title: string; isPublished: boolean; isDelegatedChef: boolean } | null>(null)
   const [publishingDraft, setPublishingDraft] = useState(false)
   const [publishError, setPublishError] = useState('')
 
@@ -201,7 +202,7 @@ function KitchenPageInner() {
 
     if (error || !data) return null
     if (data.host_id !== uid && data.chef_id !== uid) return null
-    return { id: data.id, title: data.title, isPublished: data.is_published !== false }
+    return { id: data.id, title: data.title, isPublished: data.is_published !== false, isDelegatedChef: data.chef_id === uid && data.host_id !== uid }
   }
 
   function editSignature(signature: Signature) {
@@ -472,25 +473,20 @@ function KitchenPageInner() {
   }
 
   async function handlePantryDone() {
-    if (backEvent && !backEvent.isPublished) {
+    if (backEvent) {
       if (!uidRef.current || publishingDraft) return
       setPublishingDraft(true)
       setPublishError('')
       const { error } = await supabase
         .from('events')
-        .update({ is_published: true })
+        .update({ is_published: true, kitchen_status: 'complete' })
         .eq('id', backEvent.id)
-        .eq('host_id', uidRef.current)
       setPublishingDraft(false)
       if (error) {
-        setPublishError('Could not publish your invite. Try again.')
+        setPublishError('Could not mark this kitchen complete. Try again.')
         return
       }
-      router.push(`/events/${backEvent.id}`)
-      return
-    }
-    if (backEvent) {
-      router.push(`/events/${backEvent.id}/${fromPage}`)
+      router.push(backEvent.isDelegatedChef ? `/events/${backEvent.id}/menu` : backEvent.isPublished ? `/events/${backEvent.id}/${fromPage}` : `/events/${backEvent.id}`)
       return
     }
     setPantryDoneSaved(true)
@@ -563,7 +559,7 @@ function KitchenPageInner() {
 
   return (
     <div
-      className="sv2-root sv2-device-page sv2-app-page sv2-production-kitchen"
+      className={`sv2-root sv2-device-page sv2-app-page sv2-production-kitchen${backEvent?.isDelegatedChef ? ' sv2-restricted-chef-page' : ''}`}
       style={{
         minHeight: '100vh',
         background: C.ink,
@@ -579,7 +575,10 @@ function KitchenPageInner() {
         className="fade sv2-device-shell sv2-app-shell sv2-kitchen-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
       >
-        {backEvent && (
+        {backEvent?.isDelegatedChef && (
+          <ChefTabs eventId={backEvent.id} active="kitchen" restrictedChef title={backEvent.title} />
+        )}
+        {backEvent && !backEvent.isDelegatedChef && (
           <button
             onClick={() => router.push(`/events/${backEvent.id}/${fromPage}`)}
             style={{

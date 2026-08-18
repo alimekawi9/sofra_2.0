@@ -197,8 +197,28 @@ describe('submit handler', () => {
         dress_code: 'Smart casual',
         theme:      'ember',
         cover_url:  null,
+        is_published: true,
+        kitchen_status: 'pending',
       })
     )
+  })
+
+  it('can publish immediately and defer Kitchen setup', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: 'FILL IN LATER' }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+  })
+
+  it('can continue to the chef-link flow without requiring Kitchen setup', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: 'SEND TO A CHEF' }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id/table?kitchenShare=1'))
   })
 
   it('allows the event date to remain undecided', async () => {

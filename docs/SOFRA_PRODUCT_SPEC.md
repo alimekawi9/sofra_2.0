@@ -17,6 +17,7 @@ Sofra helps chefs generate shared menus based on:
 - Guests entering preferences.
 - Chefs entering signatures and pantry availability.
 - Hosts or chefs generating menus.
+- A host may delegate Kitchen setup to one assigned chef through a one-time link. That chef is restricted to the event Kitchen, Drafted Menu, and Recipes surfaces.
 
 ## Core technology
 
@@ -37,3 +38,4 @@ Sofra helps chefs generate shared menus based on:
 - Signature dishes are prioritized when they strongly fit the table.
 - The LLM fills only remaining menu gaps.
 - Final results must be validated by deterministic code.
+- Kitchen completion is not required to create or invite people to an event. Menu generation must warn before proceeding without completed Kitchen data, but the host or assigned chef may explicitly continue with an inventory-free draft.

@@ -23,7 +23,7 @@ function currentMonday(): string {
 
 export async function POST(req: Request) {
   const startedAt = Date.now()
-  let body: { eventId?: unknown; userId?: unknown }
+  let body: { eventId?: unknown; userId?: unknown; proceedWithoutKitchen?: unknown }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -33,9 +33,15 @@ export async function POST(req: Request) {
 
   const supabase = createClient()
   const loadStarted = Date.now()
-  const { data: event } = await supabase.from('events').select('host_id,chef_id,is_published').eq('id', body.eventId).maybeSingle()
-  if (!event || event.host_id !== body.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  if (event.is_published === false) return NextResponse.json({ error: 'Complete your Kitchen inventory before generating a menu.' }, { status: 409 })
+  const { data: event } = await supabase.from('events').select('host_id,chef_id,kitchen_status').eq('id', body.eventId).maybeSingle()
+  if (!event) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const { data: cohost } = event.host_id === body.userId || event.chef_id === body.userId
+    ? { data: null }
+    : await supabase.from('event_cohosts').select('user_id').eq('event_id', body.eventId).eq('user_id', body.userId).maybeSingle()
+  if (event.host_id !== body.userId && event.chef_id !== body.userId && !cohost) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (event.kitchen_status === 'pending' && body.proceedWithoutKitchen !== true) {
+    return NextResponse.json({ code: 'KITCHEN_UNFILLED', error: 'The Kitchen inventory has not been completed yet.' }, { status: 409 })
+  }
   const chefId = event.chef_id ?? event.host_id
   const [{ data: rsvps }, { data: signatures }, { data: pantry }, { data: menu }] = await Promise.all([
     supabase.from('rsvps').select('user_id,users(name)').eq('event_id', body.eventId).in('status', ['going', 'maybe']),
