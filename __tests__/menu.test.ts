@@ -283,12 +283,12 @@ describe('scoreComposedDish â€” AI-composed dish safety derived from real p
     expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Ali', reason: 'contains nuts', kind: 'allergy' }])
   })
 
-  test('untagged component fails closed on strict diet (no free pass just for being pantry-composed)', () => {
+  test('a complete vegetable-only ingredient list is deterministically vegetarian', () => {
     const intel = buildIntel([
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
     ])
     const items = [pantryItem('p1', 'Seasonal Vegetable')]
-    expect(scoreComposedDish(items, intel)).toEqual([{ guest: 'Nadia', reason: 'not vegetarian', kind: 'preference' }])
+    expect(scoreComposedDish(items, intel)).toEqual([])
   })
 
   test('deduplicates a guest hit by multiple components â€” one exclusion per guest', () => {
@@ -307,6 +307,23 @@ describe('scoreComposedDish â€” AI-composed dish safety derived from real p
       { name: 'Nadia', dietary: ['Vegetarian'], avoid: ['Nuts'], adventurousness: 50 },
     ])
     expect(scoreComposedDish([], intel)).toEqual([])
+  })
+
+  test('scores Lime Almond Cream as one dish without inventing pork and infers its nut allergy', () => {
+    const intel = buildIntel([
+      { name: 'Ali', dietary: ['No pork'], avoid: [], adventurousness: 50 },
+      { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
+      { name: 'Joe', dietary: ['Vegan'], avoid: [], adventurousness: 50 },
+      { name: 'Sam', dietary: [], avoid: ['Nuts'], adventurousness: 50 },
+    ])
+    const items = [pantryItem('lime', 'Lime'), pantryItem('almond', 'Almonds'), pantryItem('cinnamon', 'Cinnamon')]
+    const excludes = scoreComposedDish(items, intel, { dietary: ['vegetarian'], allergens: [], missingIngredients: [{ name: 'heavy cream', importance: 'core' }] })
+    expect(excludes).toEqual(expect.arrayContaining([
+      { guest: 'Sam', reason: 'contains nuts', kind: 'allergy' },
+      { guest: 'Joe', reason: 'not vegan', kind: 'preference' },
+    ]))
+    expect(excludes.some(exclusion => exclusion.reason === 'contains pork')).toBe(false)
+    expect(excludes.some(exclusion => exclusion.guest === 'Nadia')).toBe(false)
   })
 })
 
@@ -760,16 +777,11 @@ describe('inferSlot â€” preset-name fallback for legacy DB rows', () => {
 })
 
 describe('deriveCourse â€” composed dish re-scoring from component_ids', () => {
-  // The silent-9/9 bug: an AI-composed pantry dish is persisted with
-  // source=null. Without component_ids, deriveCourse can't reconstruct which
-  // pantry items backed the dish, so excludes come back empty and the UI
-  // shows "safe for 9/9 guests" even when the untagged components should
-  // fail-closed on the 3 vegetarians. component_ids fixes this.
   const vegIntel = buildIntel([
     { name: 'Nadia', dietary: ['Vegetarian'], avoid: [], adventurousness: 50 },
   ])
 
-  test('pantry-composed with component_ids re-scores against live pantry (untagged fails closed)', () => {
+  test('pantry-composed with a complete meat-free component list is vegetarian', () => {
     const pantry = [
       pantryItem('p-miso', 'Miso paste'),
       pantryItem('p-orzo', 'Orzo'),
@@ -783,10 +795,7 @@ describe('deriveCourse â€” composed dish re-scoring from component_ids', ()
       component_ids: ['p-miso', 'p-orzo', 'p-bell'],
     }
     const derived = deriveCourse(persisted, [], pantry, vegIntel)
-    // At least one exclusion for Nadia â€” untagged pantry items fail closed
-    // on vegetarian, and the composed dish inherits the union of its
-    // components' exclusions.
-    expect(derived.excludes.some(e => e.guest === 'Nadia')).toBe(true)
+    expect(derived.excludes.some(e => e.guest === 'Nadia')).toBe(false)
   })
 
   test('pantry-composed with tagged veg components has no vegetarian exclusion', () => {

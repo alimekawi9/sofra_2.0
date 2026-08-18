@@ -1,7 +1,7 @@
 import type { DishRole } from './config'
 
-export type ExistingMenuRow={id:string;role?:string|null;slot?:string|null;dish_name:string;dish_origin:string|null;source:string|null;component_ids?:string[]|null;locked:boolean;sort_order:number}
-export type DesiredMenuDish={role:DishRole;dish_name:string;dish_origin:string;source:string|null;component_ids?:string[]|null}
+export type ExistingMenuRow={id:string;role?:string|null;slot?:string|null;dish_name:string;dish_origin:string|null;source:string|null;component_ids?:string[]|null;scoring_metadata?:Record<string,unknown>|null;locked:boolean;sort_order:number}
+export type DesiredMenuDish={role:DishRole;dish_name:string;dish_origin:string;source:string|null;component_ids?:string[]|null;scoring_metadata?:Record<string,unknown>|null}
 export type MenuRowInsert=DesiredMenuDish&{sort_order:number;locked:false}
 export type MenuReplacementPlan={preserve:ExistingMenuRow[];removeIds:string[];insert:MenuRowInsert[];effectiveTarget:number}
 

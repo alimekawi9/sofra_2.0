@@ -1,15 +1,13 @@
 import type { Exclusion, PantryItem } from './menu'
 import { scoreDish } from './menu'
 import type { TableIntel } from './intel'
+import { inferIngredientAllergens } from './ingredient-safety'
+export { inferIngredientAllergens } from './ingredient-safety'
 
 export type RecipeSource='host_provided'|'ai_generated'
 export type RecipeIngredient={id?:string;ingredient_name:string;quantity_amount:number;quantity_unit:string;tags:string[];contains_allergens:string[];sort_order:number;pantry_item_id?:string|null}
 export type Recipe={id:string;menu_course_id:string;source:RecipeSource;base_servings:number;instructions:string;ingredients:RecipeIngredient[]}
 export type ScaledRecipeIngredient=RecipeIngredient&{scaled_amount:number}
-
-const ALLERGEN_TERMS:Record<string,string[]>={nuts:['nut','nuts','peanut','peanuts','almond','almonds','cashew','cashews','pistachio','pistachios','walnut','walnuts','pecan','pecans','hazelnut','hazelnuts'],shellfish:['shellfish','shrimp','prawn','prawns','crab','lobster','mussel','mussels','clam','clams'],dairy:['milk','cream','butter','cheese','yogurt','yoghurt','whey'],eggs:['egg','eggs'],gluten:['flour','wheat','bread','breadcrumbs','pasta','couscous','barley','rye'],soy:['soy','tofu','tempeh','miso','edamame'],sesame:['sesame','tahini']}
-
-export function inferIngredientAllergens(name:string):string[]{const words=` ${name.toLowerCase().replace(/[^a-z0-9]+/g,' ')} `;return Object.entries(ALLERGEN_TERMS).filter(([,terms])=>terms.some(term=>words.includes(` ${term} `))).map(([allergen])=>allergen)}
 
 export function scaleRecipeIngredients(ingredients:RecipeIngredient[],baseServings:number,guestCount:number):ScaledRecipeIngredient[]{if(!Number.isFinite(baseServings)||baseServings<=0||!Number.isFinite(guestCount)||guestCount<0)throw new Error('Invalid serving count');const factor=guestCount/baseServings;return ingredients.map(item=>({...item,scaled_amount:item.quantity_amount*factor}))}
 

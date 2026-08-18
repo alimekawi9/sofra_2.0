@@ -2,6 +2,7 @@ import type { TableIntel } from './intel'
 import { dishRoleByName } from './dish-presets'
 import { proteinPreferenceWeightedScore } from './protein-preferences'
 import { normalizeDishScoringData } from './dish-scoring'
+import { inferIngredientAllergens, reconcileDishDietaryClaims } from './ingredient-safety'
 
 export type Slot = 'starter' | 'main' | 'side' | 'dessert'
 // 'fallback' — last-resort signature that still had exclusions but was picked
@@ -364,17 +365,24 @@ export function scoreDish(dish: Signature | PantryItem, intel: TableIntel): Excl
 // Deduplication: a guest hit by multiple components collapses to one
 // exclusion (first component's reason wins), matching scoreDish's per-guest
 // semantics.
-export function scoreComposedDish(items: PantryItem[], intel: TableIntel): Exclusion[] {
-  const seen = new Set<string>()
-  const result: Exclusion[] = []
-  for (const item of items) {
-    for (const excl of scoreDish(item, intel)) {
-      if (seen.has(excl.guest)) continue
-      seen.add(excl.guest)
-      result.push(excl)
-    }
+export function scoreComposedDish(items: PantryItem[], intel: TableIntel, metadata?: PersistedCourseLike['scoring_metadata']): Exclusion[] {
+  if (items.length === 0) return []
+  const metadataTags = metadata ? [
+    ...(metadata.proteinBase ?? []), ...(metadata.flavors ?? []), ...(metadata.textures ?? []),
+    ...(metadata.techniques ?? []), ...(metadata.temperature ?? []), ...(metadata.richness ?? []),
+    ...(metadata.dietary ?? []),
+  ] : []
+  const ingredientNames = [...items.map(item => item.name), ...(metadata?.missingIngredients ?? []).map(item => item.name)]
+  const inferredAllergens = ingredientNames.flatMap(inferIngredientAllergens)
+  const dietary = reconcileDishDietaryClaims(metadata?.dietary ?? [], ingredientNames, items.flatMap(item => item.tags))
+  const composite: Signature = {
+    id: 'composed', name: items.map(item => item.name).join(' '), slot: null,
+    tags: Array.from(new Set([...items.flatMap(item => item.tags), ...metadataTags, ...dietary])),
+    contains_allergens: Array.from(new Set([...items.flatMap(item => item.contains_allergens), ...(metadata?.allergens ?? []), ...inferredAllergens])),
+    novelty_score: metadata?.noveltyScore ?? null,
+    is_substantial: metadata?.substantial ?? null,
   }
-  return result
+  return scoreDish(composite, intel)
 }
 
 type Candidate = {
@@ -679,6 +687,19 @@ export type PersistedCourseLike = {
   // empty (silent 9/9). Optional for backward compatibility with rows
   // written before the schema gained `component_ids`.
   component_ids?: string[] | null
+  scoring_metadata?: {
+    proteinBase?: string[]
+    flavors?: string[]
+    textures?: string[]
+    techniques?: string[]
+    temperature?: string[]
+    richness?: string[]
+    dietary?: string[]
+    allergens?: string[]
+    noveltyScore?: number | null
+    substantial?: boolean
+    missingIngredients?: { name: string; importance: string }[]
+  } | null
 }
 
 // Turns a persisted menu_courses row into a displayable Course, re-checking
@@ -745,7 +766,7 @@ export function deriveCourse(
       if (missing.length > 0 && resolved.length === 0) sourceDeleted = true
       else {
         componentIds = compIds
-        excludes = scoreComposedDish(resolved, intel)
+        excludes = scoreComposedDish(resolved, intel, persisted.scoring_metadata)
       }
     } else if (persisted.source) {
       const item = pantry.find(p => p.id === persisted.source)

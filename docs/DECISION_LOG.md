@@ -14,6 +14,7 @@
 - Broad roles: starter, main, side, dessert, flex.
 - Weak signature dishes should not be forced into empty roles.
 - Missing roles should be filled by focused LLM generation.
+- Final validation treats semantically equivalent core dishes as duplicates, using normalized culinary names and structured core-ingredient overlap. Seasoning or technique changes do not make two instances of the same base dish distinct.
 
 ## Preferences
 

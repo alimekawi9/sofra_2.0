@@ -1,5 +1,6 @@
 import { buildIntel } from '@/lib/intel'
 import { inferIngredientAllergens, parseIngredientLines, recipeSafetyWarnings, scaleRecipeIngredients, type RecipeIngredient } from '@/lib/recipes'
+import { reconcileDishDietaryClaims } from '@/lib/ingredient-safety'
 
 const ingredient=(name:string,amount=2,allergens:string[]=[]):RecipeIngredient=>({ingredient_name:name,quantity_amount:amount,quantity_unit:'cups',tags:[],contains_allergens:allergens,sort_order:0})
 const intel=buildIntel([{name:'Guest A',dietary:[],avoid:['nuts'],proteinPreferences:[],flavorPreference:[],adventurousness:50}])
@@ -7,6 +8,8 @@ const intel=buildIntel([{name:'Guest A',dietary:[],avoid:['nuts'],proteinPrefere
 test('recipe quantities scale deterministically without changing stored amounts',()=>{const original=ingredient('Rice',2),scaled=scaleRecipeIngredients([original],4,10);expect(scaled[0].scaled_amount).toBe(5);expect(original.quantity_amount).toBe(2)})
 
 test('ingredient names infer canonical allergens',()=>{expect(inferIngredientAllergens('Roasted peanuts')).toContain('nuts');expect(inferIngredientAllergens('Greek yogurt')).toContain('dairy')})
+test('shared ingredient safety covers the full canonical allergen vocabulary',()=>{expect(inferIngredientAllergens('Tahini mustard dressing with celery')).toEqual(expect.arrayContaining(['sesame','mustard','celery']));expect(inferIngredientAllergens('Steamed mussels')).toContain('molluscs')})
+test('ingredient evidence overrides contradictory dietary claims for every dish',()=>{expect(reconcileDishDietaryClaims(['vegan','vegetarian','no pork'],['heavy cream'])).toEqual(expect.arrayContaining(['vegetarian','no pork']));expect(reconcileDishDietaryClaims(['vegan','vegetarian','no pork'],['pancetta'])).not.toEqual(expect.arrayContaining(['vegan','vegetarian','no pork']));expect(reconcileDishDietaryClaims([],['lime','almonds'])).toEqual(expect.arrayContaining(['vegan','vegetarian','no pork']))})
 
 test('recipe-level allergen warning identifies a dish metadata gap',()=>{const warnings=recipeSafetyWarnings([ingredient('Peanut sauce')],intel,[]);expect(warnings).toEqual([{guest:'Guest A',allergen:'nuts',ingredient:'Peanut sauce',dishMetadataGap:true}])})
 

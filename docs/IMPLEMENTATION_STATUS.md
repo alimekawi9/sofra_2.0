@@ -367,3 +367,11 @@
 - Chef invitations no longer collect a phone number. A new chef supplies only a name, while an existing local session accepts immediately. Kitchen, Drafted Menu, and Recipes share the Drafted Menu navigation width and remain available throughout the delegated workflow.
 - Recipes now include a `PRINT RECIPES` action. The print stylesheet omits navigation and editing controls, printing only completed recipe content with browser print/PDF support.
 - The shared chef-workspace header now owns its typography and tab styling directly. Kitchen, Drafted Menu, and Recipes all use the Drafted Menu shell width, large Sofra wordmark, uppercase tabs, spacing, and active underline without page-specific selector overrides.
+
+# Semantic menu deduplication (2026-08-18)
+
+- Final menu validation now uses deterministic culinary text normalization, modifier removal, stemming, recognized base-dish terms, and structured core-ingredient overlap instead of comparing only complete dish names.
+- Variants such as `Smoky Mushroom Polenta` and `Sumac Marinated Polenta` are one core dish. Semantic duplicates receive priority repair and become blocking errors if the two-attempt repair budget cannot remove them, so they are never persisted as a supposedly valid menu.
+- Generated-dish scoring metadata now persists with each menu course and is reused after reload. Composed dishes are scored once as complete dishes rather than requiring every raw pantry ingredient to independently prove vegan/vegetarian/no-pork compatibility; component names and declarations are still unioned for allergen safety, including inference such as almonds → nuts.
+- Migration `20260818000002_persist_generated_dish_scoring.sql` is applied to the linked Supabase project.
+- Ingredient safety is centralized in `lib/ingredient-safety.ts` and shared by proposal validation, persisted menu re-scoring, recipe imports, and recipe warnings. It recognizes the complete canonical allergen set, reconciles all declared and missing ingredients, and deterministically removes contradictory vegan/vegetarian/no-pork claims instead of trusting an LLM label.
