@@ -12,6 +12,7 @@ import '@/components/sofra-v2/sofra-v2.css'
 import { isEventDateUndecided } from '@/lib/event-date'
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
+import { useUnwrappedParams } from '@/lib/next-params'
 
 type EventRow = {
   id: string
@@ -55,7 +56,8 @@ function canonicalEventUrl(id: string): string {
   return new URL('/events/' + id, window.location.origin).toString()
 }
 
-export default function EventDetailClient({ params }: { params: { id: string } }) {
+export default function EventDetailClient({ params: paramsValue }: { params: Promise<{ id: string }> | { id: string } }) {
+  const params = useUnwrappedParams(paramsValue)
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
@@ -393,6 +395,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       copyFallbackUrl={copyFallbackUrl}
       onCopyInviteLink={copyInviteLink}
       onShareWhatsApp={shareViaWhatsApp}
+      onSendUpdate={() => router.push('/events/' + params.id + '/update')}
       canInviteCohost={canInviteCohost}
       cohostSharing={cohostSharing}
       cohostCopied={cohostCopied}

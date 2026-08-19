@@ -283,6 +283,17 @@ describe('Copy invite link button', () => {
     )
     open.mockRestore()
   })
+
+  it('lets the host navigate to the update-compose page', async () => {
+    makeSupabase()
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    render(<EventDetailPage params={PARAMS} />)
+
+    const sendUpdateButton = await screen.findByRole('button', { name: 'SEND AN UPDATE' })
+    await userEvent.click(sendUpdateButton)
+
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/update')
+  })
 })
 
 describe('EDIT EVENT button', () => {

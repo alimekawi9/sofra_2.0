@@ -40,6 +40,7 @@ export interface EventPaperProps {
   copyFallbackUrl: string
   onCopyInviteLink: () => void
   onShareWhatsApp: () => void
+  onSendUpdate: () => void
   canInviteCohost?: boolean
   cohostSharing?: boolean
   cohostCopied?: boolean
@@ -104,6 +105,7 @@ export function EventPaper({
   copyFallbackUrl,
   onCopyInviteLink,
   onShareWhatsApp,
+  onSendUpdate,
   canInviteCohost = false,
   cohostSharing = false,
   cohostCopied = false,
@@ -190,6 +192,7 @@ export function EventPaper({
                     {copied ? 'COPIED!' : 'COPY INVITE LINK'}
                   </button>
                   <button type="button" onClick={onShareWhatsApp}>SHARE VIA WHATSAPP</button>
+                  <button type="button" onClick={onSendUpdate}>SEND AN UPDATE</button>
                 </div>
                 {copyFallbackUrl && (
                   <input
