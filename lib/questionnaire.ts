@@ -135,6 +135,14 @@ export function sortedQuestions(config: QuestionnaireConfig): QuestionConfig[] {
   return [...config.questions].sort((a, b) => a.order - b.order)
 }
 
+// Question ids present in the old config but not the new one -- used to
+// clean up now-orphaned event_question_responses rows (e.g. a question was
+// deleted, or converted from canonical to custom and given a fresh id).
+export function removedQuestionIds(oldConfig: QuestionnaireConfig, newConfig: QuestionnaireConfig): string[] {
+  const newIds = new Set(newConfig.questions.map((q) => q.id))
+  return oldConfig.questions.map((q) => q.id).filter((id) => !newIds.has(id))
+}
+
 export function isCanonical(q: QuestionConfig): q is CanonicalQuestionConfig {
   return q.kind === 'canonical'
 }

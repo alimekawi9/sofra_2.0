@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { QuestionnaireEditor } from '@/components/sofra-v2/QuestionnaireEditor'
-import { DEFAULT_QUESTIONNAIRE, validateQuestionnaire, type QuestionnaireConfig } from '@/lib/questionnaire'
+import { DEFAULT_QUESTIONNAIRE, validateQuestionnaire, removedQuestionIds, type QuestionnaireConfig } from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
 import { isEventManager } from '@/lib/event-access'
 
@@ -62,6 +62,22 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Best-effort: a question removed (or converted to a fresh id) from the
+  // questionnaire leaves its old event_question_responses rows orphaned --
+  // nothing in the config points to them anymore. Cleanup failure shouldn't
+  // block the save/reset itself, just gets logged.
+  async function cleanupRemovedQuestionResponses(oldConfig: QuestionnaireConfig | undefined, newConfig: QuestionnaireConfig) {
+    if (!oldConfig?.questions) return
+    const removedIds = removedQuestionIds(oldConfig, newConfig)
+    if (removedIds.length === 0) return
+    const { error } = await supabase
+      .from('event_question_responses')
+      .delete()
+      .eq('event_id', params.id)
+      .in('question_id', removedIds)
+    if (error) console.error('Could not clean up orphaned questionnaire responses', error)
+  }
+
   async function handleSave() {
     if (saving) return
     const errors = validateQuestionnaire(config)
@@ -71,17 +87,26 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
     setSaving(true)
     setSaveError('')
 
+    const { data: existingRow } = await supabase
+      .from('event_questionnaires')
+      .select('config')
+      .eq('event_id', params.id)
+      .maybeSingle()
+
     const { error: upsertError } = await supabase.from('event_questionnaires').upsert(
       { event_id: params.id, config, updated_at: new Date().toISOString() },
       { onConflict: 'event_id' }
     )
 
-    setSaving(false)
     if (upsertError) {
+      setSaving(false)
       setSaveError('Could not save the questionnaire. Try again.')
       return
     }
 
+    await cleanupRemovedQuestionResponses(existingRow?.config as QuestionnaireConfig | undefined, config)
+
+    setSaving(false)
     router.push('/host/' + params.id + '/edit')
   }
 
@@ -98,12 +123,15 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
       .delete()
       .eq('event_id', params.id)
 
-    setResetting(false)
     if (deleteError) {
+      setResetting(false)
       setSaveError('Could not reset the questionnaire. Try again.')
       return
     }
 
+    await cleanupRemovedQuestionResponses(config, DEFAULT_QUESTIONNAIRE)
+
+    setResetting(false)
     setConfig(DEFAULT_QUESTIONNAIRE)
     setValidationErrors([])
   }

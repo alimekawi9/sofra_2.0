@@ -87,7 +87,10 @@ export function QuestionnaireEditor({
       .filter((option) => !question.hiddenOptionValues?.includes(option.value))
       .map((option) => ({ ...option, label: resolveCanonicalOptionLabel(question, option.value, option.label) }))
     const converted: CustomQuestionConfig = {
-      id: question.id,
+      // A fresh id, not the old canonical one -- reusing it (e.g. "dietary")
+      // left converted questions permanently confusable with the real
+      // canonical field of the same name in stored responses.
+      id: generateQuestionId(),
       kind: 'custom',
       type,
       title: resolveCanonicalTitle(question),

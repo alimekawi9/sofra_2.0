@@ -20,10 +20,15 @@ function makeSupabase({
   existingConfig = null as Record<string, unknown> | null,
   upsertError = null as { message: string } | null,
   deleteError = null as { message: string } | null,
+  responseDeleteError = null as { message: string } | null,
 } = {}) {
   const upsert = jest.fn().mockResolvedValue({ error: upsertError })
   const deleteEq = jest.fn().mockResolvedValue({ error: deleteError })
   const del = jest.fn().mockReturnValue({ eq: deleteEq })
+
+  const responseDeleteIn = jest.fn().mockResolvedValue({ error: responseDeleteError })
+  const responseDeleteEq = jest.fn().mockReturnValue({ in: responseDeleteIn })
+  const responseDelete = jest.fn().mockReturnValue({ eq: responseDeleteEq })
 
   const sb = {
     from: jest.fn((table: string) => {
@@ -47,6 +52,9 @@ function makeSupabase({
           }),
         }
       }
+      if (table === 'event_question_responses') {
+        return { delete: responseDelete }
+      }
       // event_questionnaires
       return {
         select: jest.fn().mockReturnValue({
@@ -61,7 +69,7 @@ function makeSupabase({
         delete: del,
       }
     }),
-    upsert, delete: del, deleteEq,
+    upsert, delete: del, deleteEq, responseDelete, responseDeleteEq, responseDeleteIn,
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -273,6 +281,98 @@ it('blocks save when a custom slider is missing an end label', async () => {
 
   expect(await screen.findByRole('alert')).toHaveTextContent(/high end/i)
   expect(sb.upsert).not.toHaveBeenCalled()
+})
+
+it('converting a canonical question to a different type assigns it a fresh id, not the canonical key', async () => {
+  const sb = makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByPlaceholderText('ANY LANE TO STAY IN?'))
+
+  await userEvent.selectOptions(screen.getByLabelText('Answer type for ANY LANE TO STAY IN?'), 'ranking')
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalled())
+  const [payload] = sb.upsert.mock.calls[0]
+  const converted = payload.config.questions.find((q: { kind: string; type?: string }) => q.kind === 'custom' && q.type === 'ranking')
+  expect(converted).toBeDefined()
+  expect(converted.id).not.toBe('dietary')
+  expect(converted.id).toMatch(/^q_/)
+})
+
+it('cleans up orphaned responses for a question removed from the saved config', async () => {
+  const sb = makeSupabase({
+    existingConfig: {
+      questions: [
+        { id: 'dietary', kind: 'canonical', canonicalKey: 'dietary', order: 0 },
+        { id: 'avoid', kind: 'canonical', canonicalKey: 'avoid', order: 1 },
+        { id: 'protein', kind: 'canonical', canonicalKey: 'protein', order: 2 },
+        { id: 'flavor', kind: 'canonical', canonicalKey: 'flavor', order: 3 },
+        { id: 'adventurousness', kind: 'canonical', canonicalKey: 'adventurousness', order: 4 },
+      ],
+    },
+  })
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByPlaceholderText('ANY LANE TO STAY IN?'))
+
+  await userEvent.click(screen.getByRole('button', { name: /Remove question ANY LANE/i }))
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalled())
+  await waitFor(() => expect(sb.responseDeleteEq).toHaveBeenCalledWith('event_id', 'event-1'))
+  expect(sb.responseDeleteIn).toHaveBeenCalledWith('question_id', ['dietary'])
+})
+
+it('does not touch event_question_responses when nothing was removed', async () => {
+  const sb = makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByPlaceholderText('ANY LANE TO STAY IN?'))
+
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalled())
+  expect(sb.responseDelete).not.toHaveBeenCalled()
+})
+
+it('cleans up orphaned responses for every removed canonical question on reset', async () => {
+  const sb = makeSupabase({
+    existingConfig: {
+      questions: [
+        { id: 'dietary', kind: 'canonical', canonicalKey: 'dietary', order: 0, title: 'CUSTOM TITLE' },
+        { id: 'avoid', kind: 'canonical', canonicalKey: 'avoid', order: 1 },
+      ],
+    },
+  })
+  const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByDisplayValue('CUSTOM TITLE'))
+
+  await userEvent.click(screen.getByRole('button', { name: 'RESET TO SOFRA DEFAULTS' }))
+
+  await waitFor(() => expect(sb.deleteEq).toHaveBeenCalledWith('event_id', 'event-1'))
+  // The pre-reset config here only has dietary/avoid; resetting to the full
+  // 5-question default means neither of those ids is actually removed.
+  expect(sb.responseDelete).not.toHaveBeenCalled()
+  confirmSpy.mockRestore()
+})
+
+it('cleans up orphaned responses for a custom question dropped by reset', async () => {
+  const sb = makeSupabase({
+    existingConfig: {
+      questions: [
+        { id: 'dietary', kind: 'canonical', canonicalKey: 'dietary', order: 0, title: 'CUSTOM TITLE' },
+        { id: 'q_leftover1', kind: 'custom', type: 'text', title: 'Craving anything?', order: 1 },
+      ],
+    },
+  })
+  const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByDisplayValue('CUSTOM TITLE'))
+
+  await userEvent.click(screen.getByRole('button', { name: 'RESET TO SOFRA DEFAULTS' }))
+
+  await waitFor(() => expect(sb.deleteEq).toHaveBeenCalledWith('event_id', 'event-1'))
+  await waitFor(() => expect(sb.responseDeleteIn).toHaveBeenCalledWith('question_id', ['q_leftover1']))
+  confirmSpy.mockRestore()
 })
 
 it('does nothing when the reset confirmation is declined', async () => {

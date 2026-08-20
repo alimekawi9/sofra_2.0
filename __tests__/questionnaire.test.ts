@@ -14,6 +14,7 @@ import {
   validateQuestionnaire,
   generateOptionValue,
   sortedQuestions,
+  removedQuestionIds,
   inferCanonicalTopic,
   relevantCanonicalTopics,
   type CanonicalQuestionConfig,
@@ -304,5 +305,31 @@ describe('custom slider validation', () => {
   it('does not require answer options for a slider (unlike single/multiple choice)', () => {
     const errors = validateQuestionnaire(withSlider())
     expect(errors.some((e) => e.includes('answer option'))).toBe(false)
+  })
+})
+
+describe('removedQuestionIds', () => {
+  function config(ids: string[]): QuestionnaireConfig {
+    return {
+      questions: ids.map((id, order) => ({ id, kind: 'custom', type: 'text', title: id, order } as CustomQuestionConfig)),
+    }
+  }
+
+  it('finds ids present in the old config but dropped from the new one', () => {
+    expect(removedQuestionIds(config(['a', 'b', 'c']), config(['a', 'c']))).toEqual(['b'])
+  })
+
+  it('returns an empty list when nothing was removed', () => {
+    expect(removedQuestionIds(config(['a', 'b']), config(['a', 'b', 'c']))).toEqual([])
+  })
+
+  it('treats a canonical question converted to a fresh custom id as removed', () => {
+    expect(removedQuestionIds(config(['dietary', 'avoid']), config(['q_a1b2c3d4', 'avoid']))).toEqual(['dietary'])
+  })
+
+  it('returns every old id when the config is fully replaced', () => {
+    expect(removedQuestionIds(config(['dietary', 'avoid', 'protein', 'flavor']), config(['q_1', 'q_2']))).toEqual([
+      'dietary', 'avoid', 'protein', 'flavor',
+    ])
   })
 })
