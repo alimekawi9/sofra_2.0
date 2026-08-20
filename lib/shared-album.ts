@@ -228,6 +228,58 @@ export async function downloadPhotoToDevice(photo: { url: string; storage_path: 
   }
 }
 
+export async function buildDownloadableFile(photo: { url: string; storage_path: string }): Promise<File | null> {
+  try {
+    const response = await fetch(photo.url)
+    if (!response.ok) return null
+    const blob = await response.blob()
+    return new File([blob], filenameForDownload(photo.storage_path), { type: blob.type || 'image/jpeg' })
+  } catch {
+    return null
+  }
+}
+
+export interface ShareSaveResult {
+  ok: boolean
+  aborted?: boolean
+  unsupported?: boolean
+  error?: string
+}
+
+// The reliable way to get photos into the camera roll on iOS Safari: a
+// synthetic <a download> there just opens an unnamed file preview instead of
+// actually saving anything (the download attribute isn't honored the same
+// way it is on desktop). Handing real File objects to the OS's native share
+// sheet gives the standard "Save Image(s)" flow instead.
+export async function saveViaShareSheet(
+  photos: Array<{ url: string; storage_path: string }>,
+  onProgress?: (completed: number, total: number) => void
+): Promise<ShareSaveResult> {
+  if (
+    typeof navigator === 'undefined' ||
+    typeof navigator.share !== 'function' ||
+    typeof navigator.canShare !== 'function'
+  ) {
+    return { ok: false, unsupported: true }
+  }
+
+  const files = (
+    await runBatchWithConcurrency(photos, UPLOAD_CONCURRENCY, buildDownloadableFile, onProgress)
+  ).filter((file): file is File => file !== null)
+
+  if (files.length === 0) return { ok: false, error: 'Could not prepare those photos.' }
+  if (!navigator.canShare({ files })) return { ok: false, unsupported: true }
+
+  try {
+    await navigator.share({ files })
+    return { ok: true }
+  } catch (caught) {
+    // The user closing the share sheet without picking anything isn't a failure.
+    if (caught instanceof Error && caught.name === 'AbortError') return { ok: true, aborted: true }
+    return { ok: false, error: caught instanceof Error ? caught.message : 'Could not save those photos.' }
+  }
+}
+
 export interface DownloadBatchResult {
   succeededCount: number
   failedCount: number

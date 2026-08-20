@@ -21,7 +21,7 @@ export function PhotoSaveProgress({ state, onDismiss }: PhotoSaveProgressProps) 
     <div className="sv2-upload-progress" role="status" aria-live="polite">
       <div className="sv2-upload-progress-head">
         <span>
-          {state.status === 'saving' && 'Saving photos'}
+          {state.status === 'saving' && 'Preparing photos'}
           {state.status === 'done' && state.failedCount === 0 &&
             `${state.succeededCount} ${state.succeededCount === 1 ? 'photo' : 'photos'} saved`}
           {state.status === 'done' && state.failedCount > 0 && `${state.succeededCount} of ${state.total} saved`}

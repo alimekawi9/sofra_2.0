@@ -10,6 +10,7 @@ import {
   filenameForDownload,
   downloadPhotoToDevice,
   downloadPhotosBatch,
+  saveViaShareSheet,
   MAX_PREVIEW_TILES,
   MAX_UPLOAD_BATCH,
   MAX_ALBUM_PHOTOS,
@@ -415,6 +416,70 @@ describe('downloadPhotoToDevice', () => {
     const result = await downloadPhotoToDevice({ url: 'https://example.test/ev-1/a.jpg', storage_path: 'ev-1/a.jpg' })
     expect(result.ok).toBe(false)
     expect(result.error).toBe('network down')
+  })
+})
+
+describe('saveViaShareSheet', () => {
+  const PHOTOS = [
+    { url: 'https://example.test/ev-1/a.jpg', storage_path: 'ev-1/a.jpg' },
+    { url: 'https://example.test/ev-1/b.jpg', storage_path: 'ev-1/b.jpg' },
+  ]
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    delete (navigator as any).share
+    delete (navigator as any).canShare
+  })
+
+  it('reports unsupported when the browser has no Web Share File API', async () => {
+    global.fetch = jest.fn()
+    const result = await saveViaShareSheet(PHOTOS)
+    expect(result).toEqual({ ok: false, unsupported: true })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('hands fetched photos to navigator.share as real files', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x'], { type: 'image/jpeg' }) })
+    const shareMock = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'canShare', { value: jest.fn().mockReturnValue(true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: shareMock, configurable: true })
+
+    const result = await saveViaShareSheet(PHOTOS)
+
+    expect(result).toEqual({ ok: true })
+    expect(shareMock).toHaveBeenCalledTimes(1)
+    const sharedFiles = shareMock.mock.calls[0][0].files
+    expect(sharedFiles).toHaveLength(2)
+    expect(sharedFiles[0]).toBeInstanceOf(File)
+    expect(sharedFiles[0].name).toBe('a.jpg')
+  })
+
+  it('treats the user cancelling the native share sheet as aborted, not a failure', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) })
+    const abortError = Object.assign(new Error('cancelled'), { name: 'AbortError' })
+    Object.defineProperty(navigator, 'canShare', { value: jest.fn().mockReturnValue(true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: jest.fn().mockRejectedValue(abortError), configurable: true })
+
+    const result = await saveViaShareSheet(PHOTOS)
+    expect(result).toEqual({ ok: true, aborted: true })
+  })
+
+  it('reports unsupported when canShare rejects the prepared files', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) })
+    Object.defineProperty(navigator, 'canShare', { value: jest.fn().mockReturnValue(false), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: jest.fn(), configurable: true })
+
+    const result = await saveViaShareSheet(PHOTOS)
+    expect(result).toEqual({ ok: false, unsupported: true })
+  })
+
+  it('reports a real failure when every photo fails to fetch', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false })
+    Object.defineProperty(navigator, 'canShare', { value: jest.fn().mockReturnValue(true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: jest.fn(), configurable: true })
+
+    const result = await saveViaShareSheet(PHOTOS)
+    expect(result).toEqual({ ok: false, error: 'Could not prepare those photos.' })
   })
 })
 

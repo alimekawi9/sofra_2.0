@@ -14,6 +14,7 @@ import {
   postPhotoComment,
   uploadPhotoBatch,
   downloadPhotosBatch,
+  saveViaShareSheet,
   type AlbumUploader,
 } from '@/lib/shared-album'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -234,12 +235,38 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
   async function saveSelected() {
     const toSave = photos.filter((p) => selectedIds.has(p.id))
     if (toSave.length === 0) return
-    setSaveProgress({ status: 'saving', completed: 0, total: toSave.length })
-    const { succeededCount, failedCount } = await downloadPhotosBatch(
-      toSave.map((p) => ({ url: p.url, storage_path: p.storage_path })),
-      (completed, total) => setSaveProgress({ status: 'saving', completed, total })
+    const targets = toSave.map((p) => ({ url: p.url, storage_path: p.storage_path }))
+    setSaveProgress({ status: 'saving', completed: 0, total: targets.length })
+
+    const shareResult = await saveViaShareSheet(targets, (completed, total) =>
+      setSaveProgress({ status: 'saving', completed, total })
     )
-    setSaveProgress({ status: 'done', succeededCount, failedCount, total: toSave.length })
+
+    if (shareResult.unsupported) {
+      // Falls back to a per-photo download on browsers without the Web Share
+      // File API (e.g. desktop) -- saveViaShareSheet is the reliable path on
+      // iOS Safari, where a synthetic <a download> just opens a bare file
+      // preview instead of actually saving to Photos.
+      const { succeededCount, failedCount } = await downloadPhotosBatch(
+        targets,
+        (completed, total) => setSaveProgress({ status: 'saving', completed, total })
+      )
+      setSaveProgress({ status: 'done', succeededCount, failedCount, total: targets.length })
+      return
+    }
+
+    if (shareResult.aborted) {
+      // The user closed the native share sheet without picking anything --
+      // it already gave its own feedback, so there's nothing more to show.
+      setSaveProgress(null)
+      return
+    }
+
+    setSaveProgress(
+      shareResult.ok
+        ? { status: 'done', succeededCount: targets.length, failedCount: 0, total: targets.length }
+        : { status: 'done', succeededCount: 0, failedCount: targets.length, total: targets.length }
+    )
   }
 
   async function submitComment(body: string) {

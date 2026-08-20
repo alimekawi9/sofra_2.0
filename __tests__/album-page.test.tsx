@@ -461,7 +461,7 @@ describe('select and save photos', () => {
     expect(screen.getByRole('button', { name: 'Save selected photos' })).toBeEnabled()
   })
 
-  it('downloads every selected photo and reports how many saved', async () => {
+  it('downloads every selected photo and reports how many saved, when the Web Share File API is unavailable', async () => {
     await renderWithThree()
     await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
     await userEvent.click(screen.getByRole('button', { name: 'SELECT ALL' }))
@@ -469,6 +469,42 @@ describe('select and save photos', () => {
 
     await waitFor(() => expect(screen.getByText('3 photos saved')).toBeInTheDocument())
     expect(global.fetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('hands selected photos to the native share sheet on devices that support it, instead of downloading', async () => {
+    const shareMock = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'canShare', { value: jest.fn().mockReturnValue(true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: shareMock, configurable: true })
+
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT ALL' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save selected photos' }))
+
+    await waitFor(() => expect(screen.getByText('3 photos saved')).toBeInTheDocument())
+    expect(shareMock).toHaveBeenCalledTimes(1)
+    expect(shareMock.mock.calls[0][0].files).toHaveLength(3)
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled()
+
+    delete (navigator as any).share
+    delete (navigator as any).canShare
+  })
+
+  it('silently clears the progress state when the user cancels the native share sheet', async () => {
+    const abortError = Object.assign(new Error('cancelled'), { name: 'AbortError' })
+    Object.defineProperty(navigator, 'canShare', { value: jest.fn().mockReturnValue(true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: jest.fn().mockRejectedValue(abortError), configurable: true })
+
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT ALL' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save selected photos' }))
+
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+    expect(screen.queryByText(/saved/)).not.toBeInTheDocument()
+
+    delete (navigator as any).share
+    delete (navigator as any).canShare
   })
 
   it('clears the selection and exits select mode via CANCEL', async () => {
