@@ -11,6 +11,15 @@ export interface PhotoUploadProgressProps {
   onDismiss: () => void
 }
 
+// Shared with the full-screen SofraTransition overlay shown while an upload
+// is in flight, so both surfaces describe the same wait the same way.
+export function uploadTransitionLabel(state: UploadProgressState | null): string {
+  if (state?.status === 'uploading') {
+    return `Uploading ${state.completed} of ${state.total} photo${state.total === 1 ? '' : 's'}`
+  }
+  return 'Uploading photos'
+}
+
 export function PhotoUploadProgress({ state, onDismiss }: PhotoUploadProgressProps) {
   if (!state) return null
 

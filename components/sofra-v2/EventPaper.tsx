@@ -5,11 +5,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
 import { AddPhotosControl } from './AddPhotosControl'
-import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProgress'
+import { PhotoUploadProgress, uploadTransitionLabel, type UploadProgressState } from './PhotoUploadProgress'
 import { buildPreviewTiles } from '@/lib/shared-album'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 import type { EventChatMessage } from '@/lib/event-chat'
+import SofraTransition from '../SofraTransition'
 
 export interface EventPaperGuest {
   id: string
@@ -388,6 +389,7 @@ export function EventPaper({
 
                 <AddPhotosControl disabled={uploadingPhoto} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
                 <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />
+                <SofraTransition active={uploadingPhoto} label={uploadTransitionLabel(uploadProgress)} />
                 </div>
                 ) : (
                   <div className="sv2-chat-preview" role="tabpanel" aria-labelledby="sv2-chat-preview-heading">

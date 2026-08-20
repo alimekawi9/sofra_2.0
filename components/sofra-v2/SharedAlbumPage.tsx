@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
 import { AddPhotosControl } from './AddPhotosControl'
-import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProgress'
+import { PhotoUploadProgress, uploadTransitionLabel, type UploadProgressState } from './PhotoUploadProgress'
 import { PhotoSaveProgress, type SaveProgressState } from './PhotoSaveProgress'
 import { PhotoViewer } from './PhotoViewer'
+import SofraTransition from '../SofraTransition'
 import type { PhotoCommentView } from './PhotoComments'
 import type { AlbumPhoto } from '@/lib/shared-album'
 
@@ -180,6 +181,7 @@ export function SharedAlbumPage({
 
       <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissProgress} />
       <PhotoSaveProgress state={saveProgress} onDismiss={onDismissSaveProgress} />
+      <SofraTransition active={uploading} label={uploadTransitionLabel(uploadProgress)} />
     </div>
   )
 }
