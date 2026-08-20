@@ -94,7 +94,7 @@ export function SharedAlbumPage({
             <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
             <div className="sv2-album-heading-actions">
               {photos.length > 0 && !selectMode && (
-                <button type="button" onClick={onToggleSelectMode}>SELECT</button>
+                <button type="button" className="sv2-album-select-toggle-btn" onClick={onToggleSelectMode}>SELECT</button>
               )}
               {canUpload && (
                 <AddPhotosControl disabled={uploading} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
@@ -102,20 +102,32 @@ export function SharedAlbumPage({
             </div>
           </div>
           {selectMode && (
+            <div className="sv2-album-download-row">
+              <button
+                type="button"
+                className="sv2-album-download-btn"
+                onClick={onSaveSelected}
+                disabled={selectedIds.size === 0 || saving}
+                aria-label="Save selected photos"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3v12" />
+                  <path d="M7 10l5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {selectMode && (
             <div className="sv2-album-select-toolbar">
-              <button type="button" onClick={onToggleSelectAll}>
+              <button type="button" className="sv2-album-select-all-btn" onClick={onToggleSelectAll}>
                 {allSelected ? 'DESELECT ALL' : 'SELECT ALL'}
               </button>
               <span>{selectedIds.size} selected</span>
             </div>
           )}
           {selectMode && (
-            <div className="sv2-album-select-save-row">
-              <button type="button" onClick={onSaveSelected} disabled={selectedIds.size === 0 || saving}>
-                SAVE
-              </button>
-              <button type="button" onClick={onToggleSelectMode}>CANCEL</button>
-            </div>
+            <button type="button" className="sv2-album-cancel-btn" onClick={onToggleSelectMode}>CANCEL</button>
           )}
         </header>
 

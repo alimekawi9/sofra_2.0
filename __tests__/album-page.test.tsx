@@ -456,16 +456,16 @@ describe('select and save photos', () => {
   it('disables SAVE until at least one photo is selected', async () => {
     await renderWithThree()
     await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
-    expect(screen.getByRole('button', { name: 'SAVE' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save selected photos' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: /select photo 1 of 3/i }))
-    expect(screen.getByRole('button', { name: 'SAVE' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Save selected photos' })).toBeEnabled()
   })
 
   it('downloads every selected photo and reports how many saved', async () => {
     await renderWithThree()
     await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
     await userEvent.click(screen.getByRole('button', { name: 'SELECT ALL' }))
-    await userEvent.click(screen.getByRole('button', { name: 'SAVE' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save selected photos' }))
 
     await waitFor(() => expect(screen.getByText('3 photos saved')).toBeInTheDocument())
     expect(global.fetch).toHaveBeenCalledTimes(3)
