@@ -419,7 +419,11 @@ describe('SignupForm', () => {
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Country code' }))
     await userEvent.click(screen.getByRole('option', { name: 'Lebanon +961' }))
-    expect(onPhoneChange).toHaveBeenLastCalledWith('+961555')
+    // Switching country clears the national number rather than carrying
+    // stale digits over -- a number typed for one country isn't meaningful
+    // for another (it previously produced nonsense like +20 + a US-length
+    // number).
+    expect(onPhoneChange).toHaveBeenLastCalledWith('')
     rerender(<SignupForm {...baseProps} onPhoneChange={onPhoneChange} phone="+9615550555" />)
     expect(screen.getByText('7/7-8 digits')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'CONTINUE' })).toBeEnabled()

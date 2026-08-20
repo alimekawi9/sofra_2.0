@@ -38,6 +38,7 @@ function makeSupabase({
   photoUploadError = null as { message: string } | null,
   tasteProfile = { user_id: HOST_UID } as { user_id: string } | null,
   cohostRows = [] as Array<{ users: { id: string; name: string; photo_url: string | null } | null }>,
+  viewerIsCohost = false,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -99,7 +100,10 @@ function makeSupabase({
           } : {
             eq: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
-                maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+                maybeSingle: jest.fn().mockResolvedValue({
+                  data: viewerIsCohost ? { user_id: GUEST_UID } : null,
+                  error: null,
+                }),
               }),
             }),
           }),
@@ -182,6 +186,13 @@ describe('Copy invite link button', () => {
     await userEvent.click(cohost)
     expect(await screen.findByRole('button', { name: /copy co-host link/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /send via whatsapp/i })).toBeInTheDocument()
+  })
+
+  it('lets an accepted co-host also invite further co-hosts, not just the original host', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ viewerIsCohost: true })
+    render(<EventDetailPage params={PARAMS} />)
+    expect(await screen.findByRole('button', { name: 'CO-HOST' })).toBeInTheDocument()
   })
 
   it('shows "Copy invite link" button when user is the host', async () => {

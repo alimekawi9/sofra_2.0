@@ -113,8 +113,10 @@ export function SignupForm({ phone, onPhoneChange, onSubmit, isSubmitting = fals
     const next = PHONE_COUNTRIES.find((option) => option.iso === nextIso) ?? PHONE_COUNTRIES[0]
     setCountryIso(next.iso)
     setCountryMenuOpen(false)
-    const digits = nationalDigits.slice(0, Math.max(...phoneLengths(next)))
-    onPhoneChange(digits ? `${next.dialCode}${digits}` : '')
+    // A national number typed for one country isn't meaningful under another
+    // country's dial code -- carrying the digits over produced nonsense
+    // numbers like +20 (Egypt) prefixed onto a US-length number. Start fresh.
+    onPhoneChange('')
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

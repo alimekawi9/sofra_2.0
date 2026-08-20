@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C } from '@/lib/theme'
 import { createClient } from '@/lib/supabase/client'
+import { isEventManager } from '@/lib/event-access'
 
 interface ChefTabsProps {
   eventId: string
@@ -41,7 +42,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
       const userId = localStorage.getItem('sofra_user_id')
       if (!userId) return
       const { data } = await supabase.from('events').select('host_id').eq('id', eventId).maybeSingle()
-      const allowed = data?.host_id === userId
+      const allowed = Boolean(data) && await isEventManager(supabase, eventId, userId, data.host_id)
       setCanDelegateKitchen(allowed)
       if (allowed && new URLSearchParams(window.location.search).get('kitchenShare') === '1') setKitchenSharing(true)
     }

@@ -172,7 +172,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       setMyRsvp(safeRsvpRow?.status ?? null)
       setUnlocked(isUnlocked)
       setIsHost(hostViewing)
-      setCanInviteCohost(ev.host_id === stored)
+      // Co-hosts get the same management powers as the original host, with
+      // the one deliberate exception of deleting the event (see the host
+      // edit page's canDelete, which stays host_id-only).
+      setCanInviteCohost(hostViewing)
       let needsHostPreferences = hostViewing && !tasteProfile
       if (hostViewing && tasteProfile) {
         try {
