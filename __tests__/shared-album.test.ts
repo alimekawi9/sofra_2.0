@@ -12,6 +12,7 @@ import {
   downloadPhotosBatch,
   MAX_PREVIEW_TILES,
   MAX_UPLOAD_BATCH,
+  MAX_ALBUM_PHOTOS,
 } from '@/lib/shared-album'
 
 // ─── buildPreviewTiles ──────────────────────────────────────────────────────
@@ -72,39 +73,44 @@ describe('validateUploadBatch', () => {
     expect(validateUploadBatch(1)).toEqual({ ok: true })
   })
 
-  it('accepts exactly 20 files', () => {
-    expect(validateUploadBatch(20)).toEqual({ ok: true })
+  it('accepts exactly 20 files in one batch, regardless of album size, while room remains', () => {
+    expect(validateUploadBatch(20, 0)).toEqual({ ok: true })
+    expect(validateUploadBatch(20, 100)).toEqual({ ok: true })
   })
 
-  it('rejects 21 files with a clear message', () => {
-    const result = validateUploadBatch(21)
+  it('rejects a batch of 21 files with a clear message, even with plenty of album room left', () => {
+    const result = validateUploadBatch(21, 0)
     expect(result.ok).toBe(false)
     expect(result.message).toBe('You can upload up to 20 photos at a time.')
   })
 
-  it('exposes the batch limit as 20', () => {
+  it('exposes the per-batch limit as 20', () => {
     expect(MAX_UPLOAD_BATCH).toBe(20)
   })
 
-  it('accepts a new batch that exactly fills the remaining room', () => {
-    expect(validateUploadBatch(5, 15)).toEqual({ ok: true })
+  it('exposes the total album cap as 200, independent of the per-batch limit', () => {
+    expect(MAX_ALBUM_PHOTOS).toBe(200)
   })
 
-  it('rejects a new batch that would push the album over 20 total', () => {
-    const result = validateUploadBatch(6, 15)
+  it('accepts a new batch that exactly fills the remaining album room', () => {
+    expect(validateUploadBatch(5, 195)).toEqual({ ok: true })
+  })
+
+  it('rejects a new batch that would push the album over its total cap', () => {
+    const result = validateUploadBatch(6, 195)
     expect(result.ok).toBe(false)
-    expect(result.message).toBe('You can only add 5 more photos — up to 20 per event.')
+    expect(result.message).toBe('You can only add 5 more photos — up to 200 per event.')
   })
 
   it('uses singular phrasing when exactly one slot remains', () => {
-    const result = validateUploadBatch(2, 19)
-    expect(result.message).toBe('You can only add 1 more photo — up to 20 per event.')
+    const result = validateUploadBatch(2, 199)
+    expect(result.message).toBe('You can only add 1 more photo — up to 200 per event.')
   })
 
   it('rejects any selection once the album is already full', () => {
-    const result = validateUploadBatch(1, 20)
+    const result = validateUploadBatch(1, 200)
     expect(result.ok).toBe(false)
-    expect(result.message).toBe('This album is full — up to 20 photos per event.')
+    expect(result.message).toBe('This album is full — up to 200 photos per event.')
   })
 })
 

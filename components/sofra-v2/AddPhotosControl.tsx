@@ -1,7 +1,7 @@
 'use client'
 
 import { useId, useState } from 'react'
-import { MAX_UPLOAD_BATCH, validateUploadBatch } from '@/lib/shared-album'
+import { MAX_UPLOAD_BATCH, MAX_ALBUM_PHOTOS, validateUploadBatch } from '@/lib/shared-album'
 
 export interface AddPhotosControlProps {
   disabled?: boolean
@@ -15,7 +15,7 @@ export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', currentCount,
   const [selected, setSelected] = useState<File[]>([])
   const [caption, setCaption] = useState('')
   const [validationError, setValidationError] = useState('')
-  const remaining = MAX_UPLOAD_BATCH - currentCount
+  const remaining = MAX_ALBUM_PHOTOS - currentCount
   const albumFull = remaining <= 0
 
   function handleFilesSelected(files: FileList | null) {
@@ -45,7 +45,7 @@ export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', currentCount,
   return (
     <>
       {albumFull ? (
-        <p className="sv2-add-photos-full">This album is full — up to {MAX_UPLOAD_BATCH} photos per event.</p>
+        <p className="sv2-add-photos-full">This album is full — up to {MAX_ALBUM_PHOTOS} photos per event.</p>
       ) : (
         <label className="sv2-add-photos-trigger" htmlFor={inputId}>
           {label}
@@ -92,7 +92,7 @@ export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', currentCount,
           </div>
         </div>
       )}
-      {!albumFull && <p className="sv2-sr-only">Up to {MAX_UPLOAD_BATCH} photos per event.</p>}
+      {!albumFull && <p className="sv2-sr-only">Up to {MAX_UPLOAD_BATCH} photos per upload, {MAX_ALBUM_PHOTOS} per event.</p>}
     </>
   )
 }
