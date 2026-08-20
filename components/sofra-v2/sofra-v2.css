@@ -1427,7 +1427,7 @@
 .sv2-album-select-left{display:flex;flex-direction:column}
 .sv2-album-download-btn{flex-shrink:0;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--sv2-ink);background:transparent;color:inherit;cursor:pointer}
 .sv2-album-download-btn:disabled{opacity:.4;cursor:default}
-.sv2-album-select-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sv2-album-select-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:-6px}
 .sv2-album-select-toolbar span{font:400 11px var(--sv2-sans-family);color:var(--sv2-muted)}
 .sv2-album-select-all-btn{padding:0;border:0;background:none;color:inherit;font:500 10px var(--sv2-sans-family);letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .sv2-album-cancel-btn{display:block;margin-top:16px;padding:0;border:0;background:none;color:var(--sv2-muted);font:500 10px var(--sv2-sans-family);letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
