@@ -1,4 +1,4 @@
-import { guestHostLabel, countHostsAmong } from '@/lib/guest-host-count'
+import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
 
 describe('guestHostLabel', () => {
   it('pluralizes both parts', () => {
@@ -14,13 +14,25 @@ describe('guestHostLabel', () => {
   })
 })
 
-describe('countHostsAmong', () => {
-  it('counts how many of the given user ids are hosts', () => {
-    const hostIds = new Set(['host-1', 'cohost-1'])
-    expect(countHostsAmong(['host-1', 'cohost-1', 'guest-1', 'guest-2'], hostIds)).toBe(2)
+describe('guestHostBreakdown', () => {
+  it('counts a host among the RSVPs as a host, not a guest', () => {
+    const hostIds = new Set(['host-1'])
+    expect(guestHostBreakdown(['host-1', 'guest-1', 'guest-2'], hostIds)).toEqual({ guests: 2, hosts: 1 })
   })
 
-  it('returns 0 when none of the user ids are hosts', () => {
-    expect(countHostsAmong(['guest-1', 'guest-2'], new Set(['host-1']))).toBe(0)
+  it('still counts a co-host who never submitted an RSVP row, matching the Around this Sofra roster', () => {
+    const hostIds = new Set(['host-1', 'cohost-1'])
+    // cohost-1 has no RSVP row at all here.
+    expect(guestHostBreakdown(['host-1', 'guest-1', 'guest-2', 'guest-3'], hostIds)).toEqual({ guests: 3, hosts: 2 })
+  })
+
+  it('does not double count a co-host who also has an RSVP row', () => {
+    const hostIds = new Set(['host-1', 'cohost-1'])
+    expect(guestHostBreakdown(['host-1', 'cohost-1', 'guest-1'], hostIds)).toEqual({ guests: 1, hosts: 2 })
+  })
+
+  it('handles no RSVPs at all beyond the hosts themselves', () => {
+    const hostIds = new Set(['host-1', 'cohost-1'])
+    expect(guestHostBreakdown(['host-1'], hostIds)).toEqual({ guests: 0, hosts: 2 })
   })
 })

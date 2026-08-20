@@ -15,7 +15,7 @@ import ChefTabs from '@/components/ChefTabs'
 import SofraTransition from '@/components/SofraTransition'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
 import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
-import { guestHostLabel, countHostsAmong } from '@/lib/guest-host-count'
+import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -244,8 +244,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
       const userIds = (rsvps ?? []).map((r: { user_id: string }) => r.user_id)
       setGuestResponseCount(userIds.filter((userId) => !hostIds.has(userId)).length)
-      const hostsInAttendance = countHostsAmong(userIds, hostIds)
-      setGuestHostCounts({ guests: userIds.length - hostsInAttendance, hosts: hostsInAttendance })
+      setGuestHostCounts(guestHostBreakdown(userIds, hostIds))
 
       const { data: profiles } = userIds.length
         ? await supabase.from('taste_profiles').select('*').in('user_id', userIds)

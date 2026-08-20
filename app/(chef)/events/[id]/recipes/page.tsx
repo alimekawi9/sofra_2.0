@@ -20,7 +20,7 @@ import {
 } from "@/lib/recipes";
 import "@/components/sofra-v2/sofra-v2.css";
 import { isEventManager, fetchEventHostIds } from "@/lib/event-access";
-import { guestHostLabel, countHostsAmong } from "@/lib/guest-host-count";
+import { guestHostLabel, guestHostBreakdown } from "@/lib/guest-host-count";
 
 type StoredRecipe = Omit<Recipe, "ingredients"> & {
   recipe_ingredients: RecipeIngredient[];
@@ -109,8 +109,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
         .eq("event_id", id)
         .in("status", ["going", "maybe"]);
       const ids = (rsvps ?? []).map((x) => x.user_id);
-      const hostsInAttendance = countHostsAmong(ids, hostIds);
-      setGuestHostCounts({ guests: ids.length - hostsInAttendance, hosts: hostsInAttendance });
+      setGuestHostCounts(guestHostBreakdown(ids, hostIds));
       const { data: profiles } = ids.length
           ? await supabase
               .from("taste_profiles")

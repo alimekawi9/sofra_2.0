@@ -469,4 +469,19 @@ describe('guest and host counting', () => {
     render(<TablePage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('2 guests have responded')).toBeInTheDocument())
   })
+
+  it('still counts a co-host who never submitted an RSVP row, matching the Around this Sofra roster', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({
+      // COHOST_UID intentionally has no row here at all.
+      rsvps: [
+        { user_id: HOST_UID, users: { name: 'Host' } },
+        { user_id: GUEST_A, users: { name: 'Guest A' } },
+        { user_id: GUEST_B, users: { name: 'Guest B' } },
+      ],
+      cohostRows: [{ user_id: COHOST_UID }],
+    })
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText(/2 guests · 2 hosts/)).toBeInTheDocument())
+  })
 })

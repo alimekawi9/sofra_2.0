@@ -18,7 +18,7 @@ import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
 import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
 import { rankingInsight, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
-import { guestHostLabel, countHostsAmong } from '@/lib/guest-host-count'
+import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -303,11 +303,10 @@ export default function TablePage({ params }: { params: { id: string } }) {
       })
     : undefined
 
-  const hostsInAttendance = countHostsAmong(
+  const { guests: guestsOnlyCount, hosts: hostsInAttendance } = guestHostBreakdown(
     guests.map((g) => g.userId).filter((id): id is string => id !== undefined),
     hostUserIds
   )
-  const guestsOnlyCount = guests.length - hostsInAttendance
 
   return (
     <>
