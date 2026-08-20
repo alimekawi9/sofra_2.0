@@ -10,7 +10,8 @@ export function guestHostLabel(guestCount: number, hostCount: number): string {
 // with a Host badge even if they never RSVP'd. A guest/host split based only
 // on the rsvps table would silently drop an un-RSVP'd co-host entirely.
 export function guestHostBreakdown(rsvpUserIds: string[], hostUserIds: Set<string>): { guests: number; hosts: number } {
-  const attendeeIds = new Set([...rsvpUserIds, ...hostUserIds])
+  const attendeeIds = new Set(rsvpUserIds)
+  hostUserIds.forEach((id) => attendeeIds.add(id))
   const hosts = hostUserIds.size
   return { guests: attendeeIds.size - hosts, hosts }
 }
