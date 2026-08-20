@@ -8,6 +8,7 @@ import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgr
 import type { SaveProgressState } from '@/components/sofra-v2/PhotoSaveProgress'
 import type { PhotoCommentView } from '@/components/sofra-v2/PhotoComments'
 import type { DeleteProgressState } from '@/components/sofra-v2/PhotoDeleteProgress'
+import { isEventManager } from '@/lib/event-access'
 import {
   fetchAlbumPhotos,
   fetchUsersByIds,
@@ -126,7 +127,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
 
       if (e2) throw new Error('rsvp fetch failed')
 
-      const hostViewing = ev.host_id === stored
+      const hostViewing = await isEventManager(supabase, params.id, stored, ev.host_id)
       setIsHost(hostViewing)
       await loadAlbum(hostViewing, rsvpRow !== null)
     } catch {
@@ -140,7 +141,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
 
   async function refreshAlbum() {
     if (!uidRef.current || !event) return
-    await loadAlbum(event.host_id === uidRef.current, canUpload)
+    await loadAlbum(isHost, canUpload)
   }
 
   function canDeletePhoto(photo: AlbumPhotoView): boolean {

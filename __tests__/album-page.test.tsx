@@ -36,6 +36,7 @@ function makeSupabase({
   usersRows = [{ id: GUEST_UID, name: 'Ali', photo_url: null }] as Array<{ id: string; name: string; photo_url: string | null }>,
   commentRows = [] as Array<{ id: string; photo_id: string; user_id: string; body: string; created_at: string }>,
   commentInsertResult = null as { data: unknown; error: unknown } | null,
+  isCohost = false,
 } = {}) {
   const bucket = {
     upload: jest.fn().mockResolvedValue({ data: {}, error: null }),
@@ -60,6 +61,17 @@ function makeSupabase({
       }
       if (table === 'users') {
         return { select: jest.fn().mockReturnValue({ in: jest.fn().mockResolvedValue({ data: usersRows, error: null }) }) }
+      }
+      if (table === 'event_cohosts') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockResolvedValue({ data: isCohost ? { user_id: GUEST_UID } : null, error: null }),
+              }),
+            }),
+          }),
+        }
       }
       if (table === 'event_photo_comments') {
         return {
@@ -112,6 +124,14 @@ describe('access control', () => {
   it('shows photos and the upload control for the host', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({ photoRows: [photoRow(1)] })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
+    expect(screen.getByLabelText('ADD PHOTOS', { selector: 'input' })).toBeInTheDocument()
+  })
+
+  it('shows photos and the upload control for an accepted co-host, even with no RSVP row', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({ rsvpRow: null, photoRows: [photoRow(1)], isCohost: true })
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     expect(screen.getByLabelText('ADD PHOTOS', { selector: 'input' })).toBeInTheDocument()
