@@ -179,6 +179,14 @@ export default function TablePage({ params }: { params: { id: string } }) {
       const userIds = ((rsvps ?? []) as unknown as RsvpRow[]).map((r) => r.user_id)
       setGuestResponseCount(userIds.filter((userId) => !hostIds.has(userId)).length)
 
+      // Custom-question tallies must include every host/co-host too, not
+      // just RSVP'd attendees -- a co-host without their own RSVP row (e.g.
+      // one added after the survey existed) still answers it, and excluding
+      // them silently undercounts every tally and hides that they answered.
+      const responseUserIdSet = new Set(userIds)
+      hostIds.forEach((hostUserId) => responseUserIdSet.add(hostUserId))
+      const responseUserIds = Array.from(responseUserIdSet)
+
       const { data: profiles } = userIds.length
         ? await supabase
             .from('taste_profiles')
@@ -249,12 +257,12 @@ export default function TablePage({ params }: { params: { id: string } }) {
         if (config) setRelevantTopics(relevantCanonicalTopics(config))
 
         if (customQs.length > 0) {
-          const { data: responseRows } = userIds.length
+          const { data: responseRows } = responseUserIds.length
             ? await supabase
                 .from('event_question_responses')
                 .select('question_id,response')
                 .eq('event_id', id)
-                .in('user_id', userIds)
+                .in('user_id', responseUserIds)
             : { data: [] as Array<{ question_id: string; response: unknown }> }
 
           setCustomAnswerSummaries(summarizeCustomAnswers(customQs, responseRows ?? []))

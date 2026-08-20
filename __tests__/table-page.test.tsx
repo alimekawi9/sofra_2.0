@@ -30,11 +30,13 @@ type ProfileRow = {
 }
 
 function makeSupabase({
-  event      = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
-  rsvps      = [] as RsvpRow[],
-  profiles   = [] as ProfileRow[],
-  fetchError = null as { message: string } | null,
-  cohostRows = [] as Array<{ user_id: string }>,
+  event              = SAMPLE_EVENT as typeof SAMPLE_EVENT | null,
+  rsvps              = [] as RsvpRow[],
+  profiles           = [] as ProfileRow[],
+  fetchError         = null as { message: string } | null,
+  cohostRows         = [] as Array<{ user_id: string }>,
+  questionnaireConfig = null as { questions: unknown[] } | null,
+  responseRows      = [] as Array<{ question_id: string; response: unknown }>,
 } = {}) {
   const sb = {
     from: jest.fn((table: string) => {
@@ -67,6 +69,24 @@ function makeSupabase({
               eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }),
               then: (resolve: (v: { data: typeof cohostRows; error: null }) => void) => resolve({ data: cohostRows, error: null }),
             })),
+          }),
+        }
+      }
+      if (table === 'event_questionnaires') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({ data: questionnaireConfig ? { config: questionnaireConfig } : null, error: null }),
+            }),
+          }),
+        }
+      }
+      if (table === 'event_question_responses') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              in: jest.fn().mockResolvedValue({ data: responseRows, error: null }),
+            }),
           }),
         }
       }
@@ -483,5 +503,33 @@ describe('guest and host counting', () => {
     })
     render(<TablePage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText(/2 guests · 2 hosts/)).toBeInTheDocument())
+  })
+
+  it('counts a co-host with no RSVP row in the custom-question response tally', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({
+      // COHOST_UID intentionally has no RSVP row here at all, mirroring the
+      // real THE ODYSSEY case that led to Alia's answers being undercounted.
+      rsvps: [
+        { user_id: HOST_UID, users: { name: 'Host' } },
+        { user_id: GUEST_A, users: { name: 'Guest A' } },
+      ],
+      cohostRows: [{ user_id: COHOST_UID }],
+      questionnaireConfig: {
+        questions: [
+          { id: 'q1', kind: 'custom', type: 'single', title: 'Which date works?', order: 0, options: [{ value: 'fri', label: 'Friday' }, { value: 'sat', label: 'Saturday' }] },
+        ],
+      },
+      responseRows: [
+        { question_id: 'q1', response: 'fri' },
+        { question_id: 'q1', response: 'fri' },
+        { question_id: 'q1', response: 'sat' },
+      ],
+    })
+    render(<TablePage params={PARAMS} />)
+    // 3 total responses (host + guest + cohost) should tally, not 2 (which
+    // is what the old RSVP-only userIds filter would have produced).
+    await waitFor(() => expect(screen.getByText('Friday')).toBeInTheDocument())
+    expect(screen.getByText('2 of 3')).toBeInTheDocument()
   })
 })
