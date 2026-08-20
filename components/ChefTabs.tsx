@@ -81,19 +81,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
   return (
     <div className="sv2-chef-tabs" style={{ marginBottom: 14 }}>
       {!restrictedChef && (
-        <Link
-          href={`/events/${eventId}`}
-          style={{
-            display: 'inline-block',
-            marginBottom: 14,
-            color: C.dim,
-            fontSize: 13,
-            fontFamily: 'system-ui, sans-serif',
-            textDecoration: 'none',
-          }}
-        >
-          ← Back
-        </Link>
+        <Link className="sv2-back-link" href={`/events/${eventId}`}>← Back</Link>
       )}
       <div className="sv2-chef-tabs-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="sv2-chef-tabs-identity">

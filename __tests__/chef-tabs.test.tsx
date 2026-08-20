@@ -79,10 +79,14 @@ it('hides kitchen-delegation actions from a guest who is neither host nor co-hos
 })
 
 describe('back link', () => {
-  it('links back to the event detail page', () => {
+  it('links back to the event detail page using the shared back-link style', () => {
     makeSupabase()
     render(<ChefTabs eventId="event-1" active="table" title="Dinner" />)
-    expect(screen.getByRole('link', { name: /back/i })).toHaveAttribute('href', '/events/event-1')
+    const backLink = screen.getByRole('link', { name: /back/i })
+    expect(backLink).toHaveAttribute('href', '/events/event-1')
+    // Matches every other back link in the app (EventPaper, SharedAlbumPage,
+    // etc.) instead of a one-off inline style.
+    expect(backLink).toHaveClass('sv2-back-link')
   })
 
   it('is hidden for a restricted chef, who has no access to the event detail page', () => {
