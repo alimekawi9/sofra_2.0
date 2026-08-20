@@ -77,3 +77,17 @@ it('hides kitchen-delegation actions from a guest who is neither host nor co-hos
   await waitFor(() => expect(screen.getByRole('button', { name: 'The Table' })).toBeInTheDocument())
   expect(screen.queryByRole('button', { name: 'Fill kitchen myself' })).not.toBeInTheDocument()
 })
+
+describe('back link', () => {
+  it('links back to the event detail page', () => {
+    makeSupabase()
+    render(<ChefTabs eventId="event-1" active="table" title="Dinner" />)
+    expect(screen.getByRole('link', { name: /back/i })).toHaveAttribute('href', '/events/event-1')
+  })
+
+  it('is hidden for a restricted chef, who has no access to the event detail page', () => {
+    makeSupabase()
+    render(<ChefTabs eventId="event-1" active="kitchen" restrictedChef title="Dinner" />)
+    expect(screen.queryByRole('link', { name: /back/i })).not.toBeInTheDocument()
+  })
+})

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { C } from '@/lib/theme'
 import { createClient } from '@/lib/supabase/client'
 import { isEventManager } from '@/lib/event-access'
@@ -79,6 +80,21 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
 
   return (
     <div className="sv2-chef-tabs" style={{ marginBottom: 14 }}>
+      {!restrictedChef && (
+        <Link
+          href={`/events/${eventId}`}
+          style={{
+            display: 'inline-block',
+            marginBottom: 14,
+            color: C.dim,
+            fontSize: 13,
+            fontFamily: 'system-ui, sans-serif',
+            textDecoration: 'none',
+          }}
+        >
+          ← Back
+        </Link>
+      )}
       <div className="sv2-chef-tabs-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="sv2-chef-tabs-identity">
           <div className="sv2-chef-tabs-brand" style={{ color: C.cream, fontSize: 24, fontStyle: 'italic' }}>
