@@ -197,6 +197,60 @@ export async function fetchAlbumPhotos(
   }
 }
 
+export function filenameForDownload(storagePath: string): string {
+  const parts = storagePath.split('/')
+  return parts[parts.length - 1] || 'photo.jpg'
+}
+
+// Photos live on Supabase Storage's own domain, not the app's origin, so a
+// plain <a download href={url}> would just navigate to the image instead of
+// saving it -- the download attribute is only honored same-origin. Fetching
+// the image into a blob first and downloading that blob: URL works around
+// that restriction.
+export async function downloadPhotoToDevice(photo: { url: string; storage_path: string }): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(photo.url)
+    if (!response.ok) return { ok: false, error: 'Could not download that photo.' }
+    const blob = await response.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filenameForDownload(photo.storage_path)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(objectUrl)
+    return { ok: true }
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : 'Unexpected download failure' }
+  }
+}
+
+export interface DownloadBatchResult {
+  succeededCount: number
+  failedCount: number
+}
+
+// Sequential, not concurrent like uploadPhotoBatch/runBatchWithConcurrency --
+// firing many blob-download clicks in a tight concurrent burst is more likely
+// to trip a browser's "site is downloading multiple files" prompt than one
+// at a time, and there's no real throughput benefit here since each step is
+// just a fetch plus a synchronous DOM click.
+export async function downloadPhotosBatch(
+  photos: Array<{ url: string; storage_path: string }>,
+  onProgress?: (completed: number, total: number) => void
+): Promise<DownloadBatchResult> {
+  let succeededCount = 0
+  let failedCount = 0
+  for (let i = 0; i < photos.length; i++) {
+    const result = await downloadPhotoToDevice(photos[i])
+    if (result.ok) succeededCount++
+    else failedCount++
+    onProgress?.(i + 1, photos.length)
+  }
+  return { succeededCount, failedCount }
+}
+
 export async function fetchUsersByIds(
   supabase: SupabaseClient,
   ids: string[]

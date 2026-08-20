@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useUnwrappedParams } from '@/lib/next-params'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SharedAlbumPage, type AlbumPhotoView } from '@/components/sofra-v2/SharedAlbumPage'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
+import type { SaveProgressState } from '@/components/sofra-v2/PhotoSaveProgress'
 import type { PhotoCommentView } from '@/components/sofra-v2/PhotoComments'
 import {
   fetchAlbumPhotos,
@@ -12,13 +14,15 @@ import {
   fetchPhotoComments,
   postPhotoComment,
   uploadPhotoBatch,
+  downloadPhotosBatch,
   type AlbumUploader,
 } from '@/lib/shared-album'
 import '@/components/sofra-v2/sofra-v2.css'
 
 type EventRow = { id: string; host_id: string; title: string }
 
-export default function EventAlbumPage({ params }: { params: { id: string } }) {
+export default function EventAlbumPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = useUnwrappedParams(paramsPromise)
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -32,6 +36,10 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
   const [uploaders, setUploaders] = useState<Record<string, AlbumUploader>>({})
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
+
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [saveProgress, setSaveProgress] = useState<SaveProgressState | null>(null)
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(false)
@@ -205,6 +213,37 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     setCommentsOpen((open) => !open)
   }
 
+  function toggleSelectMode() {
+    setSelectMode((open) => !open)
+    setSelectedIds(new Set())
+  }
+
+  function togglePhotoSelected(photoId: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(photoId)) next.delete(photoId)
+      else next.add(photoId)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((current) =>
+      current.size === photos.length ? new Set() : new Set(photos.map((p) => p.id))
+    )
+  }
+
+  async function saveSelected() {
+    const toSave = photos.filter((p) => selectedIds.has(p.id))
+    if (toSave.length === 0) return
+    setSaveProgress({ status: 'saving', completed: 0, total: toSave.length })
+    const { succeededCount, failedCount } = await downloadPhotosBatch(
+      toSave.map((p) => ({ url: p.url, storage_path: p.storage_path })),
+      (completed, total) => setSaveProgress({ status: 'saving', completed, total })
+    )
+    setSaveProgress({ status: 'done', succeededCount, failedCount, total: toSave.length })
+  }
+
   async function submitComment(body: string) {
     const uid = uidRef.current
     if (!uid || selectedIndex === null) return
@@ -262,6 +301,14 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
       commentsError={commentsError}
       onSubmitComment={submitComment}
       submittingComment={submittingComment}
+      selectMode={selectMode}
+      selectedIds={selectedIds}
+      onToggleSelectMode={toggleSelectMode}
+      onTogglePhotoSelected={togglePhotoSelected}
+      onToggleSelectAll={toggleSelectAll}
+      onSaveSelected={saveSelected}
+      saveProgress={saveProgress}
+      onDismissSaveProgress={() => setSaveProgress(null)}
     />
   )
 }

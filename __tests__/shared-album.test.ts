@@ -7,6 +7,9 @@ import {
   fetchUsersByIds,
   fetchPhotoComments,
   postPhotoComment,
+  filenameForDownload,
+  downloadPhotoToDevice,
+  downloadPhotosBatch,
   MAX_PREVIEW_TILES,
   MAX_UPLOAD_BATCH,
 } from '@/lib/shared-album'
@@ -347,6 +350,98 @@ describe('uploadPhotoBatch', () => {
 
     expect(progress).toHaveLength(3)
     expect(progress[progress.length - 1]).toEqual([3, 3])
+  })
+})
+
+// ─── Downloading photos to the device ──────────────────────────────────────
+
+describe('filenameForDownload', () => {
+  it('extracts the basename from a storage path', () => {
+    expect(filenameForDownload('ev-1/1699999999-u1-0.jpg')).toBe('1699999999-u1-0.jpg')
+  })
+
+  it('falls back to a default name when there is no basename', () => {
+    expect(filenameForDownload('')).toBe('photo.jpg')
+  })
+})
+
+describe('downloadPhotoToDevice', () => {
+  let clickSpy: jest.SpyInstance
+  let createObjectURLSpy: jest.SpyInstance
+  let revokeObjectURLSpy: jest.SpyInstance
+
+  beforeEach(() => {
+    clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    createObjectURLSpy = jest.fn().mockReturnValue('blob:mock-url')
+    revokeObjectURLSpy = jest.fn()
+    ;(global as any).URL.createObjectURL = createObjectURLSpy
+    ;(global as any).URL.revokeObjectURL = revokeObjectURLSpy
+  })
+
+  afterEach(() => {
+    clickSpy.mockRestore()
+    jest.restoreAllMocks()
+  })
+
+  it('fetches the photo, downloads it as a blob, and cleans up the object URL', async () => {
+    const blob = new Blob(['fake-image-bytes'])
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => blob })
+
+    const result = await downloadPhotoToDevice({ url: 'https://example.test/ev-1/a.jpg', storage_path: 'ev-1/a.jpg' })
+
+    expect(result.ok).toBe(true)
+    expect(global.fetch).toHaveBeenCalledWith('https://example.test/ev-1/a.jpg')
+    expect(createObjectURLSpy).toHaveBeenCalledWith(blob)
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+    expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url')
+  })
+
+  it('reports failure without throwing when the fetch response is not ok', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false })
+    const result = await downloadPhotoToDevice({ url: 'https://example.test/ev-1/missing.jpg', storage_path: 'ev-1/missing.jpg' })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBeTruthy()
+    expect(clickSpy).not.toHaveBeenCalled()
+  })
+
+  it('reports failure without throwing when fetch itself rejects', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('network down'))
+    const result = await downloadPhotoToDevice({ url: 'https://example.test/ev-1/a.jpg', storage_path: 'ev-1/a.jpg' })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('network down')
+  })
+})
+
+describe('downloadPhotosBatch', () => {
+  beforeEach(() => {
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    ;(global as any).URL.createObjectURL = jest.fn().mockReturnValue('blob:mock-url')
+    ;(global as any).URL.revokeObjectURL = jest.fn()
+  })
+
+  afterEach(() => jest.restoreAllMocks())
+
+  it('downloads every photo sequentially and counts successes/failures', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['a']) })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['c']) })
+
+    const photos = [
+      { url: 'https://example.test/ev-1/a.jpg', storage_path: 'ev-1/a.jpg' },
+      { url: 'https://example.test/ev-1/b.jpg', storage_path: 'ev-1/b.jpg' },
+      { url: 'https://example.test/ev-1/c.jpg', storage_path: 'ev-1/c.jpg' },
+    ]
+    const progress: Array<[number, number]> = []
+    const result = await downloadPhotosBatch(photos, (completed, total) => progress.push([completed, total]))
+
+    expect(result).toEqual({ succeededCount: 2, failedCount: 1 })
+    expect(progress).toEqual([[1, 3], [2, 3], [3, 3]])
+  })
+
+  it('handles an empty selection', async () => {
+    const result = await downloadPhotosBatch([])
+    expect(result).toEqual({ succeededCount: 0, failedCount: 0 })
   })
 })
 

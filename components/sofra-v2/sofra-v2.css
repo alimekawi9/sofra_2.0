@@ -1419,6 +1419,11 @@
 .sv2-album-page-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
 .sv2-album-page-tile{position:relative;aspect-ratio:1;padding:0;margin:0;border:0;overflow:hidden;cursor:pointer;background:var(--sv2-line)}
 .sv2-album-page-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.sv2-album-page-tile.sv2-album-tile-selectable img{opacity:.85}
+.sv2-album-tile-checkbox{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:999px;border:2px solid #F7F4ED;background:rgba(20,10,10,.35);display:grid;place-items:center;color:#F7F4ED;font-size:12px;line-height:1}
+.sv2-album-tile-checkbox.is-checked{background:#64161A;border-color:#F7F4ED}
+.sv2-album-select-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.sv2-album-select-toolbar span{font-size:11px;color:var(--sv2-muted)}
 @media(min-width:640px){.sv2-album-page-grid{grid-template-columns:repeat(4,1fr);gap:6px}}
 @media(min-width:1024px){.sv2-album-page-grid{grid-template-columns:repeat(6,1fr)}}
 

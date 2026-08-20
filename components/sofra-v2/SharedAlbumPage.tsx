@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
 import { AddPhotosControl } from './AddPhotosControl'
 import { PhotoUploadProgress, type UploadProgressState } from './PhotoUploadProgress'
+import { PhotoSaveProgress, type SaveProgressState } from './PhotoSaveProgress'
 import { PhotoViewer } from './PhotoViewer'
 import type { PhotoCommentView } from './PhotoComments'
 import type { AlbumPhoto } from '@/lib/shared-album'
@@ -36,6 +37,14 @@ export interface SharedAlbumPageProps {
   commentsError: string
   onSubmitComment: (body: string) => void
   submittingComment: boolean
+  selectMode: boolean
+  selectedIds: Set<string>
+  onToggleSelectMode: () => void
+  onTogglePhotoSelected: (id: string) => void
+  onToggleSelectAll: () => void
+  onSaveSelected: () => void
+  saveProgress: SaveProgressState | null
+  onDismissSaveProgress: () => void
 }
 
 export function SharedAlbumPage({
@@ -61,7 +70,17 @@ export function SharedAlbumPage({
   commentsError,
   onSubmitComment,
   submittingComment,
+  selectMode,
+  selectedIds,
+  onToggleSelectMode,
+  onTogglePhotoSelected,
+  onToggleSelectAll,
+  onSaveSelected,
+  saveProgress,
+  onDismissSaveProgress,
 }: SharedAlbumPageProps) {
+  const allSelected = photos.length > 0 && selectedIds.size === photos.length
+  const saving = saveProgress?.status === 'saving'
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-album-page-shell">
@@ -72,10 +91,27 @@ export function SharedAlbumPage({
           <p className="sv2-album-page-subtitle">{eventTitle}</p>
           <div className="sv2-album-page-meta">
             <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
-            {canUpload && (
-              <AddPhotosControl disabled={uploading} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
-            )}
+            <div className="sv2-album-heading-actions">
+              {photos.length > 0 && !selectMode && (
+                <button type="button" onClick={onToggleSelectMode}>SELECT</button>
+              )}
+              {canUpload && (
+                <AddPhotosControl disabled={uploading} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
+              )}
+            </div>
           </div>
+          {selectMode && (
+            <div className="sv2-album-select-toolbar">
+              <button type="button" onClick={onToggleSelectAll}>
+                {allSelected ? 'DESELECT ALL' : 'SELECT ALL'}
+              </button>
+              <span>{selectedIds.size} selected</span>
+              <button type="button" onClick={onSaveSelected} disabled={selectedIds.size === 0 || saving}>
+                SAVE
+              </button>
+              <button type="button" onClick={onToggleSelectMode}>CANCEL</button>
+            </div>
+          )}
         </header>
 
         {loading ? (
@@ -89,18 +125,30 @@ export function SharedAlbumPage({
           <p style={{ fontSize: 12 }}>No memories yet.</p>
         ) : (
           <div className="sv2-album-page-grid">
-            {photos.map((photo, i) => (
-              <button
-                key={photo.id}
-                type="button"
-                className="sv2-album-page-tile"
-                onClick={() => onSelectPhoto(i)}
-                aria-label={`Open photo ${i + 1} of ${photos.length}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt="" loading="lazy" />
-              </button>
-            ))}
+            {photos.map((photo, i) => {
+              const isSelected = selectedIds.has(photo.id)
+              return (
+                <button
+                  key={photo.id}
+                  type="button"
+                  className={`sv2-album-page-tile${selectMode ? ' sv2-album-tile-selectable' : ''}`}
+                  onClick={() => (selectMode ? onTogglePhotoSelected(photo.id) : onSelectPhoto(i))}
+                  aria-label={
+                    selectMode
+                      ? `${isSelected ? 'Deselect' : 'Select'} photo ${i + 1} of ${photos.length}`
+                      : `Open photo ${i + 1} of ${photos.length}`
+                  }
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photo.url} alt="" loading="lazy" />
+                  {selectMode && (
+                    <span className={`sv2-album-tile-checkbox${isSelected ? ' is-checked' : ''}`} aria-hidden="true">
+                      {isSelected ? '✓' : ''}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
       </main>
@@ -131,6 +179,7 @@ export function SharedAlbumPage({
       )}
 
       <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissProgress} />
+      <PhotoSaveProgress state={saveProgress} onDismiss={onDismissSaveProgress} />
     </div>
   )
 }

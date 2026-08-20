@@ -402,3 +402,85 @@ describe('comment count on the viewer button', () => {
     expect(screen.getByRole('button', { name: 'POST' })).toBeDisabled()
   })
 })
+
+describe('select and save photos', () => {
+  beforeEach(() => {
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    ;(global as any).URL.createObjectURL = jest.fn().mockReturnValue('blob:mock-url')
+    ;(global as any).URL.revokeObjectURL = jest.fn()
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) })
+  })
+
+  afterEach(() => jest.restoreAllMocks())
+
+  async function renderWithThree() {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const rows = [photoRow(1), photoRow(2), photoRow(3)]
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: rows })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('3 memories')).toBeInTheDocument())
+  }
+
+  it('enters select mode, toggles individual photos, and shows a live selected count', async () => {
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /select photo 1 of 3/i }))
+    expect(screen.getByText('1 selected')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /select photo 2 of 3/i }))
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /deselect photo 1 of 3/i }))
+    expect(screen.getByText('1 selected')).toBeInTheDocument()
+  })
+
+  it('does not open the viewer while in select mode', async () => {
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: /select photo 1 of 3/i }))
+    expect(screen.queryByRole('dialog', { name: 'Photo viewer' })).not.toBeInTheDocument()
+  })
+
+  it('selects and deselects everything with SELECT ALL / DESELECT ALL', async () => {
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT ALL' }))
+    expect(screen.getByText('3 selected')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'DESELECT ALL' }))
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+  })
+
+  it('disables SAVE until at least one photo is selected', async () => {
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    expect(screen.getByRole('button', { name: 'SAVE' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /select photo 1 of 3/i }))
+    expect(screen.getByRole('button', { name: 'SAVE' })).toBeEnabled()
+  })
+
+  it('downloads every selected photo and reports how many saved', async () => {
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT ALL' }))
+    await userEvent.click(screen.getByRole('button', { name: 'SAVE' }))
+
+    await waitFor(() => expect(screen.getByText('3 photos saved')).toBeInTheDocument())
+    expect(global.fetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('clears the selection and exits select mode via CANCEL', async () => {
+    await renderWithThree()
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: /select photo 1 of 3/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'CANCEL' }))
+
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'SELECT' })).toBeInTheDocument()
+    // Re-entering select mode confirms the previous selection was cleared, not just hidden.
+    await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+  })
+})
