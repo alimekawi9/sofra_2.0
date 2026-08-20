@@ -7,7 +7,6 @@ import { sv2Display, sv2Sans } from '@/components/sofra-v2/fonts'
 import { createClient } from '@/lib/supabase/client'
 import { isEventManager } from '@/lib/event-access'
 import { buildUpdateMessage, type UpdateEventInput, type UpdateTemplateId } from '@/lib/event-updates'
-import { useUnwrappedParams } from '@/lib/next-params'
 import '@/components/sofra-v2/sofra-v2.css'
 
 type EventRow = UpdateEventInput & { id: string; host_id: string }
@@ -22,8 +21,7 @@ function canonicalUrl(path: string): string {
   return new URL(path, window.location.origin).toString()
 }
 
-export default function EventUpdatePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = useUnwrappedParams(paramsPromise)
+export default function EventUpdatePage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
