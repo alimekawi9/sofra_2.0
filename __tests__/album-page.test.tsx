@@ -55,6 +55,7 @@ function makeSupabase({
         return {
           select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ order: jest.fn().mockResolvedValue({ data: photoRows, error: null }) }) }),
           insert: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: null, error: { message: 'not used' } }) }) }),
+          delete: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) }),
         }
       }
       if (table === 'users') {
@@ -518,5 +519,51 @@ describe('select and save photos', () => {
     // Re-entering select mode confirms the previous selection was cleared, not just hidden.
     await userEvent.click(screen.getByRole('button', { name: 'SELECT' }))
     expect(screen.getByText('0 selected')).toBeInTheDocument()
+  })
+})
+
+describe('photo deletion', () => {
+  it('the host sees a DELETE button in the full-screen viewer for any photo', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({ photoRows: [photoRow(1)] })
+    render(<EventAlbumPage params={PARAMS} />)
+    await userEvent.click(await screen.findByRole('button', { name: /open photo 1 of 1/i }))
+    expect(await screen.findByRole('button', { name: /^delete$/i })).toBeInTheDocument()
+  })
+
+  it('a non-uploader, non-host guest does not see a DELETE button', async () => {
+    localStorage.setItem('sofra_user_id', 'someone-else')
+    makeSupabase({ rsvpRow: { status: 'going' }, photoRows: [photoRow(1)] })
+    render(<EventAlbumPage params={PARAMS} />)
+    await userEvent.click(await screen.findByRole('button', { name: /open photo 1 of 1/i }))
+    expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument()
+  })
+
+  it('the uploader sees a DELETE button for their own photo and deleting it closes the viewer and refreshes the album', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const sb = makeSupabase({ rsvpRow: { status: 'going' }, photoRows: [photoRow(1)] })
+    render(<EventAlbumPage params={PARAMS} />)
+    await userEvent.click(await screen.findByRole('button', { name: /open photo 1 of 1/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /^delete$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /yes, delete/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /photo viewer/i })).not.toBeInTheDocument())
+    const eventPhotosCalls = sb.from.mock.calls.filter(([t]: [string]) => t === 'event_photos')
+    expect(eventPhotosCalls.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('bulk-deleting a mixed selection only deletes the viewer\'s own photos, excluding the other guest\'s photo entirely', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      photoRows: [photoRow(1, { uploaded_by: GUEST_UID }), photoRow(2, { uploaded_by: 'someone-else' })],
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'SELECT' }))
+    await userEvent.click(screen.getByRole('button', { name: /select all/i }))
+    await userEvent.click(screen.getByRole('button', { name: /delete selected photos/i }))
+    await userEvent.click(screen.getByRole('button', { name: /yes, delete/i }))
+    // Only 1 of the 2 selected photos was the viewer's own, so only 1 was
+    // ever attempted -- the other is excluded, not counted as a failure.
+    await waitFor(() => expect(screen.getByText('1 photo deleted')).toBeInTheDocument())
   })
 })

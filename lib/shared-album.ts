@@ -199,6 +199,52 @@ export async function fetchAlbumPhotos(
   }
 }
 
+export interface DeletePhotoResult {
+  ok: boolean
+  error?: string
+}
+
+// Storage-then-row, in that order: a dangling storage file is a harmless
+// orphan, but a DB row pointing at a file the UI still shows is the worse
+// failure mode, so the row delete is what determines success/failure here.
+// Photo comments cascade-delete automatically via event_photo_comments'
+// existing `on delete cascade` foreign key.
+export async function deletePhoto(
+  supabase: SupabaseClient,
+  photo: { id: string; storage_path: string }
+): Promise<DeletePhotoResult> {
+  try {
+    await supabase.storage.from('event-photos').remove([photo.storage_path])
+    const { error } = await supabase.from('event_photos').delete().eq('id', photo.id)
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : 'Unexpected request failure' }
+  }
+}
+
+export interface DeleteBatchResult {
+  succeededCount: number
+  failedCount: number
+}
+
+export async function deletePhotoBatch(
+  supabase: SupabaseClient,
+  photos: Array<{ id: string; storage_path: string }>,
+  onProgress?: (completed: number, total: number) => void
+): Promise<DeleteBatchResult> {
+  const results = await runBatchWithConcurrency(
+    photos,
+    UPLOAD_CONCURRENCY,
+    (photo) => deletePhoto(supabase, photo),
+    onProgress
+  )
+  return {
+    succeededCount: results.filter((r) => r.ok).length,
+    failedCount: results.filter((r) => !r.ok).length,
+  }
+}
+
 export function filenameForDownload(storagePath: string): string {
   const parts = storagePath.split('/')
   return parts[parts.length - 1] || 'photo.jpg'

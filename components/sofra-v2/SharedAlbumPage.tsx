@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { sv2Display, sv2Sans } from './fonts'
 import { AddPhotosControl } from './AddPhotosControl'
 import { PhotoUploadProgress, uploadTransitionLabel, type UploadProgressState } from './PhotoUploadProgress'
 import { PhotoSaveProgress, type SaveProgressState } from './PhotoSaveProgress'
+import { PhotoDeleteProgress, type DeleteProgressState } from './PhotoDeleteProgress'
 import { PhotoViewer } from './PhotoViewer'
 import SofraTransition from '../SofraTransition'
 import type { PhotoCommentView } from './PhotoComments'
@@ -46,6 +48,14 @@ export interface SharedAlbumPageProps {
   onSaveSelected: () => void
   saveProgress: SaveProgressState | null
   onDismissSaveProgress: () => void
+  canDeleteCurrent: boolean
+  deletingCurrent: boolean
+  onDeleteCurrent: () => void
+  singleDeleteError: string
+  onDeleteSelected: () => void
+  deleteProgress: DeleteProgressState | null
+  onDismissDeleteProgress: () => void
+  bulkDeleteError: string
 }
 
 export function SharedAlbumPage({
@@ -79,9 +89,19 @@ export function SharedAlbumPage({
   onSaveSelected,
   saveProgress,
   onDismissSaveProgress,
+  canDeleteCurrent,
+  deletingCurrent,
+  onDeleteCurrent,
+  singleDeleteError,
+  onDeleteSelected,
+  deleteProgress,
+  onDismissDeleteProgress,
+  bulkDeleteError,
 }: SharedAlbumPageProps) {
   const allSelected = photos.length > 0 && selectedIds.size === photos.length
   const saving = saveProgress?.status === 'saving'
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false)
+  const bulkDeleting = deleteProgress?.status === 'deleting'
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-album-page-shell">
@@ -112,21 +132,51 @@ export function SharedAlbumPage({
                 </div>
                 <button type="button" className="sv2-album-cancel-btn" onClick={onToggleSelectMode}>CANCEL</button>
               </div>
-              <button
-                type="button"
-                className="sv2-album-download-btn"
-                onClick={onSaveSelected}
-                disabled={selectedIds.size === 0 || saving}
-                aria-label="Save selected photos"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 3v12" />
-                  <path d="M7 10l5 5 5-5" />
-                  <path d="M5 21h14" />
-                </svg>
-              </button>
+              <div className="sv2-album-select-right">
+                {confirmingBulkDelete ? (
+                  <div className="sv2-album-bulk-delete-confirm">
+                    <span>Delete {selectedIds.size} photo{selectedIds.size === 1 ? '' : 's'}?</span>
+                    <button
+                      type="button"
+                      disabled={bulkDeleting}
+                      onClick={() => { onDeleteSelected(); setConfirmingBulkDelete(false) }}
+                    >
+                      {bulkDeleting ? 'DELETING…' : 'YES, DELETE'}
+                    </button>
+                    <button type="button" onClick={() => setConfirmingBulkDelete(false)}>CANCEL</button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="sv2-album-delete-btn"
+                    onClick={() => setConfirmingBulkDelete(true)}
+                    disabled={selectedIds.size === 0 || bulkDeleting}
+                    aria-label="Delete selected photos"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="sv2-album-download-btn"
+                  onClick={onSaveSelected}
+                  disabled={selectedIds.size === 0 || saving}
+                  aria-label="Save selected photos"
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="M7 10l5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
+          {selectMode && bulkDeleteError && <p role="alert" className="sv2-album-bulk-delete-error">{bulkDeleteError}</p>}
         </header>
 
         {loading ? (
@@ -190,11 +240,16 @@ export function SharedAlbumPage({
           commentsError={commentsError}
           onSubmitComment={onSubmitComment}
           submittingComment={submittingComment}
+          canDelete={canDeleteCurrent}
+          deleting={deletingCurrent}
+          onDelete={onDeleteCurrent}
+          deleteError={singleDeleteError}
         />
       )}
 
       <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissProgress} />
       <PhotoSaveProgress state={saveProgress} onDismiss={onDismissSaveProgress} />
+      <PhotoDeleteProgress state={deleteProgress} onDismiss={onDismissDeleteProgress} />
       <SofraTransition active={uploading} label={uploadTransitionLabel(uploadProgress)} />
     </div>
   )

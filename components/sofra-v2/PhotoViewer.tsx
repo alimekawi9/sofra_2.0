@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { PhotoComments, type PhotoCommentView } from './PhotoComments'
 import { timeAgo } from '@/lib/sofra/format'
@@ -28,6 +28,10 @@ export interface PhotoViewerProps {
   commentsError: string
   onSubmitComment: (body: string) => void
   submittingComment: boolean
+  canDelete: boolean
+  deleting: boolean
+  onDelete: () => void
+  deleteError: string
 }
 
 const SWIPE_THRESHOLD = 50
@@ -61,8 +65,13 @@ export function PhotoViewer({
   commentsError,
   onSubmitComment,
   submittingComment,
+  canDelete,
+  deleting,
+  onDelete,
+  deleteError,
 }: PhotoViewerProps) {
   const dragStart = useRef<{ x: number; y: number } | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const photo = photos[index]
 
   function goNext() {
@@ -83,6 +92,10 @@ export function PhotoViewer({
     return () => window.removeEventListener('keydown', handleKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, photos.length])
+
+  useEffect(() => {
+    setConfirmingDelete(false)
+  }, [index])
 
   if (!photo) return null
 
@@ -131,15 +144,33 @@ export function PhotoViewer({
             {photo.caption && <p className="sv2-photo-viewer-caption">{photo.caption}</p>}
           </div>
         </div>
-        <button
-          type="button"
-          className="sv2-photo-viewer-comment-toggle"
-          onClick={onToggleComments}
-          aria-label={commentButtonAriaLabel(commentsOpen, commentCount)}
-        >
-          {commentButtonLabel(commentsOpen, commentCount)}
-        </button>
+        <div className="sv2-photo-viewer-actions">
+          {canDelete && (
+            confirmingDelete ? (
+              <div className="sv2-photo-viewer-delete-confirm">
+                <span>Delete this photo?</span>
+                <button type="button" disabled={deleting} onClick={onDelete}>
+                  {deleting ? 'DELETING…' : 'YES, DELETE'}
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)}>CANCEL</button>
+              </div>
+            ) : (
+              <button type="button" className="sv2-photo-viewer-delete-btn" onClick={() => setConfirmingDelete(true)}>
+                DELETE
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            className="sv2-photo-viewer-comment-toggle"
+            onClick={onToggleComments}
+            aria-label={commentButtonAriaLabel(commentsOpen, commentCount)}
+          >
+            {commentButtonLabel(commentsOpen, commentCount)}
+          </button>
+        </div>
       </div>
+      {deleteError && <p role="alert" className="sv2-photo-viewer-delete-error">{deleteError}</p>}
 
       <PhotoComments
         open={commentsOpen}

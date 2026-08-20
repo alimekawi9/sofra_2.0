@@ -11,6 +11,8 @@ import {
   downloadPhotoToDevice,
   downloadPhotosBatch,
   saveViaShareSheet,
+  deletePhoto,
+  deletePhotoBatch,
   MAX_PREVIEW_TILES,
   MAX_UPLOAD_BATCH,
   MAX_ALBUM_PHOTOS,
@@ -172,6 +174,7 @@ function makeFakeSupabase(overrides: {
   usersRows?: any[]
   commentRows?: any[]
   commentInsertResult?: { data: any; error: any }
+  deleteResults?: Array<{ error: any }>
 } = {}) {
   const {
     photoRows = [],
@@ -182,10 +185,12 @@ function makeFakeSupabase(overrides: {
     usersRows = [],
     commentRows = [],
     commentInsertResult = { data: null, error: null },
+    deleteResults = [],
   } = overrides
 
   let insertCallIndex = 0
   let uploadCallIndex = 0
+  let deleteCallIndex = 0
 
   const bucket = {
     upload: jest.fn().mockImplementation(async () => {
@@ -218,6 +223,13 @@ function makeFakeSupabase(overrides: {
               }),
             }),
           })),
+          delete: jest.fn().mockReturnValue({
+            eq: jest.fn().mockImplementation(async () => {
+              const result = deleteResults[deleteCallIndex] ?? { error: null }
+              deleteCallIndex++
+              return result
+            }),
+          }),
         }
       }
       if (table === 'users') {
@@ -357,6 +369,64 @@ describe('uploadPhotoBatch', () => {
 
     expect(progress).toHaveLength(3)
     expect(progress[progress.length - 1]).toEqual([3, 3])
+  })
+})
+
+// ─── Deleting photos ────────────────────────────────────────────────────────
+
+describe('deletePhoto', () => {
+  it('removes the storage object then deletes the row, in that order', async () => {
+    const sb = makeFakeSupabase({ deleteResults: [{ error: null }] })
+    const result = await deletePhoto(sb, { id: 'p1', storage_path: 'ev-1/a.jpg' })
+    expect(result.ok).toBe(true)
+    expect(sb._bucket.remove).toHaveBeenCalledWith(['ev-1/a.jpg'])
+    const eventPhotosCalls = sb.from.mock.calls.filter(([t]: [string]) => t === 'event_photos')
+    expect(eventPhotosCalls.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('still deletes the row even if the storage removal itself errors', async () => {
+    const sb = makeFakeSupabase({ deleteResults: [{ error: null }] })
+    sb._bucket.remove.mockResolvedValueOnce({ data: null, error: { message: 'not found' } })
+    const result = await deletePhoto(sb, { id: 'p1', storage_path: 'ev-1/a.jpg' })
+    expect(result.ok).toBe(true)
+  })
+
+  it('reports failure when the row delete errors', async () => {
+    const sb = makeFakeSupabase({ deleteResults: [{ error: { message: 'db error' } }] })
+    const result = await deletePhoto(sb, { id: 'p1', storage_path: 'ev-1/a.jpg' })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('db error')
+  })
+})
+
+describe('deletePhotoBatch', () => {
+  it('reports full success when every delete succeeds', async () => {
+    const sb = makeFakeSupabase({ deleteResults: [{ error: null }, { error: null }] })
+    const result = await deletePhotoBatch(sb, [
+      { id: 'p1', storage_path: 'ev-1/a.jpg' },
+      { id: 'p2', storage_path: 'ev-1/b.jpg' },
+    ])
+    expect(result).toEqual({ succeededCount: 2, failedCount: 0 })
+  })
+
+  it('reports a partial result when some deletes fail', async () => {
+    const sb = makeFakeSupabase({ deleteResults: [{ error: null }, { error: { message: 'denied' } }] })
+    const result = await deletePhotoBatch(sb, [
+      { id: 'p1', storage_path: 'ev-1/a.jpg' },
+      { id: 'p2', storage_path: 'ev-1/b.jpg' },
+    ])
+    expect(result).toEqual({ succeededCount: 1, failedCount: 1 })
+  })
+
+  it('reports real completed/total progress as each delete finishes', async () => {
+    const sb = makeFakeSupabase({ deleteResults: [{ error: null }, { error: null }] })
+    const progress: Array<[number, number]> = []
+    await deletePhotoBatch(
+      sb,
+      [{ id: 'p1', storage_path: 'ev-1/a.jpg' }, { id: 'p2', storage_path: 'ev-1/b.jpg' }],
+      (completed, total) => progress.push([completed, total])
+    )
+    expect(progress).toEqual([[1, 2], [2, 2]])
   })
 })
 

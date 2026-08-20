@@ -7,6 +7,7 @@ import { SharedAlbumPage, type AlbumPhotoView } from '@/components/sofra-v2/Shar
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
 import type { SaveProgressState } from '@/components/sofra-v2/PhotoSaveProgress'
 import type { PhotoCommentView } from '@/components/sofra-v2/PhotoComments'
+import type { DeleteProgressState } from '@/components/sofra-v2/PhotoDeleteProgress'
 import {
   fetchAlbumPhotos,
   fetchUsersByIds,
@@ -15,6 +16,8 @@ import {
   uploadPhotoBatch,
   downloadPhotosBatch,
   saveViaShareSheet,
+  deletePhoto,
+  deletePhotoBatch,
   type AlbumUploader,
 } from '@/lib/shared-album'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -39,6 +42,12 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [saveProgress, setSaveProgress] = useState<SaveProgressState | null>(null)
+
+  const [isHost, setIsHost] = useState(false)
+  const [deleteProgress, setDeleteProgress] = useState<DeleteProgressState | null>(null)
+  const [bulkDeleteError, setBulkDeleteError] = useState('')
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
+  const [singleDeleteError, setSingleDeleteError] = useState('')
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(false)
@@ -117,7 +126,9 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
 
       if (e2) throw new Error('rsvp fetch failed')
 
-      await loadAlbum(ev.host_id === stored, rsvpRow !== null)
+      const hostViewing = ev.host_id === stored
+      setIsHost(hostViewing)
+      await loadAlbum(hostViewing, rsvpRow !== null)
     } catch {
       setError("Couldn't load this album. Try again.")
     } finally {
@@ -130,6 +141,45 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
   async function refreshAlbum() {
     if (!uidRef.current || !event) return
     await loadAlbum(event.host_id === uidRef.current, canUpload)
+  }
+
+  function canDeletePhoto(photo: AlbumPhotoView): boolean {
+    return isHost || photo.uploaded_by === uidRef.current
+  }
+
+  async function deleteCurrentPhoto() {
+    if (selectedIndex === null) return
+    const photo = photos[selectedIndex]
+    if (!photo || !canDeletePhoto(photo)) return
+    setDeletingPhotoId(photo.id)
+    setSingleDeleteError('')
+    const { ok, error: deleteErrorMessage } = await deletePhoto(supabase, { id: photo.id, storage_path: photo.storage_path })
+    setDeletingPhotoId(null)
+    if (!ok) {
+      setSingleDeleteError(deleteErrorMessage ?? 'Could not delete that photo. Try again.')
+      return
+    }
+    closeViewer()
+    await refreshAlbum()
+  }
+
+  async function deleteSelected() {
+    const deletable = photos.filter((p) => selectedIds.has(p.id) && canDeletePhoto(p))
+    if (deletable.length === 0) {
+      setBulkDeleteError('You can only delete your own photos.')
+      return
+    }
+    setBulkDeleteError('')
+    const total = deletable.length
+    setDeleteProgress({ status: 'deleting', completed: 0, total })
+    const { succeededCount, failedCount } = await deletePhotoBatch(
+      supabase,
+      deletable.map((p) => ({ id: p.id, storage_path: p.storage_path })),
+      (completed, progressTotal) => setDeleteProgress({ status: 'deleting', completed, total: progressTotal })
+    )
+    setDeleteProgress({ status: 'done', succeededCount, failedCount, total })
+    setSelectedIds(new Set())
+    if (succeededCount > 0) await refreshAlbum()
   }
 
   async function handleFilesConfirmed(files: File[], caption: string) {
@@ -334,6 +384,14 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
       onSaveSelected={saveSelected}
       saveProgress={saveProgress}
       onDismissSaveProgress={() => setSaveProgress(null)}
+      canDeleteCurrent={selectedIndex !== null && photos[selectedIndex] ? canDeletePhoto(photos[selectedIndex]) : false}
+      deletingCurrent={selectedIndex !== null && photos[selectedIndex] ? deletingPhotoId === photos[selectedIndex].id : false}
+      onDeleteCurrent={deleteCurrentPhoto}
+      singleDeleteError={singleDeleteError}
+      onDeleteSelected={deleteSelected}
+      deleteProgress={deleteProgress}
+      onDismissDeleteProgress={() => setDeleteProgress(null)}
+      bulkDeleteError={bulkDeleteError}
     />
   )
 }
