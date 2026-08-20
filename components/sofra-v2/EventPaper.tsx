@@ -10,6 +10,7 @@ import { buildPreviewTiles } from '@/lib/shared-album'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 import type { EventChatMessage } from '@/lib/event-chat'
+import type { CustomDetailSection } from '@/lib/event-custom-details'
 import SofraTransition from '../SofraTransition'
 
 export interface EventPaperGuest {
@@ -32,6 +33,7 @@ export interface EventPaperProps {
   venue: string
   address: string | null
   dressCode: string | null
+  customDetails: CustomDetailSection[]
   coverUrl: string | null
   unlocked: boolean
   guests: EventPaperGuest[]
@@ -97,6 +99,7 @@ export function EventPaper({
   venue,
   address,
   dressCode,
+  customDetails,
   coverUrl,
   unlocked,
   guests,
@@ -246,6 +249,9 @@ export function EventPaper({
                 </dd>
               </div>
               {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}
+              {customDetails.map((section) => (
+                <div key={section.id}><dt>{section.label}</dt><dd>{section.body}</dd></div>
+              ))}
               {!isHost && (
                 <div>
                   <dt>Your RSVP</dt>

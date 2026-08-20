@@ -18,6 +18,7 @@ const SAMPLE_EVENT = {
   venue: 'The Garden Room',
   address: '123 Main St',
   dress_code: 'Smart casual',
+  custom_details: [] as Array<{ id: string; label: string; body: string }>,
   theme: 'olive',
   cover_url: 'https://cdn.example.com/existing.jpg',
 }
@@ -213,4 +214,54 @@ it('CUSTOMIZE GUEST QUESTIONS navigates to the questionnaire editor for this eve
   await waitFor(() => screen.getByRole('button', { name: /customize guest questions/i }))
   await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
   expect(mockPush).toHaveBeenCalledWith('/host/event-1/questionnaire')
+})
+
+describe('custom detail sections', () => {
+  const EVENT_WITH_DETAIL = {
+    ...SAMPLE_EVENT,
+    custom_details: [{ id: 'd_1', label: 'Parking', body: 'Free lot behind the theater' }],
+  }
+
+  it('prefills an existing custom detail section on load', async () => {
+    makeSupabase({ event: EVENT_WITH_DETAIL })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /section label/i })).toHaveValue('Parking'))
+    expect(screen.getByRole('textbox', { name: /details/i })).toHaveValue('Free lot behind the theater')
+  })
+
+  it('round-trips an edited section into the update payload', async () => {
+    const sb = makeSupabase({ event: EVENT_WITH_DETAIL })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('textbox', { name: /section label/i }))
+    await userEvent.clear(screen.getByRole('textbox', { name: /section label/i }))
+    await userEvent.type(screen.getByRole('textbox', { name: /section label/i }), 'Valet')
+    await userEvent.click(screen.getByRole('button', { name: /update invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        custom_details: [expect.objectContaining({ label: 'Valet', body: 'Free lot behind the theater' })],
+      })
+    )
+  })
+
+  it('adding a new section and saving includes both the existing and new sections', async () => {
+    const sb = makeSupabase({ event: EVENT_WITH_DETAIL })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => screen.getByRole('button', { name: /add detail section/i }))
+    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
+    const labelInputs = screen.getAllByRole('textbox', { name: /section label/i })
+    await userEvent.type(labelInputs[1], 'Gift registry')
+    const bodyInputs = screen.getAllByRole('textbox', { name: /details/i })
+    await userEvent.type(bodyInputs[1], 'No gifts, just bring an appetite')
+    await userEvent.click(screen.getByRole('button', { name: /update invite/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        custom_details: [
+          expect.objectContaining({ label: 'Parking' }),
+          expect.objectContaining({ label: 'Gift registry', body: 'No gifts, just bring an appetite' }),
+        ],
+      })
+    )
+  })
 })

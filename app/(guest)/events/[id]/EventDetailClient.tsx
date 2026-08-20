@@ -12,6 +12,7 @@ import '@/components/sofra-v2/sofra-v2.css'
 import { isEventDateUndecided } from '@/lib/event-date'
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
+import type { CustomDetailSection } from '@/lib/event-custom-details'
 
 type EventRow = {
   id: string
@@ -22,6 +23,7 @@ type EventRow = {
   venue: string | null
   address: string | null
   dress_code: string | null
+  custom_details: CustomDetailSection[]
   theme: string
   cover_url: string | null
   is_published: boolean
@@ -123,7 +125,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       if (!stored) {
         const { data: publicEvent, error: publicEventError } = await supabase
           .from('events')
-          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,theme,cover_url,is_published')
+          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published')
           .eq('id', params.id)
           .single()
         if (publicEventError || !publicEvent) throw new Error(publicEventError?.message ?? 'event not found')
@@ -137,7 +139,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }, { data: tasteProfile }] = await Promise.all([
         supabase
           .from('events')
-          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,theme,cover_url,is_published')
+          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published')
           .eq('id', params.id)
           .single(),
         supabase
@@ -387,6 +389,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       venue={event?.venue ?? 'Venue pending'}
       address={event?.address ?? null}
       dressCode={event?.dress_code ?? null}
+      customDetails={event?.custom_details ?? []}
       coverUrl={event?.cover_url ?? null}
       unlocked={unlocked}
       guests={guests}

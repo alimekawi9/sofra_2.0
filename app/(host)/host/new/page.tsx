@@ -8,6 +8,7 @@ import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplet
 import SofraTransition from '@/components/SofraTransition'
 import '@/components/sofra-v2/sofra-v2.css'
 import { eventDateForStorage } from '@/lib/event-date'
+import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection } from '@/lib/event-custom-details'
 
 export default function HostNewPage() {
   const router = useRouter()
@@ -27,6 +28,7 @@ export default function HostNewPage() {
   const [location, setLocation] = useState('')
   const [place, setPlace] = useState<PreviewPlace | null>(null)
   const [dressCode, setDressCode] = useState('')
+  const [customDetails, setCustomDetails] = useState<CustomDetailSection[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [customizing, setCustomizing] = useState(false)
   const [error, setError] = useState('')
@@ -46,6 +48,18 @@ export default function HostNewPage() {
   function onImageRemove() {
     coverFileRef.current = null
     setImageDataUrl(undefined)
+  }
+
+  function addCustomDetail() {
+    setCustomDetails((current) => [...current, { id: generateCustomDetailId(), label: '', body: '' }])
+  }
+
+  function updateCustomDetail(id: string, patch: Partial<Pick<CustomDetailSection, 'label' | 'body'>>) {
+    setCustomDetails((current) => current.map((section) => (section.id === id ? { ...section, ...patch } : section)))
+  }
+
+  function removeCustomDetail(id: string) {
+    setCustomDetails((current) => current.filter((section) => section.id !== id))
   }
 
   // Shared by publish and CUSTOMIZE GUEST QUESTIONS. Updates the draft row
@@ -76,6 +90,7 @@ export default function HostNewPage() {
       venue: place?.venueName || location.trim(),
       address: place?.formattedAddress || null,
       dress_code: dressCode.trim() || null,
+      custom_details: sanitizeCustomDetails(customDetails),
       theme,
       cover_url: publicUrl,
       is_published: publish,
@@ -148,6 +163,10 @@ export default function HostNewPage() {
       onPlaceSelect={setPlace}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
+      customDetails={customDetails}
+      onAddCustomDetail={addCustomDetail}
+      onCustomDetailChange={updateCustomDetail}
+      onRemoveCustomDetail={removeCustomDetail}
       imageDataUrl={imageDataUrl}
       onImageChange={onImageChange}
       onImageRemove={onImageRemove}

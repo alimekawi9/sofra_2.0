@@ -8,6 +8,7 @@ import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplet
 import '@/components/sofra-v2/sofra-v2.css'
 import { isEventManager } from '@/lib/event-access'
 import { eventDateForStorage, isEventDateUndecided } from '@/lib/event-date'
+import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection } from '@/lib/event-custom-details'
 
 // Formats an ISO timestamp for the <input type="datetime-local"> value
 // (which needs local time with no timezone/seconds, e.g. 2026-09-01T19:00).
@@ -36,6 +37,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const [location, setLocation] = useState('')
   const [place, setPlace] = useState<PreviewPlace | null>(null)
   const [dressCode, setDressCode] = useState('')
+  const [customDetails, setCustomDetails] = useState<CustomDetailSection[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
@@ -49,7 +51,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
 
       const { data: ev, error: fetchError } = await supabase
         .from('events')
-        .select('host_id,title,tagline,event_date,venue,address,dress_code,theme,cover_url')
+        .select('host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url')
         .eq('id', params.id)
         .single()
 
@@ -70,6 +72,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       setDateTime(toDateTimeLocal(ev.event_date))
       setLocation(ev.venue ?? '')
       setDressCode(ev.dress_code ?? '')
+      setCustomDetails((ev.custom_details as CustomDetailSection[] | null) ?? [])
       setTheme(ev.theme ?? 'ember')
       setImageDataUrl(ev.cover_url ?? undefined)
       originalVenueRef.current = ev.venue ?? ''
@@ -87,6 +90,18 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   function onImageRemove() {
     coverFileRef.current = null
     setImageDataUrl(undefined)
+  }
+
+  function addCustomDetail() {
+    setCustomDetails((current) => [...current, { id: generateCustomDetailId(), label: '', body: '' }])
+  }
+
+  function updateCustomDetail(id: string, patch: Partial<Pick<CustomDetailSection, 'label' | 'body'>>) {
+    setCustomDetails((current) => current.map((section) => (section.id === id ? { ...section, ...patch } : section)))
+  }
+
+  function removeCustomDetail(id: string) {
+    setCustomDetails((current) => current.filter((section) => section.id !== id))
   }
 
   async function handleSubmit() {
@@ -137,6 +152,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
         venue: place?.venueName || location.trim(),
         address,
         dress_code: dressCode.trim() || null,
+        custom_details: sanitizeCustomDetails(customDetails),
         theme,
         cover_url: coverUrl,
       })
@@ -195,6 +211,10 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       onPlaceSelect={setPlace}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
+      customDetails={customDetails}
+      onAddCustomDetail={addCustomDetail}
+      onCustomDetailChange={updateCustomDetail}
+      onRemoveCustomDetail={removeCustomDetail}
       imageDataUrl={imageDataUrl}
       onImageChange={onImageChange}
       onImageRemove={onImageRemove}

@@ -3,6 +3,7 @@
 import type { ChangeEvent, DragEvent } from 'react'
 import { HostLocationAutocomplete, type PreviewPlace } from './HostLocationAutocomplete'
 import { sv2Display, sv2Sans } from './fonts'
+import type { CustomDetailSection } from '@/lib/event-custom-details'
 
 export interface HostCreateFormProps {
   mode?: 'create' | 'edit'
@@ -17,6 +18,10 @@ export interface HostCreateFormProps {
   onPlaceSelect: (place: PreviewPlace | null) => void
   dressCode: string
   onDressCodeChange: (value: string) => void
+  customDetails: CustomDetailSection[]
+  onAddCustomDetail: () => void
+  onCustomDetailChange: (id: string, patch: Partial<Pick<CustomDetailSection, 'label' | 'body'>>) => void
+  onRemoveCustomDetail: (id: string) => void
   imageDataUrl: string | undefined
   onImageChange: (file: File) => void
   onImageRemove: () => void
@@ -44,6 +49,10 @@ export function HostCreateForm({
   onPlaceSelect,
   dressCode,
   onDressCodeChange,
+  customDetails,
+  onAddCustomDetail,
+  onCustomDetailChange,
+  onRemoveCustomDetail,
   imageDataUrl,
   onImageChange,
   onImageRemove,
@@ -121,6 +130,44 @@ export function HostCreateForm({
               placeholder="A touch of red, or paste a Pinterest link"
             />
           </label>
+
+          <fieldset className="sv2-custom-details-field">
+            <legend>ADDITIONAL DETAILS <span>OPTIONAL</span></legend>
+            {customDetails.map((section) => (
+              <div key={section.id} className="sv2-question-card">
+                <div className="sv2-question-card-headrow">
+                  <span className="sv2-question-kind">Detail section</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${section.label || 'detail section'}`}
+                    className="sv2-remove-question"
+                    onClick={() => onRemoveCustomDetail(section.id)}
+                  >
+                    REMOVE
+                  </button>
+                </div>
+                <label>
+                  Section label
+                  <input
+                    value={section.label}
+                    onChange={(event) => onCustomDetailChange(section.id, { label: event.target.value })}
+                    placeholder="e.g. Parking"
+                  />
+                </label>
+                <label>
+                  Details
+                  <textarea
+                    value={section.body}
+                    onChange={(event) => onCustomDetailChange(section.id, { body: event.target.value })}
+                    placeholder="e.g. Free lot behind the theater"
+                  />
+                </label>
+              </div>
+            ))}
+            <button type="button" className="sv2-add-detail-section" onClick={onAddCustomDetail}>
+              + ADD DETAIL SECTION
+            </button>
+          </fieldset>
 
           {onCustomizeQuestions && (
             <>

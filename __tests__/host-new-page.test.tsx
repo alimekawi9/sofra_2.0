@@ -308,3 +308,49 @@ describe('CUSTOMIZE GUEST QUESTIONS', () => {
     expect(sb.updateEq).toHaveBeenCalledWith('id', 'new-event-id')
   })
 })
+
+describe('custom detail sections', () => {
+  it('adds a section, fills it in, and includes it in the insert payload', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
+    await userEvent.type(screen.getByRole('textbox', { name: /section label/i }), 'Parking')
+    await userEvent.type(screen.getByRole('textbox', { name: /details/i }), 'Free lot behind the theater')
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        custom_details: [expect.objectContaining({ label: 'Parking', body: 'Free lot behind the theater' })],
+      })
+    )
+  })
+
+  it('drops a section that has a label but no body', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
+    await userEvent.type(screen.getByRole('textbox', { name: /section label/i }), 'Parking')
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ custom_details: [] }))
+  })
+
+  it('REMOVE deletes a section before submit', async () => {
+    makeSupabase()
+    render(<HostNewPage />)
+    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
+    await userEvent.click(screen.getByRole('button', { name: /remove detail section/i }))
+    expect(screen.queryByRole('textbox', { name: /section label/i })).not.toBeInTheDocument()
+  })
+
+  it('an event with no custom detail sections submits an empty array', async () => {
+    const sb = makeSupabase()
+    render(<HostNewPage />)
+    await fillRequired()
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ custom_details: [] }))
+  })
+})

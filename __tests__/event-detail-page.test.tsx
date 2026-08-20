@@ -21,6 +21,7 @@ const SAMPLE_EVENT = {
   venue: 'The Garden Room',
   address: '123 Main St',
   dress_code: 'Smart casual',
+  custom_details: [] as Array<{ id: string; label: string; body: string }>,
   theme: 'ember',
   cover_url: null,
   is_published: true,
@@ -694,4 +695,14 @@ describe('Locked table preview', () => {
     expect(screen.queryByText('The table')).not.toBeInTheDocument()
     expect(screen.queryByText('🔒 RSVP to see who')).not.toBeInTheDocument()
   })
+})
+
+it('renders a custom detail section using the same row style as Dress code', async () => {
+  localStorage.setItem('sofra_user_id', HOST_UID)
+  makeSupabase({
+    event: { ...SAMPLE_EVENT, custom_details: [{ id: 'd_1', label: 'Parking', body: 'Free lot behind the theater' }] },
+  })
+  render(<EventDetailPage params={PARAMS} />)
+  await waitFor(() => expect(screen.getByText('Parking')).toBeInTheDocument())
+  expect(screen.getByText('Free lot behind the theater')).toBeInTheDocument()
 })
