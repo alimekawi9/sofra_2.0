@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useUnwrappedParams } from '@/lib/next-params'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -14,7 +15,8 @@ import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 import SofraTransition from '@/components/SofraTransition'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
-import { isEventManager } from '@/lib/event-access'
+import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
+import { guestHostLabel, countHostsAmong } from '@/lib/guest-host-count'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -175,7 +177,8 @@ function MenuDesignPreview({
   )
 }
 
-export default function MenuPage({ params }: { params: { id: string } }) {
+export default function MenuPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = useUnwrappedParams(paramsPromise)
   const { id } = params
   const router = useRouter()
   const supabase = createClient()
@@ -190,6 +193,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [event, setEvent] = useState<{ title: string; event_date: string } | null>(null)
   const [generatedGuestCount, setGeneratedGuestCount] = useState<number | null>(null)
   const [guestResponseCount, setGuestResponseCount] = useState(0)
+  const [guestHostCounts, setGuestHostCounts] = useState({ guests: 0, hosts: 0 })
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
   const [popupBlocked, setPopupBlocked] = useState(false)
   const [exportStep, setExportStep] = useState<'draft' | 'choose' | 'preview'>('draft')
@@ -232,6 +236,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       setKitchenStatus(ev.kitchen_status === 'pending' ? 'pending' : 'complete')
       setRestrictedChef(stored === ev.chef_id && stored !== ev.host_id && !(await isEventManager(supabase, id, stored, ev.host_id)))
 
+      const hostIds = await fetchEventHostIds(supabase, id, ev.host_id)
+
       const { data: rsvps } = await supabase
         .from('rsvps')
         .select('user_id, users(name)')
@@ -239,7 +245,9 @@ export default function MenuPage({ params }: { params: { id: string } }) {
         .in('status', ['going', 'maybe'])
 
       const userIds = (rsvps ?? []).map((r: { user_id: string }) => r.user_id)
-      setGuestResponseCount(userIds.filter((userId) => userId !== ev.host_id).length)
+      setGuestResponseCount(userIds.filter((userId) => !hostIds.has(userId)).length)
+      const hostsInAttendance = countHostsAmong(userIds, hostIds)
+      setGuestHostCounts({ guests: userIds.length - hostsInAttendance, hosts: hostsInAttendance })
 
       const { data: profiles } = userIds.length
         ? await supabase.from('taste_profiles').select('*').in('user_id', userIds)
@@ -620,7 +628,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
           title={event?.title}
           subtitle={
             dateSub
-              ? `${dateSub}${intel ? ` · ${intel.guestCount} guests` : ''}`
+              ? `${dateSub}${intel ? ` · ${guestHostLabel(guestHostCounts.guests, guestHostCounts.hosts)}` : ''}`
               : undefined
           }
         />

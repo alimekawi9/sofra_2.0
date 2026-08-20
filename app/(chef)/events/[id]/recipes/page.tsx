@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useUnwrappedParams } from "@/lib/next-params";
 import { useRouter } from "next/navigation";
 import ChefTabs from "@/components/ChefTabs";
 import { createClient } from "@/lib/supabase/client";
@@ -19,7 +20,8 @@ import {
   type RecipeIngredient,
 } from "@/lib/recipes";
 import "@/components/sofra-v2/sofra-v2.css";
-import { isEventManager } from "@/lib/event-access";
+import { isEventManager, fetchEventHostIds } from "@/lib/event-access";
+import { guestHostLabel, countHostsAmong } from "@/lib/guest-host-count";
 
 type StoredRecipe = Omit<Recipe, "ingredients"> & {
   recipe_ingredients: RecipeIngredient[];
@@ -62,7 +64,8 @@ function dishEaterCount(course: LoadedCourse, intel: TableIntel | null): number 
   return Math.max(1, guestCount - excludedGuests);
 }
 
-export default function RecipesPage({ params }: { params: { id: string } }) {
+export default function RecipesPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = useUnwrappedParams(paramsPromise)
   const { id } = params,
     router = useRouter(),
     supabase = createClient();
@@ -76,7 +79,8 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
     [viewing, setViewing] = useState<string | null>(null),
     [draft, setDraft] = useState<Draft>(emptyDraft),
     [busy, setBusy] = useState<string | null>(null),
-    [restrictedChef, setRestrictedChef] = useState(false);
+    [restrictedChef, setRestrictedChef] = useState(false),
+    [guestHostCounts, setGuestHostCounts] = useState({ guests: 0, hosts: 0 });
 
   async function load() {
     setLoading(true);
@@ -100,13 +104,16 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
       setRestrictedChef(event.chef_id === userId && event.host_id !== userId && !manager);
       setEventTitle(event.title);
       setEventDate(event.event_date);
+      const hostIds = await fetchEventHostIds(supabase, id, event.host_id);
       const { data: rsvps } = await supabase
         .from("rsvps")
         .select("user_id,users(name)")
         .eq("event_id", id)
         .in("status", ["going", "maybe"]);
-      const ids = (rsvps ?? []).map((x) => x.user_id),
-        { data: profiles } = ids.length
+      const ids = (rsvps ?? []).map((x) => x.user_id);
+      const hostsInAttendance = countHostsAmong(ids, hostIds);
+      setGuestHostCounts({ guests: ids.length - hostsInAttendance, hosts: hostsInAttendance });
+      const { data: profiles } = ids.length
           ? await supabase
               .from("taste_profiles")
               .select(
@@ -346,7 +353,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
           title={eventTitle}
           subtitle={
             dateSub
-              ? `${dateSub}${intel ? ` · ${intel.guestCount} covers` : ""}`
+              ? `${dateSub}${intel ? ` · ${guestHostLabel(guestHostCounts.guests, guestHostCounts.hosts)}` : ""}`
               : undefined
           }
         />

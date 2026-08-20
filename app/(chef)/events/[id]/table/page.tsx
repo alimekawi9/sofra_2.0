@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useUnwrappedParams } from '@/lib/next-params'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -16,15 +17,16 @@ import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib
 import { sortedQuestions, isCustom, relevantCanonicalTopics, CANONICAL_KEYS, type CanonicalKey, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
 import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
-import { isEventManager } from '@/lib/event-access'
+import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
 import { rankingInsight, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
+import { guestHostLabel, countHostsAmong } from '@/lib/guest-host-count'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
   responseCount: number
   counts?: { label: string; count: number }[]
   texts?: string[]
-  rankings?: { label: string; averageRank: number; firstChoiceVotes: number }[]
+  rankings?: { label: string; bordaScore: number; firstChoiceVotes: number }[]
   average?: { value: number; responses: number }
 }
 
@@ -40,10 +42,20 @@ function summarizeCustomAnswers(
     }
     if (q.type === 'ranking') {
       const rankedAnswers = answers.filter((answer): answer is string[] => Array.isArray(answer) && answer.every((value) => typeof value === 'string'))
-      const rankings = (q.options ?? []).map((option) => {
-        const positions = rankedAnswers.map((answer) => answer.indexOf(option.value)).filter((position) => position >= 0)
-        return { label: option.label, averageRank: positions.length ? positions.reduce((sum, position) => sum + position + 1, 0) / positions.length : Number.POSITIVE_INFINITY, firstChoiceVotes: rankedAnswers.filter((answer) => answer[0] === option.value).length }
-      }).filter((item) => Number.isFinite(item.averageRank)).sort((a, b) => a.averageRank - b.averageRank)
+      // Borda count: with N options, 1st place earns N points down to 1 point
+      // for last place, summed across every response. This lets several 2nd-
+      // place picks outweigh a lone 1st-place pick, unlike raw first-choice tallies.
+      const optionCount = (q.options ?? []).length
+      const rankings = (q.options ?? [])
+        .map((option) => {
+          const positions = rankedAnswers.map((answer) => answer.indexOf(option.value)).filter((position) => position >= 0)
+          const bordaScore = positions.reduce((sum, position) => sum + (optionCount - position), 0)
+          const firstChoiceVotes = rankedAnswers.filter((answer) => answer[0] === option.value).length
+          return { label: option.label, bordaScore, firstChoiceVotes, ranked: positions.length > 0 }
+        })
+        .filter((item) => item.ranked)
+        .sort((a, b) => b.bordaScore - a.bordaScore)
+        .map(({ label, bordaScore, firstChoiceVotes }) => ({ label, bordaScore, firstChoiceVotes }))
       return { question: q, rankings, responseCount: rankedAnswers.length }
     }
     if (q.type === 'slider') {
@@ -69,7 +81,7 @@ function planningAnswerSummaries(summaries: CustomAnswerSummary[]): PlanningAnsw
       question: question.title,
       type: 'ranking',
       insight: rankingInsight(rankings ?? [], responseCount),
-      evidence: (rankings ?? []).map((item, index) => `${index + 1}. ${item.label}; ${item.firstChoiceVotes} first-choice vote${item.firstChoiceVotes === 1 ? '' : 's'}`),
+      evidence: (rankings ?? []).map((item, index) => `${index + 1}. ${item.label}; weighted score ${item.bordaScore} (${item.firstChoiceVotes} first-choice vote${item.firstChoiceVotes === 1 ? '' : 's'})`),
     }
     if (question.type === 'text') return { question: question.title, type: 'text', insight: `${responseCount} written response${responseCount === 1 ? '' : 's'}`, evidence: texts ?? [] }
     if (question.type === 'slider') return { question: question.title, type: 'slider', insight: average ? `Typical response: ${average.value.toFixed(1)} out of ${question.sliderSteps ?? 5}` : 'No responses yet.', evidence: [] }
@@ -118,7 +130,8 @@ function mergeGuests(rsvps: RsvpRow[], profiles: ProfileRow[]): TasteProfile[] {
   })
 }
 
-export default function TablePage({ params }: { params: { id: string } }) {
+export default function TablePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = useUnwrappedParams(paramsPromise)
   const { id } = params
   const router = useRouter()
   const supabase = createClient()
@@ -127,6 +140,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
   const [fetchError, setFetchError] = useState('')
   const [intel, setIntel] = useState<TableIntel | null>(null)
   const [guests, setGuests] = useState<TasteProfile[]>([])
+  const [hostUserIds, setHostUserIds] = useState<Set<string>>(new Set())
   const [eventTitle, setEventTitle] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [courses, setCourses] = useState<Course[]>([])
@@ -155,6 +169,9 @@ export default function TablePage({ params }: { params: { id: string } }) {
       setEventTitle(ev.title)
       setEventDate(ev.event_date)
 
+      const hostIds = await fetchEventHostIds(supabase, id, ev.host_id)
+      setHostUserIds(hostIds)
+
       const { data: rsvps } = await supabase
         .from('rsvps')
         .select('user_id, users(name,photo_url)')
@@ -162,7 +179,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
         .in('status', ['going', 'maybe'])
 
       const userIds = ((rsvps ?? []) as unknown as RsvpRow[]).map((r) => r.user_id)
-      setGuestResponseCount(userIds.filter((userId) => userId !== ev.host_id).length)
+      setGuestResponseCount(userIds.filter((userId) => !hostIds.has(userId)).length)
 
       const { data: profiles } = userIds.length
         ? await supabase
@@ -259,7 +276,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
   useEffect(() => { void loadAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!intel || !questionnaireLoaded || intel.guestCount === 0) return
+    if (!intel || !questionnaireLoaded || intel.guestCount === 0 || customAnswerSummaries.length === 0) return
     const controller = new AbortController()
     setPlanningLoading(true)
     setPlanningError('')
@@ -288,6 +305,9 @@ export default function TablePage({ params }: { params: { id: string } }) {
       })
     : undefined
 
+  const hostsInAttendance = countHostsAmong(guests.map((g) => g.userId), hostUserIds)
+  const guestsOnlyCount = guests.length - hostsInAttendance
+
   return (
     <>
     <style>{`@keyframes sofraPulse { 0%,100%{opacity:.4} 50%{opacity:.7} }`}</style>
@@ -310,7 +330,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
           title={eventTitle}
           subtitle={
             dateSub
-              ? `${dateSub}${intel ? ` · ${intel.guestCount} guests` : ''}`
+              ? `${dateSub}${intel ? ` · ${guestHostLabel(guestsOnlyCount, hostsInAttendance)}` : ''}`
               : undefined
           }
         />
@@ -613,7 +633,6 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     ) : question.type === 'ranking' ? (
                       rankings && rankings.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <div style={{ color: C.gold, fontSize: 12, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45, marginBottom: 3 }}>{rankingInsight(rankings, responseCount)}</div>
                           {rankings.map((item, index) => <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}><span>{index + 1}. {item.label}</span><span style={{ color: C.cream }}>{item.firstChoiceVotes} first</span></div>)}
                         </div>
                       ) : <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>No answers yet.</div>

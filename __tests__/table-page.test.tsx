@@ -34,6 +34,7 @@ function makeSupabase({
   rsvps      = [] as RsvpRow[],
   profiles   = [] as ProfileRow[],
   fetchError = null as { message: string } | null,
+  cohostRows = [] as Array<{ user_id: string }>,
 } = {}) {
   const sb = {
     from: jest.fn((table: string) => {
@@ -42,6 +43,7 @@ function makeSupabase({
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
               single: jest.fn().mockResolvedValue({ data: event, error: fetchError }),
+              maybeSingle: jest.fn().mockResolvedValue({ data: event, error: fetchError }),
             }),
           }),
         }
@@ -56,7 +58,17 @@ function makeSupabase({
         }
       }
       if (table === 'event_cohosts') {
-        return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }) }) }) }
+        // Supports both isEventManager's single-row lookup
+        // (.select().eq().eq().maybeSingle()) and fetchEventHostIds' full-list
+        // fetch (.select().eq(), awaited directly) on the same mock chain.
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockImplementation(() => ({
+              eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }),
+              then: (resolve: (v: { data: typeof cohostRows; error: null }) => void) => resolve({ data: cohostRows, error: null }),
+            })),
+          }),
+        }
       }
       if (table === 'taste_profiles') {
         return {
@@ -418,5 +430,43 @@ describe('brief text', () => {
     await waitFor(() =>
       expect(screen.getByText(/no guest data yet/i)).toBeInTheDocument()
     )
+  })
+})
+
+// ─── Guest vs. host counting ────────────────────────────────────────────────
+
+describe('guest and host counting', () => {
+  const COHOST_UID = 'uid-cohost'
+  const GUEST_A = 'uid-guest-a'
+  const GUEST_B = 'uid-guest-b'
+
+  it('shows a guest/host breakdown that excludes the host and any co-host from the guest count', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({
+      rsvps: [
+        { user_id: HOST_UID, users: { name: 'Host' } },
+        { user_id: COHOST_UID, users: { name: 'Cohost' } },
+        { user_id: GUEST_A, users: { name: 'Guest A' } },
+        { user_id: GUEST_B, users: { name: 'Guest B' } },
+      ],
+      cohostRows: [{ user_id: COHOST_UID }],
+    })
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText(/2 guests · 2 hosts/)).toBeInTheDocument())
+  })
+
+  it('excludes a co-host, not just the original host, from the RSVP response-readiness count', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    makeSupabase({
+      rsvps: [
+        { user_id: HOST_UID, users: { name: 'Host' } },
+        { user_id: COHOST_UID, users: { name: 'Cohost' } },
+        { user_id: GUEST_A, users: { name: 'Guest A' } },
+        { user_id: GUEST_B, users: { name: 'Guest B' } },
+      ],
+      cohostRows: [{ user_id: COHOST_UID }],
+    })
+    render(<TablePage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('2 guests have responded')).toBeInTheDocument())
   })
 })
