@@ -303,7 +303,10 @@ export default function TablePage({ params }: { params: { id: string } }) {
       })
     : undefined
 
-  const hostsInAttendance = countHostsAmong(guests.map((g) => g.userId), hostUserIds)
+  const hostsInAttendance = countHostsAmong(
+    guests.map((g) => g.userId).filter((id): id is string => id !== undefined),
+    hostUserIds
+  )
   const guestsOnlyCount = guests.length - hostsInAttendance
 
   return (
