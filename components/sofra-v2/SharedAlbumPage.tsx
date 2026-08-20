@@ -102,7 +102,16 @@ export function SharedAlbumPage({
             </div>
           </div>
           {selectMode && (
-            <div className="sv2-album-download-row">
+            <div className="sv2-album-select-row">
+              <div className="sv2-album-select-left">
+                <div className="sv2-album-select-toolbar">
+                  <button type="button" className="sv2-album-select-all-btn" onClick={onToggleSelectAll}>
+                    {allSelected ? 'DESELECT ALL' : 'SELECT ALL'}
+                  </button>
+                  <span>{selectedIds.size} selected</span>
+                </div>
+                <button type="button" className="sv2-album-cancel-btn" onClick={onToggleSelectMode}>CANCEL</button>
+              </div>
               <button
                 type="button"
                 className="sv2-album-download-btn"
@@ -117,17 +126,6 @@ export function SharedAlbumPage({
                 </svg>
               </button>
             </div>
-          )}
-          {selectMode && (
-            <div className="sv2-album-select-toolbar">
-              <button type="button" className="sv2-album-select-all-btn" onClick={onToggleSelectAll}>
-                {allSelected ? 'DESELECT ALL' : 'SELECT ALL'}
-              </button>
-              <span>{selectedIds.size} selected</span>
-            </div>
-          )}
-          {selectMode && (
-            <button type="button" className="sv2-album-cancel-btn" onClick={onToggleSelectMode}>CANCEL</button>
           )}
         </header>
 
