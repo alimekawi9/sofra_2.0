@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatProteinPreferenceLabel } from '@/lib/protein-preferences'
 import { ProfileCard, type ProfileHistoryEntry } from '@/components/sofra-v2/ProfileCard'
-import { transformProfileHistory, type ProfileHistoryRow } from '@/lib/profiles'
+import { fetchProfileHistory } from '@/lib/profiles'
 import '@/components/sofra-v2/sofra-v2.css'
 import { useAppearance } from '@/lib/sofra/appearance'
 
@@ -61,17 +61,14 @@ export default function ProfilePage() {
       if (!stored) { router.push('/login'); return }
       setUserId(stored)
 
-      const [{ data: user }, { data: rsvps }, { data: tasteProfile }] = await Promise.all([
+      const [{ data: user }, { data: tasteProfile }, historyEntries] = await Promise.all([
         supabase.from('users').select('name, phone, photo_url, caption').eq('id', stored).maybeSingle(),
-        supabase
-          .from('rsvps')
-          .select('id, status, events(id, title, event_date, venue)')
-          .eq('user_id', stored),
         supabase
           .from('taste_profiles')
           .select('dietary, avoid, protein_preferences, flavor_preference, adventurousness')
           .eq('user_id', stored)
           .maybeSingle(),
+        fetchProfileHistory(supabase, stored),
       ])
 
       if (user) {
@@ -101,7 +98,7 @@ export default function ProfilePage() {
         // Profile remains usable if host-event lookup is unavailable.
       }
 
-      setHistory(transformProfileHistory((rsvps ?? []) as unknown as ProfileHistoryRow[]))
+      setHistory(historyEntries)
     } catch {
       setError("Couldn't load your profile. Try again.")
     } finally {

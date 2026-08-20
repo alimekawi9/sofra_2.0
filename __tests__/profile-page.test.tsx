@@ -9,10 +9,17 @@ jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 const push = jest.fn()
 
 type UserRow = { name: string; phone: string | null; photo_url: string | null; caption?: string | null }
+type HistoryEvent = { id: string; title: string; event_date: string; venue: string | null }
 
-function makeSupabase(user: UserRow, hostedEventId: string | null = null, rsvps: unknown[] = []) {
+function makeSupabase(
+  user: UserRow,
+  hostedEventId: string | null = null,
+  historyEvents: HistoryEvent[] = [],
+  cohostEvents: HistoryEvent[] = []
+) {
   const updateEq = jest.fn().mockResolvedValue({ error: null })
   const update = jest.fn().mockReturnValue({ eq: updateEq })
+  const allEvents = [...historyEvents, ...cohostEvents]
   const from = jest.fn((table: string) => {
     if (table === 'users') {
       return {
@@ -23,9 +30,20 @@ function makeSupabase(user: UserRow, hostedEventId: string | null = null, rsvps:
       }
     }
     if (table === 'rsvps') {
+      // fetchUserEventIds (lib/profiles.ts): .select('event_id').eq('user_id', uid).in('status', [...])
       return {
-        select: () => ({
-          eq: jest.fn().mockResolvedValue({ data: rsvps, error: null }),
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            in: jest.fn().mockResolvedValue({ data: historyEvents.map((e) => ({ event_id: e.id })), error: null }),
+          }),
+        }),
+      }
+    }
+    if (table === 'event_cohosts') {
+      // fetchUserEventIds: .select('event_id').eq('user_id', uid), awaited directly.
+      return {
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ data: cohostEvents.map((e) => ({ event_id: e.id })), error: null }),
         }),
       }
     }
@@ -38,17 +56,28 @@ function makeSupabase(user: UserRow, hostedEventId: string | null = null, rsvps:
     }
     if (table === 'events') {
       return {
-        select: () => ({
-          eq: () => ({
-            order: () => ({
-              limit: () => ({
-                maybeSingle: jest.fn().mockResolvedValue({
-                  data: hostedEventId ? { id: hostedEventId } : null,
-                  error: null,
+        select: jest.fn((cols: string) => {
+          if (cols === 'id,title,event_date,venue') {
+            // fetchProfileHistory's final lookup: .in('id', eventIds)
+            return { in: jest.fn().mockResolvedValue({ data: allEvents, error: null }) }
+          }
+          // Shared by the host-preference-reminder check (chains
+          // .order().limit().maybeSingle()) and fetchUserEventIds' hosted-events
+          // lookup (.eq('host_id', uid), awaited directly with no further chain).
+          return {
+            eq: jest.fn().mockReturnValue({
+              order: jest.fn().mockReturnValue({
+                limit: jest.fn().mockReturnValue({
+                  maybeSingle: jest.fn().mockResolvedValue({
+                    data: hostedEventId ? { id: hostedEventId } : null,
+                    error: null,
+                  }),
                 }),
               }),
+              then: (resolve: (v: { data: unknown[]; error: null }) => void) =>
+                resolve({ data: hostedEventId ? [{ id: hostedEventId }] : [], error: null }),
             }),
-          }),
+          }
         }),
       }
     }
@@ -144,10 +173,23 @@ it('locks a saved caption until Edit caption is pressed', async () => {
 
 it('opens an event when its profile-history title is clicked', async () => {
   localStorage.setItem('sofra_user_id', 'history-user')
-  makeSupabase({ name: 'Layla', phone: null, photo_url: null }, null, [{ id: 'rsvp-1', status: 'going', events: { id: 'event-1', title: 'Garden Sofra', event_date: '2030-08-12T18:00:00Z', venue: 'Ramla' } }])
+  makeSupabase({ name: 'Layla', phone: null, photo_url: null }, null, [{ id: 'event-1', title: 'Garden Sofra', event_date: '2030-08-12T18:00:00Z', venue: 'Ramla' }])
   render(<ProfilePage />)
 
   fireEvent.click(await screen.findByRole('button', { name: 'Garden Sofra' }))
   expect(push).toHaveBeenCalledWith('/events/event-1')
   expect(screen.getByText(/at Ramla/)).toBeInTheDocument()
+})
+
+it('shows an accepted co-hosted event under Your Sofras even with no RSVP row', async () => {
+  localStorage.setItem('sofra_user_id', 'cohost-user')
+  // Mirrors the real "Sofra x Moga" case: the user accepted a co-host
+  // invite (a row in event_cohosts) but never separately RSVP'd, so a
+  // history query scoped only to the rsvps table would miss it entirely.
+  makeSupabase({ name: 'Ali', phone: null, photo_url: null }, null, [], [
+    { id: 'cohost-event-1', title: 'Sofra x Moga', event_date: '2030-08-12T18:00:00Z', venue: 'Downtown' },
+  ])
+  render(<ProfilePage />)
+
+  expect(await screen.findByRole('button', { name: 'Sofra x Moga' })).toBeInTheDocument()
 })
