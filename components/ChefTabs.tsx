@@ -42,7 +42,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
       const userId = localStorage.getItem('sofra_user_id')
       if (!userId) return
       const { data } = await supabase.from('events').select('host_id').eq('id', eventId).maybeSingle()
-      const allowed = Boolean(data) && await isEventManager(supabase, eventId, userId, data.host_id)
+      const allowed = data !== null && await isEventManager(supabase, eventId, userId, data.host_id)
       setCanDelegateKitchen(allowed)
       if (allowed && new URLSearchParams(window.location.search).get('kitchenShare') === '1') setKitchenSharing(true)
     }
