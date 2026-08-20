@@ -107,6 +107,10 @@ export function SharedAlbumPage({
                 {allSelected ? 'DESELECT ALL' : 'SELECT ALL'}
               </button>
               <span>{selectedIds.size} selected</span>
+            </div>
+          )}
+          {selectMode && (
+            <div className="sv2-album-select-save-row">
               <button type="button" onClick={onSaveSelected} disabled={selectedIds.size === 0 || saving}>
                 SAVE
               </button>

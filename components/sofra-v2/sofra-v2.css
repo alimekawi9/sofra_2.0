@@ -1412,7 +1412,7 @@
 .sv2-album-page-header{margin-bottom:20px}
 .sv2-album-page-header h1{margin:0;font:italic clamp(30px,8vw,42px)/1 var(--sv2-display-family)}
 .sv2-album-page-subtitle{margin:4px 0 14px;color:var(--sv2-muted);font-size:12px}
-.sv2-album-page-meta{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sv2-album-page-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:-4px}
 .sv2-album-page-meta>span{font-size:11px;color:var(--sv2-muted)}
 .sv2-album-page-meta .sv2-add-photos-trigger{min-width:130px;padding:0 16px}
 
@@ -1424,6 +1424,7 @@
 .sv2-album-tile-checkbox.is-checked{background:#64161A;border-color:#F7F4ED}
 .sv2-album-select-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
 .sv2-album-select-toolbar span{font-size:11px;color:var(--sv2-muted)}
+.sv2-album-select-save-row{display:flex;align-items:center;gap:10px;margin-top:8px}
 @media(min-width:640px){.sv2-album-page-grid{grid-template-columns:repeat(4,1fr);gap:6px}}
 @media(min-width:1024px){.sv2-album-page-grid{grid-template-columns:repeat(6,1fr)}}
 
