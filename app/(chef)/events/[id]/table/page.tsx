@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useUnwrappedParams } from '@/lib/next-params'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -130,8 +129,7 @@ function mergeGuests(rsvps: RsvpRow[], profiles: ProfileRow[]): TasteProfile[] {
   })
 }
 
-export default function TablePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = useUnwrappedParams(paramsPromise)
+export default function TablePage({ params }: { params: { id: string } }) {
   const { id } = params
   const router = useRouter()
   const supabase = createClient()

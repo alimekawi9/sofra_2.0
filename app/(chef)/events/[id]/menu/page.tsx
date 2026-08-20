@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useUnwrappedParams } from '@/lib/next-params'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -177,8 +176,7 @@ function MenuDesignPreview({
   )
 }
 
-export default function MenuPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = useUnwrappedParams(paramsPromise)
+export default function MenuPage({ params }: { params: { id: string } }) {
   const { id } = params
   const router = useRouter()
   const supabase = createClient()

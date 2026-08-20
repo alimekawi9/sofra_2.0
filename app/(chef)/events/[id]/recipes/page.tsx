@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useUnwrappedParams } from "@/lib/next-params";
 import { useRouter } from "next/navigation";
 import ChefTabs from "@/components/ChefTabs";
 import { createClient } from "@/lib/supabase/client";
@@ -64,8 +63,7 @@ function dishEaterCount(course: LoadedCourse, intel: TableIntel | null): number 
   return Math.max(1, guestCount - excludedGuests);
 }
 
-export default function RecipesPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = useUnwrappedParams(paramsPromise)
+export default function RecipesPage({ params }: { params: { id: string } }) {
   const { id } = params,
     router = useRouter(),
     supabase = createClient();

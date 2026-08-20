@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server'
 import { callGeminiJson } from '@/lib/gemini'
 import { buildPlanningPrompt, buildEventPlanningSchema, validateRecommendations, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
 import type { TableIntel } from '@/lib/intel'
-import { createClient } from '@/lib/supabase/server'
-import { requireAppUser } from '@/lib/auth/server-user'
-import { isEventManager } from '@/lib/event-access'
-import { consumeRateLimit } from '@/lib/auth/rate-limit'
 
 type RequestBody = {
   eventTitle?: unknown
@@ -14,19 +10,8 @@ type RequestBody = {
   answers?: unknown
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request) {
   try {
-    const { id } = await params
-    const supabase = await createClient()
-    const currentUser = await requireAppUser(supabase)
-    if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (!await consumeRateLimit(supabase, 'planning_recommendations', 10, 600)) {
-      return NextResponse.json({ error: 'Too many recommendation requests. Please wait a few minutes.' }, { status: 429 })
-    }
-    const { data: event } = await supabase.from('events').select('host_id').eq('id', id).maybeSingle()
-    if (!event || !await isEventManager(supabase, id, currentUser.appUserId, event.host_id)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
     const body = await request.json() as RequestBody
     if (typeof body.eventTitle !== 'string' || !body.intel || typeof body.intel !== 'object' || !Array.isArray(body.answers)) {
       return NextResponse.json({ error: 'Invalid planning context' }, { status: 400 })

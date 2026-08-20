@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useUnwrappedParams } from '@/lib/next-params'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SharedAlbumPage, type AlbumPhotoView } from '@/components/sofra-v2/SharedAlbumPage'
@@ -21,8 +20,7 @@ import '@/components/sofra-v2/sofra-v2.css'
 
 type EventRow = { id: string; host_id: string; title: string }
 
-export default function EventAlbumPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = useUnwrappedParams(paramsPromise)
+export default function EventAlbumPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
