@@ -1157,10 +1157,6 @@
 .sv2-rsvp-progress.is-low{border-color:rgba(100,22,26,.42);background:rgba(100,22,26,.08)}
 .sv2-rsvp-progress.is-low strong,.sv2-rsvp-progress.is-low span{color:#64161A}
 .sv2-menu-generation-stamp{width:max-content;margin:0 0 16px;padding:7px 12px;border-radius:999px;background:rgba(100,22,26,.09);color:#64161A;font:600 10px/1 var(--sv2-sans-family);letter-spacing:.04em;text-transform:uppercase}
-.sv2-menu-rsvp-alert{margin:0 0 18px;padding:16px;border:1px solid rgba(100,22,26,.4);border-radius:18px;background:rgba(100,22,26,.07);display:flex;align-items:center;justify-content:space-between;gap:16px}
-.sv2-menu-rsvp-alert div{display:flex;flex-direction:column;gap:4px}.sv2-menu-rsvp-alert strong{font:600 12px/1.4 var(--sv2-sans-family);color:#64161A}.sv2-menu-rsvp-alert span{font:400 11px/1.4 var(--sv2-sans-family);color:var(--sv2-muted)}
-.sv2-menu-rsvp-alert button{flex:0 0 auto;min-height:40px;padding:10px 16px;border:1px solid #64161A;border-radius:999px;background:#64161A;color:#F4EFE4;font:600 10px/1 var(--sv2-sans-family);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}.sv2-menu-rsvp-alert button:disabled{opacity:.5;cursor:default}
-@media(max-width:560px){.sv2-menu-rsvp-alert{align-items:flex-start;flex-direction:column}.sv2-menu-rsvp-alert button{width:100%}}
 .sv2-intel-grid{gap:16px!important}
 .sv2-intel-bar{gap:12px!important;margin-bottom:12px!important}
 .sv2-intel-bar>span:first-child{width:92px!important;color:var(--sv2-muted)!important}
@@ -1194,8 +1190,8 @@
 .sv2-menu-generate-row .regen:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 11px 28px rgba(92,21,21,.27)}
 .sv2-menu-generate-row .regen:disabled{cursor:not-allowed;opacity:.45;box-shadow:none}
 .sv2-menu-draft-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 20px;}
-.sv2-menu-draft-empty-illustration{display:block;width:min(100%,540px);height:auto;margin:0 auto 20px;opacity:.98;mix-blend-mode:multiply}
-.sv2-menu-draft-empty p,.sv2-menu-export-row>span{color:var(--sv2-muted)!important;font:400 12px/1.5 var(--sv2-sans-family)!important}
+.sv2-menu-draft-empty-illustration{display:block;width:min(100%,540px);height:auto;margin:0 auto 20px;opacity:.98;mix-blend-mode:normal}
+.sv2-menu-draft-empty p{color:var(--sv2-muted)!important;font:400 12px/1.5 var(--sv2-sans-family)!important}
 .sv2-production-menu-draft>div p{font-family:var(--sv2-sans-family)!important;font-weight:400!important}
 .sv2-menu-draft-empty p strong{color:inherit!important;font:600 12px/1.5 var(--sv2-sans-family)!important}
 .sv2-menu-draft-course{margin-bottom:16px!important;padding:22px!important;border:1px solid var(--sv2-line)!important;border-radius:22px!important;background:rgba(255,255,255,.2)!important;color:var(--sv2-ink)}
@@ -1208,9 +1204,6 @@
 .sv2-menu-draft-course .mini:disabled{opacity:.35;cursor:default}
 .sv2-menu-table-fit{border-color:rgba(122,23,30,.25)!important;border-radius:16px!important;background:rgba(122,23,30,.025)}
 .sv2-menu-table-fit-ok{border-color:rgba(89,112,67,.3)!important;background:rgba(89,112,67,.04)}
-.sv2-menu-export-row{margin-top:110px!important;padding-top:28px;border-top:1px solid var(--sv2-line)}
-.sv2-menu-export-row .prim{min-height:52px;padding:14px 28px;border:1px solid #64161A;border-radius:999px;background:#64161A;color:#F4EFE4;font:600 11px/1 var(--sv2-sans-family);letter-spacing:.8px;text-transform:uppercase;box-shadow:0 8px 22px rgba(92,21,21,.2)}
-.sv2-menu-export-row>span{color:var(--sv2-muted)!important}
 
 /* Menu design selection and print preview */
 .sv2-menu-design-page{min-height:100vh;background:#4d1014;padding:clamp(18px,4vw,48px);color:#651719;font-family:var(--sv2-sans-family,Arial,sans-serif)}
@@ -1282,7 +1275,7 @@
 @media(max-width:420px){.sv2-invite-choices{grid-template-columns:1fr!important}.sv2-invite-landing-page{padding:8px}.sv2-invite-landing{min-height:calc(100vh - 16px);padding:26px 16px;border-radius:34px}}
 .sv2-production-menu-draft button:focus-visible{outline:2px solid var(--sv2-ink);outline-offset:2px}
 .sv2-production-menu-draft button{font-family:var(--sv2-sans-family)!important;font-weight:600!important}
-@media(max-width:560px){.sv2-menu-draft-heading{align-items:flex-start!important;flex-direction:column;gap:16px}.sv2-menu-draft-heading>div:last-child{justify-content:flex-start!important}.sv2-menu-draft-course{padding:18px!important}.sv2-menu-export-row{align-items:flex-start!important;flex-direction:column}.sv2-production-menu-draft .sv2-menu-draft-shell>div:first-of-type>div:first-child{align-items:flex-start!important;gap:14px}}
+@media(max-width:560px){.sv2-menu-draft-heading{align-items:flex-end!important;flex-direction:row!important;gap:12px}.sv2-menu-draft-heading>div:first-child{min-width:0}.sv2-menu-draft-heading .sv2-recipes-print{flex-shrink:0}.sv2-menu-draft-course{padding:18px!important}.sv2-production-menu-draft .sv2-menu-draft-shell>div:first-of-type>div:first-child{align-items:flex-start!important;gap:14px}}
 
 .sv2-menu-page--dark{--sv2-ink:#F4EFE4;--sv2-card-bg:#64161A;--sv2-line:rgba(244,239,228,.28);--sv2-muted:rgba(244,239,228,.68);}
 .sv2-menu-page--dark,.sv2-menu-page--dark .sv2-menu-shell,.sv2-menu-page--dark .sv2-app-nav{background:#64161A;color:#F4EFE4;}
@@ -1392,6 +1385,7 @@
 /* ─── Shared Album v2: compact preview, batch upload, gallery, viewer, comments ─── */
 
 .sv2-album-heading-actions{display:flex;align-items:center;gap:12px}
+@media(max-width:560px){.sv2-album-heading-actions{align-items:flex-start}}
 .sv2-view-album-link{border:0;background:none;padding:0;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.8px;text-decoration:underline;cursor:pointer}
 
 .sv2-album-preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
@@ -1611,6 +1605,10 @@
   .sv2-customize-questions
 ):not(:disabled):is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-card-bg)!important}
 
+/* Recipe choices need the same high-contrast fill before interaction; these
+   are primary pathways, not low-emphasis tertiary actions. */
+.sv2-recipe-actions button.secondary:not(:disabled){border-color:var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-card-bg)!important}
+
 /* These outline actions are labels/links or legacy-named controls rather than
    plain buttons, but share the same visual interaction. */
 .sv2-add-photos-trigger,
@@ -1622,8 +1620,12 @@
 .sv2-add-photos-trigger:is(:hover,:focus-within),
 .sv2-profile-preference-link:is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-card-bg)!important}
 
-:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-menu-generate-row .regen,
-:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-menu-export-row .prim{border-color:#F4EFE4;background:#F4EFE4;color:#64161A;box-shadow:0 8px 22px rgba(20,14,16,.24)}
+:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-menu-generate-row .regen{border-color:#F4EFE4;background:#F4EFE4;color:#64161A;box-shadow:0 8px 22px rgba(20,14,16,.24)}
+:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-rsvp-progress{border-color:rgba(244,239,228,.72);background:#F4EFE4;box-shadow:0 8px 24px rgba(20,14,16,.12)}
+:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-rsvp-progress strong,
+:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-rsvp-progress span{color:#64161A!important;opacity:1}
+:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-intel-hard-limits{border-color:rgba(244,239,228,.42)!important;background:rgba(244,239,228,.08)!important}
+:root[data-theme="dark"]:not([data-sv2-theme]) .sv2-hard-limit-warning{color:#F2CF79!important}
 @media(min-width:900px){.sv2-comments-panel{left:auto;right:24px;bottom:24px;width:340px;max-height:60vh;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.4)}}
 
 /* ─── Host questionnaire customization ─── */

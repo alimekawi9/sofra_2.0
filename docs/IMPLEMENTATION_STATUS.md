@@ -418,3 +418,12 @@
 # Host form validation placement (2026-08-21)
 
 - Create/Edit Sofra validation errors now have one consistent location directly beneath the form's final `CONTINUE` or `UPDATE INVITE` action instead of appearing midway through the form beside questionnaire customization.
+
+# Dark menu contrast and export hierarchy (2026-08-21)
+
+- The Table and Drafted Menu response-progress card now uses a high-contrast cream surface with burgundy text in dark mode, and the Hard Limits warning label uses a visible gold treatment.
+- Menu printing remains hidden until a generated draft exists. Once available, `PRINT MENU` uses the same styling and top-right header placement as `PRINT RECIPES`.
+- The separate “current menu has not changed” response alert and its duplicate Regenerate action were removed; regeneration is available only through the draft's primary Set the Table/Regenerate control.
+- The empty Recipes state no longer exposes a redundant “Could not load recipes” message. The empty Drafted Menu table illustration now has a genuine transparent background, retaining its full-color appearance over both light and dark themes without a white box or blend-mode blackout.
+- Secondary recipe actions such as `GENERATE RECIPE` and `PASTE A RECIPE` now permanently use their high-contrast filled treatment instead of revealing readable contrast only on hover.
+- On mobile Shared Album pages, `SELECT` and `ADD PHOTOS` align along the same top edge; the 20-photo upload note remains beneath Add Photos without shifting either action.

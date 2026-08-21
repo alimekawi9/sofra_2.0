@@ -19,6 +19,10 @@ export function menuResponseGuidance(count: number): string {
     : 'For a more accurate draft, wait for a few more guests to answer.'
 }
 
+export function shouldShowMenuExport(courseCount: number): boolean {
+  return courseCount > 0
+}
+
 export function newMenuResponseLabel(count: number): string {
   return `${count} new guest${count === 1 ? ' has' : 's have'} responded since this menu was generated.`
 }

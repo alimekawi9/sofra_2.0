@@ -374,6 +374,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Hard Limits with non-negotiable needs</span>
                 <span
+                  className="sv2-hard-limit-warning"
                   style={{
                     color: C.danger,
                     fontSize: 11,

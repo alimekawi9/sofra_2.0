@@ -13,7 +13,7 @@ import type { Course, Signature, PantryItem, Slot } from '@/lib/menu'
 import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 import SofraTransition from '@/components/SofraTransition'
-import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
+import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, shouldShowMenuExport } from '@/lib/menu-generation-snapshot'
 import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
 import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
 import { formatEventDate } from '@/lib/event-date'
@@ -455,7 +455,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
   const allLocked = courses.length > 0 && courses.every((c) => c.locked)
   const responseCount = guestResponseCount
-  const newResponseCount = newMenuResponseCount(responseCount, generatedGuestCount)
 
   const dateSub = event
     ? formatEventDate(event.event_date, {
@@ -602,6 +601,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   Composed for this table. Every dish is allergy-safe by construction.
                 </div>
               </div>
+              {shouldShowMenuExport(courses.length) && (
+                <button type="button" className="sv2-recipes-print" onClick={() => setExportStep('choose')}>
+                  Print menu
+                </button>
+              )}
             </div>
 
             <section className={`sv2-rsvp-progress ${hasEnoughGuestResponses(responseCount) ? 'is-ready' : 'is-low'}`} aria-label="RSVP response progress">
@@ -617,18 +621,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                   <button type="button" onClick={() => router.push(`/kitchen?from=${id}&from_page=menu${restrictedChef ? '&delegate=1' : ''}`)}>OPEN KITCHEN</button>
                   <button type="button" onClick={() => void handleRegenerateAI(true)}>CONTINUE ANYWAY</button>
                 </div>
-              </section>
-            )}
-
-            {courses.length > 0 && newResponseCount > 0 && (
-              <section className="sv2-menu-rsvp-alert" role="status">
-                <div>
-                  <strong>{newMenuResponseLabel(newResponseCount)}</strong>
-                  <span>The current menu has not changed.</span>
-                </div>
-                <button type="button" onClick={() => void handleRegenerateAI()} disabled={allLocked || aiLoading}>
-                  {aiLoading ? 'Regenerating…' : 'Regenerate'}
-                </button>
               </section>
             )}
 
@@ -915,32 +907,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               >
                 {aiLoading ? 'Setting the Table…' : courses.length > 0 ? 'Regenerate' : 'Set the Table'}
               </button>
-            </div>
-
-            <div
-              className="sv2-menu-export-row"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                marginTop: 18,
-                flexWrap: 'wrap',
-              }}
-            >
-              <button className="prim" onClick={() => setExportStep('choose')}>
-                Generate menu PDF
-              </button>
-              <span
-                style={{
-                  color: C.faint,
-                  fontSize: 12,
-                  fontFamily: 'system-ui, sans-serif',
-                }}
-              >
-                Opens a print-ready menu
-                <br />
-                Save as PDF or print.
-              </span>
             </div>
 
           </>

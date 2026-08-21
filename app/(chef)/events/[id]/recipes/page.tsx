@@ -190,8 +190,8 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
           return { ...row, recipe, dishExclusions: derived.excludes };
         }),
       );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load recipes");
+    } catch {
+      setCourses([]);
     } finally {
       setLoading(false);
     }

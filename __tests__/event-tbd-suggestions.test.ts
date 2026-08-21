@@ -191,4 +191,81 @@ describe('computeTbdSuggestions', () => {
       },
     ])
   })
+
+  it('combines two separate date and time questions into one suggestion, instead of one crowding out the other', () => {
+    const questions = [
+      question({
+        id: 'q_date', title: 'Which date works?', type: 'ranking', order: 0,
+        options: [{ value: 'a', label: 'Thursday' }, { value: 'b', label: 'Friday' }],
+      }),
+      question({
+        id: 'q_time', title: 'Which time works?', type: 'ranking', order: 1,
+        options: [{ value: 'x', label: '6pm' }, { value: 'y', label: '9pm' }],
+      }),
+    ]
+    const responseRows = [
+      { question_id: 'q_date', response: ['a', 'b'] },
+      { question_id: 'q_date', response: ['a', 'b'] },
+      { question_id: 'q_date', response: ['a', 'b'] },
+      { question_id: 'q_time', response: ['y', 'x'] },
+      { question_id: 'q_time', response: ['y', 'x'] },
+      { question_id: 'q_time', response: ['y', 'x'] },
+    ]
+    const result = computeTbdSuggestions({ event_date: UNDECIDED_DATE, venue: 'x', address: null }, questions, responseRows)
+    expect(result).toEqual([
+      {
+        field: 'dateTime',
+        value: 'Thursday at 9pm',
+        sourceQuestionTitle: '"Which date works?" and "Which time works?"',
+        responseCount: 3,
+      },
+    ])
+  })
+
+  it('shows one question once, not duplicated, when a single question already covers both date and time', () => {
+    const questions = [
+      question({
+        id: 'q_both', title: 'What date and time works?', type: 'ranking', order: 0,
+        options: [{ value: 'a', label: 'Thursday at 9pm' }, { value: 'b', label: 'Friday at 6pm' }],
+      }),
+    ]
+    const responseRows = [
+      { question_id: 'q_both', response: ['a', 'b'] },
+      { question_id: 'q_both', response: ['a', 'b'] },
+      { question_id: 'q_both', response: ['a', 'b'] },
+    ]
+    const result = computeTbdSuggestions({ event_date: UNDECIDED_DATE, venue: 'x', address: null }, questions, responseRows)
+    expect(result).toEqual([
+      {
+        field: 'dateTime',
+        value: 'Thursday at 9pm',
+        sourceQuestionTitle: 'What date and time works?',
+        responseCount: 3,
+      },
+    ])
+  })
+
+  it('still shows the date part alone when the separate time question is below the response floor', () => {
+    const questions = [
+      question({
+        id: 'q_date', title: 'Which date works?', type: 'ranking', order: 0,
+        options: [{ value: 'a', label: 'Thursday' }, { value: 'b', label: 'Friday' }],
+      }),
+      question({
+        id: 'q_time', title: 'Which time works?', type: 'ranking', order: 1,
+        options: [{ value: 'x', label: '6pm' }, { value: 'y', label: '9pm' }],
+      }),
+    ]
+    const responseRows = [
+      { question_id: 'q_date', response: ['a', 'b'] },
+      { question_id: 'q_date', response: ['a', 'b'] },
+      { question_id: 'q_date', response: ['a', 'b'] },
+      { question_id: 'q_time', response: ['y', 'x'] },
+      { question_id: 'q_time', response: ['y', 'x'] },
+    ]
+    const result = computeTbdSuggestions({ event_date: UNDECIDED_DATE, venue: 'x', address: null }, questions, responseRows)
+    expect(result).toEqual([
+      { field: 'dateTime', value: 'Thursday', sourceQuestionTitle: 'Which date works?', responseCount: 3 },
+    ])
+  })
 })
