@@ -429,3 +429,15 @@
 - The empty Recipes state no longer exposes a redundant “Could not load recipes” message. The empty Drafted Menu table illustration now has a genuine transparent background, retaining its full-color appearance over both light and dark themes without a white box or blend-mode blackout.
 - Secondary recipe actions such as `GENERATE RECIPE` and `PASTE A RECIPE` now permanently use their high-contrast filled treatment instead of revealing readable contrast only on hover.
 - On mobile Shared Album pages, `SELECT` and `ADD PHOTOS` align along the same top edge; the 20-photo upload note remains beneath Add Photos without shifting either action.
+
+# Event album sharing previews (2026-08-21)
+
+- Shared Album URLs now publish event-specific social metadata, using the Sofra's uploaded cover image and event title instead of inheriting the site's default logo preview.
+- Newly composed event-update links include a harmless per-session preview version so messaging apps fetch the current event image rather than reusing a previously cached preview for the same URL.
+
+# Sofra x Moga account reconciliation (2026-08-21)
+
+- A data audit found phone-normalized login accounts separated from the phone-less historical user IDs that owned Sofra x Moga RSVPs and preferences.
+- Migration `20260821000002_reconcile_sofra_x_moga_guest_accounts.sql` atomically reconnects seven uniquely supported matches (Hassan, Seliem, Nour, Mona, Layla, Lujain, and Hussein), retaining original RSVP history and richer preferences while preserving the normalized account currently used on guests' devices.
+- The migration deliberately leaves 17 unmatched or ambiguous historical attendees unchanged pending phone confirmation; it does not infer identity from a loose name similarity.
+- Migration `20260821000003_attach_confirmed_sofra_x_moga_phones.sql` applies the host-confirmed second batch: six historical accounts receive their international numbers in place, El Os/Os consolidate into the existing Osama Soliman phone account, and the confirmed Ellabban duplicate is removed from Hassan's account history.

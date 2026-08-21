@@ -25,6 +25,10 @@ export default function EventUpdatePage({ params }: { params: { id: string } }) 
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
+  // WhatsApp and other messaging apps cache link previews aggressively. Keep
+  // one stable URL per update-writing session, but make a newly composed update
+  // fetch the event's current cover instead of reusing an older cached preview.
+  const previewVersionRef = useRef(Date.now().toString(36))
 
   const [event, setEvent] = useState<EventRow | null>(null)
   const [loading, setLoading] = useState(true)
@@ -35,9 +39,10 @@ export default function EventUpdatePage({ params }: { params: { id: string } }) 
   const [copyFallback, setCopyFallback] = useState('')
 
   function messageUrls() {
+    const updateQuery = `?entry=update&preview=${previewVersionRef.current}`
     return {
-      inviteUrl: canonicalUrl('/events/' + params.id + '?entry=update'),
-      albumUrl: canonicalUrl('/events/' + params.id + '/album?entry=update'),
+      inviteUrl: canonicalUrl('/events/' + params.id + updateQuery),
+      albumUrl: canonicalUrl('/events/' + params.id + '/album' + updateQuery),
     }
   }
 
