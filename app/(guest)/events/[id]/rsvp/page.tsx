@@ -37,6 +37,7 @@ import {
 import '@/components/sofra-v2/sofra-v2.css'
 import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
 import { eventEntryRole, loginDestination, rsvpEntryDestination } from '@/lib/event-entry'
+import { getEventAccessRequestStatus } from '@/lib/event-access-requests'
 
 type Step = 'status' | 'confirm-preferences' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
@@ -114,7 +115,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
       uidRef.current = stored
       setIdentityConfirmed(true)
 
-      const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }, { data: cohostRow, error: e3 }] = await Promise.all([
+      const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }, { data: cohostRow, error: e3 }, accessRequest] = await Promise.all([
         supabase.from('events')
           .select('host_id,chef_id,title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(id,name,photo_url)')
           .eq('id', params.id)
@@ -133,9 +134,10 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           .eq('event_id', params.id)
           .eq('user_id', stored)
           .maybeSingle(),
+        getEventAccessRequestStatus(supabase, params.id, stored),
       ])
 
-      if (e0 || e1 || e2 || e3 || !ev) throw new Error('fetch failed')
+      if (e0 || e1 || e2 || e3 || accessRequest.error || !ev) throw new Error('fetch failed')
 
       const hasRsvp = rsvpRow !== null
       const requestedPreferences = new URLSearchParams(window.location.search).get('preferences') === '1'
@@ -149,6 +151,11 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         hasRsvp,
       }
       const role = eventEntryRole(entryContext)
+      if (role === 'guest' && !hasRsvp && accessRequest.status !== 'accepted') {
+        redirectingRef.current = true
+        router.replace(`/events/${params.id}/request-access`)
+        return
+      }
       const preferencesOnly = requestedPreferences && (role === 'host' || role === 'cohost')
       const destination = rsvpEntryDestination(entryContext, { editing, preferencesOnly })
       if (destination) {

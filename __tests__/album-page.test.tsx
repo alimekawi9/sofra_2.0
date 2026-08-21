@@ -112,11 +112,11 @@ describe('access control', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fev-1%2Falbum'))
   })
 
-  it('routes a guest who has not RSVPed to the one-time RSVP flow', async () => {
+  it('routes a guest who has not RSVPed to request host access', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase({ rsvpRow: null, photoRows: [photoRow(1)] })
     render(<EventAlbumPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
     expect(screen.queryByLabelText('ADD PHOTOS', { selector: 'input' })).not.toBeInTheDocument()
   })
 

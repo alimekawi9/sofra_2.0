@@ -441,3 +441,12 @@
 - Migration `20260821000002_reconcile_sofra_x_moga_guest_accounts.sql` atomically reconnects seven uniquely supported matches (Hassan, Seliem, Nour, Mona, Layla, Lujain, and Hussein), retaining original RSVP history and richer preferences while preserving the normalized account currently used on guests' devices.
 - The migration deliberately leaves 17 unmatched or ambiguous historical attendees unchanged pending phone confirmation; it does not infer identity from a loose name similarity.
 - Migration `20260821000003_attach_confirmed_sofra_x_moga_phones.sql` applies the host-confirmed second batch: six historical accounts receive their international numbers in place, El Os/Os consolidate into the existing Osama Soliman phone account, and the confirmed Ellabban duplicate is removed from Hassan's account history.
+
+# Host-approved event access requests (2026-08-21)
+
+- A signed-in person who follows a private Sofra link without already being a host, co-host, assigned chef, or RSVP guest now sees a dedicated `REQUEST ACCESS` screen instead of entering RSVP immediately. Logged-out visitors first complete the existing login flow and return to that screen.
+- Requests are persisted once per event and account. Pending requests appear as notifications on the host/co-host events board and as an approval list on Event Details, including the requester's profile identity.
+- Hosts and accepted co-hosts can accept or reject each request. Acceptance grants entry to the normal RSVP flow; it does not invent an RSVP response on the requester's behalf. Rejection leaves the event private and permits a later re-request.
+- Direct RSVP, Album, and Chat routes enforce the same membership gate, while existing RSVP guests and event managers retain their role-aware bypasses.
+- Stale or deleted event URLs no longer expose Supabase's single-row coercion error during local development. They remove the obsolete pending-invite entry and return the viewer to `Your Sofras`; genuine database failures still retain the retry error state.
+- Migration `20260821000004_add_event_access_requests.sql` adds the request records and bounded security-definer functions under the current local-identity MVP model. RLS stays enabled, the table grants no direct anonymous reads or writes, and requester/manager views are exposed only through scoped functions. True database-backed authentication remains future security work.

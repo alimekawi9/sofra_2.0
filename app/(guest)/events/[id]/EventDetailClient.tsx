@@ -13,6 +13,7 @@ import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, 
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import { canAccessEventUpdate, eventEntryDestination, loginDestination } from '@/lib/event-entry'
+import { listPendingEventAccessRequests, respondToEventAccessRequest, type PendingEventAccessRequest } from '@/lib/event-access-requests'
 
 type EventRow = {
   id: string
@@ -93,6 +94,9 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState('')
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [accessRequests, setAccessRequests] = useState<PendingEventAccessRequest[]>([])
+  const [respondingToAccessRequest, setRespondingToAccessRequest] = useState<string | null>(null)
+  const [accessRequestError, setAccessRequestError] = useState('')
 
   async function loadPhotos() {
     const { photos: loaded, error: photosError } = await fetchAlbumPhotos(supabase, params.id)
@@ -139,7 +143,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
           .from('events')
           .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan')
           .eq('id', params.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('rsvps')
           .select('status')
@@ -153,7 +157,13 @@ export default function EventDetailClient({ params }: { params: { id: string } }
           .maybeSingle(),
       ])
 
-      if (e1 || !ev) throw new Error(e1?.message ?? 'event not found')
+      if (e1) throw new Error(e1.message)
+      if (!ev) {
+        forgetPendingInvite(params.id)
+        redirectingRef.current = true
+        router.replace('/events')
+        return
+      }
       if (e2) {
         console.error('Event RSVP lookup failed', { eventId: params.id, code: e2.code, message: e2.message })
         throw new Error('rsvp lookup failed')
@@ -175,7 +185,8 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       }
       setEvent(ev as EventRow)
       if (updateEntry && !canAccessEventUpdate(entryContext)) {
-        setError('This update is only available to people already in this Sofra. This account is not on the guest or host list.')
+        redirectingRef.current = true
+        router.replace(`/events/${params.id}/request-access`)
         return
       }
       const destination = eventEntryDestination(entryContext)
@@ -216,6 +227,16 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       }
       setHostNeedsPreferences(needsHostPreferences)
       setHostNeedsKitchen(hostViewing && ev.kitchen_status === 'pending' && ev.kitchen_plan === 'later')
+
+      if (hostViewing) {
+        const { requests, error: pendingError } = await listPendingEventAccessRequests(supabase, params.id, stored)
+        if (pendingError) {
+          setAccessRequestError('Could not load access requests. Try again.')
+        } else {
+          setAccessRequests(requests)
+          setAccessRequestError('')
+        }
+      }
 
       if (isUnlocked) {
         const { data: guestRows, error: e3 } = await supabase
@@ -347,6 +368,19 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     setGuests((current) => current.filter((guest) => guest.id !== guestId))
   }
 
+  async function handleAccessRequest(requestId: string, accept: boolean) {
+    if (!uidRef.current || !isHost) return
+    setRespondingToAccessRequest(requestId)
+    setAccessRequestError('')
+    const result = await respondToEventAccessRequest(supabase, requestId, uidRef.current, accept)
+    setRespondingToAccessRequest(null)
+    if (!result.ok) {
+      setAccessRequestError('Could not respond to that request. Refresh and try again.')
+      return
+    }
+    setAccessRequests((current) => current.filter((request) => request.id !== requestId))
+  }
+
   function shareViaWhatsApp() {
     if (!event) return
     const url = canonicalEventUrl(params.id)
@@ -435,6 +469,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       onRemoveGuest={handleRemoveGuest}
       removingGuestId={removingGuestId}
       removeGuestError={removeGuestError}
+      accessRequests={accessRequests}
+      respondingToAccessRequest={respondingToAccessRequest}
+      accessRequestError={accessRequestError}
+      onRespondToAccessRequest={handleAccessRequest}
       photos={photos.map((photo) => ({ id: photo.id, url: photo.url }))}
       photoError={photoError}
       onRetryPhotos={loadPhotos}

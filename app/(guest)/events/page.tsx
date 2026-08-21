@@ -7,6 +7,7 @@ import { EventsBoard, type EventsBoardEvent, type EventsBoardStatus } from '@/co
 import { readPendingInvites } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
 import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
+import { listManagedEventAccessRequestCounts } from '@/lib/event-access-requests'
 
 type EventRow = {
   id: string
@@ -103,6 +104,13 @@ export default function EventsPage() {
         })
 
       hosting.push(...cohosting)
+
+      const managedEventIds = hosting.map((ev) => ev.id)
+      if (managedEventIds.length > 0) {
+        const { counts: requestCounts, error: requestError } = await listManagedEventAccessRequestCounts(supabase, uid)
+        if (requestError) throw new Error('access request fetch failed')
+        for (const event of hosting) event.accessRequestCount = requestCounts.get(event.id) ?? 0
+      }
 
       const hostingIds = new Set(hosting.map((ev) => ev.id))
 

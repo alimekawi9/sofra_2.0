@@ -24,7 +24,7 @@ export function eventEntryDestination(context: EventEntryContext): string | null
   const role = eventEntryRole(context)
   if (role === 'chef') return `/kitchen?from=${context.eventId}&delegate=1`
   if (role === 'host' || role === 'cohost' || context.hasRsvp) return null
-  return `/events/${context.eventId}/rsvp`
+  return `/events/${context.eventId}/request-access`
 }
 
 export function canAccessEventUpdate(context: EventEntryContext): boolean {

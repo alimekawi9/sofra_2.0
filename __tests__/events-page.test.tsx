@@ -30,6 +30,7 @@ const SAMPLE_EVENT: EventRow = {
 function makeSupabase({
   hostingEvents = [] as EventRow[],
   invitedRsvps  = [] as { status: string; events: (EventRow & { host?: { name: string } }) }[],
+  pendingAccessRequests = [] as { event_id: string }[],
   fetchError    = null as { message: string } | null,
 } = {}) {
   const sb = {
@@ -50,6 +51,13 @@ function makeSupabase({
           }),
         }
       }
+      if (table === 'event_cohosts') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }
+      }
       // rsvps
       return {
         select: jest.fn().mockReturnValue({
@@ -58,6 +66,13 @@ function makeSupabase({
           }),
         }),
       }
+    }),
+    rpc: jest.fn().mockResolvedValue({
+      data: Object.entries(pendingAccessRequests.reduce<Record<string, number>>((counts, row) => {
+        counts[row.event_id] = (counts[row.event_id] ?? 0) + 1
+        return counts
+      }, {})).map(([event_id, pending_count]) => ({ event_id, pending_count })),
+      error: null,
     }),
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
@@ -170,6 +185,18 @@ describe('empty state', () => {
 })
 
 describe('Hosting events', () => {
+  it('shows pending access requests as host notifications and on the event card', async () => {
+    makeSupabase({
+      hostingEvents: [SAMPLE_EVENT],
+      pendingAccessRequests: [{ event_id: SAMPLE_EVENT.id }, { event_id: SAMPLE_EVENT.id }],
+    })
+    render(<EventsPage />)
+
+    const notifications = await screen.findByRole('complementary', { name: /access request notifications/i })
+    expect(notifications).toHaveTextContent('2 pending')
+    expect(screen.getByText('2 access requests')).toBeInTheDocument()
+  })
+
   it('shows the uploaded invitation image instead of the theme artwork', async () => {
     makeSupabase({ hostingEvents: [{ ...SAMPLE_EVENT, cover_url: 'https://example.com/invitation.jpg' }] })
     render(<EventsPage />)

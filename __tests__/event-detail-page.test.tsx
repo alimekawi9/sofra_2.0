@@ -43,6 +43,7 @@ function makeSupabase({
   tasteProfile = { user_id: HOST_UID } as { user_id: string } | null,
   cohostRows = [] as Array<{ users: { id: string; name: string; photo_url: string | null } | null }>,
   viewerIsCohost = false,
+  pendingAccessRequests = [] as Array<{ id: string; user_id: string; created_at: string; users: { id: string; name: string; photo_url: string | null } }>,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -74,10 +75,12 @@ function makeSupabase({
   const sb = {
     from: jest.fn((table: string) => {
       if (table === 'events') {
+        const eventResult = jest.fn().mockResolvedValue({ data: event, error: fetchError })
         return {
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: event, error: fetchError }),
+              single: eventResult,
+              maybeSingle: eventResult,
             }),
           }),
         }
@@ -131,6 +134,18 @@ function makeSupabase({
     storage: {
       from: jest.fn().mockReturnValue(bucket),
     },
+    rpc: jest.fn((name: string) => Promise.resolve(name === 'list_pending_event_access_requests'
+      ? {
+          data: pendingAccessRequests.map((row) => ({
+            request_id: row.id,
+            user_id: row.user_id,
+            requester_name: row.users.name,
+            requester_photo_url: row.users.photo_url,
+            created_at: row.created_at,
+          })),
+          error: null,
+        }
+      : { data: true, error: null })),
     _photoEqMock: photoEqMock,
     _photoOrderMock: photoOrderMock,
     _bucket: bucket,
@@ -159,6 +174,16 @@ beforeEach(() => {
 const PARAMS = { id: 'ev-1' }
 
 describe('fresh-browser initialization', () => {
+  it('clears a stale event link and returns to Your Sofras when the event no longer exists', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    localStorage.setItem('sofra_pending_invites', JSON.stringify([{ id: 'ev-1', title: 'Deleted event' }]))
+    makeSupabase({ event: null })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events'))
+    expect(localStorage.getItem('sofra_pending_invites')).not.toContain('ev-1')
+  })
+
   it('sends a logged-out invite visitor directly to login and preserves the event destination', async () => {
     const sb = makeSupabase({ event: { ...SAMPLE_EVENT, is_published: false } })
     render(<EventDetailPage params={PARAMS} />)
@@ -167,11 +192,11 @@ describe('fresh-browser initialization', () => {
     expect(screen.queryByRole('button', { name: /claim my seat/i })).not.toBeInTheDocument()
   })
 
-  it('sends an authenticated guest with no RSVP directly to the one-time RSVP flow', async () => {
+  it('sends an authenticated non-member to request host access', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
     expect(localStorage.getItem('sofra_pending_invites')).toContain('ev-1')
     expect(screen.queryByRole('button', { name: /claim my seat/i })).not.toBeInTheDocument()
   })
@@ -625,6 +650,44 @@ describe('Remove guest', () => {
   })
 })
 
+describe('Access requests', () => {
+  const REQUEST = {
+    id: 'request-1',
+    user_id: 'requester-1',
+    created_at: '2026-08-21T12:00:00Z',
+    users: { id: 'requester-1', name: 'Nour', photo_url: null },
+  }
+
+  it('lets the host accept a pending request and removes it from the pending list', async () => {
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    const sb = makeSupabase({ pendingAccessRequests: [REQUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'ACCEPT' }))
+
+    await waitFor(() => expect(sb.rpc).toHaveBeenCalledWith('respond_to_event_access_request', {
+      p_request_id: 'request-1',
+      p_reviewer_id: HOST_UID,
+      p_accept: true,
+    }))
+    expect(screen.queryByText('Nour')).not.toBeInTheDocument()
+  })
+
+  it('lets a co-host reject a pending request', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const sb = makeSupabase({ viewerIsCohost: true, pendingAccessRequests: [REQUEST] })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'REJECT' }))
+
+    await waitFor(() => expect(sb.rpc).toHaveBeenCalledWith('respond_to_event_access_request', {
+      p_request_id: 'request-1',
+      p_reviewer_id: GUEST_UID,
+      p_accept: false,
+    }))
+  })
+})
+
 describe('Host membership', () => {
   it('shows the host in Around this Sofra with a Host badge and no remove control', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
@@ -742,11 +805,11 @@ it('shows the going RSVP copy without a star', async () => {
 })
 
 describe('Locked table preview', () => {
-  it('does not reveal event content while routing a new guest to RSVP', async () => {
+  it('does not reveal event content while routing a new guest to request access', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
     expect(screen.queryByText('The table')).not.toBeInTheDocument()
     expect(screen.queryByText('Around this Sofra')).not.toBeInTheDocument()
   })
@@ -755,7 +818,7 @@ describe('Locked table preview', () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     const { container } = render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
     expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(0)
   })
 

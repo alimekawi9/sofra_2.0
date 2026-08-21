@@ -12,6 +12,7 @@ import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 import type { EventChatMessage } from '@/lib/event-chat'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import SofraTransition from '../SofraTransition'
+import type { PendingEventAccessRequest } from '@/lib/event-access-requests'
 
 export interface EventPaperGuest {
   id: string
@@ -62,6 +63,10 @@ export interface EventPaperProps {
   onRemoveGuest?: (guestId: string) => void
   removingGuestId?: string | null
   removeGuestError?: string
+  accessRequests?: PendingEventAccessRequest[]
+  respondingToAccessRequest?: string | null
+  accessRequestError?: string
+  onRespondToAccessRequest?: (requestId: string, accept: boolean) => void
   photos: Array<{ id: string; url: string }>
   photoError: string
   onRetryPhotos: () => void
@@ -130,6 +135,10 @@ export function EventPaper({
   onRemoveGuest,
   removingGuestId = null,
   removeGuestError = '',
+  accessRequests = [],
+  respondingToAccessRequest = null,
+  accessRequestError = '',
+  onRespondToAccessRequest,
   photos,
   photoError,
   onRetryPhotos,
@@ -214,6 +223,30 @@ export function EventPaper({
                 <button className="sv2-manage-guests" type="button" onClick={onViewTable}>
                   SET THE SOFRA
                 </button>
+                {(accessRequests.length > 0 || accessRequestError) && (
+                  <aside className="sv2-access-notifications" aria-label="Pending access requests">
+                    <div className="sv2-section-heading">
+                      <h2>Access requests</h2>
+                      <span>{accessRequests.length} pending</span>
+                    </div>
+                    {accessRequestError && <p role="alert">{accessRequestError}</p>}
+                    {accessRequests.map((request) => (
+                      <article key={request.id}>
+                        <ProfileIdentityLink userId={request.userId} name={request.name} photoUrl={request.photoUrl} />
+                        <div>
+                          <button type="button" disabled={respondingToAccessRequest === request.id}
+                            onClick={() => onRespondToAccessRequest?.(request.id, true)}>
+                            ACCEPT
+                          </button>
+                          <button type="button" disabled={respondingToAccessRequest === request.id}
+                            onClick={() => onRespondToAccessRequest?.(request.id, false)}>
+                            REJECT
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </aside>
+                )}
                 {hostNeedsPreferences && (
                   <aside className="sv2-host-preferences-notice">
                     <div>

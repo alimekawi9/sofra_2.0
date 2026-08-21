@@ -22,6 +22,7 @@ export interface EventsBoardEvent {
   theme: string
   coverUrl?: string | null
   isDraft?: boolean
+  accessRequestCount?: number
 }
 
 export interface EventsBoardProps {
@@ -47,6 +48,7 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
   const [filter, setFilter] = useState<EventsBoardStatus | null>(null)
   const activeFilter = filter && available.includes(filter) ? filter : available[0] ?? null
   const visible = activeFilter ? events.filter((event) => event.status === activeFilter) : []
+  const accessNotifications = events.filter((event) => (event.accessRequestCount ?? 0) > 0)
 
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
@@ -57,6 +59,18 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
             <h1>{name}</h1>
           </div>
         </header>
+
+        {!loading && accessNotifications.length > 0 && (
+          <aside className="sv2-board-notifications" aria-label="Access request notifications">
+            <strong>ACCESS REQUESTS</strong>
+            {accessNotifications.map((event) => (
+              <Link key={event.id} href={`/events/${event.id}`}>
+                <span>{event.title}</span>
+                <b>{event.accessRequestCount} pending</b>
+              </Link>
+            ))}
+          </aside>
+        )}
 
         <section className="sv2-event-history" aria-labelledby="sv2-event-history-heading">
           <h2 id="sv2-event-history-heading">YOUR TABLES</h2>
@@ -104,6 +118,7 @@ export function EventsBoard({ name, events, loading, error, onRetry, onHostEvent
                       <p className="sv2-event-status">
                         {LABELS[event.status]}
                         {event.isDraft && <span className="sv2-draft-badge">Draft</span>}
+                        {(event.accessRequestCount ?? 0) > 0 && <span className="sv2-access-badge">{event.accessRequestCount} access request{event.accessRequestCount === 1 ? '' : 's'}</span>}
                       </p>
                       {event.isDraft && (
                         <p className="sv2-draft-explanation">Finish setting up your Kitchen to publish this Sofra.</p>

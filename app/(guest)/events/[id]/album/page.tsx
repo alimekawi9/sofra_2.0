@@ -131,11 +131,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
 
       const hostViewing = await isEventManager(supabase, params.id, stored, ev.host_id)
       if (!hostViewing && rsvpRow === null) {
-        if (searchParams.get('entry') === 'update') {
-          setError('This update is only available to people already in this Sofra. This account is not on the guest or host list.')
-          return
-        }
-        router.replace(`/events/${params.id}/rsvp`)
+        router.replace(`/events/${params.id}/request-access`)
         return
       }
       setIsHost(hostViewing)

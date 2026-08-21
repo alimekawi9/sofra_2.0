@@ -41,6 +41,7 @@ function makeSupabase({
   upsertError = null as { message: string } | null,
   questionnaireConfig = null as Record<string, unknown> | null,
   customResponseRows = [] as Array<{ question_id: string; response: unknown }>,
+  accessRequestStatus = 'accepted' as 'pending' | 'accepted' | 'rejected' | null,
 } = {}) {
   const rsvpUpsert    = jest.fn().mockResolvedValue({ error: upsertError })
   const profileUpsert = jest.fn().mockResolvedValue({ error: upsertError })
@@ -124,6 +125,7 @@ function makeSupabase({
     rsvpUpsert,
     profileUpsert,
     customResponseUpsert,
+    rpc: jest.fn().mockResolvedValue({ data: accessRequestStatus, error: null }),
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
@@ -133,6 +135,14 @@ it('renders without crashing', () => {
   makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
   expect(document.body).toBeTruthy()
+})
+
+it('redirects a nonmember without accepted access away from the RSVP form', async () => {
+  makeSupabase({ accessRequestStatus: null })
+  render(<RSVPPage params={{ id: 'event-1' }} />)
+
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1/request-access'))
+  expect(screen.queryByRole('button', { name: /save me a seat/i })).not.toBeInTheDocument()
 })
 
 it('redirects a missing local identity before querying RSVP data', async () => {
