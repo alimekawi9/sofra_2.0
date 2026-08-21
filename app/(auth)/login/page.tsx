@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { safeNext } from '@/lib/navigation'
+import { findExistingUserByPhone } from '@/lib/phone-identity'
 import { WelcomeCard } from '@/components/sofra-v2/WelcomeCard'
 import { SignupForm } from '@/components/sofra-v2/SignupForm'
 import { NamePlateForm } from '@/components/sofra-v2/NamePlateForm'
@@ -56,20 +57,16 @@ function LoginInner() {
     setSubmitting(true)
     setError('')
 
-    const { data: existing, error: selectError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone', trimmedPhone)
-      .maybeSingle()
+    const { userId: existingUserId, error: selectError } = await findExistingUserByPhone(supabase, trimmedPhone, next)
 
     if (selectError) {
-      setError(selectError.message)
+      setError(selectError)
       setSubmitting(false)
       return
     }
 
-    if (existing) {
-      localStorage.setItem(STORAGE_KEY, existing.id)
+    if (existingUserId) {
+      localStorage.setItem(STORAGE_KEY, existingUserId)
       router.replace(next)
       return
     }

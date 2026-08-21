@@ -397,6 +397,8 @@
 - Accepting co-host status supersedes any earlier guest RSVP for role, access, dashboard placement, roster badges, and guest/host counts. The RSVP row remains only as attendance and preference data, preventing promotion from erasing the person's dietary answers.
 - Direct Album and Chat links preserve their destination through login. Authenticated non-members enter RSVP once, while existing guests and event managers continue directly to the requested page.
 - RSVP lookup errors fail closed and show an error instead of treating an uncertain result as a missing RSVP.
+- Event-update messages now use explicitly marked update links. After login, existing guests, hosts, co-hosts, and assigned chefs continue without RSVP; a non-member sees a membership error and is never routed into RSVP. The same rule applies to Shared Album links sent in photo updates.
+- Phone login now considers canonical international, digits-only, national, and leading-zero legacy variants. If multiple accounts share those equivalent forms, an event link selects the account that already belongs to that event instead of creating or choosing a duplicate identity.
 
 # RSVP preview identity cleanup (2026-08-21)
 

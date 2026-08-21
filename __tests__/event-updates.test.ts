@@ -1,7 +1,7 @@
 import { buildUpdateMessage, type UpdateEventInput } from '@/lib/event-updates'
 
-const INVITE_URL = 'https://sofra.app/events/ev-1'
-const ALBUM_URL = 'https://sofra.app/events/ev-1/album'
+const INVITE_URL = 'https://sofra.app/events/ev-1?entry=update'
+const ALBUM_URL = 'https://sofra.app/events/ev-1/album?entry=update'
 
 const DECIDED_EVENT: UpdateEventInput = {
   title: "Layla's Long Table",

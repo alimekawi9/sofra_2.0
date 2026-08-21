@@ -27,6 +27,11 @@ export function eventEntryDestination(context: EventEntryContext): string | null
   return `/events/${context.eventId}/rsvp`
 }
 
+export function canAccessEventUpdate(context: EventEntryContext): boolean {
+  const role = eventEntryRole(context)
+  return role === 'host' || role === 'cohost' || role === 'chef' || context.hasRsvp
+}
+
 export function rsvpEntryDestination(
   context: EventEntryContext,
   options: { editing: boolean; preferencesOnly: boolean }

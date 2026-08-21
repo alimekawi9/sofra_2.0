@@ -36,8 +36,8 @@ export default function EventUpdatePage({ params }: { params: { id: string } }) 
 
   function messageUrls() {
     return {
-      inviteUrl: canonicalUrl('/events/' + params.id),
-      albumUrl: canonicalUrl('/events/' + params.id + '/album'),
+      inviteUrl: canonicalUrl('/events/' + params.id + '?entry=update'),
+      albumUrl: canonicalUrl('/events/' + params.id + '/album?entry=update'),
     }
   }
 

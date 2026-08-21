@@ -1,4 +1,5 @@
 import {
+  canAccessEventUpdate,
   eventEntryDestination,
   eventEntryRole,
   loginDestination,
@@ -18,6 +19,14 @@ const guest: EventEntryContext = {
 describe('event entry routing', () => {
   it('sends a new ordinary guest to RSVP', () => {
     expect(eventEntryDestination(guest)).toBe('/events/event-1/rsvp')
+  })
+
+  it('allows update links only for existing event members', () => {
+    expect(canAccessEventUpdate(guest)).toBe(false)
+    expect(canAccessEventUpdate({ ...guest, hasRsvp: true })).toBe(true)
+    expect(canAccessEventUpdate({ ...guest, userId: 'host-1' })).toBe(true)
+    expect(canAccessEventUpdate({ ...guest, isCohost: true })).toBe(true)
+    expect(canAccessEventUpdate({ ...guest, userId: 'chef-1' })).toBe(true)
   })
 
   it('keeps a returning RSVP guest on event details', () => {

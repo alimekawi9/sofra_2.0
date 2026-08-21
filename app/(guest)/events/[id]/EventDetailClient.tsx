@@ -12,7 +12,7 @@ import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/ev
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
-import { eventEntryDestination, loginDestination } from '@/lib/event-entry'
+import { canAccessEventUpdate, eventEntryDestination, loginDestination } from '@/lib/event-entry'
 
 type EventRow = {
   id: string
@@ -126,9 +126,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     setError('')
     try {
       const stored = localStorage.getItem('sofra_user_id')
+      const updateEntry = new URLSearchParams(window.location.search).get('entry') === 'update'
       if (!stored) {
         redirectingRef.current = true
-        router.replace(loginDestination(`/events/${params.id}`))
+        router.replace(loginDestination(`/events/${params.id}${updateEntry ? '?entry=update' : ''}`))
         return
       }
       uidRef.current = stored
@@ -164,14 +165,20 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       const safeRsvpRow = rsvpRow
       const hasRsvp = safeRsvpRow !== null
       if (hasRsvp) forgetPendingInvite(params.id)
-      const destination = eventEntryDestination({
+      const entryContext = {
         eventId: params.id,
         userId: stored,
         hostId: ev.host_id,
         chefId: ev.chef_id,
         isCohost: Boolean(cohostRow),
         hasRsvp,
-      })
+      }
+      setEvent(ev as EventRow)
+      if (updateEntry && !canAccessEventUpdate(entryContext)) {
+        setError('This update is only available to people already in this Sofra. This account is not on the guest or host list.')
+        return
+      }
+      const destination = eventEntryDestination(entryContext)
       if (destination) {
         if (!hostViewing && !hasRsvp && ev.chef_id !== stored) rememberPendingInvite(ev as EventRow)
         redirectingRef.current = true
@@ -179,7 +186,6 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         return
       }
 
-      setEvent(ev as EventRow)
       const isUnlocked = hostViewing || hasRsvp
 
       setHasRsvpRow(hasRsvp)
