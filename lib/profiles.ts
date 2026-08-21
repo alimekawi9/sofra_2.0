@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { formatEventDate } from './event-date'
 
 export type PublicUserSummary = {
   id: string
@@ -47,7 +48,7 @@ async function fetchUserEventIds(supabase: SupabaseClient, userId: string): Prom
 }
 
 function formatShort(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatEventDate(iso, { month: 'short', day: 'numeric' })
 }
 
 export function transformProfileHistory(rows: ProfileHistoryRow[], now = Date.now()): ProfileHistoryEntry[] {

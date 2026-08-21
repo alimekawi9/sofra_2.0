@@ -95,6 +95,7 @@ export default function HostNewPage() {
       cover_url: publicUrl,
       is_published: publish,
       kitchen_status: 'pending',
+      kitchen_plan: kitchenPlan,
     }
 
     if (createdEventIdRef.current) {

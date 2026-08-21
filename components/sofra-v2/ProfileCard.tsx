@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { sv2Display, sv2Sans } from './fonts'
 import { SofraHistoryArtwork } from './SofraHistoryArtwork'
+import { ImageCropDialog } from './ImageCropDialog'
 import type { Appearance } from '@/lib/sofra/appearance'
 
 export interface ProfileHistoryEntry {
@@ -64,6 +66,7 @@ export function ProfileCard({
   appearance,
   onAppearanceChange,
 }: ProfileCardProps) {
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
   const initials = name
     .split(/\s+/)
     .map((part) => part[0])
@@ -113,7 +116,7 @@ export function ProfileCard({
               onChange={(event) => {
                 const file = event.target.files?.[0]
                 event.target.value = ''
-                if (file) onPhotoSelect(file)
+                if (file) setPendingPhoto(file)
               }}
             />
           </label>
@@ -162,7 +165,7 @@ export function ProfileCard({
             </div>
           )}
           {hostPreferenceHref && !showPreferenceWarning && (
-            <a className="sv2-profile-preference-link" href={hostPreferenceHref}>MY TABLE PREFERENCES</a>
+            <a className="sv2-profile-preference-link" href={hostPreferenceHref}>EDIT MY PREFERENCES</a>
           )}
         </section>
 
@@ -200,6 +203,20 @@ export function ProfileCard({
           LOG OUT
         </button>
       </div>
+      {pendingPhoto && (
+        <ImageCropDialog
+          file={pendingPhoto}
+          title="Crop your profile photo"
+          aspectRatio={1}
+          outputWidth={800}
+          outputHeight={800}
+          onCancel={() => setPendingPhoto(null)}
+          onConfirm={(croppedFile) => {
+            setPendingPhoto(null)
+            onPhotoSelect(croppedFile)
+          }}
+        />
+      )}
     </div>
   )
 }

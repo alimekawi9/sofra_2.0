@@ -63,14 +63,14 @@ it('opens the existing phone page immediately for an invite entry', () => {
   expect(screen.queryByRole('button', { name: /yalla/i })).not.toBeInTheDocument()
 })
 
-it('always asks for phone on an invite entry even when a local identity exists', () => {
+it('skips invite login when a local identity exists and preserves the destination', async () => {
   localStorage.setItem('sofra_user_id', 'stored-user')
   query.set('invite', '1')
   query.set('next', '/events/ev-1/rsvp')
   makeSupabase(null)
   render(<LoginPage />)
-  expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument()
-  expect(replace).not.toHaveBeenCalled()
+  await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
+  expect(screen.queryByLabelText(/phone number/i)).not.toBeInTheDocument()
 })
 
 it('an existing phone logs the user in directly, without ever asking for a name', async () => {

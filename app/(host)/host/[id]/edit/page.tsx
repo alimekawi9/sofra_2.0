@@ -7,17 +7,10 @@ import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import '@/components/sofra-v2/sofra-v2.css'
 import { isEventManager } from '@/lib/event-access'
-import { eventDateForStorage, isEventDateUndecided } from '@/lib/event-date'
+import { eventDateForInput, eventDateForStorage, isEventDateUndecided } from '@/lib/event-date'
 import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection } from '@/lib/event-custom-details'
-
-// Formats an ISO timestamp for the <input type="datetime-local"> value
-// (which needs local time with no timezone/seconds, e.g. 2026-09-01T19:00).
-function toDateTimeLocal(iso: string): string {
-  if (isEventDateUndecided(iso)) return 'undecided'
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+import { customQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
+import { computeTbdSuggestions, type TbdSuggestion } from '@/lib/event-tbd-suggestions'
 
 export default function HostEditPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -42,6 +35,8 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const [deleting, setDeleting] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
   const [error, setError] = useState('')
+  const [dateSuggestion, setDateSuggestion] = useState<TbdSuggestion | undefined>(undefined)
+  const [locationSuggestion, setLocationSuggestion] = useState<TbdSuggestion | undefined>(undefined)
 
   useEffect(() => {
     async function load() {
@@ -69,7 +64,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       setTitle(ev.title ?? '')
       setCanDelete(ev.host_id === stored)
       setTagline(ev.tagline ?? '')
-      setDateTime(toDateTimeLocal(ev.event_date))
+      setDateTime(eventDateForInput(ev.event_date))
       setLocation(ev.venue ?? '')
       setDressCode(ev.dress_code ?? '')
       setCustomDetails((ev.custom_details as CustomDetailSection[] | null) ?? [])
@@ -77,6 +72,37 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       setImageDataUrl(ev.cover_url ?? undefined)
       originalVenueRef.current = ev.venue ?? ''
       originalAddressRef.current = ev.address ?? null
+
+      // Suggestions are optional and additive: only fetch questionnaire data
+      // at all when a field is actually still TBD, and never block the form
+      // if this fails.
+      if (isEventDateUndecided(ev.event_date) || (!ev.venue?.trim() && !ev.address?.trim())) {
+        try {
+          const { data: qRow } = await supabase
+            .from('event_questionnaires')
+            .select('config')
+            .eq('event_id', params.id)
+            .maybeSingle()
+          const config = qRow?.config?.questions ? (qRow.config as QuestionnaireConfig) : null
+          const customQs = config ? customQuestions(config) : []
+          if (customQs.length > 0) {
+            const { data: responseRows } = await supabase
+              .from('event_question_responses')
+              .select('question_id,response')
+              .eq('event_id', params.id)
+            const suggestions = computeTbdSuggestions(
+              { event_date: ev.event_date, venue: ev.venue, address: ev.address },
+              customQs,
+              responseRows ?? []
+            )
+            setDateSuggestion(suggestions.find((s) => s.field === 'dateTime'))
+            setLocationSuggestion(suggestions.find((s) => s.field === 'location'))
+          }
+        } catch {
+          // Swallowed deliberately -- see comment above.
+        }
+      }
+
       setLoading(false)
     }
     load()
@@ -90,6 +116,21 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   function onImageRemove() {
     coverFileRef.current = null
     setImageDataUrl(undefined)
+  }
+
+  // The suggested value is a guest-written label (e.g. "Saturday, August 30
+  // at 7pm"), not a real Date -- parsing arbitrary option text into a Date
+  // is unreliable (real dates can fail to parse, and unrelated text can
+  // parse into a bogus one), so this only clears "undecided" to reveal the
+  // native picker; the host reads the suggested label and enters it.
+  function useDateSuggestion() {
+    if (dateTime === 'undecided') setDateTime('')
+  }
+
+  function useLocationSuggestion() {
+    if (!locationSuggestion) return
+    setLocation(locationSuggestion.value)
+    setPlace(null)
   }
 
   function addCustomDetail() {
@@ -209,6 +250,10 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       location={location}
       onLocationChange={(value) => { setLocation(value); setPlace(null) }}
       onPlaceSelect={setPlace}
+      dateSuggestion={dateSuggestion}
+      onUseDateSuggestion={useDateSuggestion}
+      locationSuggestion={locationSuggestion}
+      onUseLocationSuggestion={useLocationSuggestion}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
       customDetails={customDetails}

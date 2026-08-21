@@ -8,6 +8,7 @@ import { sv2Display, sv2Sans } from '@/components/sofra-v2/fonts'
 import { createClient } from '@/lib/supabase/client'
 import { fetchEventMessages, markEventChatRead, sendEventMessage, type EventChatMessage } from '@/lib/event-chat'
 import '@/components/sofra-v2/sofra-v2.css'
+import { loginDestination } from '@/lib/event-entry'
 
 type EventRow = { id: string; host_id: string; title: string }
 
@@ -40,7 +41,7 @@ export default function EventChatPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.replace('/login?next=' + encodeURIComponent('/events/' + params.id + '/chat'))
+        router.replace(loginDestination('/events/' + params.id + '/chat'))
         return
       }
       uidRef.current = stored
@@ -55,7 +56,7 @@ export default function EventChatPage({ params }: { params: { id: string } }) {
       const allowed = ev.host_id === stored || Boolean(rsvp) || Boolean(cohost)
       setCanChat(allowed)
       if (!allowed) {
-        setError('Accept this invitation before opening the chat.')
+        router.replace(`/events/${params.id}/rsvp`)
         return
       }
       await loadMessages()

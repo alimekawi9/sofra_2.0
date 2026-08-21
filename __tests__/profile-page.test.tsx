@@ -143,12 +143,21 @@ it('prompts a host with no preferences on Profile and allows dismissal', async (
   render(<ProfilePage />)
 
   const addLink = await screen.findByRole('link', { name: /add my preferences/i })
-  expect(addLink).toHaveAttribute('href', '/events/event-id/rsvp?preferences=1')
+  expect(addLink).toHaveAttribute('href', '/profile/preferences')
 
   fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /my table preferences/i })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /edit my preferences/i })).toBeInTheDocument()
   expect(localStorage.getItem('sofra_dismiss_host_preferences:host-id')).toBe('1')
+})
+
+it('lets a non-host edit preferences directly from the profile', async () => {
+  localStorage.setItem('sofra_user_id', 'guest-id')
+  makeSupabase({ name: 'Mona', phone: null, photo_url: null })
+  render(<ProfilePage />)
+
+  const link = await screen.findByRole('link', { name: /add my preferences/i })
+  expect(link).toHaveAttribute('href', '/profile/preferences')
 })
 
 it('locks a saved caption until Edit caption is pressed', async () => {

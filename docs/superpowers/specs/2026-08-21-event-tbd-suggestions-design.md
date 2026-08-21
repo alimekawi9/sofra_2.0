@@ -147,18 +147,34 @@ queries entirely otherwise):
   call-shared-services-directly preference).
 - `computeTbdSuggestions(...)` run once on load, stored in local state.
 
-UI: next to the date/time input, when a `dateTime` suggestion exists, render:
+UI: next to the location input, when a `location` suggestion exists, render:
 
 ```
 Suggested: {value} · from {responseCount} responses to "{sourceQuestionTitle}"   [Use this]
 ```
 
-Same pattern next to the location input for a `location` suggestion. Clicking **Use this** sets the
-corresponding local form field (`dateTime` / `location`) exactly as if the host had typed/picked it
-themselves — it does not submit the form and does not touch the database until the host presses the
-existing Save action. Dismissing is implicit: editing the field manually, or simply ignoring the
-suggestion and saving something else, both work with zero extra code, since it's just a pre-fill of
-local state.
+Clicking **Use this** sets `location` directly, exactly as if the host had typed it — safe because it's
+plain text with no parsing involved. It does not submit the form; the host still presses the existing
+Save action.
+
+**Deviation found during implementation:** the date/time field cannot get the same one-click fill. The
+suggested value is a guest-written ranking-option *label* (e.g. "Saturday, August 30 at 7pm"), not a
+real `Date`, and turning it into one requires parsing — which this design's non-goals explicitly rule
+out. A prototype using `new Date(label)` was tested directly and rejected: it silently parsed nonsense
+labels like `"Option 3"` into a bogus date (`Thu Mar 01 2001`), and *failed* to parse a perfectly
+reasonable label like `"Saturday, August 30 at 7pm"` — unsafe in one direction and unreliable in the
+other. So the date/time suggestion renders as a **hint only**:
+
+```
+Guests picked {value} in "{sourceQuestionTitle}" ({responseCount} responses).   [Set the date to enter it]
+```
+
+Its button only clears the "Date undecided" checkbox (revealing the native `datetime-local` input) —
+it never writes a fabricated value into it. The host reads the suggested label and types/picks the real
+date themselves.
+
+Dismissing either suggestion is implicit: editing the field manually, or simply ignoring the suggestion,
+both work with zero extra code, since nothing writes to the database until Save.
 
 If the relevant field is not TBD (already has a real date, or already has a venue/address), no fetch of
 questionnaire data happens for that field and nothing renders — existing edit-page behavior for a
@@ -195,10 +211,11 @@ fully-set event is completely unchanged.
 ## Acceptance criteria
 
 - A host opening Edit Event for an event with `event_date` still `9999-12-31` and ≥3 responses to a
-  clearly date-related ranking question sees a one-click suggestion matching the same winner Table's
-  planning recommendations would describe.
-- The identical mechanism works for venue/location using single/multiple-choice or ranking questions
-  about where to hold the event.
+  clearly date-related ranking question sees the same winner Table's planning recommendations would
+  describe, surfaced as a hint with a one-click action to reveal the date input (not a fabricated
+  pre-filled value — see the deviation noted under §5).
+- Venue/location gets a true one-click fill using single/multiple-choice or ranking questions about
+  where to hold the event, since a plain-text field carries no parsing risk.
 - No suggestion ever appears for a fully-set field, a sub-floor response count, a tied winner, or a
   text/slider question.
 - No new Gemini/LLM calls are introduced. No new database columns or migrations are introduced.

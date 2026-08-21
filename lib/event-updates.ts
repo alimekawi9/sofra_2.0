@@ -1,4 +1,4 @@
-import { isEventDateUndecided } from './event-date'
+import { formatEventDate, formatEventTime, isEventDateUndecided } from './event-date'
 
 export type UpdateTemplateId = 'photos' | 'details' | 'custom'
 
@@ -10,13 +10,13 @@ export type UpdateEventInput = {
 }
 
 function formatUpdateDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+  return formatEventDate(iso, {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   })
 }
 
 function formatUpdateTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return formatEventTime(iso)
 }
 
 function buildDetailsMessage(event: UpdateEventInput, inviteUrl: string): string {

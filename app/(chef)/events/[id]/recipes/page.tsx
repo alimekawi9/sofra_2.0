@@ -21,6 +21,8 @@ import {
 import "@/components/sofra-v2/sofra-v2.css";
 import { isEventManager, fetchEventHostIds } from "@/lib/event-access";
 import { guestHostLabel, guestHostBreakdown } from "@/lib/guest-host-count";
+import { formatEventDate } from "@/lib/event-date";
+import { PrintPreviewActions } from "@/components/sofra-v2/PrintPreviewActions";
 
 type StoredRecipe = Omit<Recipe, "ingredients"> & {
   recipe_ingredients: RecipeIngredient[];
@@ -77,6 +79,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
     [viewing, setViewing] = useState<string | null>(null),
     [draft, setDraft] = useState<Draft>(emptyDraft),
     [busy, setBusy] = useState<string | null>(null),
+    [printPreview, setPrintPreview] = useState(false),
     [restrictedChef, setRestrictedChef] = useState(false),
     [guestHostCounts, setGuestHostCounts] = useState({ guests: 0, hosts: 0 });
 
@@ -334,15 +337,16 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
   }
 
   const dateSub = eventDate
-    ? new Date(eventDate).toLocaleDateString("en-US", {
+    ? formatEventDate(eventDate, {
         weekday: "short",
         month: "short",
         day: "numeric",
       })
     : "";
   return (
-    <div className={`sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft sv2-production-recipes${restrictedChef ? ' sv2-restricted-chef-page' : ''}`}>
+    <div className={`sv2-root sv2-device-page sv2-app-page sv2-production-menu-draft sv2-production-recipes${restrictedChef ? ' sv2-restricted-chef-page' : ''}${printPreview ? ' sv2-recipes-print-preview-page' : ''}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-menu-draft-shell sv2-recipes-shell">
+        {printPreview && <PrintPreviewActions label="PRINT / SAVE RECIPES" onBack={() => setPrintPreview(false)} />}
         <ChefTabs
           eventId={id}
           active="recipes"
@@ -359,7 +363,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
             <h1>Recipes</h1>
             <p>Scaled for {intel?.guestCount ?? 0} guests</p>
           </div>
-          <button type="button" className="sv2-recipes-print" onClick={() => window.print()} disabled={!courses.some((course) => course.recipe)}>
+          <button type="button" className="sv2-recipes-print" onClick={() => setPrintPreview(true)} disabled={!courses.some((course) => course.recipe)}>
             Print recipes
           </button>
         </header>
@@ -371,7 +375,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
             <p>Generate a menu, then return here to add recipes.</p>
           </div>
         )}
-        <section className="sv2-recipes-print-sheet" aria-hidden="true">
+        <section className="sv2-recipes-print-sheet" aria-hidden={!printPreview}>
           <header>
             <p>Sofra</p>
             <h1>{eventTitle} recipes</h1>

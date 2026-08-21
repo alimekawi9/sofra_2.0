@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation'
 
 jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
+jest.mock('@/components/sofra-v2/ImageCropDialog', () => ({
+  ImageCropDialog: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => (
+    <button type="button" onClick={() => onConfirm(file)}>USE THIS CROP</button>
+  ),
+}))
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -15,8 +20,8 @@ const SAMPLE_EVENT = {
   title: 'Test Dinner',
   tagline: 'A cozy evening',
   event_date: '2026-09-01T19:00:00Z',
-  venue: 'The Garden Room',
-  address: '123 Main St',
+  venue: 'The Garden Room' as string | null,
+  address: '123 Main St' as string | null,
   dress_code: 'Smart casual',
   custom_details: [] as Array<{ id: string; label: string; body: string }>,
   theme: 'olive',
@@ -37,6 +42,8 @@ function makeSupabase({
   updateError = null as { message: string } | null,
   uploadError = null as { message: string } | null,
   deleteError = null as { message: string } | null,
+  questionnaireConfig = null as { header?: string; questions: unknown[] } | null,
+  responseRows = [] as Array<{ question_id: string; response: unknown }>,
 } = {}) {
   const update = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: updateError }) })
   const deleteEq = jest.fn().mockResolvedValue({ error: deleteError })
@@ -53,10 +60,30 @@ function makeSupabase({
       update,
       delete: del,
     }
+  const questionnaireTable = {
+    select: jest.fn().mockReturnValue({
+      eq: jest.fn().mockReturnValue({
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: questionnaireConfig ? { config: questionnaireConfig } : null,
+          error: null,
+        }),
+      }),
+    }),
+  }
+  const responsesTable = {
+    select: jest.fn().mockReturnValue({
+      eq: jest.fn().mockResolvedValue({ data: responseRows, error: null }),
+    }),
+  }
   const sb = {
-    from: jest.fn((table: string) => table === 'event_cohosts'
-      ? { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }) }) }) }
-      : defaultTable),
+    from: jest.fn((table: string) => {
+      if (table === 'event_cohosts') {
+        return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }) }) }) }
+      }
+      if (table === 'event_questionnaires') return questionnaireTable
+      if (table === 'event_question_responses') return responsesTable
+      return defaultTable
+    }),
     storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) },
     update, upload, getPublicUrl, delete: del, deleteEq,
   }
@@ -144,6 +171,7 @@ it('picking a new cover photo uploads it and uses the new public URL', async () 
   await waitFor(() => screen.getByLabelText(/replace/i))
   const file = new File(['img'], 'new.jpg', { type: 'image/jpeg' })
   await userEvent.upload(screen.getByLabelText(/replace/i), file)
+  await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
   await userEvent.click(screen.getByRole('button', { name: /update invite/i }))
   await waitFor(() => expect(mockPush).toHaveBeenCalled())
   expect(sb.upload).toHaveBeenCalled()
@@ -214,6 +242,97 @@ it('CUSTOMIZE GUEST QUESTIONS navigates to the questionnaire editor for this eve
   await waitFor(() => screen.getByRole('button', { name: /customize guest questions/i }))
   await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
   expect(mockPush).toHaveBeenCalledWith('/host/event-1/questionnaire')
+})
+
+describe('TBD-field suggestions', () => {
+  const DATE_QUESTION = {
+    id: 'q_date',
+    kind: 'custom',
+    type: 'ranking',
+    title: 'What day works best?',
+    options: [
+      { value: 'sat', label: 'August 30, 2026' },
+      { value: 'sun', label: 'August 31, 2026' },
+    ],
+    order: 0,
+  }
+  const LOCATION_QUESTION = {
+    id: 'q_location',
+    kind: 'custom',
+    type: 'single',
+    title: 'Where should we host?',
+    options: [
+      { value: 'garden', label: 'The Garden Room' },
+      { value: 'loft', label: 'The Loft' },
+    ],
+    order: 1,
+  }
+  const UNDECIDED_DATE_EVENT = { ...SAMPLE_EVENT, event_date: '9999-12-31T12:00:00.000Z' }
+  const NO_LOCATION_EVENT = { ...SAMPLE_EVENT, venue: null, address: null }
+
+  it('shows a date suggestion (as a hint, never a fabricated value) for an undecided date once 3+ rankings favor one option, and its action reveals the native input', async () => {
+    const sb = makeSupabase({
+      event: UNDECIDED_DATE_EVENT,
+      questionnaireConfig: { questions: [DATE_QUESTION] },
+      responseRows: [
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+        { question_id: 'q_date', response: ['sun', 'sat'] },
+      ],
+    })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText(/august 30, 2026/i)).toBeInTheDocument())
+    expect(screen.getByTestId('date-input')).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: /set the date to enter it/i }))
+    expect(screen.getByTestId('date-input')).not.toBeDisabled()
+    expect(sb.from).toHaveBeenCalledWith('event_questionnaires')
+  })
+
+  it('does not show a date suggestion below the 3-response floor', async () => {
+    makeSupabase({
+      event: UNDECIDED_DATE_EVENT,
+      questionnaireConfig: { questions: [DATE_QUESTION] },
+      responseRows: [
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+      ],
+    })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Edit your Sofra' })).toBeInTheDocument())
+    expect(screen.queryByText(/suggested:/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a one-click location suggestion for an empty venue/address, and filling it sets the location field', async () => {
+    makeSupabase({
+      event: NO_LOCATION_EVENT,
+      questionnaireConfig: { questions: [LOCATION_QUESTION] },
+      responseRows: [
+        { question_id: 'q_location', response: 'garden' },
+        { question_id: 'q_location', response: 'garden' },
+        { question_id: 'q_location', response: 'loft' },
+      ],
+    })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText(/suggested: the garden room/i)).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /use this/i }))
+    expect(screen.getByRole('combobox', { name: /location/i })).toHaveValue('The Garden Room')
+  })
+
+  it('shows no suggestion at all, and never queries the questionnaire, when the event already has a real date and venue', async () => {
+    const sb = makeSupabase({
+      questionnaireConfig: { questions: [DATE_QUESTION, LOCATION_QUESTION] },
+      responseRows: [
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+        { question_id: 'q_date', response: ['sat', 'sun'] },
+      ],
+    })
+    render(<HostEditPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Edit your Sofra' })).toBeInTheDocument())
+    expect(screen.queryByText(/suggested:/i)).not.toBeInTheDocument()
+    expect(sb.from).not.toHaveBeenCalledWith('event_questionnaires')
+  })
 })
 
 describe('custom detail sections', () => {

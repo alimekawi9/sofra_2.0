@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import { createClient } from '@/lib/supabase/client'
 import '@/components/sofra-v2/sofra-v2.css'
+import { loginDestination } from '@/lib/event-entry'
 
 export default function KitchenInvitePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -18,6 +19,20 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
 
   useEffect(() => {
     async function load() {
+      const userId = localStorage.getItem('sofra_user_id')
+      const claimPath = `/events/${params.id}/chef?token=${encodeURIComponent(token)}&claim=1`
+      if (!userId) {
+        router.replace(loginDestination(claimPath))
+        return
+      }
+      const [{ data: event }, { data: cohost }] = await Promise.all([
+        supabase.from('events').select('title,host_id,chef_id').eq('id', params.id).maybeSingle(),
+        supabase.from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', userId).maybeSingle(),
+      ])
+      if (!event) { setError("Couldn't load this invitation."); setLoading(false); return }
+      if (event.chef_id === userId) { router.replace(`/kitchen?from=${params.id}&delegate=1`); return }
+      if (event.host_id === userId || cohost) { router.replace(`/events/${params.id}`); return }
+
       const { data: invite } = await supabase.from('event_kitchen_invites')
         .select('event_id,status').eq('token', token).eq('event_id', params.id).maybeSingle()
       if (!invite || invite.status !== 'pending') {
@@ -25,9 +40,7 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
         setLoading(false)
         return
       }
-      const { data: event } = await supabase.from('events').select('title').eq('id', params.id).maybeSingle()
-      if (!event) setError("Couldn't load this invitation.")
-      else setTitle(event.title)
+      setTitle(event.title)
       setLoading(false)
     }
     void load()
@@ -51,7 +64,7 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
   function claim() {
     const next = `/events/${params.id}/chef?token=${encodeURIComponent(token)}&claim=1`
     if (localStorage.getItem('sofra_user_id')) router.push(next)
-    else router.push('/name?next=' + encodeURIComponent(next))
+    else router.replace(loginDestination(next))
   }
 
   if (loading || (claimed && !error)) return null

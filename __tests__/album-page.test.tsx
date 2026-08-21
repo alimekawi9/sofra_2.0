@@ -106,18 +106,17 @@ beforeEach(() => {
 })
 
 describe('access control', () => {
-  it('redirects to name onboarding when no local identity is set', async () => {
+  it('redirects to phone login while preserving the album destination when no local identity is set', async () => {
     makeSupabase()
     render(<EventAlbumPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/name?next=%2Fevents%2Fev-1%2Falbum'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fev-1%2Falbum'))
   })
 
-  it('shows no photos and no upload control for a guest who has not RSVPed, even if photos exist', async () => {
+  it('routes a guest who has not RSVPed to the one-time RSVP flow', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase({ rsvpRow: null, photoRows: [photoRow(1)] })
     render(<EventAlbumPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByText('Shared Album')).toBeInTheDocument())
-    expect(screen.getByText('No memories yet.')).toBeInTheDocument()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
     expect(screen.queryByLabelText('ADD PHOTOS', { selector: 'input' })).not.toBeInTheDocument()
   })
 
@@ -127,6 +126,7 @@ describe('access control', () => {
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     expect(screen.getByLabelText('ADD PHOTOS', { selector: 'input' })).toBeInTheDocument()
+    expect(screen.getByText('Maximum 20 photos per upload.')).toBeInTheDocument()
   })
 
   it('shows photos and the upload control for an accepted co-host, even with no RSVP row', async () => {

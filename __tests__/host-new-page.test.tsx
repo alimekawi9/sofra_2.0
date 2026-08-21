@@ -7,6 +7,11 @@ import { UNDECIDED_EVENT_DATE } from '@/lib/event-date'
 
 jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
+jest.mock('@/components/sofra-v2/ImageCropDialog', () => ({
+  ImageCropDialog: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => (
+    <button type="button" onClick={() => onConfirm(file)}>USE THIS CROP</button>
+  ),
+}))
 
 const mockPush = jest.fn()
 
@@ -73,6 +78,7 @@ describe('cover image', () => {
     const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     const input = screen.getByLabelText(/choose cover image/i)
     await userEvent.upload(input, file)
+    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
     expect(screen.getByRole('button', { name: /remove/i })).toBeInTheDocument()
     expect(screen.queryByText('Choose a cover image')).not.toBeInTheDocument()
   })
@@ -83,6 +89,7 @@ describe('cover image', () => {
     const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     const input = screen.getByLabelText(/choose cover image/i)
     await userEvent.upload(input, file)
+    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
     expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
   })
 
@@ -91,6 +98,7 @@ describe('cover image', () => {
     render(<HostNewPage />)
     const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
+    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
     await userEvent.click(screen.getByRole('button', { name: /remove/i }))
     expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
   })
@@ -126,9 +134,10 @@ describe('form fields', () => {
     render(<HostNewPage />)
     expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(
-      screen.getByText(/add an event name, date and time, and location/i)
-    ).toBeInTheDocument()
+    const submit = screen.getByRole('button', { name: /continue/i })
+    const validationError = screen.getByText(/add an event name, date and time, and location/i)
+    expect(validationError).toBeInTheDocument()
+    expect(submit.compareDocumentPosition(validationError) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 
@@ -154,6 +163,7 @@ describe('submit handler', () => {
     render(<HostNewPage />)
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
+    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())
@@ -168,6 +178,7 @@ describe('submit handler', () => {
     render(<HostNewPage />)
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
+    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() =>
@@ -192,33 +203,36 @@ describe('submit handler', () => {
         host_id:    'uid-1',
         title:      'Test Dinner',
         tagline:    'A cozy evening',
-        event_date: new Date('2026-08-01T19:00').toISOString(),
+        event_date: '2026-08-01T19:00:00.000Z',
         venue:      'The Garden Room',
         dress_code: 'Smart casual',
         theme:      'ember',
         cover_url:  null,
         is_published: true,
         kitchen_status: 'pending',
+        kitchen_plan: 'now',
       })
     )
   })
 
   it('can publish immediately and defer Kitchen setup', async () => {
-    makeSupabase()
+    const sb = makeSupabase()
     render(<HostNewPage />)
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: 'FILL IN LATER' }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ kitchen_plan: 'later' }))
   })
 
   it('can continue to the chef-link flow without requiring Kitchen setup', async () => {
-    makeSupabase()
+    const sb = makeSupabase()
     render(<HostNewPage />)
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: 'SEND TO A CHEF' }))
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id/table?kitchenShare=1'))
+    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ kitchen_plan: 'chef' }))
   })
 
   it('allows the event date to remain undecided', async () => {
@@ -248,6 +262,7 @@ describe('submit handler', () => {
     render(<HostNewPage />)
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
+    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
     await fillRequired()
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await waitFor(() => expect(mockPush).toHaveBeenCalled())

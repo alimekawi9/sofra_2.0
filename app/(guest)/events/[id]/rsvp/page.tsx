@@ -35,13 +35,15 @@ import {
   type CanonicalQuestionConfig,
 } from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
-import { isEventDateUndecided } from '@/lib/event-date'
+import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
+import { eventEntryRole, loginDestination, rsvpEntryDestination } from '@/lib/event-entry'
 
 type Step = 'status' | 'confirm-preferences' | 'profile' | 'missing-out'
 type RsvpStatus = 'going' | 'maybe' | 'cant'
 
 type EventRow = {
   host_id: string
+  chef_id: string | null
   is_published: boolean
   title: string
   tagline: string | null
@@ -58,18 +60,19 @@ type GuestRow = {
 
 function formatDate(iso: string): string {
   if (isEventDateUndecided(iso)) return 'Date undecided'
-  return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  return formatEventDate(iso, { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
 function formatTime(iso: string): string {
   if (isEventDateUndecided(iso)) return 'Time undecided'
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return formatEventTime(iso)
 }
 
 export default function RSVPPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
+  const redirectingRef = useRef(false)
   const proteinPreferencesRef = useRef<ProteinPreference[]>([])
   const proteinPreferencesDirtyRef = useRef(false)
   const flavorsRef = useRef<string[]>([])
@@ -104,15 +107,16 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.push('/login?invite=1&next=' + encodeURIComponent('/events/' + params.id + '/rsvp'))
+        redirectingRef.current = true
+        router.replace(loginDestination(`/events/${params.id}/rsvp${window.location.search}`))
         return
       }
       uidRef.current = stored
       setIdentityConfirmed(true)
 
-      const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }] = await Promise.all([
+      const [{ data: ev, error: e0 }, { data: rsvpRow, error: e1 }, { data: profileRow, error: e2 }, { data: cohostRow, error: e3 }] = await Promise.all([
         supabase.from('events')
-          .select('host_id,title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(id,name,photo_url)')
+          .select('host_id,chef_id,title,tagline,event_date,venue,dress_code,is_published,host:users!events_host_id_fkey(id,name,photo_url)')
           .eq('id', params.id)
           .single(),
         supabase.from('rsvps')
@@ -124,14 +128,38 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           .select('*')
           .eq('user_id', stored)
           .maybeSingle(),
+        supabase.from('event_cohosts')
+          .select('user_id')
+          .eq('event_id', params.id)
+          .eq('user_id', stored)
+          .maybeSingle(),
       ])
 
-      if (e0 || e1 || e2) throw new Error('fetch failed')
+      if (e0 || e1 || e2 || e3 || !ev) throw new Error('fetch failed')
+
+      const hasRsvp = rsvpRow !== null
+      const requestedPreferences = new URLSearchParams(window.location.search).get('preferences') === '1'
+      const editing = new URLSearchParams(window.location.search).get('edit') === '1'
+      const entryContext = {
+        eventId: params.id,
+        userId: stored,
+        hostId: ev.host_id,
+        chefId: ev.chef_id,
+        isCohost: Boolean(cohostRow),
+        hasRsvp,
+      }
+      const role = eventEntryRole(entryContext)
+      const preferencesOnly = requestedPreferences && (role === 'host' || role === 'cohost')
+      const destination = rsvpEntryDestination(entryContext, { editing, preferencesOnly })
+      if (destination) {
+        redirectingRef.current = true
+        router.replace(destination)
+        return
+      }
 
       setEvent(ev as unknown as EventRow)
 
       if (rsvpRow?.status) setStatus(rsvpRow.status as RsvpStatus)
-      const hasRsvp = rsvpRow !== null
       setHasExistingRsvp(hasRsvp)
 
       if (hasRsvp) {
@@ -204,7 +232,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         // Swallowed deliberately -- see comment above.
       }
 
-      if (new URLSearchParams(window.location.search).get('preferences') === '1') {
+      if (preferencesOnly) {
         setIsPreferenceOnly(true)
         setStatus('going')
         setStep('profile')
@@ -394,7 +422,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
 
   // Keep all RSVP content unmounted until the local identity check succeeds.
   // This prevents the RSVP card flashing before the phone/name sequence.
-  if (!identityConfirmed || loading) return null
+  if (redirectingRef.current || !identityConfirmed || loading) return null
 
   if (step === 'missing-out') {
     return <MissingOut onReturnToInvite={() => setStep('status')} />

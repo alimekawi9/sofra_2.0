@@ -19,9 +19,9 @@ const UNDECIDED_EVENT: UpdateEventInput = {
 
 function expectedDateTime(iso: string): string {
   const date = new Date(iso).toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   })
-  const time = new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const time = new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
   return `${date} at ${time}`
 }
 

@@ -54,6 +54,8 @@ export interface EventPaperProps {
   onViewTable: () => void
   hostNeedsPreferences: boolean
   onAddHostPreferences: () => void
+  hostNeedsKitchen: boolean
+  onAddHostKitchen: () => void
   onEditRsvp: () => void
   onRsvp: () => void
   onEditEvent: () => void
@@ -120,6 +122,8 @@ export function EventPaper({
   onViewTable,
   hostNeedsPreferences,
   onAddHostPreferences,
+  hostNeedsKitchen,
+  onAddHostKitchen,
   onEditRsvp,
   onRsvp,
   onEditEvent,
@@ -217,6 +221,15 @@ export function EventPaper({
                       <p>Add your preferences so the menu accounts for you too.</p>
                     </div>
                     <button type="button" onClick={onAddHostPreferences}>ADD PREFERENCES</button>
+                  </aside>
+                )}
+                {hostNeedsKitchen && (
+                  <aside className="sv2-host-preferences-notice">
+                    <div>
+                      <strong>YOUR KITCHEN IS STILL WAITING</strong>
+                      <p>Pick up where you left off before the invite goes out.</p>
+                    </div>
+                    <button type="button" onClick={onAddHostKitchen}>FILL KITCHEN NOW</button>
                   </aside>
                 )}
               </>

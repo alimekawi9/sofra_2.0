@@ -22,6 +22,7 @@ import {
   type AlbumUploader,
 } from '@/lib/shared-album'
 import '@/components/sofra-v2/sofra-v2.css'
+import { loginDestination } from '@/lib/event-entry'
 
 type EventRow = { id: string; host_id: string; title: string }
 
@@ -104,7 +105,8 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        router.replace('/name?next=' + encodeURIComponent('/events/' + params.id + '/album'))
+        const query = searchParams.toString()
+        router.replace(loginDestination(`/events/${params.id}/album${query ? `?${query}` : ''}`))
         return
       }
       uidRef.current = stored
@@ -128,6 +130,10 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
       if (e2) throw new Error('rsvp fetch failed')
 
       const hostViewing = await isEventManager(supabase, params.id, stored, ev.host_id)
+      if (!hostViewing && rsvpRow === null) {
+        router.replace(`/events/${params.id}/rsvp`)
+        return
+      }
       setIsHost(hostViewing)
       await loadAlbum(hostViewing, rsvpRow !== null)
     } catch {

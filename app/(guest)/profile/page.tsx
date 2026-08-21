@@ -60,6 +60,7 @@ export default function ProfilePage() {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) { router.push('/login'); return }
       setUserId(stored)
+      setHostPreferenceHref('/profile/preferences')
 
       const [{ data: user }, { data: tasteProfile }, historyEntries] = await Promise.all([
         supabase.from('users').select('name, phone, photo_url, caption').eq('id', stored).maybeSingle(),
@@ -80,23 +81,9 @@ export default function ProfilePage() {
       }
 
       setPreferencesSummary(buildPreferencesSummary(tasteProfile as TasteProfileRow | null))
-      try {
-        const { data: hostedEvent } = await supabase
-          .from('events')
-          .select('id')
-          .eq('host_id', stored)
-          .order('event_date', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (hostedEvent?.id) {
-          setHostPreferenceHref(`/events/${hostedEvent.id}/rsvp?preferences=1`)
-          setShowPreferenceWarning(
-            !tasteProfile && localStorage.getItem(`sofra_dismiss_host_preferences:${stored}`) !== '1'
-          )
-        }
-      } catch {
-        // Profile remains usable if host-event lookup is unavailable.
-      }
+      setShowPreferenceWarning(
+        !tasteProfile && localStorage.getItem(`sofra_dismiss_host_preferences:${stored}`) !== '1'
+      )
 
       setHistory(historyEntries)
     } catch {

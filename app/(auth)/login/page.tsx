@@ -40,12 +40,12 @@ function LoginInner() {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && !inviteEntry) {
+    if (stored) {
       router.replace(next)
     } else {
       setLoading(false)
     }
-  }, [router, next, inviteEntry])
+  }, [router, next])
 
   // Phone-first: an existing account (matched by phone) logs straight in.
   // Only a genuinely new phone number continues to the name step.

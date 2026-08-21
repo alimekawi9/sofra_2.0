@@ -6,18 +6,19 @@ import { createClient } from '@/lib/supabase/client'
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import { InviteCard, type InviteResponse } from '@/components/sofra-v2/InviteCard'
 import '@/components/sofra-v2/sofra-v2.css'
-import { isEventDateUndecided } from '@/lib/event-date'
+import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
+import { eventEntryRole, loginDestination } from '@/lib/event-entry'
 
-type EventRow = { id: string; title: string; tagline: string | null; event_date: string; venue: string | null; dress_code: string | null; host_id: string; host: { id: string; name: string; photo_url: string | null } | null }
+type EventRow = { id: string; title: string; tagline: string | null; event_date: string; venue: string | null; dress_code: string | null; host_id: string; chef_id: string | null; host: { id: string; name: string; photo_url: string | null } | null }
 
 function formatDate(iso: string) {
   if (isEventDateUndecided(iso)) return 'Date undecided'
-  return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  return formatEventDate(iso, { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
 function formatTime(iso: string) {
   if (isEventDateUndecided(iso)) return 'Time undecided'
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return formatEventTime(iso)
 }
 
 export default function CohostInvitePage({ params }: { params: { id: string } }) {
@@ -33,12 +34,25 @@ export default function CohostInvitePage({ params }: { params: { id: string } })
 
   useEffect(() => {
     async function load() {
+      const userId = localStorage.getItem('sofra_user_id')
+      const currentPath = `/events/${params.id}/cohost?token=${encodeURIComponent(token)}${claimed ? '&claim=1' : ''}`
+      if (!userId) {
+        router.replace(loginDestination(currentPath))
+        return
+      }
+      const [{ data: ev }, { data: membership }] = await Promise.all([
+        supabase.from('events').select('id,title,tagline,event_date,venue,dress_code,host_id,chef_id,host:users!events_host_id_fkey(id,name,photo_url)').eq('id', params.id).single(),
+        supabase.from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', userId).maybeSingle(),
+      ])
+      if (!ev) { setError("Couldn't load this invitation."); setLoading(false); return }
+      const role = eventEntryRole({ eventId: params.id, userId, hostId: ev.host_id, chefId: ev.chef_id, isCohost: Boolean(membership), hasRsvp: false })
+      if (role === 'host' || role === 'cohost') { router.replace(`/events/${params.id}`); return }
+      if (role === 'chef') { router.replace(`/kitchen?from=${params.id}&delegate=1`); return }
+
       const { data: invite } = await supabase.from('event_cohost_invites')
         .select('event_id,status').eq('token', token).eq('event_id', params.id).maybeSingle()
       if (!invite || invite.status !== 'pending') { setError('This co-host invitation is no longer available.'); setLoading(false); return }
-      const { data: ev } = await supabase.from('events').select('id,title,tagline,event_date,venue,dress_code,host_id,host:users!events_host_id_fkey(id,name,photo_url)').eq('id', params.id).single()
-      if (!ev) setError("Couldn't load this invitation.")
-      else setEvent(ev as unknown as EventRow)
+      setEvent(ev as unknown as EventRow)
       setLoading(false)
     }
     load()
@@ -47,7 +61,7 @@ export default function CohostInvitePage({ params }: { params: { id: string } })
   function claim() {
     const path = `/events/${params.id}/cohost?token=${encodeURIComponent(token)}&claim=1`
     if (localStorage.getItem('sofra_user_id')) router.push(path)
-    else router.push('/login?invite=1&next=' + encodeURIComponent(path))
+    else router.replace(loginDestination(path))
   }
 
   async function respond(accept: boolean) {

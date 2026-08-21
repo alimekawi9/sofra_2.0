@@ -1,5 +1,77 @@
-import { buildPlanningPrompt, buildEventPlanningSchema, rankingInsight, validateRecommendations } from '@/lib/event-planning'
+import { buildPlanningPrompt, buildEventPlanningSchema, rankingInsight, validateRecommendations, rankingWinners, choiceCounts } from '@/lib/event-planning'
 import { buildIntel } from '@/lib/intel'
+
+describe('rankingWinners', () => {
+  const options = [
+    { value: 'sat', label: 'Saturday' },
+    { value: 'sun', label: 'Sunday' },
+  ]
+
+  it('lets many 2nd-place picks outrank a lone 1st-place pick via Borda score', () => {
+    // 4 options, so 2nd place is worth (4 - 1) = 3 points. Underdog finishes
+    // 2nd in all 3 responses (3+3+3=9, zero first-choice votes); Leader
+    // finishes 1st only once (4 points) and 3rd/last otherwise (8 total,
+    // one first-choice vote). Underdog must still win on weighted score.
+    const fourOptions = [
+      { value: 'leader', label: 'Leader' },
+      { value: 'underdog', label: 'Underdog' },
+      { value: 'x', label: 'X' },
+      { value: 'y', label: 'Y' },
+    ]
+    const { rankings, responseCount } = rankingWinners(fourOptions, [
+      ['leader', 'underdog', 'x'],
+      ['x', 'underdog', 'leader'],
+      ['y', 'underdog', 'leader', 'x'],
+    ])
+    expect(rankings[0]).toEqual({ label: 'Underdog', bordaScore: 9, firstChoiceVotes: 0 })
+    expect(rankings[1]).toEqual({ label: 'Leader', bordaScore: 8, firstChoiceVotes: 1 })
+    expect(responseCount).toBe(3)
+  })
+
+  it('excludes malformed/legacy response rows from both the score and the count', () => {
+    const { rankings, responseCount } = rankingWinners(options, [
+      ['sat', 'sun'],
+      'not-an-array',
+      [1, 2],
+      null,
+    ])
+    expect(responseCount).toBe(1)
+    expect(rankings).toEqual([
+      { label: 'Saturday', bordaScore: 2, firstChoiceVotes: 1 },
+      { label: 'Sunday', bordaScore: 1, firstChoiceVotes: 0 },
+    ])
+  })
+
+  it('omits an option nobody ranked', () => {
+    const { rankings } = rankingWinners(options, [['sat']])
+    expect(rankings.map((r) => r.label)).toEqual(['Saturday'])
+  })
+})
+
+describe('choiceCounts', () => {
+  const options = [
+    { value: 'garden', label: 'The Garden Room' },
+    { value: 'loft', label: 'The Loft' },
+  ]
+
+  it('tallies single-value string responses and sorts descending', () => {
+    expect(choiceCounts(options, ['garden', 'garden', 'loft'])).toEqual([
+      { label: 'The Garden Room', count: 2 },
+      { label: 'The Loft', count: 1 },
+    ])
+  })
+
+  it('tallies multi-select array responses', () => {
+    expect(choiceCounts(options, [['garden', 'loft'], ['garden']])).toEqual([
+      { label: 'The Garden Room', count: 2 },
+      { label: 'The Loft', count: 1 },
+    ])
+  })
+
+  it('omits an option nobody selected', () => {
+    expect(choiceCounts(options, ['garden'])).toEqual([{ label: 'The Garden Room', count: 1 }])
+  })
+})
 
 describe('event planning insights', () => {
   it('explains a tied ranking instead of presenting an unexplained average', () => {

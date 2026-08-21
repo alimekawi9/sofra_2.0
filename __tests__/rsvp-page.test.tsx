@@ -8,8 +8,11 @@ jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
 const mockPush = jest.fn()
+const mockReplace = jest.fn()
 
 const SAMPLE_EVENT = {
+  host_id: 'uid-host',
+  chef_id: null,
   title: 'Casa Mekawi',
   tagline: 'An intimate gathering',
   event_date: '2026-09-01T19:00:00Z',
@@ -20,8 +23,9 @@ const SAMPLE_EVENT = {
 
 beforeEach(() => {
   jest.clearAllMocks()
-  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
+  ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
   mockPush.mockReset()
+  mockReplace.mockReset()
   localStorage.clear()
   localStorage.setItem('sofra_user_id', 'uid-1')
   window.history.replaceState({}, '', '/events/event-1/rsvp')
@@ -96,6 +100,17 @@ function makeSupabase({
           upsert: customResponseUpsert,
         }
       }
+      if (table === 'event_cohosts') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          }),
+        }
+      }
       // taste_profiles
       return {
         select: jest.fn().mockReturnValue({
@@ -125,7 +140,7 @@ it('redirects a missing local identity before querying RSVP data', async () => {
   const sb = makeSupabase()
   render(<RSVPPage params={{ id: 'event-1' }} />)
   await waitFor(() =>
-    expect(mockPush).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fevent-1%2Frsvp')
+    expect(mockReplace).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fevent-1%2Frsvp')
   )
   expect(sb.from).not.toHaveBeenCalled()
   expect(screen.queryByText(/take your seat/i)).not.toBeInTheDocument()
@@ -171,7 +186,15 @@ describe('Step 1 — the invite', () => {
     expect(screen.queryByText('Omar')).not.toBeInTheDocument()
   })
 
-  it('reveals the guest list when the user already has an RSVP', async () => {
+  it('redirects a returning guest with an existing RSVP to event details', async () => {
+    makeSupabase({ rsvpRow: { status: 'going' } })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1'))
+    expect(screen.queryByRole('button', { name: /save me a seat/i })).not.toBeInTheDocument()
+  })
+
+  it('reveals the guest list when the user explicitly edits an existing RSVP', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?edit=1')
     makeSupabase({
       rsvpRow: { status: 'going' },
       guestRows: [{ status: 'going', users: { id: 'g1', name: 'Omar' } }],
@@ -536,6 +559,7 @@ describe('going/maybe submit', () => {
   })
 
   it('preserves legacy flavor hydration but submits only the first three valid canonical values', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?edit=1')
     const sb = makeSupabase({
       rsvpRow: { status: 'going' },
       profileRow: {
@@ -604,6 +628,7 @@ describe('going/maybe submit', () => {
   })
 
   it('submit button reads "UPDATE RSVP" when hasExistingRsvp is true', async () => {
+    window.history.replaceState({}, '', '/events/event-1/rsvp?edit=1')
     makeSupabase({ rsvpRow: { status: 'going' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
@@ -613,7 +638,7 @@ describe('going/maybe submit', () => {
 
   it('reads "UPDATE PREFERENCES" when opened from Profile', async () => {
     window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
-    makeSupabase({ rsvpRow: { status: 'going' }, profileRow: { user_id: 'uid-1' } })
+    makeSupabase({ event: { ...SAMPLE_EVENT, host_id: 'uid-1' }, rsvpRow: { status: 'going' }, profileRow: { user_id: 'uid-1' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
 
     expect(await screen.findByRole('button', { name: 'UPDATE PREFERENCES' })).toBeInTheDocument()
@@ -622,7 +647,7 @@ describe('going/maybe submit', () => {
 
   it('reads "SAVE PREFERENCES" for a first-time preference form opened from Profile', async () => {
     window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
-    makeSupabase({ rsvpRow: { status: 'going' }, profileRow: null })
+    makeSupabase({ event: { ...SAMPLE_EVENT, host_id: 'uid-1' }, rsvpRow: { status: 'going' }, profileRow: null })
     render(<RSVPPage params={{ id: 'event-1' }} />)
 
     expect(await screen.findByRole('button', { name: 'SAVE PREFERENCES' })).toBeInTheDocument()
@@ -631,7 +656,7 @@ describe('going/maybe submit', () => {
 
   it('preference-only Back returns to event details without showing RSVP choices', async () => {
     window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
-    makeSupabase({ profileRow: { user_id: 'uid-1' } })
+    makeSupabase({ event: { ...SAMPLE_EVENT, host_id: 'uid-1' }, profileRow: { user_id: 'uid-1' } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     await userEvent.click(await screen.findByRole('button', { name: /back/i }))
     expect(mockPush).toHaveBeenCalledWith('/events/event-1')
@@ -640,7 +665,7 @@ describe('going/maybe submit', () => {
 
   it('preference-only save does not create or update an RSVP or show the profile badge', async () => {
     window.history.replaceState({}, '', '/events/event-1/rsvp?preferences=1')
-    const sb = makeSupabase({ profileRow: { user_id: 'uid-1', dietary: [], avoid: [], flavor_preference: [], adventurousness: 50 } })
+    const sb = makeSupabase({ event: { ...SAMPLE_EVENT, host_id: 'uid-1' }, profileRow: { user_id: 'uid-1', dietary: [], avoid: [], flavor_preference: [], adventurousness: 50 } })
     render(<RSVPPage params={{ id: 'event-1' }} />)
     expect(await screen.findByRole('button', { name: 'UPDATE PREFERENCES' })).toBeInTheDocument()
     expect(screen.queryByTestId('prefilled-badge')).not.toBeInTheDocument()

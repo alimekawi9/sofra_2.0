@@ -47,21 +47,24 @@ export function AddPhotosControl({ disabled, label = 'ADD PHOTOS', currentCount,
       {albumFull ? (
         <p className="sv2-add-photos-full">This album is full — up to {MAX_ALBUM_PHOTOS} photos per event.</p>
       ) : (
-        <label className="sv2-add-photos-trigger" htmlFor={inputId}>
-          {label}
-          <input
-            id={inputId}
-            aria-label={label}
-            type="file"
-            accept="image/*"
-            multiple
-            disabled={disabled}
-            onChange={(e) => {
-              handleFilesSelected(e.target.files)
-              e.target.value = ''
-            }}
-          />
-        </label>
+        <div className="sv2-add-photos-control">
+          <label className="sv2-add-photos-trigger" htmlFor={inputId}>
+            {label}
+            <input
+              id={inputId}
+              aria-label={label}
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={disabled}
+              onChange={(e) => {
+                handleFilesSelected(e.target.files)
+                e.target.value = ''
+              }}
+            />
+          </label>
+          <p className="sv2-add-photos-limit">Maximum 20 photos per upload.</p>
+        </div>
       )}
       {validationError && (
         <p role="alert" className="sv2-add-photos-error">{validationError}</p>

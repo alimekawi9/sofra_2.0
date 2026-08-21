@@ -7,16 +7,18 @@ export function ProfileIdentityLink({
   photoUrl,
   prefix,
   className = '',
+  hideFallbackAvatar = false,
 }: {
   userId: string
   name: string
   photoUrl: string | null
   prefix?: string
   className?: string
+  hideFallbackAvatar?: boolean
 }) {
   return (
     <Link className={`sv2-profile-identity-link ${className}`.trim()} href={`/profile/${userId}`}>
-      <AlbumAvatar name={name} photoUrl={photoUrl} />
+      {(photoUrl || !hideFallbackAvatar) && <AlbumAvatar name={name} photoUrl={photoUrl} />}
       <span>{prefix}{name}</span>
     </Link>
   )

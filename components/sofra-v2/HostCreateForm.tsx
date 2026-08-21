@@ -1,9 +1,11 @@
 'use client'
 
-import type { ChangeEvent, DragEvent } from 'react'
+import { useState, type ChangeEvent, type DragEvent } from 'react'
 import { HostLocationAutocomplete, type PreviewPlace } from './HostLocationAutocomplete'
 import { sv2Display, sv2Sans } from './fonts'
+import { ImageCropDialog } from './ImageCropDialog'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
+import type { TbdSuggestion } from '@/lib/event-tbd-suggestions'
 
 export interface HostCreateFormProps {
   mode?: 'create' | 'edit'
@@ -34,6 +36,10 @@ export interface HostCreateFormProps {
   customizingQuestions?: boolean
   kitchenPlan?: 'now' | 'later' | 'chef'
   onKitchenPlanChange?: (value: 'now' | 'later' | 'chef') => void
+  dateSuggestion?: TbdSuggestion
+  onUseDateSuggestion?: () => void
+  locationSuggestion?: TbdSuggestion
+  onUseLocationSuggestion?: () => void
 }
 
 export function HostCreateForm({
@@ -65,9 +71,15 @@ export function HostCreateForm({
   customizingQuestions = false,
   kitchenPlan = 'now',
   onKitchenPlanChange,
+  dateSuggestion,
+  onUseDateSuggestion,
+  locationSuggestion,
+  onUseLocationSuggestion,
 }: HostCreateFormProps) {
+  const [pendingCover, setPendingCover] = useState<File | null>(null)
+
   function chooseImage(file?: File) {
-    if (file) onImageChange(file)
+    if (file) setPendingCover(file)
   }
 
   const isEdit = mode === 'edit'
@@ -114,11 +126,27 @@ export function HostCreateForm({
               <input aria-label="Date undecided" type="checkbox" checked={dateTime === 'undecided'} onChange={(event) => onDateTimeChange(event.target.checked ? 'undecided' : '')} />
               Date undecided
             </span>
+            {dateSuggestion && (
+              <p className="sv2-tbd-suggestion">
+                Guests picked <strong>{dateSuggestion.value}</strong> in &quot;{dateSuggestion.sourceQuestionTitle}&quot; ({dateSuggestion.responseCount} responses).
+                {onUseDateSuggestion && (
+                  <button type="button" onClick={onUseDateSuggestion}>Set the date to enter it</button>
+                )}
+              </p>
+            )}
           </label>
 
           <label>
             Location
             <HostLocationAutocomplete value={location} onChange={onLocationChange} onPlaceSelect={onPlaceSelect} />
+            {locationSuggestion && (
+              <p className="sv2-tbd-suggestion">
+                Suggested: {locationSuggestion.value} · from {locationSuggestion.responseCount} responses to &quot;{locationSuggestion.sourceQuestionTitle}&quot;
+                {onUseLocationSuggestion && (
+                  <button type="button" onClick={onUseLocationSuggestion}>Use this</button>
+                )}
+              </p>
+            )}
           </label>
 
           <label>
@@ -179,7 +207,6 @@ export function HostCreateForm({
               >
                 {customizingQuestions ? 'OPENING…' : 'CUSTOMIZE GUEST QUESTIONS'}
               </button>
-              {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
             </>
           )}
 
@@ -195,7 +222,10 @@ export function HostCreateForm({
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(event: ChangeEvent<HTMLInputElement>) => chooseImage(event.target.files?.[0])}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                        chooseImage(event.target.files?.[0])
+                        event.target.value = ''
+                      }}
                     />
                   </label>
                   <button type="button" onClick={onImageRemove}>REMOVE</button>
@@ -214,7 +244,10 @@ export function HostCreateForm({
                   aria-label="Choose cover image"
                   type="file"
                   accept="image/*"
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => chooseImage(event.target.files?.[0])}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    chooseImage(event.target.files?.[0])
+                    event.target.value = ''
+                  }}
                 />
               </label>
             )}
@@ -238,10 +271,10 @@ export function HostCreateForm({
             </fieldset>
           )}
 
-          {!onCustomizeQuestions && error && <p className="sv2-host-form-error" role="alert">{error}</p>}
           <button type="submit" disabled={submitting || deleting}>
             {submitting ? (isEdit ? 'SAVING…' : 'CONTINUING…') : isEdit ? 'UPDATE INVITE' : 'CONTINUE'}
           </button>
+          {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
         </form>
 
         {isEdit && onDelete && (
@@ -255,6 +288,20 @@ export function HostCreateForm({
           </button>
         )}
       </main>
+      {pendingCover && (
+        <ImageCropDialog
+          file={pendingCover}
+          title="Crop your Sofra cover"
+          aspectRatio={16 / 9}
+          outputWidth={1600}
+          outputHeight={900}
+          onCancel={() => setPendingCover(null)}
+          onConfirm={(croppedFile) => {
+            setPendingCover(null)
+            onImageChange(croppedFile)
+          }}
+        />
+      )}
     </div>
   )
 }

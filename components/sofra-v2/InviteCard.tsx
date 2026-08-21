@@ -96,7 +96,7 @@ export function InviteCard({
               <div className="sv2-invite-ornament" aria-hidden="true">
                 <Image src={DEFAULT_EVENT_IMAGE_PATH} alt="" width={1125} height={1401} />
               </div>
-              <p>{mode === 'cohost' ? 'YOU&apos;RE INVITED TO CO-HOST' : 'YOU&apos;RE INVITED TO'}</p>
+              <p>{mode === 'cohost' ? "YOU'RE INVITED TO CO-HOST" : "YOU'RE INVITED TO"}</p>
               <h2>{title}</h2>
               {note && <p className="sv2-invite-message">{note}</p>}
               <dl>
@@ -111,7 +111,13 @@ export function InviteCard({
                 {unlocked && guests.length > 0 ? (
                   <div>
                     {guests.map((guest) => (
-                      <ProfileIdentityLink key={guest.id} userId={guest.id} name={guest.name} photoUrl={guest.photoUrl} />
+                      <ProfileIdentityLink
+                        key={guest.id}
+                        userId={guest.id}
+                        name={guest.name}
+                        photoUrl={guest.photoUrl}
+                        hideFallbackAvatar
+                      />
                     ))}
                   </div>
                 ) : (

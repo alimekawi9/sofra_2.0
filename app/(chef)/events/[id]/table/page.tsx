@@ -17,8 +17,9 @@ import { sortedQuestions, isCustom, relevantCanonicalTopics, CANONICAL_KEYS, typ
 import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
 import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
-import { rankingInsight, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
+import { rankingInsight, rankingWinners, choiceCounts, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
 import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
+import { formatEventDate } from '@/lib/event-date'
 
 type CustomAnswerSummary = {
   question: CustomQuestionConfig
@@ -40,36 +41,14 @@ function summarizeCustomAnswers(
       return { question: q, texts, responseCount: texts.length }
     }
     if (q.type === 'ranking') {
-      const rankedAnswers = answers.filter((answer): answer is string[] => Array.isArray(answer) && answer.every((value) => typeof value === 'string'))
-      // Borda count: with N options, 1st place earns N points down to 1 point
-      // for last place, summed across every response. This lets several 2nd-
-      // place picks outweigh a lone 1st-place pick, unlike raw first-choice tallies.
-      const optionCount = (q.options ?? []).length
-      const rankings = (q.options ?? [])
-        .map((option) => {
-          const positions = rankedAnswers.map((answer) => answer.indexOf(option.value)).filter((position) => position >= 0)
-          const bordaScore = positions.reduce((sum, position) => sum + (optionCount - position), 0)
-          const firstChoiceVotes = rankedAnswers.filter((answer) => answer[0] === option.value).length
-          return { label: option.label, bordaScore, firstChoiceVotes, ranked: positions.length > 0 }
-        })
-        .filter((item) => item.ranked)
-        .sort((a, b) => b.bordaScore - a.bordaScore)
-        .map(({ label, bordaScore, firstChoiceVotes }) => ({ label, bordaScore, firstChoiceVotes }))
-      return { question: q, rankings, responseCount: rankedAnswers.length }
+      const { rankings, responseCount } = rankingWinners(q.options ?? [], answers)
+      return { question: q, rankings, responseCount }
     }
     if (q.type === 'slider') {
       const values = answers.filter((answer): answer is number => typeof answer === 'number' && Number.isFinite(answer))
       return { question: q, average: values.length ? { value: values.reduce((sum, value) => sum + value, 0) / values.length, responses: values.length } : undefined, responseCount: values.length }
     }
-    const tally = new Map<string, number>()
-    for (const a of answers) {
-      const values = Array.isArray(a) ? a : typeof a === 'string' ? [a] : []
-      for (const v of values) tally.set(v, (tally.get(v) ?? 0) + 1)
-    }
-    const counts = (q.options ?? [])
-      .map((opt) => ({ label: opt.label, count: tally.get(opt.value) ?? 0 }))
-      .filter((c) => c.count > 0)
-      .sort((a, b) => b.count - a.count)
+    const counts = choiceCounts(q.options ?? [], answers)
     return { question: q, counts, responseCount: answers.length }
   })
 }
@@ -304,7 +283,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
   }, [customAnswerSummaries, eventDate, eventTitle, id, intel, questionnaireLoaded])
 
   const dateSub = eventDate
-    ? new Date(eventDate).toLocaleDateString('en-US', {
+    ? formatEventDate(eventDate, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',

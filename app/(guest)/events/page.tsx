@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { EventsBoard, type EventsBoardEvent, type EventsBoardStatus } from '@/components/sofra-v2/EventsBoard'
 import { readPendingInvites } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
-import { isEventDateUndecided } from '@/lib/event-date'
+import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
 
 type EventRow = {
   id: string
@@ -27,7 +27,7 @@ type CohostRow = { events: EventRow | null }
 
 function formatDate(iso: string): string {
   if (isEventDateUndecided(iso)) return 'Date undecided'
-  return new Date(iso).toLocaleDateString('en-US', {
+  return formatEventDate(iso, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -37,7 +37,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   if (isEventDateUndecided(iso)) return 'Time undecided'
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return formatEventTime(iso)
 }
 
 export default function EventsPage() {

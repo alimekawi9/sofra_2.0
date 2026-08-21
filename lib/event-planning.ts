@@ -1,5 +1,49 @@
 import type { TableIntel } from './intel'
 
+export type RankingWinner = { label: string; bordaScore: number; firstChoiceVotes: number }
+
+// Borda count: with N options, 1st place earns N points down to 1 point for
+// last place, summed across every response. This lets several 2nd-place
+// picks outweigh a lone 1st-place pick, unlike raw first-choice tallies.
+// `responseCount` only counts responses that were actually rankings (arrays
+// of strings) -- malformed/legacy rows are silently excluded, matching how
+// this scoring has always filtered input.
+export function rankingWinners(
+  options: Array<{ value: string; label: string }>,
+  answers: unknown[]
+): { rankings: RankingWinner[]; responseCount: number } {
+  const rankedAnswers = answers.filter(
+    (answer): answer is string[] => Array.isArray(answer) && answer.every((value) => typeof value === 'string')
+  )
+  const optionCount = options.length
+  const rankings = options
+    .map((option) => {
+      const positions = rankedAnswers.map((answer) => answer.indexOf(option.value)).filter((position) => position >= 0)
+      const bordaScore = positions.reduce((sum, position) => sum + (optionCount - position), 0)
+      const firstChoiceVotes = rankedAnswers.filter((answer) => answer[0] === option.value).length
+      return { label: option.label, bordaScore, firstChoiceVotes, ranked: positions.length > 0 }
+    })
+    .filter((item) => item.ranked)
+    .sort((a, b) => b.bordaScore - a.bordaScore)
+    .map(({ label, bordaScore, firstChoiceVotes }) => ({ label, bordaScore, firstChoiceVotes }))
+  return { rankings, responseCount: rankedAnswers.length }
+}
+
+export function choiceCounts(
+  options: Array<{ value: string; label: string }>,
+  answers: unknown[]
+): { label: string; count: number }[] {
+  const tally = new Map<string, number>()
+  for (const answer of answers) {
+    const values = Array.isArray(answer) ? answer : typeof answer === 'string' ? [answer] : []
+    for (const value of values) tally.set(value, (tally.get(value) ?? 0) + 1)
+  }
+  return options
+    .map((option) => ({ label: option.label, count: tally.get(option.value) ?? 0 }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count)
+}
+
 export type PlanningAnswerSummary = {
   question: string
   type: 'text' | 'ranking' | 'slider' | 'choice'

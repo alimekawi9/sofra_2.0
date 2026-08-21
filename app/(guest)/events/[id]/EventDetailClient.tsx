@@ -4,19 +4,20 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EventPaper, type EventPaperGuest } from '@/components/sofra-v2/EventPaper'
-import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
 import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/shared-album'
-import { rememberPendingInvite } from '@/lib/pending-invites'
+import { forgetPendingInvite, rememberPendingInvite } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
-import { isEventDateUndecided } from '@/lib/event-date'
+import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
+import { eventEntryDestination, loginDestination } from '@/lib/event-entry'
 
 type EventRow = {
   id: string
   host_id: string
+  chef_id: string | null
   title: string
   tagline: string | null
   event_date: string
@@ -27,6 +28,8 @@ type EventRow = {
   theme: string
   cover_url: string | null
   is_published: boolean
+  kitchen_status: 'pending' | 'complete'
+  kitchen_plan: 'now' | 'later' | 'chef' | null
 }
 
 type GuestRow = {
@@ -40,7 +43,7 @@ type CohostGuestRow = {
 
 function formatDate(iso: string): string {
   if (isEventDateUndecided(iso)) return 'Date undecided'
-  return new Date(iso).toLocaleDateString('en-US', {
+  return formatEventDate(iso, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -50,7 +53,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   if (isEventDateUndecided(iso)) return 'Time undecided'
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return formatEventTime(iso)
 }
 
 function canonicalEventUrl(id: string): string {
@@ -61,6 +64,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const router = useRouter()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
+  const redirectingRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -71,7 +75,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [unlocked, setUnlocked] = useState(false)
   const [isHost, setIsHost] = useState(false)
   const [hostNeedsPreferences, setHostNeedsPreferences] = useState(false)
-  const [showInviteLanding, setShowInviteLanding] = useState(false)
+  const [hostNeedsKitchen, setHostNeedsKitchen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFallbackUrl, setCopyFallbackUrl] = useState('')
   const [canInviteCohost, setCanInviteCohost] = useState(false)
@@ -123,15 +127,8 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
-        const { data: publicEvent, error: publicEventError } = await supabase
-          .from('events')
-          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published')
-          .eq('id', params.id)
-          .single()
-        if (publicEventError || !publicEvent) throw new Error(publicEventError?.message ?? 'event not found')
-        setEvent(publicEvent as EventRow)
-        rememberPendingInvite(publicEvent as EventRow)
-        setShowInviteLanding(true)
+        redirectingRef.current = true
+        router.replace(loginDestination(`/events/${params.id}`))
         return
       }
       uidRef.current = stored
@@ -139,7 +136,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }, { data: tasteProfile }] = await Promise.all([
         supabase
           .from('events')
-          .select('id,host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published')
+          .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan')
           .eq('id', params.id)
           .single(),
         supabase
@@ -158,19 +155,34 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       if (e1 || !ev) throw new Error(e1?.message ?? 'event not found')
       if (e2) {
         console.error('Event RSVP lookup failed', { eventId: params.id, code: e2.code, message: e2.message })
+        throw new Error('rsvp lookup failed')
       }
 
       const { data: cohostRow } = ev.host_id === stored ? { data: null } : await supabase
         .from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', stored).maybeSingle()
       const hostViewing = ev.host_id === stored || Boolean(cohostRow)
-      setEvent(ev as EventRow)
-      const safeRsvpRow = e2 ? null : rsvpRow
+      const safeRsvpRow = rsvpRow
       const hasRsvp = safeRsvpRow !== null
+      if (hasRsvp) forgetPendingInvite(params.id)
+      const destination = eventEntryDestination({
+        eventId: params.id,
+        userId: stored,
+        hostId: ev.host_id,
+        chefId: ev.chef_id,
+        isCohost: Boolean(cohostRow),
+        hasRsvp,
+      })
+      if (destination) {
+        if (!hostViewing && !hasRsvp && ev.chef_id !== stored) rememberPendingInvite(ev as EventRow)
+        redirectingRef.current = true
+        router.replace(destination)
+        return
+      }
+
+      setEvent(ev as EventRow)
       const isUnlocked = hostViewing || hasRsvp
 
       setHasRsvpRow(hasRsvp)
-      setShowInviteLanding(!hostViewing && !hasRsvp)
-      if (!hostViewing && !hasRsvp) rememberPendingInvite(ev as EventRow)
       setMyRsvp(safeRsvpRow?.status ?? null)
       setUnlocked(isUnlocked)
       setIsHost(hostViewing)
@@ -197,6 +209,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         }
       }
       setHostNeedsPreferences(needsHostPreferences)
+      setHostNeedsKitchen(hostViewing && ev.kitchen_status === 'pending' && ev.kitchen_plan === 'later')
 
       if (isUnlocked) {
         const { data: guestRows, error: e3 } = await supabase
@@ -212,12 +225,23 @@ export default function EventDetailClient({ params }: { params: { id: string } }
 
         if (!e3) {
           const rsvpGuests = (guestRows ?? []) as unknown as GuestRow[]
+          const acceptedCohosts = ((cohostRows ?? []) as unknown as CohostGuestRow[])
+            .filter((row): row is { users: NonNullable<CohostGuestRow['users']> } => row.users !== null)
+          const cohostIds = new Set(acceptedCohosts.map((row) => row.users.id))
           const roster = rsvpGuests
             .filter((g) => g.users !== null)
-            .map((g) => ({ id: g.users!.id, name: g.users!.name, photoUrl: g.users!.photo_url, isHost: g.users!.id === ev.host_id }))
+            .map((g) => ({
+              id: g.users!.id,
+              name: g.users!.name,
+              photoUrl: g.users!.photo_url,
+              // Co-host membership supersedes an older guest RSVP. Keep the
+              // RSVP row as attendance/preference data, but present and
+              // authorize the person as a host everywhere.
+              isHost: g.users!.id === ev.host_id || cohostIds.has(g.users!.id),
+            }))
           const knownIds = new Set(roster.map((guest) => guest.id))
-          for (const row of (cohostRows ?? []) as unknown as CohostGuestRow[]) {
-            if (!row.users || knownIds.has(row.users.id)) continue
+          for (const row of acceptedCohosts) {
+            if (knownIds.has(row.users.id)) continue
             roster.push({ id: row.users.id, name: row.users.name, photoUrl: row.users.photo_url, isHost: true })
             knownIds.add(row.users.id)
           }
@@ -300,11 +324,6 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     }
   }
 
-  function claimSeat() {
-    const rsvpPath = '/events/' + params.id + '/rsvp'
-    router.push('/login?invite=1&next=' + encodeURIComponent(rsvpPath))
-  }
-
   async function handleRemoveGuest(guestId: string) {
     if (!isHost) return
     setRemovingGuestId(guestId)
@@ -365,15 +384,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   }
   const isPast = event ? !isEventDateUndecided(event.event_date) && new Date(event.event_date).getTime() < Date.now() : false
 
-  if (!loading && event && showInviteLanding) {
-    return (
-      <InviteLanding
-        eventId={params.id}
-        title={event.title}
-        onClaimSeat={claimSeat}
-      />
-    )
-  }
+  if (redirectingRef.current) return null
 
   return (
     <EventPaper
@@ -410,7 +421,9 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       onViewTable={() => router.push('/events/' + params.id + '/table')}
       hostNeedsPreferences={hostNeedsPreferences}
       onAddHostPreferences={() => router.push('/events/' + params.id + '/rsvp?preferences=1')}
-      onEditRsvp={() => router.push('/events/' + params.id + '/rsvp')}
+      hostNeedsKitchen={hostNeedsKitchen}
+      onAddHostKitchen={() => router.push('/kitchen?from=' + params.id)}
+      onEditRsvp={() => router.push('/events/' + params.id + '/rsvp?edit=1')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onEditEvent={() => router.push('/host/' + params.id + '/edit')}
       onRemoveGuest={handleRemoveGuest}

@@ -16,6 +16,8 @@ import SofraTransition from '@/components/SofraTransition'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel, newMenuResponseCount, newMenuResponseLabel } from '@/lib/menu-generation-snapshot'
 import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
 import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
+import { formatEventDate } from '@/lib/event-date'
+import { PrintPreviewActions } from '@/components/sofra-v2/PrintPreviewActions'
 
 type MenuDesignKey = 'folk' | 'doily' | 'stripe' | 'floral'
 
@@ -32,70 +34,6 @@ function currentMonday(): string {
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
   return d.toISOString().slice(0, 10)
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function buildMenuHtml(
-  derivedCourses: Course[],
-  guestCount: number,
-  event: { title: string; event_date: string },
-  design: MenuDesignKey = 'folk',
-  origin = ''
-): string {
-  const selectedDesign = MENU_DESIGNS.find((option) => option.key === design) ?? MENU_DESIGNS[0]
-  const frameUrl = `${origin}${selectedDesign.image}`
-  const dateStr = new Date(event.event_date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-
-  const coursesHtml = derivedCourses
-    .map((c) => `
-        <div class="course">
-          <div class="slot">${escHtml(c.slotLabel)}</div>
-          <div class="dish">${escHtml(c.dishName) || 'TBD'}</div>
-        </div>`)
-    .join('')
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(event.title)} | Menu</title>
-    <style>
-      @page { size:A4; margin:0; }
-      *{margin:0;padding:0;box-sizing:border-box;}
-      body{font-family:Georgia,'Times New Roman',serif;background:#F3E9DD;color:#2A1A1C;
-        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:30px;}
-      .menu{width:100%;max-width:600px;aspect-ratio:2/3;background:#FBF5EC url('${escHtml(frameUrl)}') center/100% 100% no-repeat;
-        box-shadow:0 20px 60px rgba(0,0,0,0.12);position:relative;
-        -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      .copy{position:absolute;inset:12% 17% 11%;display:flex;text-align:center;flex-direction:column;overflow:hidden;}
-      .menu.folk .copy{inset:14% 16% 11%;}.menu.stripe .copy{inset:11% 15%;}
-      .brand{margin:0 0 9px;text-align:center;color:#5C1A1B;font-style:italic;font-size:29px;}
-      .title{text-align:center;font-size:40px;color:#2A1A1C;line-height:1.04;margin:0;}
-      .meta{text-align:center;color:#8A6A4E;font-size:9px;letter-spacing:1.3px;text-transform:uppercase;margin:11px 0 18px;font-family:system-ui,-apple-system,sans-serif;}
-      .courses{display:flex;min-height:0;flex:1;flex-direction:column;justify-content:space-evenly;gap:6px;}
-      .course{text-align:center;display:flex;flex-direction:column;gap:2px;}
-      .slot{color:#9A7A2B;font-size:8px;letter-spacing:1.4px;text-transform:uppercase;font-family:system-ui,sans-serif;}
-      .dish{font-size:22px;color:#2A1A1C;line-height:1.12;font-weight:normal;}
-      .foot{text-align:center;margin:18px 0 0;color:#8A6A4E;font-size:12px;font-style:italic;}
-      @media print{
-        html,body{width:210mm;height:297mm;overflow:hidden;}
-        body{background:#fff;padding:0;}
-        .menu{box-shadow:none;width:184.667mm;height:277mm;max-width:none;aspect-ratio:auto;}
-      }
-    </style></head><body>
-      <div class="menu ${design}">
-        <div class="copy">
-          <div class="brand">Sofra</div>
-          <div class="title">${escHtml(event.title)}</div>
-          <div class="meta">${dateStr} · ${guestCount} guest${guestCount !== 1 ? 's' : ''}</div>
-          <div class="courses">${coursesHtml}</div>
-          <div class="foot">Made for this table</div>
-        </div>
-      </div>
-    </body></html>`
 }
 
 type PersistedCourse = {
@@ -147,7 +85,7 @@ function MenuDesignPreview({
   courses: Course[]
   guestCount: number
 }) {
-  const date = new Date(event.event_date).toLocaleDateString('en-GB', {
+  const date = formatEventDate(event.event_date, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -155,9 +93,12 @@ function MenuDesignPreview({
   return (
     <article
       className={`sv2-print-menu-preview sv2-print-menu-${design.key}`}
-      style={{ backgroundImage: `url(${design.image})`, color: design.key === 'stripe' ? '#43522f' : '#651719' }}
+      style={{ color: design.key === 'stripe' ? '#43522f' : '#651719' }}
       aria-label={`${design.label} preview for ${event.title}`}
     >
+      {/* A real image prints reliably on mobile Safari; CSS backgrounds may be omitted. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="sv2-print-menu-frame" src={design.image} alt="" aria-hidden="true" />
       <div className="sv2-print-menu-copy">
         <p className="sv2-print-menu-brand">Sofra</p>
         <h2>{event.title}</h2>
@@ -193,13 +134,11 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [guestResponseCount, setGuestResponseCount] = useState(0)
   const [guestHostCounts, setGuestHostCounts] = useState({ guests: 0, hosts: 0 })
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
-  const [popupBlocked, setPopupBlocked] = useState(false)
   const [exportStep, setExportStep] = useState<'draft' | 'choose' | 'preview'>('draft')
   const [menuDesign, setMenuDesign] = useState<MenuDesignKey>('folk')
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [printLoading, setPrintLoading] = useState(false)
   const [aiNotice, setAiNotice] = useState('')
   const [kitchenStatus, setKitchenStatus] = useState<'pending' | 'complete'>('complete')
   const [kitchenWarningOpen, setKitchenWarningOpen] = useState(false)
@@ -514,30 +453,12 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     if (image.complete) finish()
   }
 
-  function handleGeneratePdf() {
-    setPopupBlocked(false)
-    if (!event || !intel) return
-    const win = window.open('', '_blank')
-    if (!win) {
-      setPopupBlocked(true)
-      return
-    }
-    setPrintLoading(true)
-    win.document.write(buildMenuHtml(derivedCourses, intel.guestCount, event, menuDesign, window.location.origin))
-    win.addEventListener('load', () => {
-      setPrintLoading(false)
-      setTimeout(() => win.print(), 150)
-    })
-    window.setTimeout(() => setPrintLoading(false), 4000)
-    win.document.close()
-  }
-
   const allLocked = courses.length > 0 && courses.every((c) => c.locked)
   const responseCount = guestResponseCount
   const newResponseCount = newMenuResponseCount(responseCount, generatedGuestCount)
 
   const dateSub = event
-    ? new Date(event.event_date).toLocaleDateString('en-US', {
+    ? formatEventDate(event.event_date, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -549,7 +470,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   if (!loading && !fetchError && event && intel && exportStep !== 'draft') {
     return (
       <div className="sv2-root sv2-menu-design-page">
-        <SofraTransition active={previewLoading || printLoading} label={printLoading ? 'Preparing your menu' : 'Setting the menu'} />
+        <SofraTransition active={previewLoading} label="Setting the menu" />
         <main className="sv2-menu-design-shell">
           {exportStep === 'choose' ? (
             <>
@@ -592,10 +513,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 courses={derivedCourses}
                 guestCount={intel.guestCount}
               />
-              <button className="sv2-menu-design-confirm" type="button" onClick={handleGeneratePdf}>
-                Print menu
-              </button>
-              {popupBlocked && <p className="sv2-menu-popup-warning">Allow popups for Sofra, then try printing again.</p>}
+              <PrintPreviewActions label="PRINT / SAVE MENU" />
             </>
           )}
         </main>
@@ -1025,18 +943,6 @@ export default function MenuPage({ params }: { params: { id: string } }) {
               </span>
             </div>
 
-            {popupBlocked && (
-              <p
-                style={{
-                  color: C.dim,
-                  fontSize: 13,
-                  marginTop: 12,
-                  fontFamily: 'system-ui, sans-serif',
-                }}
-              >
-                Your browser blocked the print window. Allow popups for this site and try again.
-              </p>
-            )}
           </>
         )}
       </div>

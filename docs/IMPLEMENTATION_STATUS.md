@@ -381,3 +381,40 @@
 - Sofra's supplied table logo is now the site favicon (including a real multi-size `/favicon.ico` for browser search/history), Apple touch icon, and default social-sharing image.
 - Chat unread values are normalized to a non-negative integer both when calculated and when rendered, so the tab can never display a negative badge.
 - Shared-Sofra membership now includes qualifying guest RSVPs, original event hosts, and accepted co-hosts. Co-hosting the same event unlocks each person's public history, and hosted/co-hosted events appear in that history even without an RSVP row.
+
+# Static event date and time (2026-08-21)
+
+- Event date/time values are now floating wall-clock values: the date and clock time entered by the host are stored without applying the host device's timezone and rendered without applying a guest device's timezone.
+- Guest invitation details, RSVP and co-host flows, the events board, profiles, event-update messages, Kitchen/Table/Menu/Recipes headers, and printable menu output all use the centralized timezone-invariant event formatter.
+- Event editing restores the exact stored wall-clock value to the date/time input. Chat messages, album activity, and other real timestamps remain timezone-aware.
+
+# One-time RSVP and role-aware link entry (2026-08-21)
+
+- Invite-mode login now honors an identity already stored on the same device and returns to the complete requested internal URL, including co-host/Kitchen tokens and subpage query parameters.
+- Canonical event links resolve database-backed membership before navigation: hosts and accepted co-hosts open event details, assigned chefs open delegated Kitchen, guests with any existing RSVP open event details, and only ordinary guests without an RSVP enter the RSVP flow.
+- Opening `/rsvp` again with an existing RSVP returns to event details. The explicit `Edit RSVP` action adds a dedicated edit intent and remains available without creating a second RSVP row; the database uniqueness constraint and upsert continue to enforce one row per event/user.
+- Co-host and Kitchen invitation links bypass RSVP entirely. Revisiting an accepted assignment opens the appropriate event or Kitchen workspace even after its one-time invitation token has been consumed.
+- Accepting co-host status supersedes any earlier guest RSVP for role, access, dashboard placement, roster badges, and guest/host counts. The RSVP row remains only as attendance and preference data, preventing promotion from erasing the person's dietary answers.
+- Direct Album and Chat links preserve their destination through login. Authenticated non-members enter RSVP once, while existing guests and event managers continue directly to the requested page.
+- RSVP lookup errors fail closed and show an error instead of treating an uncertain result as a missing RSVP.
+
+# RSVP preview identity cleanup (2026-08-21)
+
+- The RSVP preview no longer renders a fallback-initial badge beside the same guest's name. Existing profile photos remain visible, while guests without photos appear once by name.
+- The invitation heading now renders `YOU'RE INVITED TO` with a real apostrophe instead of exposing the HTML entity text.
+
+# Profile preferences and image framing (2026-08-21)
+
+- Every signed-in user can open `EDIT MY PREFERENCES` from the Profile preference card. The standalone `/profile/preferences` editor loads and updates the shared taste profile without requiring the user to host an event, possess an RSVP, or answer event-specific questions.
+- New profile photos open a square crop editor before upload. New and replacement Sofra cover images open a widescreen crop editor. Both provide zoom, horizontal positioning, vertical positioning, and reset-to-center controls, then bake the selected framing into the uploaded image.
+- Shared Album upload controls visibly state `Maximum 20 photos per upload.` before the device photo picker is opened; the existing validation still rejects oversized selections.
+
+# Mobile menu and recipe printing (2026-08-21)
+
+- Menu printing no longer depends on a delayed popup window. The selected design prints directly from the already-loaded on-page preview, preserving the user gesture required by mobile Safari and embedded browsers.
+- Menu frames render as real image elements rather than optional CSS print backgrounds, so mobile print/PDF output retains the selected artwork.
+- Recipes now open a visible, dedicated print preview before invoking the native print sheet. Both previews include an iPhone/iPad fallback directing users to the browser Share menu and `Print` when an embedded browser suppresses `window.print()`.
+
+# Host form validation placement (2026-08-21)
+
+- Create/Edit Sofra validation errors now have one consistent location directly beneath the form's final `CONTINUE` or `UPDATE INVITE` action instead of appearing midway through the form beside questionnaire customization.
