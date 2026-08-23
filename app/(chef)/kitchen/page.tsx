@@ -22,6 +22,7 @@ import ChefTabs from '@/components/ChefTabs'
 import {
   PANTRY_TAG_GROUPS,
   SIGNATURE_TAG_GROUPS,
+  KITCHEN_ALLERGENS,
   pantryTagsForPersistence,
   type TagGroup,
 } from '@/lib/kitchen-tags'
@@ -48,8 +49,6 @@ type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
 // (not TRUE_ALLERGENS) and score as kind='preference' → labeled substitute
 // rather than hard block. sesame/mustard/celery/sulfites/lupin/molluscs are
 // standard EU/UK regulated allergens added alongside the existing set.
-const ALLERGEN_VOCAB = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork', 'mushrooms', 'cilantro', 'sesame', 'mustard', 'celery', 'sulfites', 'lupin', 'molluscs'] as const
-
 function currentMonday(): string {
   const d = new Date()
   const day = d.getDay()
@@ -111,6 +110,9 @@ function KitchenPageInner() {
   const [sigAdding, setSigAdding] = useState(false)
   const [sigAddError, setSigAddError] = useState('')
   const [sigTagsRevealed, setSigTagsRevealed] = useState(false)
+  const [sigSuggesting, setSigSuggesting] = useState(false)
+  const [sigSuggestionReady, setSigSuggestionReady] = useState(false)
+  const sigSuggestionRequestRef = useRef(0)
   const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
   const [selectedDishKeys, setSelectedDishKeys] = useState<string[]>([])
   const [pendingRemovedSignatureIds, setPendingRemovedSignatureIds] = useState<string[]>([])
@@ -125,6 +127,9 @@ function KitchenPageInner() {
   const [pantryAddError, setPantryAddError] = useState('')
   const [pantryDeleteError, setPantryDeleteError] = useState('')
   const [pantryTagsRevealed, setPantryTagsRevealed] = useState(false)
+  const [pantrySuggesting, setPantrySuggesting] = useState(false)
+  const [pantrySuggestionReady, setPantrySuggestionReady] = useState(false)
+  const pantrySuggestionRequestRef = useRef(0)
   const [pantryDoneSaved, setPantryDoneSaved] = useState(false)
   const pantryDoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ingredientCategory, setIngredientCategory] = useState<IngredientCategoryFilter>('All')
@@ -212,6 +217,7 @@ function KitchenPageInner() {
     setSigAllergensList([...signature.contains_allergens])
     setSigAddError('')
     setSigTagsRevealed(true)
+    setSigSuggestionReady(false)
   }
 
   function cancelSignatureEdit() {
@@ -220,6 +226,7 @@ function KitchenPageInner() {
     setSigTagsList([])
     setSigAllergensList([])
     setSigTagsRevealed(false)
+    setSigSuggestionReady(false)
   }
 
   function toggleDishSelection(p: DishPreset) {
@@ -443,6 +450,7 @@ function KitchenPageInner() {
     setPantryAllergensList([...item.contains_allergens])
     setPantryAddError('')
     setPantryTagsRevealed(true)
+    setPantrySuggestionReady(false)
   }
 
   function cancelPantryEdit() {
@@ -451,7 +459,82 @@ function KitchenPageInner() {
     setPantryTagsList([])
     setPantryAllergensList([])
     setPantryTagsRevealed(false)
+    setPantrySuggestionReady(false)
   }
+
+  async function suggestKitchenMetadata(kind: 'signature' | 'pantry', name: string, requestId: number) {
+    const setSuggesting = kind === 'signature' ? setSigSuggesting : setPantrySuggesting
+    const setError = kind === 'signature' ? setSigAddError : setPantryAddError
+    setError('')
+    try {
+      const response = await fetch('/api/signatures/suggest-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, kind }),
+      })
+      const result = await response.json() as { tags?: unknown; allergens?: unknown; error?: unknown }
+      if (!response.ok || !Array.isArray(result.tags) || !Array.isArray(result.allergens)) {
+        throw new Error(typeof result.error === 'string' ? result.error : 'Could not suggest metadata.')
+      }
+      const activeRequestId = kind === 'signature' ? sigSuggestionRequestRef.current : pantrySuggestionRequestRef.current
+      if (requestId !== activeRequestId) return
+      const tags = result.tags.filter((value): value is string => typeof value === 'string')
+      const allergens = result.allergens.filter((value): value is string => typeof value === 'string')
+      if (kind === 'signature') {
+        setSigTagsList(tags)
+        setSigAllergensList(allergens)
+        setSigTagsRevealed(true)
+        setSigSuggestionReady(true)
+      } else {
+        setPantryTagsList(pantryTagsForPersistence(tags))
+        setPantryAllergensList(allergens)
+        setPantryTagsRevealed(true)
+        setPantrySuggestionReady(true)
+      }
+    } catch (error) {
+      const activeRequestId = kind === 'signature' ? sigSuggestionRequestRef.current : pantrySuggestionRequestRef.current
+      if (requestId !== activeRequestId) return
+      if (kind === 'signature') {
+        setSigTagsRevealed(true)
+        setSigSuggestionReady(false)
+      } else {
+        setPantryTagsRevealed(true)
+        setPantrySuggestionReady(false)
+      }
+      setError(`${error instanceof Error ? error.message : 'Could not suggest metadata.'} You can choose the tags manually below.`)
+    } finally {
+      const activeRequestId = kind === 'signature' ? sigSuggestionRequestRef.current : pantrySuggestionRequestRef.current
+      if (requestId === activeRequestId) setSuggesting(false)
+    }
+  }
+
+  useEffect(() => {
+    const name = sigName.trim()
+    if (editingSignatureId || !name) {
+      sigSuggestionRequestRef.current += 1
+      setSigSuggesting(false)
+      return
+    }
+    const requestId = sigSuggestionRequestRef.current + 1
+    sigSuggestionRequestRef.current = requestId
+    setSigSuggesting(true)
+    const timer = setTimeout(() => void suggestKitchenMetadata('signature', name, requestId), 550)
+    return () => clearTimeout(timer)
+  }, [editingSignatureId, sigName]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const name = pantryName.trim()
+    if (editingPantryId || !name) {
+      pantrySuggestionRequestRef.current += 1
+      setPantrySuggesting(false)
+      return
+    }
+    const requestId = pantrySuggestionRequestRef.current + 1
+    pantrySuggestionRequestRef.current = requestId
+    setPantrySuggesting(true)
+    const timer = setTimeout(() => void suggestKitchenMetadata('pantry', name, requestId), 550)
+    return () => clearTimeout(timer)
+  }, [editingPantryId, pantryName]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function deletePantryItem(item: PantryItem) {
     const uid = uidRef.current
@@ -695,8 +778,8 @@ function KitchenPageInner() {
                         onClick={() => setPresetCuisine(c)}
                         style={{
                           background: on ? C.burgundy : 'transparent',
-                          borderColor: on ? C.gold : 'rgba(243,233,221,0.18)',
-                          color: on ? C.onBurgundy : C.dim,
+                          borderColor: on ? C.onBurgundy : C.cream,
+                          color: on ? C.onBurgundy : C.cream,
                           padding: '5px 11px',
                           fontSize: 12,
                           fontFamily: 'system-ui, sans-serif',
@@ -793,13 +876,20 @@ function KitchenPageInner() {
                     onChange={(e) => {
                       setSigName(e.target.value)
                       setSigAddError('')
-                      if (e.target.value.trim()) setSigTagsRevealed(true)
+                      if (!editingSignatureId) {
+                        setSigTagsList([])
+                        setSigAllergensList([])
+                        setSigTagsRevealed(false)
+                        setSigSuggestionReady(false)
+                      }
                     }}
                   />
                   {editingSignatureId && (
                     <button onClick={cancelSignatureEdit} style={clearBtn}>Cancel</button>
                   )}
                 </div>
+                {sigSuggesting && <SuggestionLoadingNotice />}
+                {sigSuggestionReady && <SuggestionReviewNotice />}
                 {sigTagsRevealed && <><TagGroupsPicker
                   groups={SIGNATURE_TAG_GROUPS}
                   selected={sigTagsList}
@@ -816,7 +906,7 @@ function KitchenPageInner() {
                   Contains allergens
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  {ALLERGEN_VOCAB.map((a) => {
+                  {KITCHEN_ALLERGENS.map((a) => {
                     const on = sigAllergensList.includes(a)
                     return (
                       <button
@@ -834,7 +924,7 @@ function KitchenPageInner() {
                 {sigAddError && (
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
-                <button className="add" onClick={() => void saveSignatureChanges()} disabled={!signaturesDirty || sigAdding} style={{ marginTop: 12, width: '100%' }}>
+                <button className="add" onClick={() => void saveSignatureChanges()} disabled={!signaturesDirty || sigAdding || sigSuggesting} style={{ marginTop: 12, width: '100%' }}>
                   {sigAdding ? 'SAVING...' : signatures.length === 0 ? 'SUBMIT' : 'UPDATE'}
                 </button>
               </div>
@@ -881,8 +971,8 @@ function KitchenPageInner() {
                         onClick={() => setIngredientCategory(c)}
                         style={{
                           background: on ? C.burgundy : 'transparent',
-                          borderColor: on ? C.gold : 'rgba(243,233,221,0.18)',
-                          color: on ? C.onBurgundy : C.dim,
+                          borderColor: on ? C.onBurgundy : C.cream,
+                          color: on ? C.onBurgundy : C.cream,
                           padding: '5px 11px',
                           fontSize: 12,
                           fontFamily: 'system-ui, sans-serif',
@@ -963,13 +1053,20 @@ function KitchenPageInner() {
                     setNothingInPantry(false)
                     setPantryName(e.target.value)
                     setPantryAddError('')
-                    if (e.target.value.trim()) setPantryTagsRevealed(true)
+                    if (!editingPantryId) {
+                      setPantryTagsList([])
+                      setPantryAllergensList([])
+                      setPantryTagsRevealed(false)
+                      setPantrySuggestionReady(false)
+                    }
                   }}
                 />
                 {editingPantryId && (
                   <button onClick={cancelPantryEdit} style={clearBtn}>Cancel</button>
                 )}
               </div>
+              {pantrySuggesting && <SuggestionLoadingNotice />}
+              {pantrySuggestionReady && <SuggestionReviewNotice />}
               {/* Tag/allergen chips apply to whichever pantry insert fires next —
                   the manual "Add" button OR the preset "Add selected" batch —
                   and clear on success. Same UX pattern as signatures. */}
@@ -991,7 +1088,7 @@ function KitchenPageInner() {
                 Contains allergens
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                {ALLERGEN_VOCAB.map((a) => {
+                {KITCHEN_ALLERGENS.map((a) => {
                   const on = pantryAllergensList.includes(a)
                   return (
                     <button
@@ -1017,7 +1114,7 @@ function KitchenPageInner() {
               <button
                 className="add"
                 onClick={() => void savePantryAndContinue()}
-                disabled={pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding}
+                disabled={pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding || pantrySuggesting}
                 style={{
                   width: '100%',
                   marginTop: 12,
@@ -1082,12 +1179,28 @@ const faintSm: React.CSSProperties = {
   textAlign: 'right',
 }
 
+function SuggestionLoadingNotice() {
+  return (
+    <div role="status" style={{ color: C.faint, fontFamily: 'system-ui, sans-serif', fontSize: 12, lineHeight: 1.45 }}>
+      Finding suggested tags...
+    </div>
+  )
+}
+
+function SuggestionReviewNotice() {
+  return (
+    <div role="status" style={{ color: C.cream, fontFamily: 'system-ui, sans-serif', fontSize: 12, lineHeight: 1.45 }}>
+      Sofra suggested the selected tags below. Review or adjust them, then save to confirm.
+    </div>
+  )
+}
+
 function presetChip(on: boolean): React.CSSProperties {
   return {
     background: on ? '#5C1515' : 'transparent',
-    border: `1px solid ${on ? '#5C1515' : 'rgba(92, 21, 21, 0.28)'}`,
+    border: `1px solid ${on ? C.onBurgundy : C.cream}`,
     borderRadius: 999,
-    color: on ? '#F7F4ED' : '#5C1515',
+    color: on ? C.onBurgundy : C.cream,
     padding: '5px 10px',
     fontSize: 12,
     fontFamily: 'system-ui, sans-serif',
@@ -1144,12 +1257,12 @@ function vocabChip(on: boolean, danger: boolean): React.CSSProperties {
   // Allergen chips use rose/danger palette to match how "avoid" chips look on
   // the guest RSVP page — visual language for "off-limits".
   return {
-    background: on ? (danger ? '#7A171E' : '#5C1515') : 'transparent',
+    background: on ? (danger ? C.danger : C.burgundy) : 'transparent',
     border: `1px solid ${
-      on ? '#5C1515' : 'rgba(92,21,21,0.28)'
+      on ? C.onBurgundy : C.cream
     }`,
     borderRadius: 14,
-    color: on ? '#F7F4ED' : '#5C1515',
+    color: on ? C.onBurgundy : C.cream,
     padding: '5px 11px',
     fontSize: 12,
     fontFamily: 'system-ui, sans-serif',

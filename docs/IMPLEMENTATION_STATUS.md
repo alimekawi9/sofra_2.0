@@ -1,7 +1,7 @@
 # Implementation Status
 
 - Profile now exposes the app-wide production light/dark appearance toggle. Light is the default for new visitors; the selected mode is persisted and restored before paint. Shared production shells, navigation, authentication, event, album, kitchen, Table, and menu-intelligence palettes all consume the same appearance tokens, while invitation artwork and uploaded imagery remain unchanged.
-- Dark-mode contrast states keep labels visible on filled and hovered controls, including the appearance switch, event-status filters, album upload action, menu generation/PDF actions, and Kitchen Quick Add selections.
+- Dark-mode contrast states keep labels visible on filled and hovered controls, including the appearance switch, event-status filters, album upload action, menu generation/PDF actions, and Kitchen Quick Add selections. Kitchen cuisine, preset, metadata, and allergen chips now use the primary page text token for both their labels and outlines: cream-white in dark mode and burgundy in light mode.
 - Location autocomplete results retain a cream suggestion surface with burgundy result text in dark mode, and the questionnaire save action uses explicit contrasting foreground/background pairs on hover and keyboard focus.
 - Host edit submit and delete-event controls now use explicit inverse hover/focus colors in both themes, preventing `UPDATE INVITE` and `DELETE EVENT` labels from blending into their button surfaces.
 - The final catch-all interactive hover rule now uses the same paired foreground/surface tokens as component-specific states. This keeps file controls such as `Choose a cover image`, including their nested icon and helper copy, readable in both themes and prevents later CSS from undoing earlier contrast fixes.
@@ -55,7 +55,7 @@
   harmless local-only Markdown wrapping, incomplete/prose output, malformed
   JSON, and post-JSON schema rejection. The metadata-rich seven-dish response
   budget is 1,600 tokens; input context and the 8-second deadline are unchanged.
-- Kitchen signature and pantry creation now use progressive manual tagging with no AI metadata inference.
+- Kitchen custom signature and pantry creation now automatically show Gemini-assisted metadata suggestions after the user pauses while typing the item name. Suggestions are constrained and revalidated against Sofra's canonical tag/allergen vocabularies, pantry roles are stripped at the API boundary, locally inferred name allergens are merged in, and the user must review/adjust the selected chips before the existing submit/update action persists them. A failed suggestion reveals the same manual controls instead of blocking inventory entry.
 - Signature edits preserve and rehydrate saved names/tags in place.
 - Legacy sea/land/green menu slots are normalized to starter/main/side/dessert roles.
 - Menu generation now initializes one menu per event after validation; opening an empty menu page no longer creates a rule-based draft.
@@ -450,3 +450,7 @@
 - Direct RSVP, Album, and Chat routes enforce the same membership gate, while existing RSVP guests and event managers retain their role-aware bypasses.
 - Stale or deleted event URLs no longer expose Supabase's single-row coercion error during local development. They remove the obsolete pending-invite entry and return the viewer to `Your Sofras`; genuine database failures still retain the retry error state.
 - Migration `20260821000004_add_event_access_requests.sql` adds the request records and bounded security-definer functions under the current local-identity MVP model. RLS stays enabled, the table grants no direct anonymous reads or writes, and requester/manager views are exposed only through scoped functions. True database-backed authentication remains future security work.
+
+# Hard-limit presentation cleanup (2026-08-24)
+
+- The Table view now presents allergy and dietary hard-limit labels as plain text without the red no-entry emoji. The existing `MUST NOT VIOLATE` heading continues to communicate their severity without decorative symbols.

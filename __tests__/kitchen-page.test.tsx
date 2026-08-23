@@ -98,6 +98,15 @@ beforeEach(() => {
   signatureRows = [{ ...signature }, { ...savedPreset }]
   pantryRows = [{ ...pantry }]
   localStorage.setItem('sofra_user_id', 'chef-1')
+  global.fetch = jest.fn(async (_input, init) => {
+    const body = JSON.parse(String(init?.body ?? '{}')) as { kind?: string }
+    return {
+      ok: true,
+      json: async () => body.kind === 'signature'
+        ? { tags: ['main', 'rich'], allergens: [] }
+        : { tags: ['savory'], allergens: [] },
+    } as Response
+  })
 })
 
 test('signature picker exposes Main while pantry has no role controls or legacy role chip', async () => {
@@ -105,8 +114,12 @@ test('signature picker exposes Main while pantry has no role controls or legacy 
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Test dish' } })
-  const main = screen.getByRole('button', { name: 'Main' })
+  expect(screen.queryByRole('button', { name: 'Main' })).not.toBeInTheDocument()
+  expect(screen.getByText('Finding suggested tags...')).toBeInTheDocument()
+  const main = await screen.findByRole('button', { name: 'Main' })
   expect(main).toBeInTheDocument()
+  expect(main).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText(/review or adjust them/i)).toBeInTheDocument()
 
   const pantryCard = screen.getByText("This week’s pantry").parentElement?.parentElement
   expect(pantryCard).toBeTruthy()
@@ -132,13 +145,20 @@ test('rehydrates a saved preset with the exact filled pending-selection style', 
 
   const saved = await screen.findByRole('button', { name: 'Baba Ganoush' })
   expect(saved).toHaveAttribute('aria-pressed', 'true')
-  expect(saved).toHaveStyle({ background: '#5C1515', color: '#F7F4ED' })
+  expect(saved).toHaveStyle({ background: '#5C1515', color: 'var(--sf-intel-on-burgundy)' })
 })
 
 test('renders a saved pantry preset with visible selected text colors', async () => {
   render(<KitchenPage />)
   const tomato = await screen.findByRole('button', { name: 'Tomato' })
-  expect(tomato).toHaveStyle({ background: '#5C1515', color: '#F7F4ED' })
+  expect(tomato).toHaveStyle({ background: '#5C1515', color: 'var(--sf-intel-on-burgundy)' })
+})
+
+test('inactive Kitchen chips use the theme primary text color in dark mode', async () => {
+  render(<KitchenPage />)
+  const guacamole = await screen.findByRole('button', { name: 'Guacamole' })
+  expect(guacamole).toHaveStyle({ color: 'var(--sf-intel-text)' })
+  expect(guacamole.style.border).toBe('1px solid var(--sf-intel-text)')
 })
 
 test('stages preset changes until the single signatures UPDATE action', async () => {
@@ -183,10 +203,9 @@ test('creating and editing a signature persists the raw main role', async () => 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), {
     target: { value: 'Lamb Shoulder' },
   })
-  fireEvent.click(screen.getByRole('button', { name: 'Main' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Rich' }))
-  expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
   const signatureCard = document.querySelector('.sv2-kitchen-signatures') as HTMLElement
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true'))
+  expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
   fireEvent.click(within(signatureCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some((write) =>
@@ -230,8 +249,8 @@ test('adding a pantry item persists binary availability without quantity or unit
   await screen.findByRole('button', { name: 'Tomato' })
 
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Savory' }))
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Savory' })).toHaveAttribute('aria-pressed', 'true'))
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => {

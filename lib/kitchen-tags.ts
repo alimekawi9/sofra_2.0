@@ -19,6 +19,15 @@ export const SIGNATURE_TAG_GROUPS: readonly TagGroup[] = [
 // This is intentionally a separate exported configuration, not a UI filter.
 export const PANTRY_TAG_GROUPS: readonly TagGroup[] = DESCRIPTIVE_TAG_GROUPS
 
+export const KITCHEN_ALLERGENS = ['nuts', 'shellfish', 'dairy', 'gluten', 'eggs', 'soy', 'pork', 'mushrooms', 'cilantro', 'sesame', 'mustard', 'celery', 'sulfites', 'lupin', 'molluscs'] as const
+
+export type KitchenMetadataKind = 'signature' | 'pantry'
+
+export function tagsForKitchenKind(kind: KitchenMetadataKind): string[] {
+  const groups = kind === 'signature' ? SIGNATURE_TAG_GROUPS : PANTRY_TAG_GROUPS
+  return Array.from(new Set(groups.flatMap(group => [...group.tags])))
+}
+
 /** Boundary sanitizer used for pantry load, create, and update payloads. */
 export function pantryTagsForPersistence(tags: readonly string[]): string[] {
   return withoutDishRoles(tags)

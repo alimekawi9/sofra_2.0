@@ -410,8 +410,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
                           fontFamily: 'system-ui, sans-serif',
                         }}
                       >
-                        <span aria-hidden>⛔ </span>
-                        <span>{formatTagLabel(limit.label)}</span>
+                        {formatTagLabel(limit.label)}
                       </span>
                       <span
                         style={{

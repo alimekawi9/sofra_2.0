@@ -214,6 +214,7 @@ describe('Hard Limits card', () => {
     // Exact-string match: the limit label renders as "Nuts", brief renders "nuts" (lowercase)
     await waitFor(() => expect(screen.getByText('Nuts')).toBeInTheDocument())
     expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent('\u26D4')
   })
 
   it('shows diet limit with guest name when a guest has a strict diet', async () => {
