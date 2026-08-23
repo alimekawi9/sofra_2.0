@@ -56,6 +56,7 @@
   JSON, and post-JSON schema rejection. The metadata-rich seven-dish response
   budget is 1,600 tokens; input context and the 8-second deadline are unchanged.
 - Kitchen custom signature and pantry creation now automatically show Gemini-assisted metadata suggestions after the user pauses while typing the item name. Suggestions are constrained and revalidated against Sofra's canonical tag/allergen vocabularies, pantry roles are stripped at the API boundary, locally inferred name allergens are merged in, and the user must review/adjust the selected chips before the existing submit/update action persists them. A failed suggestion reveals the same manual controls instead of blocking inventory entry.
+- The pantry submit label now derives from the complete pending selection rather than visible/filter state, so any selected ingredient immediately replaces `I LITERALLY HAVE NOTHING` and remains authoritative after filtering or scrolling it out of view. The pantry preset list now scrolls with the page instead of using a nested mobile overflow region that could defer repainting outside the list.
 - Signature edits preserve and rehydrate saved names/tags in place.
 - Legacy sea/land/green menu slots are normalized to starter/main/side/dessert roles.
 - Menu generation now initializes one menu per event after validation; opening an empty menu page no longer creates a rule-based draft.

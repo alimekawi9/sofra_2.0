@@ -281,3 +281,19 @@ test('offers clear-all controls for signatures and pantry, with the empty pantry
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'I LITERALLY HAVE NOTHING' }))
   await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
 })
+
+test('a pantry selection immediately replaces the empty action and stays selected when filtered out of view', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
+  expect(within(pantryCard).getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'Chicken thighs' }))
+  expect(within(pantryCard).queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'Fruits' }))
+  expect(within(pantryCard).queryByRole('button', { name: 'Chicken thighs' })).not.toBeInTheDocument()
+  expect(within(pantryCard).queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+})

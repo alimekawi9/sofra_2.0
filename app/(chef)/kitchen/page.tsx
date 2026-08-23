@@ -432,6 +432,9 @@ function KitchenPageInner() {
       .map((name) => name.toLowerCase())
   )
   const customPantry = pantry.filter((item) => !presetPantryNamesLC.has(item.name.toLowerCase()))
+  const pantryHasAnythingSelected = selectedIngredients.length > 0
+    || Boolean(pantryName.trim())
+    || (!nothingInPantry && pantry.length > 0)
 
   function toggleSignatureRemoval(signature: Signature) {
     setPendingRemovedSignatureIds(prev => prev.includes(signature.id) ? prev.filter(id => id !== signature.id) : [...prev, signature.id])
@@ -990,8 +993,6 @@ function KitchenPageInner() {
                     display: 'flex',
                     flexWrap: 'wrap',
                     gap: 6,
-                    maxHeight: 168,
-                    overflowY: 'auto',
                     paddingRight: 2,
                   }}
                 >
@@ -1128,7 +1129,7 @@ function KitchenPageInner() {
                     ? 'Publish Invite'
                   : pantryDoneSaved
                     ? 'Saved ✓'
-                    : nothingInPantry || (pantry.length === 0 && selectedIngredients.length === 0 && !pantryName.trim())
+                    : !pantryHasAnythingSelected
                       ? 'I LITERALLY HAVE NOTHING'
                       : pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
               </button>
