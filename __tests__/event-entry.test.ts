@@ -17,8 +17,8 @@ const guest: EventEntryContext = {
 }
 
 describe('event entry routing', () => {
-  it('sends a new ordinary guest to request host access', () => {
-    expect(eventEntryDestination(guest)).toBe('/events/event-1/request-access')
+  it('keeps a new ordinary guest in the canonical invitation flow', () => {
+    expect(eventEntryDestination(guest)).toBeNull()
   })
 
   it('allows update links only for existing event members', () => {

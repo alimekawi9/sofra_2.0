@@ -44,6 +44,7 @@ function makeSupabase({
   cohostRows = [] as Array<{ users: { id: string; name: string; photo_url: string | null } | null }>,
   viewerIsCohost = false,
   pendingAccessRequests = [] as Array<{ id: string; user_id: string; created_at: string; users: { id: string; name: string; photo_url: string | null } }>,
+  updateNoticeKinds = [] as Array<'date' | 'time' | 'location' | 'photos'>,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -145,7 +146,9 @@ function makeSupabase({
           })),
           error: null,
         }
-      : { data: true, error: null })),
+      : name === 'get_pending_event_update_notice'
+        ? { data: updateNoticeKinds.length > 0 ? [{ notice_kinds: updateNoticeKinds, changed_at: '2026-08-26T10:00:00Z' }] : [], error: null }
+        : { data: true, error: null })),
     _photoEqMock: photoEqMock,
     _photoOrderMock: photoOrderMock,
     _bucket: bucket,
@@ -184,21 +187,24 @@ describe('fresh-browser initialization', () => {
     expect(localStorage.getItem('sofra_pending_invites')).not.toContain('ev-1')
   })
 
-  it('sends a logged-out invite visitor directly to login and preserves the event destination', async () => {
+  it('shows a logged-out visitor the invitation landing before login and preserves RSVP as the destination', async () => {
     const sb = makeSupabase({ event: { ...SAMPLE_EVENT, is_published: false } })
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fev-1'))
-    expect(sb.from).not.toHaveBeenCalled()
-    expect(screen.queryByRole('button', { name: /claim my seat/i })).not.toBeInTheDocument()
+    const yalla = await screen.findByRole('button', { name: 'YALLA' })
+    expect(sb.from).toHaveBeenCalledWith('events')
+    expect(mockReplace).not.toHaveBeenCalledWith(expect.stringContaining('/login'))
+    await userEvent.click(yalla)
+    expect(mockPush).toHaveBeenCalledWith('/login?invite=1&next=%2Fevents%2Fev-1%2Frsvp')
   })
 
-  it('sends an authenticated non-member to request host access', async () => {
+  it('shows an authenticated non-member the invitation landing before normal RSVP', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
+    await userEvent.click(await screen.findByRole('button', { name: 'YALLA' }))
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/rsvp')
     expect(localStorage.getItem('sofra_pending_invites')).toContain('ev-1')
-    expect(screen.queryByRole('button', { name: /claim my seat/i })).not.toBeInTheDocument()
+    expect(mockReplace).not.toHaveBeenCalledWith('/events/ev-1/request-access')
   })
 
   it('sends the assigned chef directly to delegated Kitchen without RSVP', async () => {
@@ -213,6 +219,10 @@ describe('fresh-browser initialization', () => {
 // ─── Copy invite link ───────────────────────────────────────────────────────
 
 describe('Copy invite link button', () => {
+  async function openInviteMenu() {
+    await userEvent.click(await screen.findByRole('button', { name: /^invite$/i }))
+  }
+
   it('keeps co-host sharing choices collapsed until the host asks for them', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
@@ -235,6 +245,7 @@ describe('Copy invite link button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await openInviteMenu()
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /copy invite link/i })).toBeInTheDocument()
     )
@@ -252,6 +263,7 @@ describe('Copy invite link button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await openInviteMenu()
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -263,6 +275,7 @@ describe('Copy invite link button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await openInviteMenu()
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
     expect(screen.getByRole('button', { name: /copied!/i })).toBeInTheDocument()
@@ -274,6 +287,7 @@ describe('Copy invite link button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await user.click(await screen.findByRole('button', { name: /^invite$/i }))
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await user.click(screen.getByRole('button', { name: /copy invite link/i }))
     act(() => { jest.advanceTimersByTime(2000) })
@@ -290,6 +304,7 @@ describe('Copy invite link button', () => {
     })
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await openInviteMenu()
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await expect(
       userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
@@ -305,6 +320,7 @@ describe('Copy invite link button', () => {
     })
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await openInviteMenu()
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
     await waitFor(() =>
@@ -319,6 +335,7 @@ describe('Copy invite link button', () => {
     const open = jest.spyOn(window, 'open').mockImplementation(() => null)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
+    await openInviteMenu()
     await waitFor(() => screen.getByRole('button', { name: /share via whatsapp/i }))
     await userEvent.click(screen.getByRole('button', { name: /share via whatsapp/i }))
 
@@ -331,15 +348,55 @@ describe('Copy invite link button', () => {
     open.mockRestore()
   })
 
-  it('lets the host navigate to the update-compose page', async () => {
+  it('lets the host navigate to the update composer', async () => {
     makeSupabase()
     localStorage.setItem('sofra_user_id', HOST_UID)
     render(<EventDetailPage params={PARAMS} />)
 
+    await openInviteMenu()
     const sendUpdateButton = await screen.findByRole('button', { name: 'SEND AN UPDATE' })
     await userEvent.click(sendUpdateButton)
 
     expect(mockPush).toHaveBeenCalledWith('/events/ev-1/update')
+  })
+
+  it('proactively prompts the host to send or dismiss an update after event details change', async () => {
+    const sb = makeSupabase({ updateNoticeKinds: ['date'] })
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    render(<EventDetailPage params={PARAMS} />)
+
+    const reminder = await screen.findByRole('complementary', { name: 'Event update reminder' })
+    expect(reminder).toHaveTextContent('Date changed to Tuesday, September 1, 2026.')
+    await userEvent.click(within(reminder).getByRole('button', { name: 'SEND UPDATE' }))
+
+    await waitFor(() => expect(sb.rpc).toHaveBeenCalledWith('dismiss_event_update_notice', {
+      p_event_id: 'ev-1',
+      p_manager_id: HOST_UID,
+    }))
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/update?template=details')
+  })
+
+  it('lists only the exact changed fields and their current values', async () => {
+    makeSupabase({ updateNoticeKinds: ['time', 'location'] })
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    render(<EventDetailPage params={PARAMS} />)
+
+    const reminder = await screen.findByRole('complementary', { name: 'Event update reminder' })
+    expect(reminder).toHaveTextContent('Time changed to 7:00 PM.')
+    expect(reminder).toHaveTextContent('Location changed to The Garden Room — 123 Main St.')
+    expect(reminder).not.toHaveTextContent('Date changed')
+  })
+
+  it('lets the host dismiss a new-photo update reminder without opening the composer', async () => {
+    makeSupabase({ updateNoticeKinds: ['photos'] })
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    render(<EventDetailPage params={PARAMS} />)
+
+    const reminder = await screen.findByRole('complementary', { name: 'Event update reminder' })
+    expect(reminder).toHaveTextContent('New photos were uploaded')
+    await userEvent.click(within(reminder).getByRole('button', { name: 'DISMISS' }))
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Event update reminder' })).not.toBeInTheDocument())
+    expect(mockPush).not.toHaveBeenCalledWith(expect.stringContaining('/update'))
   })
 })
 
@@ -348,8 +405,8 @@ describe('EDIT EVENT button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByRole('link', { name: 'EDIT EVENT' })).toBeInTheDocument())
-    await userEvent.click(screen.getByRole('link', { name: 'EDIT EVENT' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /edit event/i })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /edit event/i }))
     expect(mockPush).toHaveBeenCalledWith('/host/ev-1/edit')
   })
 
@@ -358,15 +415,17 @@ describe('EDIT EVENT button', () => {
     makeSupabase({ rsvpRow: { status: 'going' } })
     render(<EventDetailPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('Around this Sofra')).toBeInTheDocument())
-    expect(screen.queryByRole('link', { name: 'EDIT EVENT' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit event/i })).not.toBeInTheDocument()
   })
 
-  it('is hidden from the host once the event is in the past', async () => {
+  it('keeps editing available but removes planning actions once the event is in the past', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
-    makeSupabase({ event: { ...SAMPLE_EVENT, event_date: '2020-01-01T00:00:00Z' } })
+    makeSupabase({ event: { ...SAMPLE_EVENT, event_date: '2020-01-01T00:00:00Z', kitchen_status: 'pending', kitchen_plan: 'later' } })
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByRole('button', { name: /copy invite link/i })).toBeInTheDocument())
-    expect(screen.queryByRole('link', { name: 'EDIT EVENT' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: /^invite$/i })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /edit event/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /set the sofra/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /fill kitchen now/i })).not.toBeInTheDocument()
   })
 })
 
@@ -556,10 +615,15 @@ describe('Shared album', () => {
 })
 
 describe('Remove guest', () => {
+  async function openGuestList() {
+    await userEvent.click(await screen.findByRole('button', { name: /guests? attending/i }))
+  }
+
   it('shows an accepted co-host in Around this Sofra with a Host badge', async () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({ cohostRows: [{ users: { id: 'cohost-1', name: 'Mariam', photo_url: null } }] })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
     expect(await screen.findByText('Mariam')).toBeInTheDocument()
     expect(screen.getAllByText('Host').length).toBeGreaterThan(0)
   })
@@ -572,6 +636,7 @@ describe('Remove guest', () => {
       cohostRows: [{ users: promoted }],
     })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
 
     const name = await screen.findByText('Mariam')
     const rosterCard = name.closest('article')
@@ -587,6 +652,7 @@ describe('Remove guest', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({ guestRows: [REMOVABLE_GUEST] })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
     await waitFor(() => expect(screen.getByText('Omar')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Remove Omar from this Sofra' })).toBeInTheDocument()
   })
@@ -603,6 +669,7 @@ describe('Remove guest', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     const sb = makeSupabase({ guestRows: [REMOVABLE_GUEST] })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
     await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
 
@@ -614,6 +681,7 @@ describe('Remove guest', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     const sb = makeSupabase({ guestRows: [REMOVABLE_GUEST] })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
     await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -626,6 +694,7 @@ describe('Remove guest', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     const sb = makeSupabase({ guestRows: [REMOVABLE_GUEST] })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
     await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
@@ -641,6 +710,7 @@ describe('Remove guest', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({ guestRows: [REMOVABLE_GUEST], deleteError: { message: 'denied' } })
     render(<EventDetailPage params={PARAMS} />)
+    await openGuestList()
     await waitFor(() => screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Remove Omar from this Sofra' }))
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
@@ -693,6 +763,7 @@ describe('Host membership', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({ guestRows: [{ status: 'going', users: { id: HOST_UID, name: 'Layla', photo_url: null } }] })
     render(<EventDetailPage params={PARAMS} />)
+    await userEvent.click(await screen.findByRole('button', { name: /guests? attending/i }))
 
     await waitFor(() => expect(screen.getByText('Layla')).toBeInTheDocument())
     expect(screen.getByText('Host')).toBeInTheDocument()
@@ -805,21 +876,23 @@ it('shows the going RSVP copy without a star', async () => {
 })
 
 describe('Locked table preview', () => {
-  it('does not reveal event content while routing a new guest to request access', async () => {
+  it('keeps event details and the guest list private on the invitation landing', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
+    expect(await screen.findByRole('button', { name: 'YALLA' })).toBeInTheDocument()
     expect(screen.queryByText('The table')).not.toBeInTheDocument()
     expect(screen.queryByText('Around this Sofra')).not.toBeInTheDocument()
+    expect(mockReplace).not.toHaveBeenCalledWith('/events/ev-1/request-access')
   })
 
-  it('does not render decorative RSVP preview data while redirecting', async () => {
+  it('does not render the private table teaser before YALLA', async () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase()
     const { container } = render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/request-access'))
+    await screen.findByRole('button', { name: 'YALLA' })
     expect(container.querySelectorAll('.sv2-table-preview-dots span')).toHaveLength(0)
+    expect(screen.queryByText('Around this Sofra')).not.toBeInTheDocument()
   })
 
   it('is replaced by the real guest grid once unlocked', async () => {
@@ -838,6 +911,7 @@ it('renders a custom detail section using the same row style as Dress code', asy
     event: { ...SAMPLE_EVENT, custom_details: [{ id: 'd_1', label: 'Parking', body: 'Free lot behind the theater' }] },
   })
   render(<EventDetailPage params={PARAMS} />)
+  await userEvent.click(await screen.findByRole('button', { name: /September 1, 2026/ }))
   await waitFor(() => expect(screen.getByText('Parking')).toBeInTheDocument())
   expect(screen.getByText('Free lot behind the theater')).toBeInTheDocument()
 })

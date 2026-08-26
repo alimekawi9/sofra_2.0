@@ -557,7 +557,10 @@
   background:transparent;
   margin:6px 0 8px;
   cursor:pointer;
-  touch-action:none;
+  /* Keep vertical page scrolling available while reserving horizontal drags
+     for the native range control. `none` can prevent iOS Safari from handing
+     the gesture to the slider at all. */
+  touch-action:pan-y;
 }
 .sv2-slider::-webkit-slider-runnable-track{
   height:1px;
@@ -1384,8 +1387,7 @@
 
 /* ─── Shared Album v2: compact preview, batch upload, gallery, viewer, comments ─── */
 
-.sv2-album-heading-actions{display:flex;align-items:center;gap:12px}
-@media(max-width:560px){.sv2-album-heading-actions{align-items:flex-start}}
+.sv2-album-heading-actions{display:flex;align-items:flex-start;justify-content:flex-end;gap:12px;flex-wrap:nowrap}
 .sv2-view-album-link{border:0;background:none;padding:0;color:inherit;font:500 9px var(--sv2-sans-family);letter-spacing:.8px;text-decoration:underline;cursor:pointer}
 
 .sv2-album-preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
@@ -1491,9 +1493,11 @@
    one quiet, adjacent switch so Event Details does not become more crowded. */
 .sv2-event-community{padding-top:24px;border-top:1px solid var(--sv2-line)}
 .sv2-community-tabs{display:grid;grid-template-columns:1fr 1fr;margin-bottom:22px;border:1px solid var(--sv2-ink);border-radius:999px;overflow:hidden}
-.sv2-community-tabs button{min-height:42px;padding:10px;border:0;background:transparent;color:var(--sv2-ink);font:600 9px var(--sv2-sans-family);letter-spacing:1px;cursor:pointer}
+.sv2-community-tabs button{display:flex;min-height:42px;padding:10px;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;color:var(--sv2-ink);font:600 9px var(--sv2-sans-family);letter-spacing:1px;cursor:pointer}
 .sv2-community-tabs button+button{border-left:1px solid var(--sv2-ink)}
 .sv2-community-tabs button.is-active{background:var(--sv2-ink);color:var(--sv2-card-bg)}
+.sv2-chat-unread-badge{display:inline-flex;width:17px;height:17px;align-items:center;justify-content:center;border-radius:50%;background:var(--sv2-ink);color:var(--sv2-card-bg);font:700 9px/1 var(--sv2-sans-family);letter-spacing:0}
+.sv2-community-tabs button.is-active .sv2-chat-unread-badge{background:var(--sv2-card-bg);color:var(--sv2-ink)}
 .sv2-event-community .sv2-shared-album{padding-top:0;border-top:0}
 .sv2-event-chat{min-width:0}
 .sv2-chat-log{display:flex;max-height:420px;min-height:170px;padding:12px;flex-direction:column;gap:12px;overflow-y:auto;border:1px solid var(--sv2-line);border-radius:18px;background:color-mix(in srgb,var(--sv2-card-bg) 92%,var(--sv2-ink) 8%)}
@@ -1526,9 +1530,9 @@
 .sv2-update-actions button{min-height:46px;padding:10px 14px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:inherit;font:500 10px var(--sv2-sans-family);letter-spacing:.8px}
 .sv2-kitchen-plan-field{margin:24px 0;padding:18px;border:1px solid var(--sv2-line);border-radius:18px}.sv2-kitchen-plan-field legend{padding:0 8px;font-size:10px;letter-spacing:1px}.sv2-kitchen-plan-field p{margin:0 0 14px;color:var(--sv2-muted);font-size:11px;line-height:1.45}.sv2-kitchen-plan-field>div{display:grid;gap:8px}.sv2-kitchen-plan-field button{min-height:42px;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:var(--sv2-ink);font:600 9px var(--sv2-sans-family);letter-spacing:.8px}.sv2-kitchen-plan-field button[aria-pressed="true"]{border-color:var(--sv2-ink);background:var(--sv2-ink);color:var(--sv2-card-bg)}
 .sv2-kitchen-share-panel{margin:12px 0 18px;padding:16px;border:1px solid var(--sv2-line);border-radius:18px}.sv2-kitchen-share-panel>p{margin:0 0 12px;font-size:11px;line-height:1.45}.sv2-kitchen-share-trigger{width:100%;min-height:44px;margin-top:10px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:var(--sv2-ink);font:600 9px var(--sv2-sans-family);letter-spacing:1px}.sv2-kitchen-warning{margin:16px 0;padding:16px;border:1px solid var(--sv2-gold);border-radius:18px;background:color-mix(in srgb,var(--sv2-gold) 10%,transparent)}.sv2-kitchen-warning strong{display:block;font-size:11px;letter-spacing:.6px}.sv2-kitchen-warning p{margin:6px 0 12px;font-size:11px;line-height:1.5}.sv2-kitchen-warning>div{display:flex;gap:8px;flex-wrap:wrap}.sv2-kitchen-warning button{min-height:40px;padding:9px 14px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-card-bg);font:600 9px var(--sv2-sans-family)}.sv2-kitchen-warning button+button{background:transparent;color:var(--sv2-ink)}
-.sv2-chef-kitchen-actions{display:grid;gap:7px;min-width:174px}.sv2-chef-kitchen-actions .regen{width:100%;min-height:38px;padding:9px 14px}
+.sv2-chef-kitchen-actions{display:grid;gap:7px;min-width:174px}.sv2-chef-kitchen-action{width:100%;min-height:38px;padding:9px 14px;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:var(--sv2-ink);font:600 10px/1.2 var(--sv2-sans-family);letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:background-color .18s ease,color .18s ease,border-color .18s ease}.sv2-chef-kitchen-action:is(:hover,:focus-visible),.sv2-chef-kitchen-action[aria-expanded="true"]{border-color:var(--sv2-ink);background:var(--sv2-ink);color:var(--sv2-card-bg)}
 .sv2-kitchen-action-error{margin:10px 0;color:var(--sv2-ink);font:500 10px/1.4 var(--sv2-sans-family)}
-@media(max-width:560px){.sv2-chef-kitchen-actions{min-width:150px}.sv2-chef-kitchen-actions .regen{white-space:normal;line-height:1.25}}
+@media(max-width:560px){.sv2-chef-kitchen-actions{min-width:150px}.sv2-chef-kitchen-action{white-space:normal;line-height:1.25}}
 .sf-production-app:has(.sv2-restricted-chef-page) .sf-production-nav{display:none}.sf-production-app:has(.sv2-restricted-chef-page) .sf-production-content{padding-bottom:0}
 
 .sv2-comments-panel{position:fixed;left:0;right:0;bottom:0;z-index:1400;max-height:70vh;display:flex;flex-direction:column;border-radius:20px 20px 0 0;background:var(--sv2-card-bg);color:var(--sv2-ink)}
@@ -1612,11 +1616,9 @@
 /* These outline actions are labels/links or legacy-named controls rather than
    plain buttons, but share the same visual interaction. */
 .sv2-add-photos-trigger,
-.sv2-profile-preference-link,
-.sv2-root button.regen[aria-label="Fill kitchen myself"]{transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+.sv2-profile-preference-link{transition:background-color .18s ease,color .18s ease,border-color .18s ease}
 .sv2-add-photos-trigger:is(:hover,:focus-within),
-.sv2-profile-preference-link:is(:hover,:focus-visible),
-.sv2-root button.regen[aria-label="Fill kitchen myself"]:is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-card-bg)!important}
+.sv2-profile-preference-link:is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-card-bg)!important}
 .sv2-add-photos-trigger:is(:hover,:focus-within),
 .sv2-profile-preference-link:is(:hover,:focus-visible){border-color:var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-card-bg)!important}
 
@@ -1730,12 +1732,78 @@
 .sv2-root label.sv2-upload-drop:is(:hover,:focus-visible,:focus-within){border:2px solid var(--sv2-gold)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--sv2-gold) 24%,transparent)}
 .sv2-event-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.sv2-event-topbar .sv2-back-link{margin-bottom:0}.sv2-cohost-trigger{flex:0 0 auto;padding:8px 16px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:var(--sv2-ink);font:600 11px/1 var(--sv2-sans-family);letter-spacing:.12em}.sv2-cohost-trigger[aria-expanded="true"]{background:var(--sv2-ink);color:var(--sv2-card-bg)}.sv2-cohost-share{display:grid;gap:8px;margin:-10px 0 18px;padding:12px;border:1px solid rgba(92,21,21,.22);border-radius:18px;background:rgba(244,239,228,.72);box-shadow:0 8px 24px rgba(92,21,21,.08)}.sv2-cohost-share p{margin:0;font-size:12px;color:#7a2324}
 
+/* Host event details — compact hierarchy based on the production Figma frame. */
+.sv2-event-detail-shell{overflow:visible}
+.sv2-event-detail-shell .sv2-event-topbar{position:relative;z-index:5}
+.sv2-cohost-popover{position:absolute;top:90px;right:var(--sv2-shell-padding-x);z-index:20;width:min(330px,calc(100% - var(--sv2-shell-padding-x) * 2));margin:0;background:var(--sv2-card-bg);color:var(--sv2-ink);box-shadow:0 14px 36px rgba(45,8,10,.2)}
+.sv2-host-event-paper{width:100%;margin-inline:0;padding:0 0 26px;border:0;background:var(--sv2-off-white)!important}
+.sv2-host-event-paper img.sv2-event-artwork.sv2-event-cover-image{height:clamp(150px,25vw,250px);margin:0 auto;object-position:center 65%}
+.sv2-host-event-paper img.sv2-event-artwork.sv2-event-default-cover{object-position:center 50%}
+.sv2-host-event-content{padding:21px 0 0}
+.sv2-host-event-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+.sv2-host-event-title-row .sv2-event-kicker{margin:0 0 6px;font:600 9px/1 var(--sv2-sans-family);letter-spacing:1.8px}
+.sv2-host-event-title-row h1{max-width:390px;margin:0;font:italic clamp(34px,9vw,52px)/.98 var(--sv2-display-family);overflow-wrap:anywhere}
+.sv2-host-invite-wrap{position:relative;flex:0 0 auto}
+.sv2-host-invite-trigger{display:flex;min-height:38px;padding:8px 15px;align-items:center;gap:7px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:var(--sv2-ink);font:600 10px var(--sv2-sans-family);cursor:pointer}
+.sv2-host-invite-trigger svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sv2-host-invite-trigger[aria-expanded="true"]{background:var(--sv2-ink);color:var(--sv2-card-bg)}
+.sv2-host-invite-popover{position:absolute;top:calc(100% + 9px);right:0;z-index:25;display:grid;width:210px;padding:8px;border:1px solid var(--sv2-line);border-radius:16px;background:var(--sv2-card-bg);box-shadow:0 12px 30px rgba(45,8,10,.18)}
+.sv2-host-invite-popover button{min-height:40px;padding:9px 11px;border:0;border-radius:10px;background:transparent;color:var(--sv2-ink);font:600 9px var(--sv2-sans-family);letter-spacing:.5px;text-align:left;cursor:pointer}
+.sv2-host-invite-popover button:hover,.sv2-host-invite-popover button:focus-visible{background:color-mix(in srgb,var(--sv2-ink) 9%,transparent);outline:none}
+.sv2-chef-share-wrap,.sv2-update-share-wrap{position:relative}
+.sv2-chef-share-popover{width:min(260px,calc(100vw - 48px));color:var(--sv2-ink)}
+.sv2-chef-share-popover p{margin:4px 8px 7px;color:var(--sv2-muted);font:10px/1.4 var(--sv2-sans-family)}
+.sv2-update-share-wrap{display:flex;justify-content:flex-end;margin-top:14px}
+.sv2-update-share-trigger{min-width:150px;justify-content:center;letter-spacing:.8px}
+.sv2-update-share-popover{width:220px}
+.sv2-host-copy-fallback{width:100%;margin-top:10px;padding:10px;border:1px solid var(--sv2-line);border-radius:10px;background:transparent;color:var(--sv2-ink);font:10px var(--sv2-sans-family)}
+.sv2-host-primary-actions{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:26px 0 20px}
+.sv2-host-primary-actions button{min-height:48px;padding:12px;border:1px solid var(--sv2-ink);border-radius:14px;background:transparent;color:var(--sv2-ink);font:600 11px var(--sv2-sans-family);cursor:pointer}
+.sv2-host-primary-actions .sv2-host-primary-action{background:var(--sv2-ink);color:var(--sv2-card-bg)}
+.sv2-host-primary-actions button:only-child{grid-column:1/-1}
+.sv2-event-update-notice{display:flex;margin:0 0 20px;padding:16px;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--sv2-line);border-radius:16px;background:color-mix(in srgb,var(--sv2-ink) 7%,var(--sv2-card-bg));color:var(--sv2-ink)}
+.sv2-event-update-notice strong{font:700 9px var(--sv2-sans-family);letter-spacing:1px}.sv2-event-update-notice p{margin:5px 0 0;font:11px/1.4 var(--sv2-sans-family)}.sv2-event-update-notice>div:last-child{display:flex;flex:0 0 auto;gap:7px}.sv2-event-update-notice button{min-height:36px;padding:8px 12px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-card-bg);font:700 8px var(--sv2-sans-family);letter-spacing:.6px}.sv2-event-update-notice button+button{background:transparent;color:var(--sv2-ink)}
+@media(max-width:480px){.sv2-event-update-notice{align-items:flex-start;flex-direction:column}.sv2-event-update-notice>div:last-child{width:100%}.sv2-event-update-notice button{flex:1}}
+.sv2-host-details-disclosure{margin-top:18px;border:1px solid var(--sv2-line);border-radius:15px;overflow:hidden}
+.sv2-host-details-disclosure>button{display:grid;width:100%;min-height:66px;padding:12px 14px;grid-template-columns:34px minmax(0,1fr) 20px;align-items:center;gap:10px;border:0;background:transparent;color:var(--sv2-ink);text-align:left;cursor:pointer}
+.sv2-host-details-icon{display:grid;width:31px;height:31px;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--sv2-ink) 8%,transparent)}
+.sv2-host-details-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sv2-host-details-copy{display:grid;min-width:0;gap:3px}
+.sv2-host-details-copy strong{font:600 11px/1.3 var(--sv2-sans-family);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sv2-host-details-copy>span{color:var(--sv2-muted);font:9px/1.3 var(--sv2-sans-family);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sv2-host-chevron{font-size:19px;line-height:1;transition:transform .18s ease}.sv2-host-chevron.is-open{transform:rotate(180deg)}
+.sv2-host-details-expanded{padding:0 14px 5px;border-top:1px solid var(--sv2-line)}
+.sv2-host-details-expanded .sv2-event-note{margin:14px 0;font-size:12px}
+.sv2-host-details-expanded .sv2-event-facts{margin-bottom:8px}
+.sv2-host-details-expanded .sv2-event-facts div{grid-template-columns:84px 1fr}
+.sv2-host-guests-disclosure{margin-top:20px}
+.sv2-host-guest-heading{margin-bottom:10px;font:600 9px var(--sv2-sans-family);letter-spacing:1.2px}
+.sv2-host-guest-summary{display:grid;width:100%;min-height:58px;padding:10px 13px;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:11px;border:1px solid var(--sv2-line);border-radius:14px;background:transparent;color:var(--sv2-ink);text-align:left;cursor:pointer}
+.sv2-host-guest-summary>strong{font:600 10px var(--sv2-sans-family)}
+.sv2-host-guest-avatars{display:flex;min-width:30px;padding-left:5px}
+.sv2-host-guest-avatars>img,.sv2-host-guest-avatars>span{width:27px;height:27px;margin-left:-6px;border:2px solid var(--sv2-card-bg);border-radius:50%;object-fit:cover;background:var(--sv2-card-bg);display:grid;place-items:center;font:600 8px var(--sv2-sans-family)}
+.sv2-host-guest-view{color:var(--sv2-muted);font:9px var(--sv2-sans-family);white-space:nowrap}.sv2-host-guest-view span{font-size:16px;vertical-align:-1px}
+.sv2-host-guest-expanded{margin-top:10px;padding:0 14px;border:1px solid var(--sv2-line);border-radius:14px}
+.sv2-host-guest-expanded .sv2-guest-overview{border-top:0}
+.sv2-host-event-paper>.sv2-event-community{margin:24px 0 0;padding-top:0;border-top:0}
+.sv2-host-event-paper .sv2-community-tabs{margin-bottom:16px}
+.sv2-host-event-paper .sv2-shared-album,.sv2-host-event-paper .sv2-chat-preview{padding:20px;border:1px solid var(--sv2-line);border-radius:15px}
+.sv2-host-event-paper .sv2-shared-album .sv2-section-heading h2,.sv2-host-event-paper .sv2-chat-preview .sv2-section-heading h2{font-size:23px}
+
+@media(max-width:420px){
+  .sv2-host-event-title-row{align-items:center}
+  .sv2-host-event-title-row h1{font-size:36px}
+  .sv2-host-primary-actions{margin-top:22px}
+}
+
 .sv2-access-request-page{min-height:100vh}.sv2-access-request-card{max-width:620px;margin:0 auto;padding:clamp(24px,6vw,44px);border:1px solid var(--sv2-line);border-radius:30px;background:var(--sv2-card-bg);text-align:center}.sv2-access-request-card>img{display:block;width:100%;height:clamp(180px,42vw,300px);margin-bottom:28px;border-radius:20px;object-fit:cover}.sv2-access-request-card>p:first-of-type{margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:.18em}.sv2-access-request-card h1{margin:0;font:italic clamp(44px,10vw,72px)/1 var(--sv2-display-family)}.sv2-access-request-tagline{margin:16px auto!important;max-width:430px;font:italic 17px/1.5 var(--sv2-display-family)}.sv2-access-request-explainer{max-width:430px;margin:26px auto;font-size:13px;line-height:1.65}.sv2-access-request-card>button,.sv2-access-request-state button{min-height:52px;padding:14px 28px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-card-bg);font:700 11px var(--sv2-sans-family);letter-spacing:.1em}.sv2-access-request-state{display:grid;gap:8px;margin:28px 0;padding:20px;border:1px solid var(--sv2-line);border-radius:18px}.sv2-access-request-state strong{font-size:12px;letter-spacing:.12em}.sv2-access-request-state span{font-size:12px;line-height:1.5;opacity:.78}.sv2-access-request-error{margin:14px 0 0;font-size:11px}.sv2-access-notifications{display:grid;gap:10px;margin:18px 0;padding:18px;border:1px solid var(--sv2-line);border-radius:22px;background:rgba(255,255,255,.12)}.sv2-access-notifications .sv2-section-heading{margin:0}.sv2-access-notifications article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--sv2-line)}.sv2-access-notifications article>div{display:flex;gap:7px}.sv2-access-notifications article button{min-height:36px;padding:8px 12px;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-card-bg);font:700 9px var(--sv2-sans-family);letter-spacing:.08em}.sv2-access-notifications article button+button{background:transparent;color:var(--sv2-ink)}.sv2-board-notifications{display:grid;gap:8px;margin:0 0 22px;padding:16px;border:1px solid var(--sv2-line);border-radius:20px;background:var(--sv2-card-bg)}.sv2-board-notifications>strong{font-size:10px;letter-spacing:.14em}.sv2-board-notifications a{display:flex;justify-content:space-between;gap:16px;color:inherit;font-size:12px;text-decoration:none}.sv2-board-notifications b{font-size:10px;text-transform:uppercase}.sv2-access-badge{display:inline-flex;margin-left:8px;padding:3px 8px;border-radius:999px;background:var(--sv2-ink);color:var(--sv2-card-bg);font-size:8px;letter-spacing:.04em;text-transform:uppercase}
 
 @media(max-width:560px){.sv2-access-notifications article{align-items:flex-start;flex-direction:column}.sv2-access-notifications article>div{width:100%}.sv2-access-notifications article button{flex:1}.sv2-board-notifications a{align-items:flex-start;flex-direction:column;gap:3px}}
 .sv2-date-undecided-option{display:flex!important;align-items:center;gap:8px;margin-top:9px;font-size:12px!important;letter-spacing:.03em}.sv2-date-undecided-option input{width:16px!important;height:16px!important;margin:0;accent-color:#68171a}
 .sv2-tbd-suggestion{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:9px;font-size:12px!important;letter-spacing:.02em;color:var(--sv2-ink);opacity:.85}.sv2-tbd-suggestion button{font-size:11px!important;padding:4px 10px!important;border-radius:999px;border:1px solid #68171a;background:transparent;color:#68171a;cursor:pointer}.sv2-tbd-suggestion button:hover,.sv2-tbd-suggestion button:focus-visible{background:#68171a;color:var(--sv2-off-white)}
 .sv2-pantry-preset-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.sv2-pantry-preset-heading button{padding:3px 0;border:0;border-bottom:1px solid currentColor;background:transparent;color:#c9a96e;font:600 9px/1.2 var(--sv2-sans-family);letter-spacing:.1em;cursor:pointer}
+.sv2-preset-categories{display:flex;gap:7px;padding:2px 0 14px;overflow-x:auto;overscroll-behavior-x:contain;border-bottom:1px solid var(--sv2-line);scrollbar-width:thin;scrollbar-color:var(--sv2-line) transparent}.sv2-preset-categories>button{flex:0 0 auto}.sv2-preset-subjects{display:flex;max-height:116px;padding:4px 8px 10px 0;flex-wrap:wrap;align-content:flex-start;gap:7px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:var(--sv2-line) transparent}.sv2-preset-subjects:focus-visible{outline:1px solid var(--sv2-line);outline-offset:5px;border-radius:8px}
+@media(max-width:560px){.sv2-preset-subjects{max-height:108px}.sv2-preset-categories{padding-bottom:12px}}
 .sv2-image-crop-dialog{position:fixed;inset:0;z-index:1800;display:grid;padding:18px;place-items:center;background:rgba(20,8,8,.72)}
 .sv2-image-crop-panel{width:min(100%,520px);max-height:calc(100svh - 36px);overflow-y:auto;padding:22px;border:1px solid var(--sv2-line);border-radius:22px;background:var(--sv2-card-bg);color:var(--sv2-ink);box-shadow:0 24px 70px rgba(0,0,0,.34)}
 .sv2-image-crop-panel h2{margin:0;font:italic 30px/1.05 var(--sv2-display-family)}.sv2-image-crop-panel>p{margin:7px 0 16px;font-size:11px}.sv2-image-crop-viewport{width:100%;overflow:hidden;border:1px solid var(--sv2-line);border-radius:16px;background:#1d1111}.sv2-image-crop-viewport img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .08s linear;transform-origin:center}.sv2-image-crop-panel>label{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:12px;margin-top:14px;font-size:10px;letter-spacing:.5px;text-transform:uppercase}.sv2-image-crop-panel input[type="range"]{width:100%;accent-color:var(--sv2-ink)}.sv2-image-crop-reset{margin-top:14px;border:0;border-bottom:1px solid currentColor;background:transparent;color:inherit;font:600 9px var(--sv2-sans-family);letter-spacing:.7px}.sv2-image-crop-error{color:#C0524A!important}.sv2-image-crop-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px}.sv2-image-crop-actions button{min-height:44px;border:1px solid var(--sv2-ink);border-radius:999px;background:transparent;color:inherit;font:600 9px var(--sv2-sans-family);letter-spacing:.7px}.sv2-image-crop-actions button:last-child{background:var(--sv2-ink);color:var(--sv2-off-white)}.sv2-image-crop-actions button:disabled{opacity:.45}

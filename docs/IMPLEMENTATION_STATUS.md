@@ -13,6 +13,30 @@
 
 ## Completed
 
+- Co-host invitation URLs now always open their dedicated “You are invited to co-host” artwork before asking a logged-out recipient for identity; phone login begins only after the recipient chooses to view the invitation.
+- Kitchen delegation and composed event updates now expose Copy and WhatsApp choices through compact, collapsed share popovers instead of permanently occupying the page with multiple share buttons.
+- Event Details now proactively alerts hosts and co-hosts after the date, time, location, or Shared Album photos change. Each reminder names only the fields that actually changed and shows their current value (for example, `Time changed to 7:30 PM`), rather than using a generic date/time/location message. The reminder can open the matching prefilled update composer or be dismissed, and its shared database state survives navigation and devices.
+- Canonical event links once again remain invitations for authenticated new
+  guests: they show the locked event preview and continue into the existing
+  RSVP flow without an access request. The Request Access path is reserved for
+  direct shared-album visits by logged-in accounts that are not event members;
+  non-member chat visits return to the invitation instead.
+- The event community switch renders unread Chat counts in a compact circular
+  badge, with inverse colors when the Chat tab is active.
+- Kitchen delegation actions now use the same themed burgundy/cream palette,
+  uppercase sans-serif typography, pill shape, and inverse interaction state
+  as the rest of the production Kitchen interface.
+- Kitchen Quick Add controls now separate category filters from their dish or
+  pantry-item subjects. Categories occupy a compact horizontal strip, while
+  subject chips initially show only a few rows in a keyboard-accessible
+  vertical scroller instead of expanding both inventory cards indefinitely.
+- Invite-survey range controls now emit live input updates during a drag and
+  reserve only horizontal touch gestures for the slider, restoring reliable
+  mobile interaction while preserving vertical page scrolling.
+- Canonical guest invitation links once again begin with the randomized
+  envelope/place-setting artwork and a YALLA action. YALLA continues to login
+  when identity is missing and then opens RSVP; returning guests, hosts,
+  co-hosts, and delegated chefs still bypass guest onboarding as appropriate.
 - Shared-link invitation landing titles now use a narrower, balanced text box
   with length-aware type scaling so long event names remain inside the artwork
   label instead of leaking across its edges.
@@ -429,7 +453,7 @@
 - The separate “current menu has not changed” response alert and its duplicate Regenerate action were removed; regeneration is available only through the draft's primary Set the Table/Regenerate control.
 - The empty Recipes state no longer exposes a redundant “Could not load recipes” message. The empty Drafted Menu table illustration now has a genuine transparent background, retaining its full-color appearance over both light and dark themes without a white box or blend-mode blackout.
 - Secondary recipe actions such as `GENERATE RECIPE` and `PASTE A RECIPE` now permanently use their high-contrast filled treatment instead of revealing readable contrast only on hover.
-- On mobile Shared Album pages, `SELECT` and `ADD PHOTOS` align along the same top edge; the 20-photo upload note remains beneath Add Photos without shifting either action.
+- On Shared Album pages at every screen size, `SELECT` and `ADD PHOTOS` stay side by side and align along the same top edge; the 20-photo upload note remains beneath Add Photos without shifting either action.
 
 # Event album sharing previews (2026-08-21)
 
@@ -455,3 +479,11 @@
 # Hard-limit presentation cleanup (2026-08-24)
 
 - The Table view now presents allergy and dietary hard-limit labels as plain text without the red no-entry emoji. The existing `MUST NOT VIOLATE` heading continues to communicate their severity without decorative symbols.
+
+# Host event-page hierarchy redesign (2026-08-26)
+
+- Host Event Details now follows the compact production Figma hierarchy while retaining Sofra's existing typography, palette, uploaded/default cover artwork, and role-aware behavior.
+- Invite sharing is consolidated behind one `Invite` popover containing Copy Link, WhatsApp, and Send Update actions. Co-host sharing remains collapsed behind its own top-level control.
+- Event facts and the full guest-management roster are collapsed into accessible disclosure summaries, reducing initial page density without removing maps, custom details, host/co-host badges, or guest-removal controls.
+- Set the Sofra and Edit Event are now paired primary actions near the event title. Past events continue to suppress editing.
+- Shared Album and Chat retain their existing segmented control and data behavior; populated albums continue to render their current photo-tile preview and overflow count inside the redesigned album card.

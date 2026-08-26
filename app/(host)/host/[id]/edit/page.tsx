@@ -11,6 +11,7 @@ import { eventDateForInput, eventDateForStorage, isEventDateUndecided } from '@/
 import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection } from '@/lib/event-custom-details'
 import { customQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { computeTbdSuggestions, type TbdSuggestion } from '@/lib/event-tbd-suggestions'
+import { recordEventUpdateNotice } from '@/lib/event-update-notices'
 
 export default function HostEditPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const coverFileRef = useRef<File | null>(null)
   const originalVenueRef = useRef('')
   const originalAddressRef = useRef<string | null>(null)
+  const originalEventDateRef = useRef('')
 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -72,6 +74,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       setImageDataUrl(ev.cover_url ?? undefined)
       originalVenueRef.current = ev.venue ?? ''
       originalAddressRef.current = ev.address ?? null
+      originalEventDateRef.current = ev.event_date
 
       // Suggestions are optional and additive: only fetch questionnaire data
       // at all when a field is actually still TBD, and never block the form
@@ -183,14 +186,19 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       : location.trim() === originalVenueRef.current
       ? originalAddressRef.current
       : null
+    const nextEventDate = eventDateForStorage(dateTime)
+    const nextVenue = place?.venueName || location.trim()
+    const dateChanged = nextEventDate.slice(0, 10) !== originalEventDateRef.current.slice(0, 10)
+    const timeChanged = nextEventDate.slice(11, 16) !== originalEventDateRef.current.slice(11, 16)
+    const locationChanged = nextVenue !== originalVenueRef.current || address !== originalAddressRef.current
 
     const { error: updateError } = await supabase
       .from('events')
       .update({
         title: title.trim(),
         tagline: tagline.trim() || null,
-        event_date: eventDateForStorage(dateTime),
-        venue: place?.venueName || location.trim(),
+        event_date: nextEventDate,
+        venue: nextVenue,
         address,
         dress_code: dressCode.trim() || null,
         custom_details: sanitizeCustomDetails(customDetails),
@@ -204,6 +212,14 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       setSubmitting(false)
       return
     }
+
+    const changedKinds = [
+      dateChanged ? 'date' : null,
+      timeChanged ? 'time' : null,
+      locationChanged ? 'location' : null,
+    ] as const
+    await Promise.all(changedKinds.filter((kind): kind is 'date' | 'time' | 'location' => kind !== null)
+      .map((kind) => recordEventUpdateNotice(supabase, params.id, uidRef.current!, kind)))
 
     router.push('/events/' + params.id)
   }

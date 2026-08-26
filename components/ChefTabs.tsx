@@ -117,32 +117,29 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
         {canDelegateKitchen && <div className="sv2-chef-kitchen-actions">
           <button
             onClick={() => void fillKitchenMyself()}
-            className="regen"
+            className="sv2-chef-kitchen-action"
             aria-label="Fill kitchen myself"
-            style={{ background: 'transparent', border: '1px solid rgba(217,161,91,0.35)' }}
           >
             Fill Kitchen Myself
           </button>
-          <button
-            onClick={() => setKitchenSharing((open) => !open)}
-            className="regen"
-            aria-expanded={kitchenSharing}
-            style={{ background: 'transparent', border: '1px solid rgba(217,161,91,0.35)' }}
-          >
-            Send To A Chef
-          </button>
+          <div className="sv2-chef-share-wrap">
+            <button
+              onClick={() => setKitchenSharing((open) => !open)}
+              className="sv2-chef-kitchen-action"
+              aria-expanded={kitchenSharing}
+            >
+              Send To A Chef
+            </button>
+            {kitchenSharing && (
+              <div className="sv2-host-invite-popover sv2-chef-share-popover" aria-label="Chef sharing options">
+                <p>This link gives one person access to this event&rsquo;s Kitchen, Drafted Menu, and Recipes.</p>
+                <button type="button" onClick={() => void copyKitchenLink()}>{kitchenCopied ? 'COPIED!' : 'COPY CHEF LINK'}</button>
+                <button type="button" onClick={() => void shareKitchenWhatsApp()}>SEND VIA WHATSAPP</button>
+              </div>
+            )}
+          </div>
         </div>}
       </div>
-
-      {canDelegateKitchen && kitchenSharing && (
-        <div className="sv2-kitchen-share-panel">
-          <p>This link gives one person access to this event&rsquo;s Kitchen, Drafted Menu, and Recipes.</p>
-          <div className="sv2-host-share-actions">
-            <button type="button" onClick={() => void copyKitchenLink()}>{kitchenCopied ? 'COPIED!' : 'COPY CHEF LINK'}</button>
-            <button type="button" onClick={() => void shareKitchenWhatsApp()}>SEND VIA WHATSAPP</button>
-          </div>
-        </div>
-      )}
       {kitchenShareError && <p role="alert" className="sv2-kitchen-action-error">{kitchenShareError}</p>}
 
       <div className="sv2-chef-tabs-nav"

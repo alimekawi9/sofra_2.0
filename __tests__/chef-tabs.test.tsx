@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import ChefTabs from '@/components/ChefTabs'
 import { createClient } from '@/lib/supabase/client'
 
@@ -60,6 +61,10 @@ it('shows kitchen-delegation actions to the original host', async () => {
   render(<ChefTabs eventId="event-1" active="table" title="Dinner" />)
   expect(await screen.findByRole('button', { name: 'Fill kitchen myself' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Send To A Chef' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'COPY CHEF LINK' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Send To A Chef' }))
+  expect(screen.getByRole('button', { name: 'COPY CHEF LINK' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'SEND VIA WHATSAPP' })).toBeInTheDocument()
 })
 
 it('also shows kitchen-delegation actions to an accepted co-host, not just the original host', async () => {

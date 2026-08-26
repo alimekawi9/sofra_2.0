@@ -34,25 +34,29 @@ export default function CohostInvitePage({ params }: { params: { id: string } })
 
   useEffect(() => {
     async function load() {
-      const userId = localStorage.getItem('sofra_user_id')
       const currentPath = `/events/${params.id}/cohost?token=${encodeURIComponent(token)}${claimed ? '&claim=1' : ''}`
+      const [{ data: ev }, { data: invite }] = await Promise.all([
+        supabase.from('events').select('id,title,tagline,event_date,venue,dress_code,host_id,chef_id,host:users!events_host_id_fkey(id,name,photo_url)').eq('id', params.id).single(),
+        supabase.from('event_cohost_invites').select('event_id,status').eq('token', token).eq('event_id', params.id).maybeSingle(),
+      ])
+      if (!ev) { setError("Couldn't load this invitation."); setLoading(false); return }
+      if (!invite || invite.status !== 'pending') { setError('This co-host invitation is no longer available.'); setLoading(false); return }
+      setEvent(ev as unknown as EventRow)
+
+      // The co-host artwork is the public first step. Identity is requested
+      // only after the recipient chooses to open the actual invitation.
+      if (!claimed) { setLoading(false); return }
+
+      const userId = localStorage.getItem('sofra_user_id')
       if (!userId) {
         router.replace(loginDestination(currentPath))
         return
       }
-      const [{ data: ev }, { data: membership }] = await Promise.all([
-        supabase.from('events').select('id,title,tagline,event_date,venue,dress_code,host_id,chef_id,host:users!events_host_id_fkey(id,name,photo_url)').eq('id', params.id).single(),
-        supabase.from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', userId).maybeSingle(),
-      ])
-      if (!ev) { setError("Couldn't load this invitation."); setLoading(false); return }
+      const { data: membership } = await supabase
+        .from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', userId).maybeSingle()
       const role = eventEntryRole({ eventId: params.id, userId, hostId: ev.host_id, chefId: ev.chef_id, isCohost: Boolean(membership), hasRsvp: false })
       if (role === 'host' || role === 'cohost') { router.replace(`/events/${params.id}`); return }
       if (role === 'chef') { router.replace(`/kitchen?from=${params.id}&delegate=1`); return }
-
-      const { data: invite } = await supabase.from('event_cohost_invites')
-        .select('event_id,status').eq('token', token).eq('event_id', params.id).maybeSingle()
-      if (!invite || invite.status !== 'pending') { setError('This co-host invitation is no longer available.'); setLoading(false); return }
-      setEvent(ev as unknown as EventRow)
       setLoading(false)
     }
     load()

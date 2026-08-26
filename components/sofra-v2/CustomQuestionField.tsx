@@ -54,6 +54,7 @@ export function CustomQuestionField({ question, value, onChange }: CustomQuestio
           max={steps}
           step={1}
           value={position}
+          onInput={(e) => onChange(Number(e.currentTarget.value))}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={question.title}
           className="sv2-slider"

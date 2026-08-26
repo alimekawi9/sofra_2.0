@@ -23,8 +23,11 @@ export function eventEntryRole(context: EventEntryContext): EventEntryRole {
 export function eventEntryDestination(context: EventEntryContext): string | null {
   const role = eventEntryRole(context)
   if (role === 'chef') return `/kitchen?from=${context.eventId}&delegate=1`
-  if (role === 'host' || role === 'cohost' || context.hasRsvp) return null
-  return `/events/${context.eventId}/request-access`
+  // A canonical event URL is an invitation. New guests must be allowed to
+  // remain on its private preview and continue into the normal RSVP flow.
+  // Membership-gated resources (currently the shared album) enforce access
+  // independently and are the only place that offers "request access".
+  return null
 }
 
 export function canAccessEventUpdate(context: EventEntryContext): boolean {

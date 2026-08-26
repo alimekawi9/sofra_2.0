@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CustomQuestionField } from '@/components/sofra-v2/CustomQuestionField'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
@@ -23,4 +23,20 @@ it('lets a long choice use the full question width', () => {
   const longLabel = "No, I don't want this once in a lifetime moment to be enhanced or drunk."
   render(<CustomQuestionField question={{ id: 'choice', kind: 'custom', type: 'single', title: 'Choose', order: 0, options: [{ value: 'long', label: longLabel }] }} onChange={() => {}} value={undefined} />)
   expect(screen.getByText(longLabel).closest('label')).toHaveClass('sv2-checkbox-row-wide')
+})
+
+it('updates a custom survey slider continuously while it is dragged', () => {
+  const onChange = jest.fn()
+  render(<CustomQuestionField question={{ id: 'slider', kind: 'custom', type: 'slider', title: 'How much?', order: 0, sliderMinLabel: 'A little', sliderMaxLabel: 'A lot', sliderSteps: 5 }} onChange={onChange} value={3} />)
+
+  fireEvent.input(screen.getByRole('slider', { name: 'How much?' }), { target: { value: '5' } })
+  expect(onChange).toHaveBeenCalledWith(5)
+})
+
+it('updates the canonical adventurousness slider continuously while it is dragged', () => {
+  const onAdventurousnessChange = jest.fn()
+  render(<PreferencesReceipt dietary={[]} onToggleDietary={() => {}} avoid={[]} onToggleAvoid={() => {}} proteinPreferences={[]} onToggleProtein={() => {}} proteinHintVisible={false} flavors={[]} onToggleFlavor={() => {}} flavorHintVisible={false} adventurousness={50} onAdventurousnessChange={onAdventurousnessChange} onSave={() => {}} visibleCanonicalQuestions={['adventurousness']} />)
+
+  fireEvent.input(screen.getByRole('slider', { name: 'Adventurousness' }), { target: { value: '82' } })
+  expect(onAdventurousnessChange).toHaveBeenCalledWith(82)
 })

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EventPaper, type EventPaperGuest } from '@/components/sofra-v2/EventPaper'
+import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
 import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/shared-album'
 import { forgetPendingInvite, rememberPendingInvite } from '@/lib/pending-invites'
@@ -12,8 +13,9 @@ import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/ev
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
-import { canAccessEventUpdate, eventEntryDestination, loginDestination } from '@/lib/event-entry'
+import { eventEntryDestination, loginDestination } from '@/lib/event-entry'
 import { listPendingEventAccessRequests, respondToEventAccessRequest, type PendingEventAccessRequest } from '@/lib/event-access-requests'
+import { dismissEventUpdateNotice, getPendingEventUpdateNotice, type PendingEventUpdateNotice } from '@/lib/event-update-notices'
 
 type EventRow = {
   id: string
@@ -75,6 +77,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [guests, setGuests] = useState<EventPaperGuest[]>([])
   const [unlocked, setUnlocked] = useState(false)
   const [isHost, setIsHost] = useState(false)
+  const [showInviteLanding, setShowInviteLanding] = useState(false)
   const [hostNeedsPreferences, setHostNeedsPreferences] = useState(false)
   const [hostNeedsKitchen, setHostNeedsKitchen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -97,6 +100,8 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [accessRequests, setAccessRequests] = useState<PendingEventAccessRequest[]>([])
   const [respondingToAccessRequest, setRespondingToAccessRequest] = useState<string | null>(null)
   const [accessRequestError, setAccessRequestError] = useState('')
+  const [pendingUpdateNotice, setPendingUpdateNotice] = useState<PendingEventUpdateNotice | null>(null)
+  const [updateNoticeError, setUpdateNoticeError] = useState('')
 
   async function loadPhotos() {
     const { photos: loaded, error: photosError } = await fetchAlbumPhotos(supabase, params.id)
@@ -130,10 +135,22 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     setError('')
     try {
       const stored = localStorage.getItem('sofra_user_id')
-      const updateEntry = new URLSearchParams(window.location.search).get('entry') === 'update'
       if (!stored) {
-        redirectingRef.current = true
-        router.replace(loginDestination(`/events/${params.id}${updateEntry ? '?entry=update' : ''}`))
+        const { data: publicEvent, error: publicEventError } = await supabase
+          .from('events')
+          .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan')
+          .eq('id', params.id)
+          .maybeSingle()
+        if (publicEventError) throw new Error(publicEventError.message)
+        if (!publicEvent) {
+          forgetPendingInvite(params.id)
+          redirectingRef.current = true
+          router.replace('/events')
+          return
+        }
+        setEvent(publicEvent as EventRow)
+        rememberPendingInvite(publicEvent as EventRow)
+        setShowInviteLanding(true)
         return
       }
       uidRef.current = stored
@@ -184,11 +201,6 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         hasRsvp,
       }
       setEvent(ev as EventRow)
-      if (updateEntry && !canAccessEventUpdate(entryContext)) {
-        redirectingRef.current = true
-        router.replace(`/events/${params.id}/request-access`)
-        return
-      }
       const destination = eventEntryDestination(entryContext)
       if (destination) {
         if (!hostViewing && !hasRsvp && ev.chef_id !== stored) rememberPendingInvite(ev as EventRow)
@@ -196,6 +208,14 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         router.replace(destination)
         return
       }
+
+      if (!hostViewing && !hasRsvp && ev.chef_id !== stored) {
+        rememberPendingInvite(ev as EventRow)
+        setShowInviteLanding(true)
+        return
+      }
+
+      setShowInviteLanding(false)
 
       const isUnlocked = hostViewing || hasRsvp
 
@@ -229,13 +249,18 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       setHostNeedsKitchen(hostViewing && ev.kitchen_status === 'pending' && ev.kitchen_plan === 'later')
 
       if (hostViewing) {
-        const { requests, error: pendingError } = await listPendingEventAccessRequests(supabase, params.id, stored)
+        const [{ requests, error: pendingError }, updateReminder] = await Promise.all([
+          listPendingEventAccessRequests(supabase, params.id, stored),
+          getPendingEventUpdateNotice(supabase, params.id, stored),
+        ])
         if (pendingError) {
           setAccessRequestError('Could not load access requests. Try again.')
         } else {
           setAccessRequests(requests)
           setAccessRequestError('')
         }
+        setPendingUpdateNotice(updateReminder.notice)
+        setUpdateNoticeError(updateReminder.error ? 'Could not load the update reminder.' : '')
       }
 
       if (isUnlocked) {
@@ -381,6 +406,24 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     setAccessRequests((current) => current.filter((request) => request.id !== requestId))
   }
 
+  async function clearUpdateNotice() {
+    if (!uidRef.current) return false
+    const result = await dismissEventUpdateNotice(supabase, params.id, uidRef.current)
+    if (!result.ok) {
+      setUpdateNoticeError('Could not remove the update reminder. Try again.')
+      return false
+    }
+    setPendingUpdateNotice(null)
+    setUpdateNoticeError('')
+    return true
+  }
+
+  async function sendPendingUpdate() {
+    if (!pendingUpdateNotice) return
+    const template = pendingUpdateNotice.kinds.every((kind) => kind === 'photos') ? 'photos' : 'details'
+    if (await clearUpdateNotice()) router.push(`/events/${params.id}/update?template=${template}`)
+  }
+
   function shareViaWhatsApp() {
     if (!event) return
     const url = canonicalEventUrl(params.id)
@@ -426,6 +469,21 @@ export default function EventDetailClient({ params }: { params: { id: string } }
 
   if (redirectingRef.current) return null
 
+  if (!loading && event && showInviteLanding) {
+    return (
+      <InviteLanding
+        eventId={params.id}
+        title={event.title}
+        kicker="You are invited!"
+        buttonLabel="YALLA"
+        onClaimSeat={() => {
+          const rsvpDestination = `/events/${params.id}/rsvp`
+          router.push(localStorage.getItem('sofra_user_id') ? rsvpDestination : loginDestination(rsvpDestination))
+        }}
+      />
+    )
+  }
+
   return (
     <EventPaper
       loading={loading}
@@ -451,6 +509,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       onCopyInviteLink={copyInviteLink}
       onShareWhatsApp={shareViaWhatsApp}
       onSendUpdate={() => router.push('/events/' + params.id + '/update')}
+      pendingUpdateNotice={pendingUpdateNotice}
+      updateNoticeError={updateNoticeError}
+      onSendPendingUpdate={() => void sendPendingUpdate()}
+      onDismissUpdateNotice={() => void clearUpdateNotice()}
       canInviteCohost={canInviteCohost}
       cohostSharing={cohostSharing}
       cohostCopied={cohostCopied}

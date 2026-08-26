@@ -56,7 +56,7 @@ export default function EventChatPage({ params }: { params: { id: string } }) {
       const allowed = ev.host_id === stored || Boolean(rsvp) || Boolean(cohost)
       setCanChat(allowed)
       if (!allowed) {
-        router.replace(`/events/${params.id}/request-access`)
+        router.replace(`/events/${params.id}`)
         return
       }
       await loadMessages()

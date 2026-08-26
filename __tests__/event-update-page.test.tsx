@@ -2,10 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import EventUpdatePage from '@/app/(guest)/events/[id]/update/page'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 jest.mock('@/lib/supabase/client')
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
+jest.mock('next/navigation', () => ({ useRouter: jest.fn(), useSearchParams: jest.fn() }))
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -58,6 +58,7 @@ function makeSupabase({
 beforeEach(() => {
   jest.clearAllMocks()
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
+  ;(useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams())
   mockPush.mockReset()
   mockReplace.mockReset()
   localStorage.clear()
@@ -78,7 +79,7 @@ describe('EventUpdatePage', () => {
     render(<EventUpdatePage params={PARAMS} />)
 
     const textarea = await screen.findByRole('textbox')
-    expect((textarea as HTMLTextAreaElement).value).toBe('http://localhost/events/ev-1')
+    expect((textarea as HTMLTextAreaElement).value).toContain('http://localhost/events/ev-1?entry=update&preview=')
   })
 
   it('lets an accepted co-host see the compose screen', async () => {
@@ -114,6 +115,17 @@ describe('EventUpdatePage', () => {
     expect(textarea.value).toContain('http://localhost/events/ev-1')
   })
 
+  it('preselects the update type chosen from the event-page popup', async () => {
+    ;(useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('template=photos'))
+    makeSupabase()
+    localStorage.setItem('sofra_user_id', HOST_UID)
+    render(<EventUpdatePage params={PARAMS} />)
+
+    const textarea = await screen.findByRole('textbox') as HTMLTextAreaElement
+    expect(textarea.value).toContain('Photos from')
+    expect(textarea.value).toContain('/album?entry=update')
+  })
+
   it('fills the textarea with the details template reflecting the real event date and venue', async () => {
     makeSupabase()
     localStorage.setItem('sofra_user_id', HOST_UID)
@@ -135,6 +147,8 @@ describe('EventUpdatePage', () => {
     const textarea = await screen.findByRole('textbox')
     await userEvent.clear(textarea)
     await userEvent.type(textarea, 'Hand-typed message')
+    expect(screen.queryByRole('button', { name: 'COPY MESSAGE' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'SEND UPDATE' }))
     await userEvent.click(screen.getByRole('button', { name: 'COPY MESSAGE' }))
 
     await waitFor(() => {
@@ -151,6 +165,7 @@ describe('EventUpdatePage', () => {
     const textarea = await screen.findByRole('textbox')
     await userEvent.clear(textarea)
     await userEvent.type(textarea, 'Hand-typed message')
+    await userEvent.click(screen.getByRole('button', { name: 'SEND UPDATE' }))
     await userEvent.click(screen.getByRole('button', { name: 'SHARE VIA WHATSAPP' }))
 
     expect(openSpy).toHaveBeenCalledWith(

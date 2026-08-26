@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { recordEventUpdateNotice } from './event-update-notices'
 
 export const MAX_PREVIEW_TILES = 6
 // Per-upload-action limit -- how many files one person can select and
@@ -172,6 +173,12 @@ export async function uploadPhotoBatch(
     },
     params.onProgress
   )
+
+  if (succeeded.length > 0) {
+    // Upload success must not be rolled back if the optional host-notice call
+    // fails, but await it so Event Details can see the alert immediately.
+    await recordEventUpdateNotice(supabase, params.eventId, params.userId, 'photos')
+  }
 
   return { succeeded, failed }
 }

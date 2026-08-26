@@ -229,6 +229,7 @@ export function PreferencesReceipt({
           max={100}
           step={1}
           value={adventurousness}
+          onInput={(e) => onAdventurousnessChange(Number(e.currentTarget.value))}
           onChange={(e) => onAdventurousnessChange(Number(e.target.value))}
           aria-label="Adventurousness"
           className="sv2-slider"

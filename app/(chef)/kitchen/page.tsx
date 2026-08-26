@@ -771,7 +771,7 @@ function KitchenPageInner() {
                     <button type="button" onClick={clearAllSignatures}>CLEAR ALL</button>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="sv2-preset-categories" aria-label="Signature categories">
                   {CUISINE_FILTERS.map((c) => {
                     const on = presetCuisine === c
                     return (
@@ -795,15 +795,9 @@ function KitchenPageInner() {
                   })}
                 </div>
                 <div
-                  className="sv2-production-inventory-chips"
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 6,
-                    maxHeight: 168,
-                    overflowY: 'auto',
-                    paddingRight: 2,
-                  }}
+                  className="sv2-production-inventory-chips sv2-preset-subjects"
+                  aria-label="Signature dishes"
+                  tabIndex={0}
                 >
                   {customSignatures.map((signature) => (
                     <button key={signature.id} type="button" aria-pressed={!pendingRemovedSignatureIds.includes(signature.id)} onClick={() => toggleSignatureRemoval(signature)} style={presetChip(!pendingRemovedSignatureIds.includes(signature.id))}>
@@ -964,7 +958,7 @@ function KitchenPageInner() {
                     <button type="button" onClick={selectEmptyPantry}>CLEAR ALL</button>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="sv2-preset-categories" aria-label="Pantry categories">
                   {INGREDIENT_CATEGORY_FILTERS.map((c) => {
                     const on = ingredientCategory === c
                     return (
@@ -988,13 +982,9 @@ function KitchenPageInner() {
                   })}
                 </div>
                 <div
-                  className="sv2-production-pantry-chips"
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 6,
-                    paddingRight: 2,
-                  }}
+                  className="sv2-production-pantry-chips sv2-preset-subjects"
+                  aria-label="Pantry items"
+                  tabIndex={0}
                 >
                   {customPantry.map((item) => nothingInPantry ? (
                     <button key={item.id} type="button" aria-pressed="false" style={presetChip(false)} onClick={() => setNothingInPantry(false)}>{item.name}</button>

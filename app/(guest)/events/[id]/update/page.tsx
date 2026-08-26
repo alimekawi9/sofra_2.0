@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { sv2Display, sv2Sans } from '@/components/sofra-v2/fonts'
 import { createClient } from '@/lib/supabase/client'
 import { isEventManager } from '@/lib/event-access'
@@ -23,6 +23,7 @@ function canonicalUrl(path: string): string {
 
 export default function EventUpdatePage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const search = useSearchParams()
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
   // WhatsApp and other messaging apps cache link previews aggressively. Keep
@@ -37,6 +38,7 @@ export default function EventUpdatePage({ params }: { params: { id: string } }) 
   const [message, setMessage] = useState('')
   const [copied, setCopied] = useState(false)
   const [copyFallback, setCopyFallback] = useState('')
+  const [shareMenuOpen, setShareMenuOpen] = useState(false)
 
   function messageUrls() {
     const updateQuery = `?entry=update&preview=${previewVersionRef.current}`
@@ -74,7 +76,11 @@ export default function EventUpdatePage({ params }: { params: { id: string } }) 
       }
 
       const { inviteUrl, albumUrl } = messageUrls()
-      setMessage(buildUpdateMessage('custom', loadedEvent, inviteUrl, albumUrl))
+      const requestedTemplate = search.get('template')
+      const initialTemplate: UpdateTemplateId = requestedTemplate === 'photos' || requestedTemplate === 'details'
+        ? requestedTemplate
+        : 'custom'
+      setMessage(buildUpdateMessage(initialTemplate, loadedEvent, inviteUrl, albumUrl))
     } catch {
       setError("Couldn't load this event. Try again.")
     } finally {
@@ -145,9 +151,16 @@ export default function EventUpdatePage({ params }: { params: { id: string } }) 
               />
             )}
 
-            <div className="sv2-update-actions">
-              <button type="button" onClick={copyMessage}>{copied ? 'COPIED!' : 'COPY MESSAGE'}</button>
-              <button type="button" onClick={shareWhatsApp}>SHARE VIA WHATSAPP</button>
+            <div className="sv2-update-share-wrap">
+              <button className="sv2-host-invite-trigger sv2-update-share-trigger" type="button" aria-expanded={shareMenuOpen} onClick={() => setShareMenuOpen((open) => !open)}>
+                SEND UPDATE
+              </button>
+              {shareMenuOpen && (
+                <div className="sv2-host-invite-popover sv2-update-share-popover" aria-label="Update sharing options">
+                  <button type="button" onClick={copyMessage}>{copied ? 'COPIED!' : 'COPY MESSAGE'}</button>
+                  <button type="button" onClick={shareWhatsApp}>SHARE VIA WHATSAPP</button>
+                </div>
+              )}
             </div>
           </>
         )}

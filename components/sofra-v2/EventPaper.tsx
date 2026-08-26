@@ -13,6 +13,7 @@ import type { EventChatMessage } from '@/lib/event-chat'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import SofraTransition from '../SofraTransition'
 import type { PendingEventAccessRequest } from '@/lib/event-access-requests'
+import type { PendingEventUpdateNotice } from '@/lib/event-update-notices'
 
 export interface EventPaperGuest {
   id: string
@@ -45,6 +46,10 @@ export interface EventPaperProps {
   onCopyInviteLink: () => void
   onShareWhatsApp: () => void
   onSendUpdate: () => void
+  pendingUpdateNotice?: PendingEventUpdateNotice | null
+  updateNoticeError?: string
+  onSendPendingUpdate?: () => void
+  onDismissUpdateNotice?: () => void
   canInviteCohost?: boolean
   cohostSharing?: boolean
   cohostCopied?: boolean
@@ -117,6 +122,10 @@ export function EventPaper({
   onCopyInviteLink,
   onShareWhatsApp,
   onSendUpdate,
+  pendingUpdateNotice = null,
+  updateNoticeError = '',
+  onSendPendingUpdate,
+  onDismissUpdateNotice,
   canInviteCohost = false,
   cohostSharing = false,
   cohostCopied = false,
@@ -158,8 +167,89 @@ export function EventPaper({
   const safeUnreadMessages = Number.isFinite(unreadMessages) ? Math.max(0, Math.floor(unreadMessages)) : 0
   const [confirmingGuestId, setConfirmingGuestId] = useState<string | null>(null)
   const [communityView, setCommunityView] = useState<'album' | 'chat'>('album')
+  const [inviteMenuOpen, setInviteMenuOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [guestsOpen, setGuestsOpen] = useState(false)
   const { tiles: previewTiles, overflowCount } = buildPreviewTiles(photos)
   const overflowBackgroundUrl = overflowCount > 0 ? photos[previewTiles.length]?.url : undefined
+  const attendingGuests = guests.filter((guest) => !guest.isHost)
+  const guestPreview = attendingGuests.slice(0, 3)
+  const guestOverflow = Math.max(0, attendingGuests.length - guestPreview.length)
+  const updateNoticeLines = (['date', 'time', 'location', 'photos'] as const)
+    .filter((kind) => pendingUpdateNotice?.kinds.includes(kind))
+    .map((kind) => {
+      if (kind === 'date') return { kind, text: `Date changed to ${dateLabel}.` }
+      if (kind === 'time') return { kind, text: `Time changed to ${timeLabel}.` }
+      if (kind === 'location') return { kind, text: `Location changed to ${[venue, address].filter(Boolean).join(' — ')}.` }
+      return { kind, text: 'New photos were uploaded to the Shared Album.' }
+    })
+
+  const eventFacts = (
+    <dl className="sv2-event-facts">
+      <div><dt>Date</dt><dd>{dateLabel}</dd></div>
+      <div><dt>Time</dt><dd>{timeLabel}</dd></div>
+      <div>
+        <dt>Location</dt>
+        <dd>
+          {venue}
+          {unlocked && address ? ` with ${address}` : !unlocked ? ' (RSVP to see the address)' : ''}
+          {unlocked && address && (
+            <span className="sv2-map-links" aria-label="Open location in maps">
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer">Google Maps</a>
+              <a href={`https://maps.apple.com/?q=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer">Apple Maps</a>
+            </span>
+          )}
+        </dd>
+      </div>
+      {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}
+      {customDetails.map((section) => (
+        <div key={section.id}><dt>{section.label}</dt><dd>{section.body}</dd></div>
+      ))}
+      {!isHost && (
+        <div>
+          <dt>Your RSVP</dt>
+          <dd>{isPast ? 'Attended' : myRsvpStatus ? RSVP_LABELS[myRsvpStatus] : 'Not yet responded'}</dd>
+        </div>
+      )}
+    </dl>
+  )
+
+  const guestRoster = (
+    <section className="sv2-guest-overview" aria-labelledby="sv2-guest-heading">
+      <div className="sv2-section-heading">
+        <h2 id="sv2-guest-heading">Around this Sofra</h2>
+        <span>{guests.length} going</span>
+      </div>
+      {removeGuestError && <p role="alert" style={{ fontSize: 12, marginBottom: 8 }}>{removeGuestError}</p>}
+      {guests.length > 0 ? (
+        <div className="sv2-guest-grid">
+          {guests.map((guest) => (
+            <article key={guest.id} className={isHost ? 'sv2-guest-removable' : undefined}>
+              <ProfileIdentityLink className="sv2-guest-profile-link" userId={guest.id} name={guest.name} photoUrl={guest.photoUrl} />
+              {guest.isHost && <span className="sv2-guest-host-badge">Host</span>}
+              {isHost && !guest.isHost && onRemoveGuest && (
+                confirmingGuestId === guest.id ? (
+                  <div className="sv2-guest-remove-confirm">
+                    <button type="button" disabled={removingGuestId === guest.id} onClick={() => { onRemoveGuest(guest.id); setConfirmingGuestId(null) }}>
+                      {removingGuestId === guest.id ? '…' : 'Remove'}
+                    </button>
+                    <button type="button" onClick={() => setConfirmingGuestId(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <button type="button" className="sv2-guest-remove-btn" aria-label={`Remove ${guest.name} from this Sofra`} onClick={() => setConfirmingGuestId(guest.id)}>
+                    Remove
+                  </button>
+                )
+              )}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize: 12 }}>No one&rsquo;s replied yet.</p>
+      )}
+    </section>
+  )
+
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-event-detail-shell">
@@ -172,7 +262,7 @@ export function EventPaper({
           )}
         </div>
         {canInviteCohost && cohostSharing && (
-          <div className="sv2-cohost-share">
+          <div className="sv2-cohost-share sv2-cohost-popover">
             <div className="sv2-host-share-actions" aria-label="Co-host sharing options">
               <button type="button" onClick={onCopyCohostLink}>{cohostCopied ? 'COPIED!' : 'COPY CO-HOST LINK'}</button>
               <button type="button" onClick={onShareCohostWhatsApp}>SEND VIA WHATSAPP</button>
@@ -189,7 +279,7 @@ export function EventPaper({
             <button type="button" onClick={onRetry}>Retry</button>
           </div>
         ) : (
-          <article className="sv2-event-paper">
+          <article className={`sv2-event-paper${isHost ? ' sv2-host-event-paper' : ''}`}>
             {coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img className="sv2-event-artwork sv2-event-cover-image" src={coverUrl} alt="" />
@@ -197,6 +287,114 @@ export function EventPaper({
               <Image className="sv2-event-artwork sv2-event-cover-image sv2-event-default-cover" src={DEFAULT_EVENT_IMAGE_PATH} alt="" width={1125} height={1401} />
             )}
 
+            {isHost && (
+              <div className="sv2-host-event-content">
+                <div className="sv2-host-event-title-row">
+                  <div>
+                    <p className="sv2-event-kicker">YOU ARE HOSTING</p>
+                    <h1>{title}</h1>
+                  </div>
+                  <div className="sv2-host-invite-wrap">
+                    <button className="sv2-host-invite-trigger" type="button" aria-expanded={inviteMenuOpen} onClick={() => setInviteMenuOpen((open) => !open)}>
+                      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2" /><circle cx="6" cy="12" r="2" /><circle cx="18" cy="19" r="2" /><path d="m8 11 8-5M8 13l8 5" /></svg>
+                      Invite
+                    </button>
+                    {inviteMenuOpen && (
+                      <div className="sv2-host-invite-popover" aria-label="Invite sharing options">
+                        <button type="button" onClick={onCopyInviteLink}>{copied ? 'COPIED!' : 'COPY INVITE LINK'}</button>
+                        <button type="button" onClick={onShareWhatsApp}>SHARE VIA WHATSAPP</button>
+                        <button type="button" onClick={onSendUpdate}>SEND AN UPDATE</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {copyFallbackUrl && (
+                  <input className="sv2-host-copy-fallback" readOnly value={copyFallbackUrl} autoFocus onFocus={(event) => event.target.select()} />
+                )}
+
+                <div className="sv2-host-primary-actions">
+                  {!isPast && <button className="sv2-host-primary-action" type="button" onClick={onViewTable}>Set the Sofra</button>}
+                  <button type="button" onClick={onEditEvent}>Edit Event</button>
+                </div>
+
+                {(pendingUpdateNotice || updateNoticeError) && (
+                  <aside className="sv2-event-update-notice" aria-label="Event update reminder">
+                    <div>
+                      <strong>THERE&rsquo;S SOMETHING NEW TO SHARE</strong>
+                      {pendingUpdateNotice && updateNoticeLines.map((line) => <p key={line.kind}>{line.text}</p>)}
+                      {updateNoticeError && <p role="alert">{updateNoticeError}</p>}
+                    </div>
+                    {pendingUpdateNotice && <div>
+                      <button type="button" onClick={onSendPendingUpdate}>SEND UPDATE</button>
+                      <button type="button" onClick={onDismissUpdateNotice}>DISMISS</button>
+                    </div>}
+                  </aside>
+                )}
+
+                {(accessRequests.length > 0 || accessRequestError) && (
+                  <aside className="sv2-access-notifications" aria-label="Pending access requests">
+                    <div className="sv2-section-heading"><h2>Access requests</h2><span>{accessRequests.length} pending</span></div>
+                    {accessRequestError && <p role="alert">{accessRequestError}</p>}
+                    {accessRequests.map((request) => (
+                      <article key={request.id}>
+                        <ProfileIdentityLink userId={request.userId} name={request.name} photoUrl={request.photoUrl} />
+                        <div>
+                          <button type="button" disabled={respondingToAccessRequest === request.id} onClick={() => onRespondToAccessRequest?.(request.id, true)}>ACCEPT</button>
+                          <button type="button" disabled={respondingToAccessRequest === request.id} onClick={() => onRespondToAccessRequest?.(request.id, false)}>REJECT</button>
+                        </div>
+                      </article>
+                    ))}
+                  </aside>
+                )}
+                {hostNeedsPreferences && (
+                  <aside className="sv2-host-preferences-notice">
+                    <div><strong>YOUR TASTE BELONGS AT THE TABLE</strong><p>Add your preferences so the menu accounts for you too.</p></div>
+                    <button type="button" onClick={onAddHostPreferences}>ADD PREFERENCES</button>
+                  </aside>
+                )}
+                {hostNeedsKitchen && !isPast && (
+                  <aside className="sv2-host-preferences-notice">
+                    <div><strong>YOUR KITCHEN IS STILL WAITING</strong><p>Pick up where you left off before the invite goes out.</p></div>
+                    <button type="button" onClick={onAddHostKitchen}>FILL KITCHEN NOW</button>
+                  </aside>
+                )}
+
+                <section className="sv2-host-details-disclosure">
+                  <button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
+                    <span className="sv2-host-details-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" /></svg>
+                    </span>
+                    <span className="sv2-host-details-copy">
+                      <strong>{dateLabel} · {timeLabel}</strong>
+                      <span>{[venue, tagline].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <span className={`sv2-host-chevron${detailsOpen ? ' is-open' : ''}`} aria-hidden="true">⌄</span>
+                  </button>
+                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFacts}</div>}
+                </section>
+
+                <section className="sv2-host-guests-disclosure" aria-label="Guest list">
+                  <div className="sv2-host-guest-heading">
+                    <span>GUEST LIST</span>
+                  </div>
+                  <button className="sv2-host-guest-summary" type="button" aria-expanded={guestsOpen} onClick={() => setGuestsOpen((open) => !open)}>
+                    <span className="sv2-host-guest-avatars" aria-hidden="true">
+                      {guestPreview.map((guest) => guest.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={guest.id} src={guest.photoUrl} alt="" />
+                      ) : <span key={guest.id}>{guest.name.trim().slice(0, 1).toUpperCase()}</span>)}
+                      {guestOverflow > 0 && <span>+{guestOverflow}</span>}
+                    </span>
+                    <strong>{attendingGuests.length} {attendingGuests.length === 1 ? 'guest' : 'guests'} attending</strong>
+                    <span className="sv2-host-guest-view">View <span aria-hidden="true">›</span></span>
+                  </button>
+                  {guestsOpen && <div className="sv2-host-guest-expanded">{guestRoster}</div>}
+                </section>
+              </div>
+            )}
+
+            {!isHost && <>
             <p className="sv2-event-kicker">
               {isHost ? 'YOU ARE HOSTING' : isPast ? 'A SOFRA TO REMEMBER' : "YOU'RE INVITED"}
             </p>
@@ -376,6 +574,8 @@ export function EventPaper({
               </div>
             )}
 
+            </>}
+
             {unlocked && (
               <section className="sv2-event-community" aria-label="Event album and chat">
                 <div className="sv2-community-tabs" role="tablist" aria-label="Event community">
@@ -385,7 +585,12 @@ export function EventPaper({
                   </button>
                   <button type="button" role="tab" aria-selected={communityView === 'chat'}
                     className={communityView === 'chat' ? 'is-active' : ''} onClick={() => setCommunityView('chat')}>
-                    CHAT{safeUnreadMessages > 0 ? ` · ${safeUnreadMessages}` : ''}
+                    <span>CHAT</span>
+                    {safeUnreadMessages > 0 && (
+                      <span className="sv2-chat-unread-badge" aria-label={`${safeUnreadMessages} unread messages`}>
+                        {safeUnreadMessages}
+                      </span>
+                    )}
                   </button>
                 </div>
 
@@ -483,11 +688,6 @@ export function EventPaper({
               </div>
             )}
 
-            {isHost && !isPast && (
-              <Link className="sv2-edit-event-bottom" href="#" onClick={(e) => { e.preventDefault(); onEditEvent() }}>
-                EDIT EVENT
-              </Link>
-            )}
           </article>
         )}
       </main>
