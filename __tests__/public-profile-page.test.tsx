@@ -1,13 +1,19 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import PublicProfilePage from '@/app/(guest)/profile/[userId]/page'
 import { createClient } from '@/lib/supabase/client'
-import { areMutuals, fetchProfileHistory } from '@/lib/profiles'
+import { fetchProfileHistory } from '@/lib/profiles'
+import { getConnectionContext } from '@/lib/connections'
 import { useRouter } from 'next/navigation'
 
 jest.mock('@/lib/supabase/client')
 jest.mock('@/lib/profiles', () => ({
-  areMutuals: jest.fn(),
   fetchProfileHistory: jest.fn(),
+}))
+jest.mock('@/lib/connections', () => ({
+  getConnectionContext: jest.fn(),
+  requestConnection: jest.fn(),
+  respondToConnectionRequest: jest.fn(),
+  isConnectionSchemaUnavailable: (error: { code?: string }) => error?.code === 'PGRST202',
 }))
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
@@ -33,18 +39,18 @@ beforeEach(() => {
   ;(createClient as jest.Mock).mockReturnValue(profileClient())
 })
 
-it('does not fetch or render history for a non-mutual viewer', async () => {
-  ;(areMutuals as jest.Mock).mockResolvedValue(false)
+it('does not fetch or render history before a connection is accepted', async () => {
+  ;(getConnectionContext as jest.Mock).mockResolvedValue({ status: 'eligible', direction: 'none', originatingEventId: 'event-1', originatingEventTitle: 'Shared Sofra' })
   render(<PublicProfilePage params={{ userId: 'profile-2' }} />)
 
   await waitFor(() => expect(screen.getByText('Nadia')).toBeInTheDocument())
   expect(screen.getByText('Always brings dessert.')).toBeInTheDocument()
-  expect(screen.getByText(/RSVP to a shared Sofra/i)).toBeInTheDocument()
+  expect(screen.getByText(/Connect to see their table history/i)).toBeInTheDocument()
   expect(fetchProfileHistory).not.toHaveBeenCalled()
 })
 
-it('fetches and displays history after the mutual gate passes', async () => {
-  ;(areMutuals as jest.Mock).mockResolvedValue(true)
+it('fetches and displays history after the connection gate passes', async () => {
+  ;(getConnectionContext as jest.Mock).mockResolvedValue({ status: 'accepted', direction: 'outgoing', requestId: 'connection-1' })
   ;(fetchProfileHistory as jest.Mock).mockResolvedValue([
     { id: 'event-1', title: 'Garden Sofra', date: 'Aug 12 at Ramla', went: 'Went' },
   ])
@@ -52,5 +58,15 @@ it('fetches and displays history after the mutual gate passes', async () => {
 
   await waitFor(() => expect(screen.getByText('Garden Sofra')).toBeInTheDocument())
   expect(fetchProfileHistory).toHaveBeenCalledWith(expect.anything(), 'profile-2')
-  expect(screen.queryByText(/RSVP to a shared Sofra/i)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Connect to see their table history/i)).not.toBeInTheDocument()
+})
+
+it('still renders the profile when the connection migration is not installed', async () => {
+  ;(getConnectionContext as jest.Mock).mockRejectedValue({ code: 'PGRST202', message: 'function missing from schema cache' })
+  render(<PublicProfilePage params={{ userId: 'profile-2' }} />)
+
+  await waitFor(() => expect(screen.getByText('Nadia')).toBeInTheDocument())
+  expect(screen.queryByText("Couldn't load this profile. Try again.")).not.toBeInTheDocument()
+  expect(screen.getByText(/Connections are temporarily unavailable/i)).toBeInTheDocument()
+  expect(fetchProfileHistory).not.toHaveBeenCalled()
 })

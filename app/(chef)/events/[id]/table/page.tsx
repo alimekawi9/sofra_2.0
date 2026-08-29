@@ -12,7 +12,8 @@ import { C } from '@/lib/theme'
 import ChefTabs from '@/components/ChefTabs'
 import { formatTagLabel } from '@/lib/tag-format'
 import { withoutDishRoles } from '@/lib/dish-presets'
-import { formatProteinPreferenceLabel, normalizeProteinPreferences } from '@/lib/protein-preferences'
+import { formatProteinPreferenceLabel } from '@/lib/protein-preferences'
+import { fetchEventTasteAttendees } from '@/lib/event-attendees'
 import { sortedQuestions, isCustom, relevantCanonicalTopics, CANONICAL_KEYS, type CanonicalKey, type QuestionnaireConfig, type CustomQuestionConfig } from '@/lib/questionnaire'
 import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
@@ -80,34 +81,6 @@ function currentMonday(): string {
   return d.toISOString().slice(0, 10)
 }
 
-type RsvpRow = { user_id: string; users: { name: string; photo_url: string | null } | null }
-type ProfileRow = {
-  user_id: string
-  dietary: string[]
-  avoid: string[]
-  protein_anchor: string | null
-  protein_preferences?: string[]
-  flavor_preference: string[]
-  adventurousness: number
-}
-
-function mergeGuests(rsvps: RsvpRow[], profiles: ProfileRow[]): TasteProfile[] {
-  return rsvps.map((r) => {
-    const p = profiles.find((x) => x.user_id === r.user_id)
-    return {
-      userId: r.user_id,
-      name: r.users?.name ?? 'Unknown',
-      photoUrl: r.users?.photo_url ?? null,
-      dietary: p?.dietary ?? [],
-      avoid: p?.avoid ?? [],
-      proteinAnchor: p?.protein_anchor ?? null,
-      proteinPreferences: normalizeProteinPreferences(p?.protein_preferences, p?.protein_anchor),
-      flavorPreference: p?.flavor_preference ?? [],
-      adventurousness: p?.adventurousness ?? 50,
-    }
-  })
-}
-
 export default function TablePage({ params }: { params: { id: string } }) {
   const { id } = params
   const router = useRouter()
@@ -149,13 +122,8 @@ export default function TablePage({ params }: { params: { id: string } }) {
       const hostIds = await fetchEventHostIds(supabase, id, ev.host_id)
       setHostUserIds(hostIds)
 
-      const { data: rsvps } = await supabase
-        .from('rsvps')
-        .select('user_id, users(name,photo_url)')
-        .eq('event_id', id)
-        .in('status', ['going', 'maybe'])
-
-      const userIds = ((rsvps ?? []) as unknown as RsvpRow[]).map((r) => r.user_id)
+      const merged = await fetchEventTasteAttendees(supabase, id)
+      const userIds = merged.map((guest) => guest.userId)
       setGuestResponseCount(userIds.filter((userId) => !hostIds.has(userId)).length)
 
       // Custom-question tallies must include every host/co-host too, not
@@ -166,17 +134,6 @@ export default function TablePage({ params }: { params: { id: string } }) {
       hostIds.forEach((hostUserId) => responseUserIdSet.add(hostUserId))
       const responseUserIds = Array.from(responseUserIdSet)
 
-      const { data: profiles } = userIds.length
-        ? await supabase
-            .from('taste_profiles')
-            .select('user_id, dietary, avoid, protein_anchor, protein_preferences, flavor_preference, adventurousness')
-            .in('user_id', userIds)
-        : { data: [] as ProfileRow[] }
-
-      const merged = mergeGuests(
-        (rsvps ?? []) as unknown as RsvpRow[],
-        (profiles ?? []) as ProfileRow[]
-      )
       setGuests(merged)
       const builtIntel = buildIntel(merged)
       setIntel(builtIntel)
@@ -321,6 +278,20 @@ export default function TablePage({ params }: { params: { id: string } }) {
               : undefined
           }
         />
+
+        {!loading && !fetchError && (
+          <button
+            className="sv2-table-seating-action"
+            type="button"
+            onClick={() => router.push(`/events/${id}/seating`)}
+          >
+            <span className="sv2-table-seating-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="10" rx="4"/><path d="M8 4v3M16 4v3M8 17v3M16 17v3"/></svg>
+            </span>
+            <span><strong>ARRANGE THE TABLE</strong><small>Create or adjust the seating plan</small></span>
+            <span aria-hidden="true">›</span>
+          </button>
+        )}
 
         {loading && (
           <div

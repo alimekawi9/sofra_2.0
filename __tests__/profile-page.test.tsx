@@ -4,6 +4,11 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 jest.mock('@/lib/supabase/client')
+jest.mock('@/lib/connections', () => ({
+  listPendingConnectionRequests: jest.fn().mockResolvedValue([]),
+  respondToConnectionRequest: jest.fn(),
+  isConnectionSchemaUnavailable: (error: { code?: string }) => error?.code === 'PGRST202',
+}))
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 
 const push = jest.fn()

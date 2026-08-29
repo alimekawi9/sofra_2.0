@@ -5,6 +5,8 @@ import { sv2Display, sv2Sans } from './fonts'
 import { SofraHistoryArtwork } from './SofraHistoryArtwork'
 import { ImageCropDialog } from './ImageCropDialog'
 import type { Appearance } from '@/lib/sofra/appearance'
+import type { PendingConnectionRequest } from '@/lib/connections'
+import { AlbumAvatar } from './AlbumAvatar'
 
 export interface ProfileHistoryEntry {
   id: string
@@ -31,6 +33,10 @@ export interface ProfileCardProps {
   uploadError: string
   dinnerCount: number
   preferencesSummary: string | null
+  connectionRequests: PendingConnectionRequest[]
+  respondingConnectionId: string | null
+  connectionError: string
+  onRespondToConnection: (id: string, accept: boolean) => void
   history: ProfileHistoryEntry[]
   loading: boolean
   error: string
@@ -58,6 +64,10 @@ export function ProfileCard({
   uploadError,
   dinnerCount,
   preferencesSummary,
+  connectionRequests,
+  respondingConnectionId,
+  connectionError,
+  onRespondToConnection,
   history,
   loading,
   error,
@@ -168,6 +178,31 @@ export function ProfileCard({
             <a className="sv2-profile-preference-link" href={hostPreferenceHref}>EDIT MY PREFERENCES</a>
           )}
         </section>
+
+        {(connectionRequests.length > 0 || connectionError) && (
+          <section className="sv2-profile-connections" aria-labelledby="connection-requests-heading">
+            <div className="sv2-section-heading">
+              <h2 id="connection-requests-heading">Connection requests</h2>
+              <span>{connectionRequests.length} pending</span>
+            </div>
+            {connectionError && <p role="alert">{connectionError}</p>}
+            {connectionRequests.map((request) => (
+              <article key={request.id}>
+                <div className="sv2-profile-connection-person">
+                  <AlbumAvatar name={request.requesterName} photoUrl={request.requesterPhotoUrl} />
+                  <div>
+                    <strong>{request.requesterName}</strong>
+                    <span>{request.originatingEventTitle ? `After ${request.originatingEventTitle}` : 'From a shared Sofra'}</span>
+                  </div>
+                </div>
+                <div>
+                  <button type="button" disabled={respondingConnectionId === request.id} onClick={() => onRespondToConnection(request.id, true)}>ACCEPT</button>
+                  <button type="button" disabled={respondingConnectionId === request.id} onClick={() => onRespondToConnection(request.id, false)}>DECLINE</button>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
 
         <section className="sv2-profile-history">
           <h2>Your Sofras</h2>

@@ -8,6 +8,12 @@ import { ProfileCard, type ProfileHistoryEntry } from '@/components/sofra-v2/Pro
 import { fetchProfileHistory } from '@/lib/profiles'
 import '@/components/sofra-v2/sofra-v2.css'
 import { useAppearance } from '@/lib/sofra/appearance'
+import {
+  listPendingConnectionRequests,
+  isConnectionSchemaUnavailable,
+  respondToConnectionRequest,
+  type PendingConnectionRequest,
+} from '@/lib/connections'
 
 type TasteProfileRow = {
   dietary: string[] | null
@@ -52,6 +58,9 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [connectionRequests, setConnectionRequests] = useState<PendingConnectionRequest[]>([])
+  const [respondingConnectionId, setRespondingConnectionId] = useState<string | null>(null)
+  const [connectionError, setConnectionError] = useState('')
 
   async function loadData() {
     setLoading(true)
@@ -62,7 +71,7 @@ export default function ProfilePage() {
       setUserId(stored)
       setHostPreferenceHref('/profile/preferences')
 
-      const [{ data: user }, { data: tasteProfile }, historyEntries] = await Promise.all([
+      const [{ data: user }, { data: tasteProfile }, historyEntries, pendingConnections] = await Promise.all([
         supabase.from('users').select('name, phone, photo_url, caption').eq('id', stored).maybeSingle(),
         supabase
           .from('taste_profiles')
@@ -70,6 +79,11 @@ export default function ProfilePage() {
           .eq('user_id', stored)
           .maybeSingle(),
         fetchProfileHistory(supabase, stored),
+        listPendingConnectionRequests(supabase, stored).catch((connectionLoadError) => {
+          if (!isConnectionSchemaUnavailable(connectionLoadError)) throw connectionLoadError
+          setConnectionError('Connection requests are temporarily unavailable.')
+          return []
+        }),
       ])
 
       if (user) {
@@ -86,6 +100,7 @@ export default function ProfilePage() {
       )
 
       setHistory(historyEntries)
+      setConnectionRequests(pendingConnections)
     } catch {
       setError("Couldn't load your profile. Try again.")
     } finally {
@@ -152,6 +167,21 @@ export default function ProfilePage() {
     setCaptionEditing(false)
   }
 
+  async function respondToConnection(id: string, accept: boolean) {
+    if (!userId || respondingConnectionId) return
+    setRespondingConnectionId(id)
+    setConnectionError('')
+    try {
+      const ok = await respondToConnectionRequest(supabase, id, userId, accept)
+      if (!ok) throw new Error('Request is no longer pending')
+      setConnectionRequests((requests) => requests.filter((request) => request.id !== id))
+    } catch {
+      setConnectionError("Couldn't update this connection request. Try again.")
+    } finally {
+      setRespondingConnectionId(null)
+    }
+  }
+
   return (
     <ProfileCard
       name={name}
@@ -174,6 +204,10 @@ export default function ProfilePage() {
       uploadError={uploadError}
       dinnerCount={history.length}
       preferencesSummary={preferencesSummary}
+      connectionRequests={connectionRequests}
+      respondingConnectionId={respondingConnectionId}
+      connectionError={connectionError}
+      onRespondToConnection={(id, accept) => void respondToConnection(id, accept)}
       history={history}
       loading={loading}
       error={error}

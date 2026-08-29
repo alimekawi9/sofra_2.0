@@ -173,7 +173,11 @@ export function EventPaper({
   const { tiles: previewTiles, overflowCount } = buildPreviewTiles(photos)
   const overflowBackgroundUrl = overflowCount > 0 ? photos[previewTiles.length]?.url : undefined
   const attendingGuests = guests.filter((guest) => !guest.isHost)
-  const guestPreview = attendingGuests.slice(0, 3)
+  const guestPreview = attendingGuests
+    .map((guest, index) => ({ guest, index }))
+    .sort((first, second) => Number(Boolean(second.guest.photoUrl)) - Number(Boolean(first.guest.photoUrl)) || first.index - second.index)
+    .slice(0, 3)
+    .map(({ guest }) => guest)
   const guestOverflow = Math.max(0, attendingGuests.length - guestPreview.length)
   const updateNoticeLines = (['date', 'time', 'location', 'photos'] as const)
     .filter((kind) => pendingUpdateNotice?.kinds.includes(kind))

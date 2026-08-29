@@ -1,4 +1,4 @@
-import { areMutuals, fetchMutuals, fetchProfileHistory, transformProfileHistory } from '@/lib/profiles'
+import { fetchProfileHistory, transformProfileHistory } from '@/lib/profiles'
 
 function profileClient(rows: Record<string, unknown[]>) {
   return {
@@ -19,34 +19,6 @@ function profileClient(rows: Record<string, unknown[]>) {
     })),
   }
 }
-
-it('derives mutuals from RSVP, original-host, and co-host event membership', async () => {
-  const client = profileClient({
-    'rsvps:event_id': [{ event_id: 'event-1' }],
-    'events:id': [{ id: 'event-2' }],
-    'event_cohosts:event_id': [{ event_id: 'event-3' }],
-    'rsvps:user_id': [{ user_id: 'guest-2' }],
-    'events:host_id': [{ host_id: 'host-2' }],
-    'event_cohosts:user_id': [{ user_id: 'cohost-2' }, { user_id: 'cohost-2' }],
-    'users:id,name,photo_url': [
-      { id: 'guest-2', name: 'Guest', photo_url: null },
-      { id: 'host-2', name: 'Host', photo_url: '/host.jpg' },
-      { id: 'cohost-2', name: 'Co-host', photo_url: '/cohost.jpg' },
-    ],
-  })
-
-  const mutuals = await fetchMutuals(client as never, 'viewer-1')
-  expect(mutuals.map((user) => user.id)).toEqual(['guest-2', 'host-2', 'cohost-2'])
-})
-
-it('treats an original host and accepted co-host on the same event as mutuals', async () => {
-  const client = profileClient({
-    'rsvps:event_id': [],
-    'events:id': [{ id: 'shared-event' }],
-    'event_cohosts:event_id': [{ event_id: 'shared-event' }],
-  })
-  await expect(areMutuals(client as never, 'host-1', 'cohost-1')).resolves.toBe(true)
-})
 
 it('includes hosted and co-hosted events in profile history without an RSVP', async () => {
   const client = profileClient({
