@@ -15,7 +15,7 @@ const HOST_UID = 'uid-host'
 const GUEST_UID = 'uid-guest'
 const PARAMS = { id: 'ev-1' }
 
-const SAMPLE_EVENT = { id: 'ev-1', host_id: HOST_UID, title: 'Casa Mekawi' }
+const SAMPLE_EVENT = { id: 'ev-1', host_id: HOST_UID, title: 'Casa Mekawi', event_date: '2099-08-07T18:00:00.000Z' }
 
 function photoRow(i: number, extra: Record<string, unknown> = {}) {
   return {
@@ -37,6 +37,8 @@ function makeSupabase({
   commentRows = [] as Array<{ id: string; photo_id: string; user_id: string; body: string; created_at: string }>,
   commentInsertResult = null as { data: unknown; error: unknown } | null,
   isCohost = false,
+  event = SAMPLE_EVENT,
+  feedbackSubmitted = false,
 } = {}) {
   const bucket = {
     upload: jest.fn().mockResolvedValue({ data: {}, error: null }),
@@ -47,7 +49,7 @@ function makeSupabase({
   const sb = {
     from: jest.fn((table: string) => {
       if (table === 'events') {
-        return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: SAMPLE_EVENT, error: null }) }) }) }
+        return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: event, error: null }) }) }) }
       }
       if (table === 'rsvps') {
         return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: rsvpRow, error: null }) }) }) }) }
@@ -91,6 +93,7 @@ function makeSupabase({
       }
       throw new Error(`Unexpected table ${table}`)
     }),
+    rpc: jest.fn((name: string) => Promise.resolve({ data: name === 'has_sofra_feedback' ? feedbackSubmitted : true, error: null })),
     storage: { from: jest.fn().mockReturnValue(bucket) },
   }
   ;(createClient as jest.Mock).mockReturnValue(sb)
@@ -135,6 +138,32 @@ describe('access control', () => {
     render(<EventAlbumPage params={PARAMS} />)
     await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
     expect(screen.getByLabelText('ADD PHOTOS', { selector: 'input' })).toBeInTheDocument()
+  })
+
+  it('requires private Sofra feedback before a past guest can load photos', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    const sb = makeSupabase({
+      rsvpRow: { status: 'going' },
+      event: { ...SAMPLE_EVENT, event_date: '2020-08-07T18:00:00.000Z' },
+      photoRows: [photoRow(1)],
+      feedbackSubmitted: false,
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'TAKE THE SURVEY' })).toBeInTheDocument())
+    expect(screen.queryByText('1 memory')).not.toBeInTheDocument()
+    expect(sb.from).not.toHaveBeenCalledWith('event_photos')
+  })
+
+  it('loads a past guest album after their feedback already exists', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      event: { ...SAMPLE_EVENT, event_date: '2020-08-07T18:00:00.000Z' },
+      photoRows: [photoRow(1)],
+      feedbackSubmitted: true,
+    })
+    render(<EventAlbumPage params={PARAMS} />)
+    await waitFor(() => expect(screen.getByText('1 memory')).toBeInTheDocument())
   })
 })
 

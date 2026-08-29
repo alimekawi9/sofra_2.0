@@ -210,16 +210,6 @@ function KitchenPageInner() {
     return { id: data.id, title: data.title, isPublished: data.is_published !== false, isDelegatedChef: data.chef_id === uid && data.host_id !== uid }
   }
 
-  function editSignature(signature: Signature) {
-    setEditingSignatureId(signature.id)
-    setSigName(signature.name)
-    setSigTagsList([...signature.tags])
-    setSigAllergensList([...signature.contains_allergens])
-    setSigAddError('')
-    setSigTagsRevealed(true)
-    setSigSuggestionReady(false)
-  }
-
   function cancelSignatureEdit() {
     setEditingSignatureId(null)
     setSigName('')
@@ -847,24 +837,6 @@ function KitchenPageInner() {
                 >
                   {editingSignatureId ? 'Edit signature dish' : 'Add your own dish'}
                 </div>
-                {signatures.length > 0 && (
-                  <label className="sv2-inventory-edit-select" style={{ marginBottom: 18 }}>
-                    Edit a saved signature
-                    <select
-                      value={editingSignatureId ?? ''}
-                      onChange={(event) => {
-                        const signature = signatures.find((item) => item.id === event.target.value)
-                        if (signature) editSignature(signature)
-                        else cancelSignatureEdit()
-                      }}
-                    >
-                      <option value="">Choose a signature</option>
-                      {signatures.map((signature) => (
-                        <option key={signature.id} value={signature.id}>{signature.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     className="field sm"

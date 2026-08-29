@@ -40,6 +40,12 @@ export interface HostCreateFormProps {
   onUseDateSuggestion?: () => void
   locationSuggestion?: TbdSuggestion
   onUseLocationSuggestion?: () => void
+  estimatedGuestCount?: string
+  onEstimatedGuestCountChange?: (value: string) => void
+  budgetAmount?: string
+  onBudgetAmountChange?: (value: string) => void
+  budgetCurrency?: string
+  onBudgetCurrencyChange?: (value: string) => void
 }
 
 export function HostCreateForm({
@@ -75,6 +81,12 @@ export function HostCreateForm({
   onUseDateSuggestion,
   locationSuggestion,
   onUseLocationSuggestion,
+  estimatedGuestCount = '',
+  onEstimatedGuestCountChange,
+  budgetAmount = '',
+  onBudgetAmountChange,
+  budgetCurrency = 'USD',
+  onBudgetCurrencyChange,
 }: HostCreateFormProps) {
   const [pendingCover, setPendingCover] = useState<File | null>(null)
 
@@ -101,7 +113,7 @@ export function HostCreateForm({
             />
           </label>
 
-          <label>
+          <label id="concept">
             Tagline
             <input
               name="tagline"
@@ -111,7 +123,7 @@ export function HostCreateForm({
             />
           </label>
 
-          <label>
+          <label id="date-time">
             Date and time
             <input
               name="dateTime"
@@ -136,7 +148,7 @@ export function HostCreateForm({
             )}
           </label>
 
-          <label>
+          <label id="location">
             Location
             <HostLocationAutocomplete value={location} onChange={onLocationChange} onPlaceSelect={onPlaceSelect} />
             {locationSuggestion && (
@@ -148,6 +160,17 @@ export function HostCreateForm({
               </p>
             )}
           </label>
+
+          {isEdit && onEstimatedGuestCountChange && onBudgetAmountChange && onBudgetCurrencyChange && (
+            <fieldset id="prep-estimates" className="sv2-prep-estimates-field">
+              <legend>PREP ESTIMATES</legend>
+              <p>Private planning numbers for the host and co-hosts.</p>
+              <div>
+                <label>Estimated guests<input type="number" min="1" inputMode="numeric" value={estimatedGuestCount} onChange={(event) => onEstimatedGuestCountChange(event.target.value)} placeholder="12" /></label>
+                <label>Budget<div><select aria-label="Budget currency" value={budgetCurrency} onChange={(event) => onBudgetCurrencyChange(event.target.value)}><option>USD</option><option>EGP</option><option>GBP</option><option>EUR</option><option>AED</option><option>SAR</option></select><input aria-label="Budget amount" type="number" min="1" step="0.01" inputMode="decimal" value={budgetAmount} onChange={(event) => onBudgetAmountChange(event.target.value)} placeholder="500" /></div></label>
+              </div>
+            </fieldset>
+          )}
 
           <label>
             Dress code

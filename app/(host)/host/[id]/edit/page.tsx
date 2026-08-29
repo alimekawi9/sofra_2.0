@@ -39,6 +39,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState('')
   const [dateSuggestion, setDateSuggestion] = useState<TbdSuggestion | undefined>(undefined)
   const [locationSuggestion, setLocationSuggestion] = useState<TbdSuggestion | undefined>(undefined)
+  const [estimatedGuestCount, setEstimatedGuestCount] = useState('')
+  const [budgetAmount, setBudgetAmount] = useState('')
+  const [budgetCurrency, setBudgetCurrency] = useState('USD')
 
   useEffect(() => {
     async function load() {
@@ -48,7 +51,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
 
       const { data: ev, error: fetchError } = await supabase
         .from('events')
-        .select('host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url')
+        .select('host_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,estimated_guest_count,budget_amount,budget_currency')
         .eq('id', params.id)
         .single()
 
@@ -75,6 +78,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       originalVenueRef.current = ev.venue ?? ''
       originalAddressRef.current = ev.address ?? null
       originalEventDateRef.current = ev.event_date
+      setEstimatedGuestCount(ev.estimated_guest_count ? String(ev.estimated_guest_count) : '')
+      setBudgetAmount(ev.budget_amount ? String(ev.budget_amount) : '')
+      setBudgetCurrency(ev.budget_currency ?? 'USD')
 
       // Suggestions are optional and additive: only fetch questionnaire data
       // at all when a field is actually still TBD, and never block the form
@@ -107,6 +113,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       }
 
       setLoading(false)
+      window.setTimeout(() => {
+        if (window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 0)
     }
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -204,6 +213,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
         custom_details: sanitizeCustomDetails(customDetails),
         theme,
         cover_url: coverUrl,
+        estimated_guest_count: estimatedGuestCount ? Number(estimatedGuestCount) : null,
+        budget_amount: budgetAmount ? Number(budgetAmount) : null,
+        budget_currency: budgetCurrency,
       })
       .eq('id', params.id)
 
@@ -285,6 +297,12 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       onDelete={canDelete ? handleDelete : undefined}
       deleting={deleting}
       onCustomizeQuestions={() => router.push('/host/' + params.id + '/questionnaire')}
+      estimatedGuestCount={estimatedGuestCount}
+      onEstimatedGuestCountChange={setEstimatedGuestCount}
+      budgetAmount={budgetAmount}
+      onBudgetAmountChange={setBudgetAmount}
+      budgetCurrency={budgetCurrency}
+      onBudgetCurrencyChange={setBudgetCurrency}
     />
   )
 }

@@ -61,3 +61,13 @@ Status: Concept documented, NOT implemented, deliberately deferred.
 Source concept: "Intelligent Home Event Planner" — host onboarding flow, recipe input (AI-generated or manual), gram-precise portion-per-head scaling, inventory deduction against locked recipes, department-grouped shopping cart output.
 
 Reason deferred: requires a genuinely new recipe data model (structured ingredient quantities/units/instructions per dish) that doesn't exist in the current schema. The variety-vs-quantity rule and basic pantry-quantity tracking were extracted and built now (see the "Portions" and "Pantry" sections above, and migration `20260811000001_add_pantry_item_quantity.sql`); the rest needs its own dedicated design pass once there's a real need for full grocery-logistics functionality.
+
+## Deferred: Live Apple Music playlist creation
+
+Status: Deliberately deferred. Sofra provides an always-available UTF-8 playlist list that includes every suggestion, while Spotify supports live playlist creation through host OAuth. Live Apple Music export is not part of this pass because MusicKit requires Apple Developer Program membership (currently $99/year) and additional token/catalog integration. Revisit only if real user demand specifically justifies live Apple Music playlist creation; general cross-platform export alone is not sufficient reason to add the paid dependency.
+
+## Event prep alert thresholds and product feedback
+
+- Weeks-out required prep begins alerting at 14 days, the 1–2 weeks group at 7 days, and day-of seating at 48 hours. These thresholds leave enough time for invitations and logistics, then reserve the final two days for seating changes driven by late RSVPs.
+- Optional checklist items never produce urgency alerts. Missing optional planning destinations use persisted inline notes and completion toggles instead of pretending another page exists.
+- Post-event Sofra feedback is offered to hosts and attending guests and is private to Sofra. It is product research, not an event survey, so it is not surfaced back to hosts or other participants.

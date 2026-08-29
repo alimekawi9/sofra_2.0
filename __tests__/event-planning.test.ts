@@ -1,4 +1,4 @@
-import { buildPlanningPrompt, buildEventPlanningSchema, rankingInsight, validateRecommendations, rankingWinners, choiceCounts } from '@/lib/event-planning'
+import { buildPlanningPrompt, buildEventPlanningSchema, planningTextSegments, rankingInsight, validateRecommendations, rankingWinners, choiceCounts } from '@/lib/event-planning'
 import { buildIntel } from '@/lib/intel'
 
 describe('rankingWinners', () => {
@@ -127,6 +127,43 @@ describe('event planning insights', () => {
     expect(schema.properties.recommendations.minItems).toBe(3)
     expect(schema.properties.recommendations.maxItems).toBe(3)
     expect(schema.properties.recommendations.items.required).toContain('question')
+    expect(schema.properties.recommendations.items.required).toContain('actionHighlights')
+    expect(schema.properties.recommendations.items.required).toContain('reasonHighlights')
+  })
+
+  it('asks the planning model to identify exact key entities for emphasis', () => {
+    const prompt = buildPlanningPrompt({
+      eventTitle: 'Dinner',
+      intel: buildIntel([]),
+      answers: [{ question: 'When and where?', type: 'text', insight: 'Friday at Krasi', evidence: [] }],
+    })
+    expect(prompt).toContain('NLP entity recognition')
+    expect(prompt).toContain('dates, times, quantities, option names, people, and places')
+  })
+})
+
+describe('planningTextSegments', () => {
+  it('marks exact NLP-selected dates, times, people, and places for bold rendering', () => {
+    expect(planningTextSegments(
+      'Meet Marina at Krasi on Friday at 7:30 PM.',
+      ['Marina', 'Krasi', 'Friday', '7:30 PM']
+    )).toEqual([
+      { text: 'Meet ', highlighted: false },
+      { text: 'Marina', highlighted: true },
+      { text: ' at ', highlighted: false },
+      { text: 'Krasi', highlighted: true },
+      { text: ' on ', highlighted: false },
+      { text: 'Friday', highlighted: true },
+      { text: ' at ', highlighted: false },
+      { text: '7:30 PM', highlighted: true },
+      { text: '.', highlighted: false },
+    ])
+  })
+
+  it('ignores model-provided phrases that are not actually in the text', () => {
+    expect(planningTextSegments('Choose Friday.', ['Saturday'])).toEqual([
+      { text: 'Choose Friday.', highlighted: false },
+    ])
   })
 })
 

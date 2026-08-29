@@ -10,10 +10,15 @@ import { buildPreviewTiles } from '@/lib/shared-album'
 import { ProfileIdentityLink } from './ProfileIdentityLink'
 import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 import type { EventChatMessage } from '@/lib/event-chat'
+import type { PlaylistSuggestion } from '@/lib/event-playlist'
+import { EventPlaylist } from './EventPlaylist'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import SofraTransition from '../SofraTransition'
 import type { PendingEventAccessRequest } from '@/lib/event-access-requests'
 import type { PendingEventUpdateNotice } from '@/lib/event-update-notices'
+import type { EventPrepItem, EventPrepKey } from '@/lib/event-prep'
+import { EventPrepChecklist } from './EventPrepChecklist'
+import { SofraFeedbackPrompt } from './SofraFeedbackPrompt'
 
 export interface EventPaperGuest {
   id: string
@@ -23,10 +28,12 @@ export interface EventPaperGuest {
 }
 
 export interface EventPaperProps {
+  eventId: string
   loading: boolean
   error: string
   onRetry: () => void
   isHost: boolean
+  canExportSpotify?: boolean
   isPast: boolean
   title: string
   tagline: string | null
@@ -64,7 +71,7 @@ export interface EventPaperProps {
   onAddHostKitchen: () => void
   onEditRsvp: () => void
   onRsvp: () => void
-  onEditEvent: () => void
+  onEditEvent: (section?: 'concept' | 'prep-estimates' | 'location') => void
   onRemoveGuest?: (guestId: string) => void
   removingGuestId?: string | null
   removeGuestError?: string
@@ -87,6 +94,24 @@ export interface EventPaperProps {
   chatError: string
   onRetryChat: () => void
   onOpenChat: () => void
+  playlistSuggestions: PlaylistSuggestion[]
+  playlistLoading: boolean
+  playlistAdding: boolean
+  playlistError: string
+  onRetryPlaylist: () => void
+  onAddPlaylistSong: (song: string, spotifyTrackId?: string | null) => Promise<boolean>
+  playlistDeletingId: string | null
+  onDeletePlaylistSong: (suggestionId: string) => Promise<boolean>
+  prepItems?: EventPrepItem[]
+  prepSavingKey?: EventPrepKey | null
+  prepError?: string
+  onSavePrepItem?: (key: EventPrepKey, completed: boolean, note?: string) => Promise<boolean>
+  onOpenMenu?: () => void
+  onOpenSeating?: () => void
+  onOpenTimeline?: () => void
+  onSendPhotoReminder?: () => void
+  feedbackSubmitted?: boolean
+  onSubmitFeedback?: (rating: number, ease: number, comment: string) => Promise<boolean>
 }
 
 const RSVP_LABELS: Record<string, string> = {
@@ -99,10 +124,12 @@ const RSVP_LABELS: Record<string, string> = {
 const LOCKED_TABLE_TINTS = ['#7A2324', '#8A5A2B', '#4A5240', '#6E3B45', '#8A6A2B', '#3A4A5A']
 
 export function EventPaper({
+  eventId,
   loading,
   error,
   onRetry,
   isHost,
+  canExportSpotify = false,
   isPast,
   title,
   tagline,
@@ -163,10 +190,29 @@ export function EventPaper({
   chatError,
   onRetryChat,
   onOpenChat,
+  playlistSuggestions,
+  playlistLoading,
+  playlistAdding,
+  playlistError,
+  onRetryPlaylist,
+  onAddPlaylistSong,
+  playlistDeletingId,
+  onDeletePlaylistSong,
+  prepItems = [],
+  prepSavingKey = null,
+  prepError = '',
+  onSavePrepItem,
+  onOpenMenu,
+  onOpenSeating,
+  onOpenTimeline,
+  onSendPhotoReminder,
+  feedbackSubmitted = false,
+  onSubmitFeedback,
 }: EventPaperProps) {
   const safeUnreadMessages = Number.isFinite(unreadMessages) ? Math.max(0, Math.floor(unreadMessages)) : 0
+  const albumFeedbackLocked = !isHost && isPast && !feedbackSubmitted
   const [confirmingGuestId, setConfirmingGuestId] = useState<string | null>(null)
-  const [communityView, setCommunityView] = useState<'album' | 'chat'>('album')
+  const [communityView, setCommunityView] = useState<'album' | 'chat' | 'vibe'>('album')
   const [inviteMenuOpen, setInviteMenuOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [guestsOpen, setGuestsOpen] = useState(false)
@@ -301,10 +347,10 @@ export function EventPaper({
                   <div className="sv2-host-invite-wrap">
                     <button className="sv2-host-invite-trigger" type="button" aria-expanded={inviteMenuOpen} onClick={() => setInviteMenuOpen((open) => !open)}>
                       <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2" /><circle cx="6" cy="12" r="2" /><circle cx="18" cy="19" r="2" /><path d="m8 11 8-5M8 13l8 5" /></svg>
-                      Invite
+                      Send
                     </button>
                     {inviteMenuOpen && (
-                      <div className="sv2-host-invite-popover" aria-label="Invite sharing options">
+                      <div className="sv2-host-invite-popover" aria-label="Send options">
                         <button type="button" onClick={onCopyInviteLink}>{copied ? 'COPIED!' : 'COPY INVITE LINK'}</button>
                         <button type="button" onClick={onShareWhatsApp}>SHARE VIA WHATSAPP</button>
                         <button type="button" onClick={onSendUpdate}>SEND AN UPDATE</button>
@@ -319,7 +365,7 @@ export function EventPaper({
 
                 <div className="sv2-host-primary-actions">
                   {!isPast && <button className="sv2-host-primary-action" type="button" onClick={onViewTable}>Set the Sofra</button>}
-                  <button type="button" onClick={onEditEvent}>Edit Event</button>
+                  <button type="button" onClick={() => onEditEvent()}>Edit Event</button>
                 </div>
 
                 {(pendingUpdateNotice || updateNoticeError) && (
@@ -373,10 +419,34 @@ export function EventPaper({
                       <strong>{dateLabel} · {timeLabel}</strong>
                       <span>{[venue, tagline].filter(Boolean).join(' · ')}</span>
                     </span>
-                    <span className={`sv2-host-chevron${detailsOpen ? ' is-open' : ''}`} aria-hidden="true">⌄</span>
+                    <span className="sv2-disclosure-line" aria-hidden="true" />
                   </button>
                   {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFacts}</div>}
                 </section>
+
+                {prepItems.length > 0 && onSavePrepItem && onSubmitFeedback && (
+                  <EventPrepChecklist
+                    items={prepItems}
+                    isPast={isPast}
+                    savingKey={prepSavingKey}
+                    error={prepError}
+                    onSaveItem={onSavePrepItem}
+                    onSubmitFeedback={onSubmitFeedback}
+                    onAction={(action) => {
+                      if (action === 'edit-concept') return onEditEvent('concept')
+                      if (action === 'edit-estimates') return onEditEvent('prep-estimates')
+                      if (action === 'edit-location') return onEditEvent('location')
+                      if (action === 'invite') { setInviteMenuOpen(true); return }
+                      if (action === 'menu') return onOpenMenu?.()
+                      if (action === 'vibe') { setCommunityView('vibe'); window.setTimeout(() => document.getElementById('sv2-event-community')?.scrollIntoView({ behavior: 'smooth' }), 0); return }
+                      if (action === 'table') return onViewTable()
+                      if (action === 'timeline') return onOpenTimeline?.()
+                      if (action === 'seating') return onOpenSeating?.()
+                      if (action === 'album') return onOpenAlbum()
+                      if (action === 'photo-reminder') return onSendPhotoReminder?.()
+                    }}
+                  />
+                )}
 
                 <section className="sv2-host-guests-disclosure" aria-label="Guest list">
                   <div className="sv2-host-guest-heading">
@@ -391,7 +461,7 @@ export function EventPaper({
                       {guestOverflow > 0 && <span>+{guestOverflow}</span>}
                     </span>
                     <strong>{attendingGuests.length} {attendingGuests.length === 1 ? 'guest' : 'guests'} attending</strong>
-                    <span className="sv2-host-guest-view">View <span aria-hidden="true">›</span></span>
+                    <span className="sv2-disclosure-line" aria-hidden="true" />
                   </button>
                   {guestsOpen && <div className="sv2-host-guest-expanded">{guestRoster}</div>}
                 </section>
@@ -581,7 +651,7 @@ export function EventPaper({
             </>}
 
             {unlocked && (
-              <section className="sv2-event-community" aria-label="Event album and chat">
+              <section id="sv2-event-community" className="sv2-event-community" aria-label="Event album, chat, and playlist">
                 <div className="sv2-community-tabs" role="tablist" aria-label="Event community">
                   <button type="button" role="tab" aria-selected={communityView === 'album'}
                     className={communityView === 'album' ? 'is-active' : ''} onClick={() => setCommunityView('album')}>
@@ -596,6 +666,10 @@ export function EventPaper({
                       </span>
                     )}
                   </button>
+                  <button type="button" role="tab" aria-selected={communityView === 'vibe'}
+                    className={communityView === 'vibe' ? 'is-active' : ''} onClick={() => setCommunityView('vibe')}>
+                    THE VIBE
+                  </button>
                 </div>
 
                 {communityView === 'album' ? (
@@ -604,7 +678,7 @@ export function EventPaper({
                   <h2 id="sv2-album-heading">Shared Album</h2>
                   <div className="sv2-album-heading-actions">
                     <span>{photos.length} {photos.length === 1 ? 'memory' : 'memories'}</span>
-                    {photos.length > 0 && (
+                    {photos.length > 0 && !albumFeedbackLocked && (
                       <button type="button" className="sv2-view-album-link" onClick={() => onOpenAlbum()}>
                         VIEW ALBUM
                       </button>
@@ -622,11 +696,12 @@ export function EventPaper({
                 {photos.length === 0 ? (
                   <p style={{ fontSize: 12 }}>No memories yet.</p>
                 ) : (
-                  <div className="sv2-album-preview-grid" data-count={Math.min(previewTiles.length, 6)}>
+                  <div className={`sv2-album-preview-grid${albumFeedbackLocked ? ' is-feedback-locked' : ''}`} data-count={Math.min(previewTiles.length, 6)} aria-hidden={albumFeedbackLocked || undefined}>
                     {previewTiles.map((photo) => (
                       <button
                         key={photo.id}
                         type="button"
+                        disabled={albumFeedbackLocked}
                         className="sv2-album-preview-tile"
                         onClick={() => onOpenAlbum(photo.id)}
                       >
@@ -637,6 +712,7 @@ export function EventPaper({
                     {overflowCount > 0 && (
                       <button
                         type="button"
+                        disabled={albumFeedbackLocked}
                         className="sv2-album-preview-tile sv2-album-preview-overflow"
                         style={overflowBackgroundUrl ? { backgroundImage: `url(${overflowBackgroundUrl})` } : undefined}
                         onClick={() => onOpenAlbum()}
@@ -648,11 +724,15 @@ export function EventPaper({
                   </div>
                 )}
 
-                <AddPhotosControl disabled={uploadingPhoto} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
-                <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />
-                <SofraTransition active={uploadingPhoto} label={uploadTransitionLabel(uploadProgress)} />
+                {albumFeedbackLocked && onSubmitFeedback ? (
+                  <SofraFeedbackPrompt submitted={false} onSubmit={onSubmitFeedback} />
+                ) : <>
+                  <AddPhotosControl disabled={uploadingPhoto} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
+                  <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />
+                  <SofraTransition active={uploadingPhoto} label={uploadTransitionLabel(uploadProgress)} />
+                </>}
                 </div>
-                ) : (
+                ) : communityView === 'chat' ? (
                   <div className="sv2-chat-preview" role="tabpanel" aria-labelledby="sv2-chat-preview-heading">
                     <div className="sv2-section-heading">
                       <h2 id="sv2-chat-preview-heading">Chat</h2>
@@ -678,6 +758,12 @@ export function EventPaper({
                       </div>
                     )}
                   </div>
+                ) : (
+                  <EventPlaylist eventId={eventId} eventTitle={title} isHost={isHost} canExportSpotify={canExportSpotify}
+                    suggestions={playlistSuggestions} currentUserId={currentUserId}
+                    loading={playlistLoading} adding={playlistAdding} error={playlistError}
+                    deletingId={playlistDeletingId} onRetry={onRetryPlaylist}
+                    onAdd={onAddPlaylistSong} onDelete={onDeletePlaylistSong} />
                 )}
               </section>
             )}

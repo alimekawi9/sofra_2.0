@@ -56,6 +56,8 @@ export type EventPlanningRecommendation = {
   title: string
   action: string
   reason: string
+  actionHighlights?: string[]
+  reasonHighlights?: string[]
 }
 
 export type EventPlanningResult = {
@@ -101,6 +103,7 @@ Rules:
 - The AGGREGATE TABLE PROFILE below is background context only, to help you interpret a question's answers (for example, connecting a food-preference question to known protein preferences) — never turn it into a recommendation of its own.
 - Dietary restrictions and allergies are safety constraints, not preferences, when they are the actual subject of a listed question.
 - Keep "overview" to one short, neutral sentence introducing the recommendations below. Do not repeat specific numbers, names, or dietary/allergy details in it — those belong only in their matching recommendation.
+- Use NLP entity recognition to return the exact important phrases from each action and reason in "actionHighlights" and "reasonHighlights". Highlight concrete dates, times, quantities, option names, people, and places. Each phrase must be copied exactly from its matching text; do not include generic filler words or whole sentences.
 
 EVENT:
 ${JSON.stringify({ title: input.eventTitle, date: input.eventDate || null })}
@@ -122,8 +125,45 @@ export function validateRecommendations(result: EventPlanningResult, answers: Pl
   const askedQuestions = new Set(answers.map((answer) => answer.question))
   return {
     overview: result.overview,
-    recommendations: result.recommendations.filter((recommendation) => askedQuestions.has(recommendation.question)),
+    recommendations: result.recommendations
+      .filter((recommendation) => askedQuestions.has(recommendation.question))
+      .map((recommendation) => ({
+        ...recommendation,
+        ...(recommendation.actionHighlights ? { actionHighlights: validPlanningHighlights(recommendation.action, recommendation.actionHighlights) } : {}),
+        ...(recommendation.reasonHighlights ? { reasonHighlights: validPlanningHighlights(recommendation.reason, recommendation.reasonHighlights) } : {}),
+      })),
   }
+}
+
+export function validPlanningHighlights(text: string, highlights: string[]): string[] {
+  const lowerText = text.toLocaleLowerCase()
+  return Array.from(new Set(highlights.map((phrase) => phrase.trim()).filter((phrase) =>
+    phrase.length > 0 && phrase.length <= 100 && lowerText.includes(phrase.toLocaleLowerCase())
+  )))
+}
+
+export function planningTextSegments(text: string, highlights: string[] = []): Array<{ text: string; highlighted: boolean }> {
+  const valid = validPlanningHighlights(text, highlights)
+  if (!valid.length) return [{ text, highlighted: false }]
+  const lowerText = text.toLocaleLowerCase()
+  const segments: Array<{ text: string; highlighted: boolean }> = []
+  let cursor = 0
+
+  while (cursor < text.length) {
+    const matches = valid
+      .map((phrase) => ({ phrase, index: lowerText.indexOf(phrase.toLocaleLowerCase(), cursor) }))
+      .filter((match) => match.index >= cursor)
+      .sort((first, second) => first.index - second.index || second.phrase.length - first.phrase.length)
+    const next = matches[0]
+    if (!next) {
+      segments.push({ text: text.slice(cursor), highlighted: false })
+      break
+    }
+    if (next.index > cursor) segments.push({ text: text.slice(cursor, next.index), highlighted: false })
+    segments.push({ text: text.slice(next.index, next.index + next.phrase.length), highlighted: true })
+    cursor = next.index + next.phrase.length
+  }
+  return segments
 }
 
 export function buildEventPlanningSchema(questionCount: number) {
@@ -140,12 +180,14 @@ export function buildEventPlanningSchema(questionCount: number) {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['question', 'title', 'action', 'reason'],
+          required: ['question', 'title', 'action', 'reason', 'actionHighlights', 'reasonHighlights'],
           properties: {
             question: { type: 'string' },
             title: { type: 'string' },
             action: { type: 'string' },
             reason: { type: 'string' },
+            actionHighlights: { type: 'array', maxItems: 12, items: { type: 'string' } },
+            reasonHighlights: { type: 'array', maxItems: 12, items: { type: 'string' } },
           },
         },
       },

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SharedAlbumPage, type AlbumPhotoView } from '@/components/sofra-v2/SharedAlbumPage'
@@ -23,8 +24,11 @@ import {
 } from '@/lib/shared-album'
 import '@/components/sofra-v2/sofra-v2.css'
 import { loginDestination } from '@/lib/event-entry'
+import { hasSubmittedSofraFeedback } from '@/lib/event-prep'
+import { isEventDateUndecided } from '@/lib/event-date'
+import { SofraFeedbackPrompt } from '@/components/sofra-v2/SofraFeedbackPrompt'
 
-type EventRow = { id: string; host_id: string; title: string }
+type EventRow = { id: string; host_id: string; title: string; event_date: string }
 
 export default function EventAlbumPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -46,6 +50,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
   const [saveProgress, setSaveProgress] = useState<SaveProgressState | null>(null)
 
   const [isHost, setIsHost] = useState(false)
+  const [feedbackRequired, setFeedbackRequired] = useState(false)
   const [deleteProgress, setDeleteProgress] = useState<DeleteProgressState | null>(null)
   const [bulkDeleteError, setBulkDeleteError] = useState('')
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
@@ -113,7 +118,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
 
       const { data: ev, error: e1 } = await supabase
         .from('events')
-        .select('id,host_id,title')
+        .select('id,host_id,title,event_date')
         .eq('id', params.id)
         .single()
 
@@ -135,6 +140,14 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
         return
       }
       setIsHost(hostViewing)
+      const eventHasPassed = !isEventDateUndecided(ev.event_date) && new Date(ev.event_date).getTime() < Date.now()
+      if (!hostViewing && eventHasPassed && !(await hasSubmittedSofraFeedback(supabase, params.id, stored))) {
+        setFeedbackRequired(true)
+        setCanUpload(false)
+        setPhotos([])
+        return
+      }
+      setFeedbackRequired(false)
       await loadAlbum(hostViewing, rsvpRow !== null)
     } catch {
       setError("Couldn't load this album. Try again.")
@@ -355,9 +368,41 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     ])
   }
 
+  async function submitFeedback(rating: number, ease: number, comment: string): Promise<boolean> {
+    const userId = uidRef.current
+    if (!userId) return false
+    const { data, error: feedbackError } = await supabase.rpc('submit_sofra_feedback', {
+      p_event_id: params.id,
+      p_user_id: userId,
+      p_rating: rating,
+      p_planning_ease: ease,
+      p_comment: comment,
+    })
+    if (feedbackError || data !== true) {
+      setError('Could not send feedback. Try again.')
+      return false
+    }
+    setFeedbackRequired(false)
+    setError('')
+    await loadAlbum(false, true)
+    return true
+  }
+
   const currentPhotoId = selectedIndex !== null ? (photos[selectedIndex]?.id ?? null) : null
   const currentComments = currentPhotoId !== null ? commentsByPhoto[currentPhotoId] : undefined
   const commentsLoading = currentPhotoId !== null && loadingCommentsFor === currentPhotoId
+
+  if (!loading && feedbackRequired && event) return (
+    <div className="sv2-root sv2-device-page sv2-app-page">
+      <main className="sv2-device-shell sv2-app-shell sv2-album-feedback-gate">
+        <Link className="sv2-back-link" href={`/events/${params.id}`}>← Event details</Link>
+        <header><p>SHARED ALBUM</p><h1>{event.title}</h1></header>
+        <div className="sv2-album-gate-preview" aria-hidden="true"><span /><span /><span /></div>
+        <SofraFeedbackPrompt submitted={false} onSubmit={submitFeedback} />
+        {error && <p className="sv2-timeline-error" role="alert">{error}</p>}
+      </main>
+    </div>
+  )
 
   return (
     <SharedAlbumPage

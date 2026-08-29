@@ -12,10 +12,12 @@ import '@/components/sofra-v2/sofra-v2.css'
 import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
 import { isCanonical, isCanonicalQuestionCustomized, isCustom, sortedQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { countUnreadEventMessages, fetchEventMessages, markEventChatRead, type EventChatMessage } from '@/lib/event-chat'
+import { addPlaylistSuggestion, fetchPlaylistSuggestions, playlistSuggestionCount, removePlaylistSuggestion, type PlaylistSuggestion } from '@/lib/event-playlist'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import { eventEntryDestination, loginDestination } from '@/lib/event-entry'
 import { listPendingEventAccessRequests, respondToEventAccessRequest, type PendingEventAccessRequest } from '@/lib/event-access-requests'
 import { dismissEventUpdateNotice, getPendingEventUpdateNotice, type PendingEventUpdateNotice } from '@/lib/event-update-notices'
+import { buildEventPrepItems, fetchEventPrepState, hasSubmittedSofraFeedback, saveEventPrepItem, type EventPrepKey, type EventPrepManualState } from '@/lib/event-prep'
 
 type EventRow = {
   id: string
@@ -33,6 +35,9 @@ type EventRow = {
   is_published: boolean
   kitchen_status: 'pending' | 'complete'
   kitchen_plan: 'now' | 'later' | 'chef' | null
+  estimated_guest_count: number | null
+  budget_amount: number | null
+  budget_currency: string
 }
 
 type GuestRow = {
@@ -97,11 +102,21 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState('')
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [playlistSuggestions, setPlaylistSuggestions] = useState<PlaylistSuggestion[]>([])
+  const [playlistLoading, setPlaylistLoading] = useState(false)
+  const [playlistAdding, setPlaylistAdding] = useState(false)
+  const [playlistDeletingId, setPlaylistDeletingId] = useState<string | null>(null)
+  const [playlistError, setPlaylistError] = useState('')
   const [accessRequests, setAccessRequests] = useState<PendingEventAccessRequest[]>([])
   const [respondingToAccessRequest, setRespondingToAccessRequest] = useState<string | null>(null)
   const [accessRequestError, setAccessRequestError] = useState('')
   const [pendingUpdateNotice, setPendingUpdateNotice] = useState<PendingEventUpdateNotice | null>(null)
   const [updateNoticeError, setUpdateNoticeError] = useState('')
+  const [prepManual, setPrepManual] = useState<EventPrepManualState>({})
+  const [menuDrafted, setMenuDrafted] = useState(false)
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const [prepSavingKey, setPrepSavingKey] = useState<EventPrepKey | null>(null)
+  const [prepError, setPrepError] = useState('')
 
   async function loadPhotos() {
     const { photos: loaded, error: photosError } = await fetchAlbumPhotos(supabase, params.id)
@@ -130,15 +145,30 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     return true
   }
 
+  async function loadPlaylist() {
+    setPlaylistLoading(true)
+    const { suggestions, error: suggestionsError } = await fetchPlaylistSuggestions(supabase, params.id)
+    setPlaylistLoading(false)
+    if (suggestionsError) {
+      console.error('Event playlist fetch failed', { eventId: params.id, message: suggestionsError })
+      setPlaylistError('Could not refresh The Vibe.')
+      return false
+    }
+    setPlaylistSuggestions(suggestions)
+    setPlaylistError('')
+    return true
+  }
+
   async function loadData() {
     setLoading(true)
     setError('')
+    setFeedbackSubmitted(false)
     try {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) {
         const { data: publicEvent, error: publicEventError } = await supabase
           .from('events')
-          .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan')
+          .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan,estimated_guest_count,budget_amount,budget_currency')
           .eq('id', params.id)
           .maybeSingle()
         if (publicEventError) throw new Error(publicEventError.message)
@@ -158,7 +188,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       const [{ data: ev, error: e1 }, { data: rsvpRow, error: e2 }, { data: tasteProfile }] = await Promise.all([
         supabase
           .from('events')
-          .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan')
+          .select('id,host_id,chef_id,title,tagline,event_date,venue,address,dress_code,custom_details,theme,cover_url,is_published,kitchen_status,kitchen_plan,estimated_guest_count,budget_amount,budget_currency')
           .eq('id', params.id)
           .maybeSingle(),
         supabase
@@ -249,9 +279,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       setHostNeedsKitchen(hostViewing && ev.kitchen_status === 'pending' && ev.kitchen_plan === 'later')
 
       if (hostViewing) {
-        const [{ requests, error: pendingError }, updateReminder] = await Promise.all([
+        const [{ requests, error: pendingError }, updateReminder, prepState] = await Promise.all([
           listPendingEventAccessRequests(supabase, params.id, stored),
           getPendingEventUpdateNotice(supabase, params.id, stored),
+          fetchEventPrepState(supabase, params.id, stored),
         ])
         if (pendingError) {
           setAccessRequestError('Could not load access requests. Try again.')
@@ -261,9 +292,14 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         }
         setPendingUpdateNotice(updateReminder.notice)
         setUpdateNoticeError(updateReminder.error ? 'Could not load the update reminder.' : '')
+        setPrepManual(prepState.manual)
+        setMenuDrafted(prepState.menuDrafted)
+        setFeedbackSubmitted(prepState.feedbackSubmitted)
+        setPrepError(prepState.error ? 'Could not load event prep. Try again.' : '')
       }
 
       if (isUnlocked) {
+        if (!hostViewing) setFeedbackSubmitted(await hasSubmittedSofraFeedback(supabase, params.id, stored))
         const { data: guestRows, error: e3 } = await supabase
           .from('rsvps')
           .select('status, users(id, name, photo_url)')
@@ -300,7 +336,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
           setGuests(roster)
         }
 
-        await Promise.all([loadPhotos(), loadMessages()])
+        await Promise.all([loadPhotos(), loadMessages(), loadPlaylist()])
       }
     } catch (loadError) {
       const detail = loadError instanceof Error ? loadError.message : 'unknown error'
@@ -328,12 +364,23 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     return () => { void supabase.removeChannel(channel) }
   }, [unlocked]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!unlocked || typeof supabase.channel !== 'function') return
+    const channel = supabase.channel(`event-playlist:${params.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlist_suggestions', filter: `event_id=eq.${params.id}` }, () => {
+        void loadPlaylist()
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [unlocked]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function copyInviteLink() {
     const url = canonicalEventUrl(params.id)
     try {
       await navigator.clipboard.writeText(url)
       setCopyFallbackUrl('')
       setCopied(true)
+      if (uidRef.current && isHost) void handleSavePrepItem('date_invites', true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       setCopyFallbackUrl(url)
@@ -374,6 +421,49 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       setPhotos((current) => [...succeeded, ...current])
       router.push('/events/' + params.id + '/album')
     }
+  }
+
+  async function handleAddPlaylistSong(song: string, spotifyTrackId?: string | null): Promise<boolean> {
+    if (!uidRef.current || !unlocked) return false
+    setPlaylistAdding(true)
+    setPlaylistError('')
+    const result = await addPlaylistSuggestion(supabase, {
+      eventId: params.id,
+      userId: uidRef.current,
+      song,
+      spotifyTrackId,
+      currentCount: playlistSuggestionCount(playlistSuggestions, uidRef.current),
+    })
+    setPlaylistAdding(false)
+    if (result.error || !result.suggestion) {
+      setPlaylistError(result.error ?? 'Could not add that song. Try again.')
+      return false
+    }
+    setPlaylistSuggestions((current) => current.some((item) => item.id === result.suggestion!.id)
+      ? current
+      : [...current, result.suggestion!])
+    return true
+  }
+
+  async function handleDeletePlaylistSong(suggestionId: string): Promise<boolean> {
+    if (!uidRef.current || !unlocked) return false
+    const suggestion = playlistSuggestions.find(item => item.id === suggestionId)
+    if (!suggestion || (!isHost && suggestion.userId !== uidRef.current)) return false
+    setPlaylistDeletingId(suggestionId)
+    setPlaylistError('')
+    const result = await removePlaylistSuggestion(supabase, {
+      suggestionId,
+      eventId: params.id,
+      userId: uidRef.current,
+      canManageEvent: isHost,
+    })
+    setPlaylistDeletingId(null)
+    if (result.error) {
+      setPlaylistError('Could not remove that song. Try again.')
+      return false
+    }
+    setPlaylistSuggestions(current => current.filter(item => item.id !== suggestionId))
+    return true
   }
 
   async function handleRemoveGuest(guestId: string) {
@@ -429,6 +519,35 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     const url = canonicalEventUrl(params.id)
     const message = `You're invited to ${event.title}! ${url}`
     window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank')
+    if (uidRef.current && isHost) void handleSavePrepItem('date_invites', true)
+  }
+
+  async function handleSavePrepItem(key: EventPrepKey, completed: boolean, note = ''): Promise<boolean> {
+    if (!uidRef.current || !isHost) return false
+    setPrepSavingKey(key)
+    setPrepError('')
+    const result = await saveEventPrepItem(supabase, params.id, uidRef.current, key, completed, note)
+    setPrepSavingKey(null)
+    if (!result.ok) {
+      setPrepError('Could not save that prep item. Try again.')
+      return false
+    }
+    setPrepManual((current) => ({ ...current, [key]: { completed, note } }))
+    return true
+  }
+
+  async function handleSubmitFeedback(rating: number, ease: number, comment: string): Promise<boolean> {
+    if (!uidRef.current || !unlocked) return false
+    setPrepError('')
+    const { data, error: feedbackError } = await supabase.rpc('submit_sofra_feedback', {
+      p_event_id: params.id, p_user_id: uidRef.current, p_rating: rating, p_planning_ease: ease, p_comment: comment,
+    })
+    if (feedbackError || data !== true) {
+      setPrepError('Could not send feedback. Try again.')
+      return false
+    }
+    setFeedbackSubmitted(true)
+    return true
   }
 
   async function ensureCohostLink(): Promise<string | null> {
@@ -466,6 +585,19 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     window.open('https://wa.me/?text=' + encodeURIComponent(`Will you co-host ${event.title} with me? ${url}`), '_blank')
   }
   const isPast = event ? !isEventDateUndecided(event.event_date) && new Date(event.event_date).getTime() < Date.now() : false
+  const prepItems = event && isHost ? buildEventPrepItems({
+    eventDate: event.event_date,
+    tagline: event.tagline,
+    customDetailCount: event.custom_details?.length ?? 0,
+    venue: event.venue,
+    address: event.address,
+    estimatedGuestCount: event.estimated_guest_count,
+    budgetAmount: event.budget_amount,
+    menuDrafted,
+    playlistStarted: playlistSuggestions.length > 0,
+    photosUploaded: photos.length > 0,
+    feedbackSubmitted,
+  }, prepManual) : []
 
   if (redirectingRef.current) return null
 
@@ -486,10 +618,12 @@ export default function EventDetailClient({ params }: { params: { id: string } }
 
   return (
     <EventPaper
+      eventId={params.id}
       loading={loading}
       error={error}
       onRetry={loadData}
       isHost={isHost}
+      canExportSpotify={Boolean(event && uidRef.current && event.host_id === uidRef.current)}
       isPast={isPast}
       title={event?.title ?? ''}
       tagline={event?.tagline ?? null}
@@ -527,7 +661,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       onAddHostKitchen={() => router.push('/kitchen?from=' + params.id)}
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp?edit=1')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
-      onEditEvent={() => router.push('/host/' + params.id + '/edit')}
+      onEditEvent={(section) => router.push('/host/' + params.id + '/edit' + (section ? '#' + section : ''))}
       onRemoveGuest={handleRemoveGuest}
       removingGuestId={removingGuestId}
       removeGuestError={removeGuestError}
@@ -556,6 +690,27 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         setUnreadMessages(0)
         router.push('/events/' + params.id + '/chat')
       }}
+      playlistSuggestions={playlistSuggestions}
+      playlistLoading={playlistLoading}
+      playlistAdding={playlistAdding}
+      playlistDeletingId={playlistDeletingId}
+      playlistError={playlistError}
+      onRetryPlaylist={loadPlaylist}
+      onAddPlaylistSong={handleAddPlaylistSong}
+      onDeletePlaylistSong={handleDeletePlaylistSong}
+      prepItems={prepItems}
+      prepSavingKey={prepSavingKey}
+      prepError={prepError}
+      onSavePrepItem={handleSavePrepItem}
+      onOpenMenu={() => router.push('/events/' + params.id + '/menu')}
+      onOpenSeating={() => router.push('/events/' + params.id + '/seating')}
+      onOpenTimeline={() => router.push('/events/' + params.id + '/timeline')}
+      onSendPhotoReminder={() => {
+        if (isHost) void handleSavePrepItem('photos_reminder', true)
+        router.push('/events/' + params.id + '/update?template=photos')
+      }}
+      feedbackSubmitted={feedbackSubmitted}
+      onSubmitFeedback={handleSubmitFeedback}
     />
   )
 }

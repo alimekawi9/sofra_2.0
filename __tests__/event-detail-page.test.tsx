@@ -45,6 +45,8 @@ function makeSupabase({
   viewerIsCohost = false,
   pendingAccessRequests = [] as Array<{ id: string; user_id: string; created_at: string; users: { id: string; name: string; photo_url: string | null } }>,
   updateNoticeKinds = [] as Array<'date' | 'time' | 'location' | 'photos'>,
+  playlistRows = [] as Array<{ id: string; event_id: string; user_id: string; song: string; spotify_track_id?: string | null; created_at: string; users: { name: string; photo_url: string | null } | null }>,
+  feedbackSubmitted = true,
 } = {}) {
   // rsvps chain 1: .select().eq(event_id).eq(user_id).maybeSingle()
   // rsvps chain 2: .select().eq(event_id).in(status, [...])
@@ -90,6 +92,20 @@ function makeSupabase({
         return {
           select: jest.fn().mockReturnValue({ eq: photoEqMock }),
           insert: photoInsertMock,
+        }
+      }
+      if (table === 'playlist_suggestions') {
+        const secondOrder = jest.fn().mockResolvedValue({ data: playlistRows, error: null })
+        const firstOrder = jest.fn().mockReturnValue({ order: secondOrder })
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({ order: firstOrder }),
+          }),
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({ data: playlistRows[0] ?? null, error: playlistRows[0] ? null : { message: 'missing fixture' } }),
+            }),
+          }),
         }
       }
       if (table === 'taste_profiles') {
@@ -148,6 +164,8 @@ function makeSupabase({
         }
       : name === 'get_pending_event_update_notice'
         ? { data: updateNoticeKinds.length > 0 ? [{ notice_kinds: updateNoticeKinds, changed_at: '2026-08-26T10:00:00Z' }] : [], error: null }
+        : name === 'has_sofra_feedback'
+          ? { data: feedbackSubmitted, error: null }
         : { data: true, error: null })),
     _photoEqMock: photoEqMock,
     _photoOrderMock: photoOrderMock,
@@ -220,7 +238,7 @@ describe('fresh-browser initialization', () => {
 
 describe('Copy invite link button', () => {
   async function openInviteMenu() {
-    await userEvent.click(await screen.findByRole('button', { name: /^invite$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /^send$/i }))
   }
 
   it('keeps co-host sharing choices collapsed until the host asks for them', async () => {
@@ -287,7 +305,7 @@ describe('Copy invite link button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase()
     render(<EventDetailPage params={PARAMS} />)
-    await user.click(await screen.findByRole('button', { name: /^invite$/i }))
+    await user.click(await screen.findByRole('button', { name: /^send$/i }))
     await waitFor(() => screen.getByRole('button', { name: /copy invite link/i }))
     await user.click(screen.getByRole('button', { name: /copy invite link/i }))
     act(() => { jest.advanceTimersByTime(2000) })
@@ -422,7 +440,7 @@ describe('EDIT EVENT button', () => {
     localStorage.setItem('sofra_user_id', HOST_UID)
     makeSupabase({ event: { ...SAMPLE_EVENT, event_date: '2020-01-01T00:00:00Z', kitchen_status: 'pending', kitchen_plan: 'later' } })
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByRole('button', { name: /^invite$/i })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: /^send$/i })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /edit event/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /set the sofra/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /fill kitchen now/i })).not.toBeInTheDocument()
@@ -454,6 +472,22 @@ describe('Shared album', () => {
     const input = screen.getByLabelText('ADD PHOTOS', { selector: 'input' })
     expect(input).toHaveAttribute('multiple')
     expect(input).toHaveAttribute('accept', 'image/*')
+  })
+
+  it('blurs the preview and requires feedback for a guest after the event', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      event: { ...SAMPLE_EVENT, event_date: '2020-01-01T00:00:00Z' },
+      rsvpRow: { status: 'going' },
+      photoRows: [rowAt(1)],
+      feedbackSubmitted: false,
+    })
+    const { container } = render(<EventDetailPage params={PARAMS} />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'TAKE THE SURVEY' })).toBeInTheDocument())
+    expect(container.querySelector('.sv2-album-preview-grid')).toHaveClass('is-feedback-locked')
+    expect(screen.queryByRole('button', { name: 'VIEW ALBUM' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('ADD PHOTOS', { selector: 'input' })).not.toBeInTheDocument()
   })
 
   it('opens a caption sheet after selecting photos, then uploads to the event-photos bucket with the note attached', async () => {
@@ -611,6 +645,26 @@ describe('Shared album', () => {
     mockPush.mockClear()
     await userEvent.click(screen.getByLabelText(/view all 8 photos/i))
     expect(mockPush).toHaveBeenCalledWith('/events/ev-1/album')
+  })
+})
+
+describe('The Vibe', () => {
+  it('is RSVP-gated and shows the full shared suggestion list in the matching community tabs', async () => {
+    localStorage.setItem('sofra_user_id', GUEST_UID)
+    makeSupabase({
+      rsvpRow: { status: 'going' },
+      playlistRows: [
+        { id: 'song-1', event_id: 'ev-1', user_id: GUEST_UID, song: 'Levitating — Dua Lipa', created_at: '2026-08-29T10:00:00Z', users: { name: 'Guest', photo_url: null } },
+        { id: 'song-2', event_id: 'ev-1', user_id: HOST_UID, song: 'Essence — Wizkid', created_at: '2026-08-29T10:01:00Z', users: { name: 'Host', photo_url: null } },
+      ],
+    })
+    render(<EventDetailPage params={PARAMS} />)
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'THE VIBE' }))
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
+    expect(screen.getByText('Levitating — Dua Lipa')).toBeInTheDocument()
+    expect(screen.getByText('Essence — Wizkid')).toBeInTheDocument()
+    expect(screen.getByText('1 of 3 songs added')).toBeInTheDocument()
   })
 })
 

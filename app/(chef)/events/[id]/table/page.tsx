@@ -18,7 +18,7 @@ import { sortedQuestions, isCustom, relevantCanonicalTopics, CANONICAL_KEYS, typ
 import Link from 'next/link'
 import { hasEnoughGuestResponses, menuResponseGuidance, menuResponseLabel } from '@/lib/menu-generation-snapshot'
 import { isEventManager, fetchEventHostIds } from '@/lib/event-access'
-import { rankingInsight, rankingWinners, choiceCounts, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
+import { planningTextSegments, rankingInsight, rankingWinners, choiceCounts, type EventPlanningResult, type PlanningAnswerSummary } from '@/lib/event-planning'
 import { guestHostLabel, guestHostBreakdown } from '@/lib/guest-host-count'
 import { formatEventDate } from '@/lib/event-date'
 
@@ -29,6 +29,13 @@ type CustomAnswerSummary = {
   texts?: string[]
   rankings?: { label: string; bordaScore: number; firstChoiceVotes: number }[]
   average?: { value: number; responses: number }
+}
+
+function highlightedPlanningText(text: string, highlights: string[] | undefined) {
+  return planningTextSegments(text, highlights).map((segment, index) => segment.highlighted
+    ? <strong key={`${segment.text}-${index}`} style={{ fontWeight: 700, color: 'inherit' }}>{segment.text}</strong>
+    : segment.text
+  )
 }
 
 function summarizeCustomAnswers(
@@ -625,9 +632,9 @@ export default function TablePage({ params }: { params: { id: string } }) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       {planning.recommendations.map((recommendation) => (
                         <div key={`${recommendation.title}-${recommendation.action}`}>
-                          <div style={{ color: C.cream, fontSize: 14, fontFamily: 'system-ui, sans-serif', marginBottom: 4 }}>{recommendation.title}</div>
-                          <div style={{ color: C.gold, fontSize: 13, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45 }}>{recommendation.action}</div>
-                          <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45, marginTop: 3 }}>{recommendation.reason}</div>
+                          <div style={{ color: C.cream, fontSize: 14, fontWeight: 700, fontFamily: 'system-ui, sans-serif', marginBottom: 4 }}>{recommendation.title}</div>
+                          <div style={{ color: C.gold, fontSize: 13, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45 }}>{highlightedPlanningText(recommendation.action, recommendation.actionHighlights)}</div>
+                          <div style={{ color: C.faint, fontSize: 12, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45, marginTop: 3 }}>{highlightedPlanningText(recommendation.reason, recommendation.reasonHighlights)}</div>
                         </div>
                       ))}
                     </div>

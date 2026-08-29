@@ -176,11 +176,8 @@ test('stages preset changes until the single signatures UPDATE action', async ()
   await waitFor(() => expect(writes.some(write => write.table === 'signatures' && write.kind === 'insert')).toBe(true))
 })
 
-test('preset picker shows a preset-derived signature under its current (renamed) name, not the stale preset label', async () => {
-  // Simulates a signature that was originally quick-added from the "Hummus"
-  // preset and later renamed via "Edit a saved signature" -- the update only
-  // ever touches name/tags/allergens, never preset_key, so the picker must
-  // key off the live row's name rather than the static preset library name.
+test('preset picker shows a preset-derived signature under its current stored name, not the stale preset label', async () => {
+  // Simulates a legacy signature whose stored name differs from the preset.
   signatureRows.push({
     id: 'sig-renamed-hummus',
     name: "Grandma's Hummus",
@@ -196,7 +193,7 @@ test('preset picker shows a preset-derived signature under its current (renamed)
   expect(screen.queryByRole('button', { name: 'Hummus' })).not.toBeInTheDocument()
 })
 
-test('creating and editing a signature persists the raw main role', async () => {
+test('creating a signature persists the raw main role and hides saved-signature editing', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
@@ -213,20 +210,7 @@ test('creating and editing a signature persists the raw main role', async () => 
       && write.kind === 'insert'
       && (write.payload.tags as string[]).includes('main')
   )).toBe(true))
-
-  fireEvent.change(screen.getByLabelText('Edit a saved signature'), {
-    target: { value: signature.id },
-  })
-  expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  fireEvent.click(screen.getByRole('button', { name: 'Fresh' }))
-  fireEvent.click(within(signatureCard).getByRole('button', { name: 'UPDATE' }))
-
-  await waitFor(() => expect(writes.some((write) =>
-    write.table === 'signatures'
-      && write.kind === 'update'
-      && (write.payload.tags as string[]).includes('main')
-      && (write.payload.tags as string[]).includes('room_temperature')
-  )).toBe(true))
+  expect(screen.queryByLabelText('Edit a saved signature')).not.toBeInTheDocument()
 })
 
 test('pantry update strips legacy roles and keeps raw descriptive tags', async () => {
