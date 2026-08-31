@@ -12,7 +12,6 @@ export function WelcomeCard({ onYalla }: WelcomeCardProps) {
     <div className={`sv2-root sv2-device-page sv2-welcome-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-welcome-card sv2-welcome-landing">
         <p className="sv2-eyebrow">EST. 2026</p>
-        <p className="sv2-arabic" dir="auto" lang="ar">اتفضلوا على السفرة</p>
         <p className="sv2-welcome-kicker">
           WELCOME TO
           <br />
@@ -21,10 +20,10 @@ export function WelcomeCard({ onYalla }: WelcomeCardProps) {
         <p className="sv2-welcome-title">Sofra.</p>
         <div className="sv2-welcome-ornament" aria-hidden="true">
           <Image
-            src="/design-preview/arabesque-ornament.png"
+            src="/sofra-table-mark.png"
             alt=""
-            width={1254}
-            height={1254}
+            width={363}
+            height={260}
             priority
           />
         </div>

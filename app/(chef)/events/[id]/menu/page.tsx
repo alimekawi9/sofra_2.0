@@ -656,7 +656,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   className="sv2-menu-draft-empty-illustration"
-                  src="/design-preview/menu-draft-table.png"
+                  src="/sofra-table-mark.png"
                   alt=""
                 />
                 <p
