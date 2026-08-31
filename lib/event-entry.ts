@@ -22,7 +22,7 @@ export function eventEntryRole(context: EventEntryContext): EventEntryRole {
  */
 export function eventEntryDestination(context: EventEntryContext): string | null {
   const role = eventEntryRole(context)
-  if (role === 'chef') return `/kitchen?from=${context.eventId}&delegate=1`
+  if (role === 'chef') return `/events/${context.eventId}/kitchen-setup?delegate=1`
   // A canonical event URL is an invitation. New guests must be allowed to
   // remain on its private preview and continue into the normal RSVP flow.
   // Membership-gated resources (currently the shared album) enforce access
@@ -40,7 +40,7 @@ export function rsvpEntryDestination(
   options: { editing: boolean; preferencesOnly: boolean }
 ): string | null {
   const role = eventEntryRole(context)
-  if (role === 'chef') return `/kitchen?from=${context.eventId}&delegate=1`
+  if (role === 'chef') return `/events/${context.eventId}/kitchen-setup?delegate=1`
   if (role === 'host' || role === 'cohost') {
     return options.preferencesOnly ? null : `/events/${context.eventId}`
   }

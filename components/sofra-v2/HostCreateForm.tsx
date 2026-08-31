@@ -6,6 +6,9 @@ import { sv2Display, sv2Sans } from './fonts'
 import { ImageCropDialog } from './ImageCropDialog'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import type { TbdSuggestion } from '@/lib/event-tbd-suggestions'
+import { DEFAULT_QUESTIONNAIRE, isCanonical, resolveCanonicalTitle, sortedQuestions } from '@/lib/questionnaire'
+
+export type NewEventQuestionChoice = 'default' | 'custom' | 'none'
 
 export interface HostCreateFormProps {
   mode?: 'create' | 'edit'
@@ -34,8 +37,10 @@ export interface HostCreateFormProps {
   deleting?: boolean
   onCustomizeQuestions?: () => void
   customizingQuestions?: boolean
-  kitchenPlan?: 'now' | 'later' | 'chef'
+  kitchenPlan?: 'now' | 'later' | 'chef' | null
   onKitchenPlanChange?: (value: 'now' | 'later' | 'chef') => void
+  questionChoice?: NewEventQuestionChoice
+  onQuestionChoiceChange?: (value: NewEventQuestionChoice) => void
   dateSuggestion?: TbdSuggestion
   onUseDateSuggestion?: () => void
   locationSuggestion?: TbdSuggestion
@@ -75,8 +80,10 @@ export function HostCreateForm({
   deleting = false,
   onCustomizeQuestions,
   customizingQuestions = false,
-  kitchenPlan = 'now',
+  kitchenPlan = null,
   onKitchenPlanChange,
+  questionChoice = 'default',
+  onQuestionChoiceChange,
   dateSuggestion,
   onUseDateSuggestion,
   locationSuggestion,
@@ -89,19 +96,55 @@ export function HostCreateForm({
   onBudgetCurrencyChange,
 }: HostCreateFormProps) {
   const [pendingCover, setPendingCover] = useState<File | null>(null)
+  const [createStep, setCreateStep] = useState(0)
 
   function chooseImage(file?: File) {
     if (file) setPendingCover(file)
   }
 
   const isEdit = mode === 'edit'
+  const createSteps = ['Details', 'Look', 'Guest questions', 'Kitchen']
+
+  function advanceCreateStep() {
+    if (createStep === 0 && (!title.trim() || !dateTime || !location.trim())) {
+      onSubmit()
+      return
+    }
+    setCreateStep((current) => Math.min(current + 1, createSteps.length - 1))
+  }
+
+  function retreatCreateStep() {
+    setCreateStep((current) => Math.max(current - 1, 0))
+  }
 
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
       <main className="sv2-device-shell sv2-app-shell sv2-host-shell">
         <p className="sv2-event-kicker">{isEdit ? 'EDIT YOUR GATHERING' : 'HOST A GATHERING'}</p>
         <h1>{isEdit ? 'Edit your Sofra' : 'Create a Sofra'}</h1>
-        <form noValidate onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
+        {!isEdit && (
+          <nav className="sv2-create-progress" aria-label="Sofra creation progress">
+            <div className="sv2-create-progress-copy">
+              <span>STEP {createStep + 1} OF {createSteps.length}</span>
+              <strong>{createSteps[createStep]}</strong>
+            </div>
+            <div className="sv2-create-progress-track" aria-hidden="true">
+              {createSteps.map((step, index) => <span key={step} className={index <= createStep ? 'is-complete' : ''} />)}
+            </div>
+          </nav>
+        )}
+        <form noValidate onSubmit={(event) => {
+          event.preventDefault()
+          // An Enter keypress in any step's input fires this the same as a
+          // click would. Only the final step (or edit mode) should actually
+          // submit — otherwise this must advance one step, exactly like
+          // CONTINUE, so a stray Enter can never skip the Kitchen step.
+          if (isEdit || createStep === createSteps.length - 1) { onSubmit(); return }
+          advanceCreateStep()
+        }}>
+
+          {(isEdit || createStep === 0) && <section className="sv2-create-step">
+          {!isEdit && <><h2>Start with the essentials</h2><p className="sv2-create-step-intro">Tell guests when and where to meet you. You can refine everything later.</p></>}
           <label>
             Event name
             <input
@@ -150,7 +193,11 @@ export function HostCreateForm({
 
           <label id="location">
             Location
-            <HostLocationAutocomplete value={location} onChange={onLocationChange} onPlaceSelect={onPlaceSelect} />
+            <HostLocationAutocomplete value={location === 'undecided' ? '' : location} onChange={onLocationChange} onPlaceSelect={onPlaceSelect} disabled={location === 'undecided'} />
+            {!isEdit && <span className="sv2-date-undecided-option">
+              <input aria-label="Location undecided" type="checkbox" checked={location === 'undecided'} onChange={(event) => { onPlaceSelect(null); onLocationChange(event.target.checked ? 'undecided' : '') }} />
+              Location undecided
+            </span>}
             {locationSuggestion && (
               <p className="sv2-tbd-suggestion">
                 Suggested: {locationSuggestion.value} · from {locationSuggestion.responseCount} responses to &quot;{locationSuggestion.sourceQuestionTitle}&quot;
@@ -219,8 +266,9 @@ export function HostCreateForm({
               + ADD DETAIL SECTION
             </button>
           </fieldset>
+          </section>}
 
-          {onCustomizeQuestions && (
+          {isEdit && onCustomizeQuestions && (
             <>
               <button
                 type="button"
@@ -233,6 +281,8 @@ export function HostCreateForm({
             </>
           )}
 
+          {(isEdit || createStep === 1) && <section className="sv2-create-step">
+          {!isEdit && <><h2>Set the look</h2><p className="sv2-create-step-intro">Choose the image guests will see on the invitation. This is optional.</p></>}
           <fieldset className="sv2-invitation-image-field">
             <legend>COVER IMAGE <span>OPTIONAL</span></legend>
             {imageDataUrl ? (
@@ -275,8 +325,40 @@ export function HostCreateForm({
               </label>
             )}
           </fieldset>
+          </section>}
 
-          {!isEdit && onKitchenPlanChange && (
+          {!isEdit && createStep === 2 && (
+            <section className="sv2-create-step sv2-question-choice-step">
+              <h2>What should guests answer?</h2>
+              <p className="sv2-create-step-intro">Sofra has a curated set ready to use, but the questionnaire is entirely yours.</p>
+              <div className="sv2-question-choice-grid">
+                <button type="button" className="sv2-question-choice-card" aria-pressed={questionChoice === 'default'} onClick={() => onQuestionChoiceChange?.('default')}>
+                  <span className="sv2-choice-eyebrow">RECOMMENDED</span>
+                  <strong>Use Sofra&apos;s questions</strong>
+                  <small>Five questions curated to help plan a table everyone can enjoy.</small>
+                  <span className="sv2-question-preview">
+                    {sortedQuestions(DEFAULT_QUESTIONNAIRE).slice(0, 3).map((question) => <span key={question.id}>{isCanonical(question) ? resolveCanonicalTitle(question) : question.title}</span>)}
+                    <em>+ 2 more</em>
+                  </span>
+                </button>
+                <button type="button" className="sv2-question-choice-card" aria-pressed={questionChoice === 'custom'} onClick={() => onQuestionChoiceChange?.('custom')}>
+                  <span className="sv2-choice-eyebrow">MAKE IT YOURS</span>
+                  <strong>Customize the questions</strong>
+                  <small>Edit wording and answers, remove questions, or add your own in the full editor.</small>
+                </button>
+                <button type="button" className="sv2-question-choice-card" aria-pressed={questionChoice === 'none'} onClick={() => onQuestionChoiceChange?.('none')}>
+                  <span className="sv2-choice-eyebrow">SKIP THE SURVEY</span>
+                  <strong>Don&apos;t include questions</strong>
+                  <small>Guests will RSVP without completing food or event questions.</small>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {!isEdit && createStep === 3 && onKitchenPlanChange && (
+            <section className="sv2-create-step">
+            <h2>Plan the kitchen</h2>
+            <p className="sv2-create-step-intro">Choose what happens after your Sofra is created.</p>
             <fieldset className="sv2-kitchen-plan-field">
               <legend>KITCHEN SETUP</legend>
               <p>The kitchen can be completed now, later, or by someone cooking with you.</p>
@@ -292,11 +374,20 @@ export function HostCreateForm({
                 ))}
               </div>
             </fieldset>
+            </section>
           )}
 
-          <button type="submit" disabled={submitting || deleting}>
+          {isEdit && <button type="submit" disabled={submitting || deleting}>
             {submitting ? (isEdit ? 'SAVING…' : 'CONTINUING…') : isEdit ? 'UPDATE INVITE' : 'CONTINUE'}
-          </button>
+          </button>}
+          {!isEdit && (
+            <div className="sv2-create-step-actions">
+              {createStep > 0 && <button type="button" className="sv2-create-back" onClick={retreatCreateStep}>BACK</button>}
+              {createStep < createSteps.length - 1
+                ? <button type="button" onClick={advanceCreateStep}>CONTINUE</button>
+                : <button type="submit" disabled={submitting || !kitchenPlan}>{submitting ? 'CREATING…' : 'CREATE MY SOFRA'}</button>}
+            </div>
+          )}
           {error && <p className="sv2-host-form-error" role="alert">{error}</p>}
         </form>
 

@@ -651,28 +651,9 @@ function KitchenPageInner() {
         className="fade sv2-device-shell sv2-app-shell sv2-kitchen-shell"
         style={{ maxWidth: 440, margin: '0 auto', padding: '22px 20px 32px' }}
       >
-        {backEvent?.isDelegatedChef && (
-          <ChefTabs eventId={backEvent.id} active="kitchen" restrictedChef title={backEvent.title} />
+        {backEvent && (
+          <ChefTabs eventId={backEvent.id} active="kitchen" restrictedChef={backEvent.isDelegatedChef} title={backEvent.title} />
         )}
-        {backEvent && !backEvent.isDelegatedChef && (
-          <button
-            onClick={() => router.push(`/events/${backEvent.id}/${fromPage}`)}
-            style={{
-              display: 'block',
-              background: 'none',
-              border: 'none',
-              color: C.gold,
-              fontSize: 13,
-              fontFamily: 'system-ui, sans-serif',
-              cursor: 'pointer',
-              padding: 0,
-              marginBottom: 12,
-            }}
-          >
-            ← Back to {backEvent.title}
-          </button>
-        )}
-
         {/* Chef header */}
         <div style={{ marginBottom: 18 }}>
           <div style={{ color: C.cream, fontSize: 24, fontStyle: 'italic' }}>

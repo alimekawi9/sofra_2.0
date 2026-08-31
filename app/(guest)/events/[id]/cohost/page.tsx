@@ -56,7 +56,7 @@ export default function CohostInvitePage({ params }: { params: { id: string } })
         .from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', userId).maybeSingle()
       const role = eventEntryRole({ eventId: params.id, userId, hostId: ev.host_id, chefId: ev.chef_id, isCohost: Boolean(membership), hasRsvp: false })
       if (role === 'host' || role === 'cohost') { router.replace(`/events/${params.id}`); return }
-      if (role === 'chef') { router.replace(`/kitchen?from=${params.id}&delegate=1`); return }
+      if (role === 'chef') { router.replace(`/events/${params.id}/kitchen-setup?delegate=1`); return }
       setLoading(false)
     }
     load()

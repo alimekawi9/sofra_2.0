@@ -229,7 +229,7 @@ describe('fresh-browser initialization', () => {
     localStorage.setItem('sofra_user_id', GUEST_UID)
     makeSupabase({ event: { ...SAMPLE_EVENT, chef_id: GUEST_UID } })
     render(<EventDetailPage params={PARAMS} />)
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/kitchen?from=ev-1&delegate=1'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/ev-1/kitchen-setup?delegate=1'))
     expect(mockReplace).not.toHaveBeenCalledWith('/events/ev-1/rsvp')
   })
 })
@@ -855,7 +855,7 @@ describe('Host kitchen reminder', () => {
 
     const action = await screen.findByRole('button', { name: 'FILL KITCHEN NOW' })
     await userEvent.click(action)
-    expect(mockPush).toHaveBeenCalledWith('/kitchen?from=ev-1')
+    expect(mockPush).toHaveBeenCalledWith('/events/ev-1/kitchen-setup')
   })
 
   it('does not show the reminder once Kitchen is complete, even if the plan was "later"', async () => {

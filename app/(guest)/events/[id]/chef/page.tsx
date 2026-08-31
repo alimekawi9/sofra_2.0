@@ -30,7 +30,7 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
         supabase.from('event_cohosts').select('user_id').eq('event_id', params.id).eq('user_id', userId).maybeSingle(),
       ])
       if (!event) { setError("Couldn't load this invitation."); setLoading(false); return }
-      if (event.chef_id === userId) { router.replace(`/kitchen?from=${params.id}&delegate=1`); return }
+      if (event.chef_id === userId) { router.replace(`/events/${params.id}/kitchen-setup?delegate=1`); return }
       if (event.host_id === userId || cohost) { router.replace(`/events/${params.id}`); return }
 
       const { data: invite } = await supabase.from('event_kitchen_invites')
@@ -56,7 +56,7 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
         setError('This chef invitation could not be accepted. It may already have been used.')
         return
       }
-      router.replace(`/kitchen?from=${params.id}&delegate=1`)
+      router.replace(`/events/${params.id}/kitchen-setup?delegate=1`)
     }
     void accept()
   }, [claimed, loading, error]) // eslint-disable-line react-hooks/exhaustive-deps

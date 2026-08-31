@@ -1,20 +1,14 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import HostNewPage from '@/app/(host)/host/new/page'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { UNDECIDED_EVENT_DATE } from '@/lib/event-date'
 
 jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
-jest.mock('@/components/sofra-v2/ImageCropDialog', () => ({
-  ImageCropDialog: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => (
-    <button type="button" onClick={() => onConfirm(file)}>USE THIS CROP</button>
-  ),
-}))
+jest.mock('@/components/sofra-v2/ImageCropDialog', () => ({ ImageCropDialog: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => <button type="button" onClick={() => onConfirm(file)}>USE THIS CROP</button> }))
 
 const mockPush = jest.fn()
-
 beforeEach(() => {
   jest.clearAllMocks()
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
@@ -23,349 +17,151 @@ beforeEach(() => {
   localStorage.setItem('sofra_user_id', 'uid-1')
 })
 
-function makeSupabase({
-  uploadError = null as { message: string } | null,
-  insertError = null as { message: string } | null,
-  insertedId  = 'new-event-id',
-  updateError = null as { message: string } | null,
-} = {}) {
-  const upload       = jest.fn().mockResolvedValue({ error: uploadError })
+function makeSupabase() {
+  const upload = jest.fn().mockResolvedValue({ error: null })
   const getPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/photo.jpg' } })
-  const single       = jest.fn().mockResolvedValue({ data: { id: insertedId }, error: insertError })
-  const select       = jest.fn().mockReturnValue({ single })
-  const insert       = jest.fn().mockReturnValue({ select })
-  const updateEq     = jest.fn().mockResolvedValue({ error: updateError })
-  const update        = jest.fn().mockReturnValue({ eq: updateEq })
-
-  const sb = {
-    storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) },
-    from:    jest.fn().mockReturnValue({ insert, update }),
-    upload, getPublicUrl, insert, select, single, update, updateEq,
-  }
+  const single = jest.fn().mockResolvedValue({ data: { id: 'new-event-id' }, error: null })
+  const insert = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) })
+  const updateEq = jest.fn().mockResolvedValue({ error: null })
+  const update = jest.fn().mockReturnValue({ eq: updateEq })
+  const upsert = jest.fn().mockResolvedValue({ error: null })
+  const sb = { storage: { from: jest.fn().mockReturnValue({ upload, getPublicUrl }) }, from: jest.fn().mockReturnValue({ insert, update, upsert }), upload, insert, update, updateEq, upsert }
   ;(createClient as jest.Mock).mockReturnValue(sb)
   return sb
 }
 
-it('renders without crashing', () => {
-  makeSupabase()
-  render(<HostNewPage />)
-  expect(document.body).toBeTruthy()
-})
-
-it('renders the create-a-sofra heading', () => {
-  makeSupabase()
-  render(<HostNewPage />)
-  expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument()
-})
-
-it('redirects to /login when sofra_user_id is absent', async () => {
-  localStorage.clear()
-  makeSupabase()
-  render(<HostNewPage />)
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
-})
-
-describe('cover image', () => {
-  it('shows the empty drop zone initially', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
-  })
-
-  it('shows a preview with REPLACE/REMOVE after a file is picked', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = screen.getByLabelText(/choose cover image/i)
-    await userEvent.upload(input, file)
-    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
-    expect(screen.getByRole('button', { name: /remove/i })).toBeInTheDocument()
-    expect(screen.queryByText('Choose a cover image')).not.toBeInTheDocument()
-  })
-
-  it('calls URL.createObjectURL with the picked file', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    const input = screen.getByLabelText(/choose cover image/i)
-    await userEvent.upload(input, file)
-    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
-    expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
-  })
-
-  it('REMOVE clears the preview back to the empty drop zone', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    const file  = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
-    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
-    await userEvent.click(screen.getByRole('button', { name: /remove/i }))
-    expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
-  })
-})
-
-describe('theme swatches', () => {
-  it('does not show obsolete color themes now that events have a shared default cover', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.queryByText(/used if no cover image/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('radio', { name: 'Ember' })).not.toBeInTheDocument()
-  })
-})
-
-describe('form fields', () => {
-  it('renders title, tagline, location, and dress code text inputs', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.getByRole('textbox', { name: /event name/i })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: /tagline/i })).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: /location/i })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: /dress code/i })).toBeInTheDocument()
-  })
-
-  it('renders the date & time input', () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.getByTestId('date-input')).toBeInTheDocument()
-  })
-
-  it('Continue is always enabled and validates on submit instead', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    const submit = screen.getByRole('button', { name: /continue/i })
-    const validationError = screen.getByText(/add an event name, date and time, and location/i)
-    expect(validationError).toBeInTheDocument()
-    expect(submit.compareDocumentPosition(validationError) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-})
-
-// Helper: fill required fields so submission proceeds past validation
-async function fillRequired() {
+async function fillDetails() {
   await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Test Dinner')
   fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
   await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
 }
 
-describe('submit handler', () => {
-  it('does not call storage.upload when no cover file was picked', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.upload).not.toHaveBeenCalled()
-  })
+async function goToQuestions() {
+  await fillDetails()
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+}
 
-  it('calls storage.upload when a cover file was picked', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
-    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.upload).toHaveBeenCalledWith(
-      expect.stringMatching(/^uid-1\/.+\.jpg$/),
-      file
-    )
-  })
+async function goToKitchen() {
+  await goToQuestions()
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+}
 
-  it('shows upload error and does not call insert when upload fails', async () => {
-    const sb = makeSupabase({ uploadError: { message: 'network error' } })
-    render(<HostNewPage />)
-    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
-    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/photo upload failed/i)).toBeInTheDocument()
-    )
-    expect(sb.insert).not.toHaveBeenCalled()
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it('inserts event row with correct column values and redirects on success', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Test Dinner')
-    await userEvent.type(screen.getByRole('textbox', { name: /tagline/i }), 'A cozy evening')
-    fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
-    await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
-    await userEvent.type(screen.getByRole('textbox', { name: /dress code/i }), 'Smart casual')
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=new-event-id'))
-    expect(sb.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        host_id:    'uid-1',
-        title:      'Test Dinner',
-        tagline:    'A cozy evening',
-        event_date: '2026-08-01T19:00:00.000Z',
-        venue:      'The Garden Room',
-        dress_code: 'Smart casual',
-        theme:      'ember',
-        cover_url:  null,
-        is_published: true,
-        kitchen_status: 'pending',
-        kitchen_plan: 'now',
-      })
-    )
-  })
-
-  it('can publish immediately and defer Kitchen setup', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: 'FILL IN LATER' }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
-    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ kitchen_plan: 'later' }))
-  })
-
-  it('can continue to the chef-link flow without requiring Kitchen setup', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: 'SEND TO A CHEF' }))
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id/table?kitchenShare=1'))
-    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ kitchen_plan: 'chef' }))
-  })
-
-  it('allows the event date to remain undecided', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Open Date Dinner')
-    await userEvent.click(screen.getByRole('checkbox', { name: /date undecided/i }))
-    await userEvent.type(screen.getByRole('combobox', { name: /location/i }), 'The Garden Room')
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=new-event-id'))
-    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ event_date: UNDECIDED_EVENT_DATE }))
-  })
-
-  it('shows insert error and does not redirect when insert fails', async () => {
-    makeSupabase({ insertError: { message: 'db error' } })
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
-    )
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it('uses the storage public URL as cover_url when a cover is uploaded', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
-    await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
-    await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ cover_url: 'https://cdn.example.com/photo.jpg' })
-    )
-  })
-
-  it('empty optional fields are inserted as null not empty string', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tagline:    null,
-        dress_code: null,
-      })
-    )
-  })
+it('starts with details and a four-step progress indicator', () => {
+  makeSupabase(); render(<HostNewPage />)
+  expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument()
+  expect(screen.getByText('STEP 1 OF 4')).toBeInTheDocument()
+  expect(screen.getByText('Details')).toBeInTheDocument()
+  expect(screen.queryByText('Choose a cover image')).not.toBeInTheDocument()
 })
 
-describe('CUSTOMIZE GUEST QUESTIONS', () => {
-  it('validates required fields before creating a draft', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
-    expect(
-      screen.getByText(/add an event name, date and time, and location/i)
-    ).toBeInTheDocument()
-    expect(sb.insert).not.toHaveBeenCalled()
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it('creates a draft event and navigates to the questionnaire editor', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/new-event-id/questionnaire'))
-    expect(sb.insert).toHaveBeenCalledTimes(1)
-  })
-
-  it('publishing after an earlier customize click updates the draft instead of inserting a duplicate', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /customize guest questions/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/new-event-id/questionnaire'))
-
-    mockPush.mockClear()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=new-event-id'))
-
-    expect(sb.insert).toHaveBeenCalledTimes(1)
-    expect(sb.update).toHaveBeenCalledTimes(1)
-    expect(sb.updateEq).toHaveBeenCalledWith('id', 'new-event-id')
-  })
+it('validates required details before advancing', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  expect(screen.getByRole('alert')).toHaveTextContent(/add an event name, date and time, and location/i)
+  expect(sb.insert).not.toHaveBeenCalled()
 })
 
-describe('custom detail sections', () => {
-  it('adds a section, fills it in, and includes it in the insert payload', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
-    await userEvent.type(screen.getByRole('textbox', { name: /section label/i }), 'Parking')
-    await userEvent.type(screen.getByRole('textbox', { name: /details/i }), 'Free lot behind the theater')
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        custom_details: [expect.objectContaining({ label: 'Parking', body: 'Free lot behind the theater' })],
-      })
-    )
-  })
+it('moves through details and cover without losing entered values', async () => {
+  makeSupabase(); render(<HostNewPage />); await fillDetails()
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  expect(screen.getByText('STEP 2 OF 4')).toBeInTheDocument()
+  expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'BACK' }))
+  expect(screen.getByRole('textbox', { name: /event name/i })).toHaveValue('Test Dinner')
+})
 
-  it('drops a section that has a label but no body', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
-    await userEvent.type(screen.getByRole('textbox', { name: /section label/i }), 'Parking')
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ custom_details: [] }))
-  })
+it('offers defaults with a preview, customization, and no questions', async () => {
+  makeSupabase(); render(<HostNewPage />); await goToQuestions()
+  expect(screen.getByText('STEP 3 OF 4')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /use sofra's questions/i })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /customize the questions/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /don't include questions/i })).toBeInTheDocument()
+})
 
-  it('REMOVE deletes a section before submit', async () => {
-    makeSupabase()
-    render(<HostNewPage />)
-    await userEvent.click(screen.getByRole('button', { name: /add detail section/i }))
-    await userEvent.click(screen.getByRole('button', { name: /remove detail section/i }))
-    expect(screen.queryByRole('textbox', { name: /section label/i })).not.toBeInTheDocument()
-  })
+it('publishes with defaults and follows the selected kitchen path', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />); await goToKitchen()
+  await userEvent.click(screen.getByRole('button', { name: 'FILL IN LATER' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
+  expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ title: 'Test Dinner', kitchen_plan: 'later', is_published: true }))
+  expect(sb.upsert).not.toHaveBeenCalled()
+})
 
-  it('an event with no custom detail sections submits an empty array', async () => {
-    const sb = makeSupabase()
-    render(<HostNewPage />)
-    await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
-    expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ custom_details: [] }))
-  })
+it('has no kitchen plan pre-selected and blocks submission until one is chosen', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />); await goToKitchen()
+  for (const label of ['FILL IN LATER', 'FILL KITCHEN NOW', 'SEND TO A CHEF']) {
+    expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false')
+  }
+  expect(screen.getByRole('button', { name: 'CREATE MY SOFRA' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
+  expect(screen.getByRole('button', { name: 'CREATE MY SOFRA' })).toBeEnabled()
+  expect(sb.insert).not.toHaveBeenCalled()
+})
+
+it('opens the restaurant-or-home kitchen choice after filling the kitchen now', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />); await goToKitchen()
+  await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id/kitchen-setup'))
+  expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ kitchen_plan: 'now' }))
+})
+
+it('a stray Enter keypress advances one step instead of skipping straight to submission', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />); await fillDetails()
+  fireEvent.submit(screen.getByRole('textbox', { name: /event name/i }).closest('form')!)
+  expect(screen.getByText('STEP 2 OF 4')).toBeInTheDocument()
+  expect(sb.insert).not.toHaveBeenCalled()
+  expect(mockPush).not.toHaveBeenCalled()
+})
+
+it('allows the location to remain undecided', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />)
+  await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Open Location Dinner')
+  fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
+  await userEvent.click(screen.getByRole('checkbox', { name: /location undecided/i }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
+  await waitFor(() => expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ venue: null, address: null })))
+})
+
+it('stores an intentionally empty questionnaire when no questions is selected', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />); await goToQuestions()
+  await userEvent.click(screen.getByRole('button', { name: /don't include questions/i }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalledWith(expect.objectContaining({ event_id: 'new-event-id', config: { questions: [] } }), { onConflict: 'event_id' }))
+})
+
+it('opens the full editor after creation when customization is selected', async () => {
+  makeSupabase(); render(<HostNewPage />); await goToQuestions()
+  await userEvent.click(screen.getByRole('button', { name: /customize the questions/i }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/new-event-id/questionnaire?onboarding=1&kitchenPlan=now'))
+})
+
+it('uploads a cropped cover only when one was selected', async () => {
+  const sb = makeSupabase(); render(<HostNewPage />); await fillDetails()
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  const file = new File(['img'], 'cover.jpg', { type: 'image/jpeg' })
+  await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
+  await userEvent.click(screen.getByRole('button', { name: /use this crop/i }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
+  await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
+  await waitFor(() => expect(sb.upload).toHaveBeenCalled())
+  expect(sb.insert).toHaveBeenCalledWith(expect.objectContaining({ cover_url: 'https://cdn.example.com/photo.jpg' }))
+})
+
+it('redirects to login without a local identity', async () => {
+  localStorage.clear(); makeSupabase(); render(<HostNewPage />)
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
 })

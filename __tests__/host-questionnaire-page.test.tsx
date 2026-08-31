@@ -80,6 +80,7 @@ beforeEach(() => {
   localStorage.clear()
   localStorage.setItem('sofra_user_id', HOST_UID)
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace })
+  window.history.replaceState({}, '', '/')
 })
 
 it('redirects to /login when no local identity is set', async () => {
@@ -136,6 +137,24 @@ it('editing a canonical question title and saving persists the override, keyed b
   expect(dietaryQuestion.title).toBe('KEEP IT DAIRY-FREE?')
   expect(dietaryQuestion.canonicalKey).toBe('dietary')
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/host/event-1/edit'))
+})
+
+it('continues the creation flow after saving onboarding customization', async () => {
+  window.history.replaceState({}, '', '/host/event-1/questionnaire?onboarding=1&kitchenPlan=chef')
+  makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1/table?kitchenShare=1'))
+})
+
+it('opens the restaurant-or-home kitchen choice after onboarding with a fill-now plan', async () => {
+  window.history.replaceState({}, '', '/host/event-1/questionnaire?onboarding=1&kitchenPlan=now')
+  makeSupabase()
+  render(<HostQuestionnairePage params={PARAMS} />)
+  await waitFor(() => screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'SAVE QUESTIONNAIRE' }))
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/event-1/kitchen-setup'))
 })
 
 it('adding a custom single-choice question with two options saves correctly', async () => {

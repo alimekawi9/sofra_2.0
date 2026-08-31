@@ -8,6 +8,7 @@ import { AlbumAvatar } from '@/components/sofra-v2/AlbumAvatar'
 import { SofraHistoryArtwork } from '@/components/sofra-v2/SofraHistoryArtwork'
 import { fetchProfileHistory, type ProfileHistoryEntry } from '@/lib/profiles'
 import {
+  disconnectConnection,
   getConnectionContext,
   isConnectionSchemaUnavailable,
   requestConnection,
@@ -32,6 +33,7 @@ export default function PublicProfilePage({ params }: { params: { userId: string
   const [viewerId, setViewerId] = useState('')
   const [connection, setConnection] = useState<ConnectionContext | null>(null)
   const [connectionBusy, setConnectionBusy] = useState(false)
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
   const [connectionError, setConnectionError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -112,6 +114,24 @@ export default function PublicProfilePage({ params }: { params: { userId: string
     }
   }
 
+  async function removeConnection() {
+    if (!viewerId || !connection?.requestId || connectionBusy) return
+    setConnectionBusy(true)
+    setConnectionError('')
+    try {
+      const ok = await disconnectConnection(supabase, connection.requestId, viewerId)
+      if (!ok) throw new Error('Connection could not be removed')
+      setCanSeeHistory(false)
+      setHistory([])
+      setConfirmingDisconnect(false)
+      setConnection(await getConnectionContext(supabase, viewerId, params.userId))
+    } catch {
+      setConnectionError("Couldn't remove this connection. Try again.")
+    } finally {
+      setConnectionBusy(false)
+    }
+  }
+
   return (
     <div className="sv2-root sv2-device-page sv2-app-page">
       <main className="sv2-device-shell sv2-app-shell sv2-public-profile-shell">
@@ -139,8 +159,26 @@ export default function PublicProfilePage({ params }: { params: { userId: string
                       <button type="button" disabled={connectionBusy} onClick={() => void respondToRequest(false)}>DECLINE</button>
                     </div>
                   )}
-                  {connection.status === 'accepted' && <strong>CONNECTED</strong>}
-                  {connection.status === 'cooldown' && <strong>REQUEST DECLINED · TRY AGAIN IN A DAY OR TWO</strong>}
+                  {connection.status === 'accepted' && (
+                    <>
+                      <strong>CONNECTED</strong>
+                      {!confirmingDisconnect ? (
+                        <button type="button" disabled={connectionBusy} onClick={() => setConfirmingDisconnect(true)}>
+                          UNCONNECT
+                        </button>
+                      ) : (
+                        <div className="sv2-public-profile-disconnect-confirmation">
+                          <button type="button" disabled={connectionBusy} onClick={() => setConfirmingDisconnect(false)}>
+                            KEEP CONNECTION
+                          </button>
+                          <button type="button" disabled={connectionBusy} onClick={() => void removeConnection()}>
+                            {connectionBusy ? 'REMOVING...' : 'CONFIRM UNCONNECT'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {connection.status === 'cooldown' && <strong>NOT CONNECTED · TRY AGAIN IN A DAY OR TWO</strong>}
                   {connectionError && <p role="alert">{connectionError}</p>}
                 </div>
               )}

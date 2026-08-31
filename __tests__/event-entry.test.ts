@@ -55,9 +55,9 @@ describe('event entry routing', () => {
   })
 
   it('routes the assigned chef directly to delegated Kitchen', () => {
-    expect(eventEntryDestination({ ...guest, userId: 'chef-1' })).toBe('/kitchen?from=event-1&delegate=1')
+    expect(eventEntryDestination({ ...guest, userId: 'chef-1' })).toBe('/events/event-1/kitchen-setup?delegate=1')
     expect(rsvpEntryDestination({ ...guest, userId: 'chef-1' }, { editing: false, preferencesOnly: false }))
-      .toBe('/kitchen?from=event-1&delegate=1')
+      .toBe('/events/event-1/kitchen-setup?delegate=1')
   })
 
   it('preserves the complete internal destination through login', () => {

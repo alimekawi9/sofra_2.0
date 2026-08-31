@@ -46,9 +46,14 @@ function client(): GoogleGenAI {
 const isRetryable = (msg: string) => /429|rate|quota|503|unavailable|overloaded|high demand/i.test(msg)
 const RETRY_DELAY_MS = 500
 
-async function attemptGeminiCall(ai: GoogleGenAI, prompt: string, responseJsonSchema?: object) {
+type GeminiJsonOptions = { maxOutputTokens?: number; timeoutMs?: number }
+type GeminiInlineDataOptions = { maxOutputTokens?: number; retryMaxOutputTokens?: number; timeoutMs?: number }
+
+async function attemptGeminiCall(ai: GoogleGenAI, prompt: string, responseJsonSchema?: object, options: GeminiJsonOptions = {}) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timeoutMs = options.timeoutMs ?? TIMEOUT_MS
+  const maxOutputTokens = options.maxOutputTokens ?? GEMINI_MAX_OUTPUT_TOKENS
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   const startedAt = Date.now()
   try {
     const response = await ai.models.generateContent({
@@ -57,7 +62,7 @@ async function attemptGeminiCall(ai: GoogleGenAI, prompt: string, responseJsonSc
       config: {
         responseMimeType: 'application/json',
         responseJsonSchema,
-        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+        maxOutputTokens,
         thinkingConfig: { thinkingBudget: 1 },
         abortSignal: controller.signal,
       },
@@ -68,8 +73,8 @@ async function attemptGeminiCall(ai: GoogleGenAI, prompt: string, responseJsonSc
     const elapsedMs = Date.now() - startedAt
     const msg = err instanceof Error ? err.message : String(err)
     if (controller.signal.aborted) {
-      console.error(`[gemini] request timed out after ${elapsedMs}ms (limit ${TIMEOUT_MS}ms)`)
-      throw new GeminiError('timeout', `Gemini request timed out after ${TIMEOUT_MS}ms`)
+      console.error(`[gemini] request timed out after ${elapsedMs}ms (limit ${timeoutMs}ms)`)
+      throw new GeminiError('timeout', `Gemini request timed out after ${timeoutMs}ms`)
     }
     console.error(`[gemini] request failed after ${elapsedMs}ms: ${msg}`)
     if (isRetryable(msg)) {
@@ -83,7 +88,7 @@ async function attemptGeminiCall(ai: GoogleGenAI, prompt: string, responseJsonSc
 
 // Calls Gemini and returns parsed JSON. Throws GeminiError with a specific kind
 // on any failure so callers can decide how to fall back / surface the error.
-export async function callGeminiJson<T = unknown>(prompt: string, responseJsonSchema?: object): Promise<T> {
+export async function callGeminiJson<T = unknown>(prompt: string, responseJsonSchema?: object, options: GeminiJsonOptions = {}): Promise<T> {
   const ai = client()
 
   // Rough token estimate only (chars/4) — no tokenizer dependency. Good enough
@@ -94,12 +99,12 @@ export async function callGeminiJson<T = unknown>(prompt: string, responseJsonSc
 
   let response
   try {
-    response = await attemptGeminiCall(ai, prompt, responseJsonSchema)
+    response = await attemptGeminiCall(ai, prompt, responseJsonSchema, options)
   } catch (err) {
     if (!(err instanceof GeminiError) || err.kind !== 'rate-limit') throw err
     console.log(`[gemini] retrying once after a transient failure (waiting ${RETRY_DELAY_MS}ms): ${err.message}`)
     await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
-    response = await attemptGeminiCall(ai, prompt, responseJsonSchema)
+    response = await attemptGeminiCall(ai, prompt, responseJsonSchema, options)
   }
 
   const text = response?.text
@@ -110,7 +115,7 @@ export async function callGeminiJson<T = unknown>(prompt: string, responseJsonSc
   const diagnostic={model:response?.modelVersion??MODEL,finishReason:finishReason??null,responseMimeType:'application/json',rawLength:text?.length??0,outputTokens:outputTokens??null,beginsWithObject:trimmed.startsWith('{'),markdownFence:fenced,first300:trimmed.slice(0,300),last300:trimmed.slice(-300)}
   if(process.env.NODE_ENV!=='production')console.log('[gemini] response diagnostic:',JSON.stringify(diagnostic))
 
-  if(finishReason==='MAX_TOKENS')throw new GeminiError('truncated',`Gemini structured response was truncated at ${outputTokens??GEMINI_MAX_OUTPUT_TOKENS} output tokens`)
+  if(finishReason==='MAX_TOKENS')throw new GeminiError('truncated',`Gemini structured response was truncated at ${outputTokens??options.maxOutputTokens??GEMINI_MAX_OUTPUT_TOKENS} output tokens`)
 
   if (!text || typeof text !== 'string') {
     throw new GeminiError('malformed', 'Gemini returned an empty or non-text response')
@@ -127,3 +132,78 @@ export async function callGeminiJson<T = unknown>(prompt: string, responseJsonSc
     throw new GeminiError('malformed', `Gemini returned malformed structured JSON (${finishReason??'unknown finish reason'})`)
   }
 }
+
+/**
+ * Structured multimodal variant used for restaurant-menu images and PDFs. It
+ * keeps file bytes and the API key server-side and applies the same bounded,
+ * retry-on-transient-failure contract as the text-only helper above.
+ */
+export async function callGeminiJsonWithInlineData<T = unknown>(
+  prompt: string,
+  file: { mimeType: string; data: string },
+  responseJsonSchema?: object,
+  options: GeminiInlineDataOptions = {}
+): Promise<T> {
+  const ai = client()
+  const initialMaxOutputTokens = options.maxOutputTokens ?? 16_000
+  const retryMaxOutputTokens = options.retryMaxOutputTokens ?? 32_000
+  const timeoutMs = options.timeoutMs ?? 45_000
+  const run = async (maxOutputTokens: number) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      return await ai.models.generateContent({
+        model: MODEL,
+        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: file }] }],
+        config: {
+          responseMimeType: 'application/json',
+          responseJsonSchema,
+          maxOutputTokens,
+          thinkingConfig: { thinkingBudget: 1 },
+          abortSignal: controller.signal,
+        },
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (controller.signal.aborted) throw new GeminiError('timeout', `Gemini file request timed out after ${timeoutMs}ms`)
+      if (isRetryable(message)) throw new GeminiError('rate-limit', `Gemini rate-limited: ${message}`)
+      throw new GeminiError('api-error', `Gemini file call failed: ${message}`)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  const runWithTransientRetry = async (maxOutputTokens: number) => {
+    try {
+      return await run(maxOutputTokens)
+    } catch (err) {
+      if (!(err instanceof GeminiError) || err.kind !== 'rate-limit') throw err
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+      return run(maxOutputTokens)
+    }
+  }
+
+  let response = await runWithTransientRetry(initialMaxOutputTokens)
+  if (response?.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    console.warn(`[gemini] menu extraction reached ${initialMaxOutputTokens} tokens; retrying with ${retryMaxOutputTokens}`)
+    response = await runWithTransientRetry(retryMaxOutputTokens)
+  }
+  const text = response?.text?.trim() ?? ''
+  if (response?.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    throw new GeminiError('truncated', `Gemini menu extraction exceeded ${retryMaxOutputTokens} output tokens`)
+  }
+  if (!text) throw new GeminiError('malformed', 'Gemini returned an empty menu extraction')
+  const fenced = /^```(?:json)?\s*[\s\S]*\s*```$/i.test(text)
+  const jsonText = fenced ? text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim() : text
+  if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
+    throw new GeminiError('malformed', 'Gemini menu extraction was not complete JSON')
+  }
+  try {
+    return JSON.parse(jsonText) as T
+  } catch {
+    throw new GeminiError('malformed', 'Gemini returned malformed menu extraction JSON')
+  }
+}
+
+/** Backward-compatible name for existing image callers. */
+export const callGeminiJsonWithImage = callGeminiJsonWithInlineData

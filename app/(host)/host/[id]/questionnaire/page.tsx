@@ -107,6 +107,14 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
     await cleanupRemovedQuestionResponses(existingRow?.config as QuestionnaireConfig | undefined, config)
 
     setSaving(false)
+    const search = new URLSearchParams(window.location.search)
+    if (search.get('onboarding') === '1') {
+      const kitchenPlan = search.get('kitchenPlan')
+      if (kitchenPlan === 'chef') router.push(`/events/${params.id}/table?kitchenShare=1`)
+      else if (kitchenPlan === 'now') router.push(`/events/${params.id}/kitchen-setup`)
+      else router.push(`/events/${params.id}`)
+      return
+    }
     router.push('/host/' + params.id + '/edit')
   }
 
@@ -140,7 +148,7 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
     <QuestionnaireEditor
       loading={loading}
       loadError={loadError}
-      backHref={'/host/' + params.id + '/edit'}
+      backHref={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('onboarding') === '1' ? '/events/' + params.id : '/host/' + params.id + '/edit'}
       eventTitle={eventTitle}
       config={config}
       onChange={setConfig}

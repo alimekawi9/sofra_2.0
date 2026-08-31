@@ -1,4 +1,5 @@
 import {
+  disconnectConnection,
   getConnectionContext,
   isConnectionSchemaUnavailable,
   listPendingConnectionRequests,
@@ -39,6 +40,17 @@ it('uses bounded RPCs to send and respond to requests', async () => {
   await expect(requestConnection(client as never, 'requester', 'recipient', 'event-1')).resolves.toBe('pending')
   await expect(respondToConnectionRequest(client as never, 'connection-1', 'recipient', false)).resolves.toBe(true)
   expect(client.rpc).toHaveBeenCalledWith('request_connection', expect.objectContaining({ p_originating_event_id: 'event-1' }))
+})
+
+it('uses a bounded RPC to disconnect either participant', async () => {
+  const client = rpcClient({
+    disconnect_connection: { data: true, error: null },
+  })
+  await expect(disconnectConnection(client as never, 'connection-1', 'viewer-1')).resolves.toBe(true)
+  expect(client.rpc).toHaveBeenCalledWith('disconnect_connection', {
+    p_connection_id: 'connection-1',
+    p_user_id: 'viewer-1',
+  })
 })
 
 it('maps pending requests for the recipient profile', async () => {

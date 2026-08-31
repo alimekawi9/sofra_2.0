@@ -618,7 +618,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                 <strong>THE KITCHEN IS STILL UNFILLED</strong>
                 <p>You can complete the inventory first for a more grounded menu, or continue without it.</p>
                 <div>
-                  <button type="button" onClick={() => router.push(`/kitchen?from=${id}&from_page=menu${restrictedChef ? '&delegate=1' : ''}`)}>OPEN KITCHEN</button>
+                  <button type="button" onClick={() => router.push(`/events/${id}/kitchen-setup?from_page=menu${restrictedChef ? '&delegate=1' : ''}`)}>OPEN KITCHEN</button>
                   <button type="button" onClick={() => void handleRegenerateAI(true)}>CONTINUE ANYWAY</button>
                 </div>
               </section>

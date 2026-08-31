@@ -88,6 +88,19 @@ export async function respondToConnectionRequest(
   return data === true
 }
 
+export async function disconnectConnection(
+  supabase: SupabaseClient,
+  connectionId: string,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('disconnect_connection', {
+    p_connection_id: connectionId,
+    p_user_id: userId,
+  })
+  if (error) throw error
+  return data === true
+}
+
 export async function listPendingConnectionRequests(
   supabase: SupabaseClient,
   recipientId: string

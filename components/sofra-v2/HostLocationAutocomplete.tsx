@@ -20,10 +20,11 @@ interface PlacePrediction {
   longitude?: number
 }
 
-export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
+export function HostLocationAutocomplete({ value, onChange, onPlaceSelect, disabled = false }: {
   value: string
   onChange: (value: string) => void
   onPlaceSelect: (place: PreviewPlace | null) => void
+  disabled?: boolean
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const lastQuery = useRef('')
@@ -43,6 +44,12 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
 
   useEffect(() => {
     const query = value.trim()
+    if (disabled) {
+      setPredictions([])
+      setOpen(false)
+      setLookupFailed(false)
+      return
+    }
     if (query.length < 3 || query === lastQuery.current) {
       if (query.length < 3) {
         setPredictions([])
@@ -81,7 +88,7 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [value])
+  }, [value, disabled])
 
   function selectPrediction(prediction: PlacePrediction) {
     lastQuery.current = prediction.text
@@ -109,6 +116,7 @@ export function HostLocationAutocomplete({ value, onChange, onPlaceSelect }: {
     <input
       name="location"
       value={value}
+      disabled={disabled}
       placeholder="Where will you gather?"
       autoComplete="street-address"
       role="combobox"

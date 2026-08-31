@@ -24,17 +24,8 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
   const [kitchenCopied, setKitchenCopied] = useState(false)
   const [kitchenShareError, setKitchenShareError] = useState('')
 
-  async function fillKitchenMyself() {
-    setKitchenShareError('')
-    const { error } = await supabase
-      .from('events')
-      .update({ chef_id: null, kitchen_status: 'pending' })
-      .eq('id', eventId)
-    if (error) {
-      setKitchenShareError('Could not open the kitchen. Try again.')
-      return
-    }
-    router.push(`/kitchen?from=${eventId}&from_page=${active}`)
+  function fillKitchenMyself() {
+    router.push(`/events/${eventId}/kitchen-setup?from_page=${active}`)
   }
 
   useEffect(() => {
@@ -116,7 +107,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
         </div>
         {canDelegateKitchen && <div className="sv2-chef-kitchen-actions">
           <button
-            onClick={() => void fillKitchenMyself()}
+            onClick={fillKitchenMyself}
             className="sv2-chef-kitchen-action"
             aria-label="Fill kitchen myself"
           >
@@ -132,7 +123,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
             </button>
             {kitchenSharing && (
               <div className="sv2-host-invite-popover sv2-chef-share-popover" aria-label="Chef sharing options">
-                <p>This link gives one person access to this event&rsquo;s Kitchen, Drafted Menu, and Recipes.</p>
+                <p>This link lets one person choose whether they are working with a restaurant menu or at home / elsewhere.</p>
                 <button type="button" onClick={() => void copyKitchenLink()}>{kitchenCopied ? 'COPIED!' : 'COPY CHEF LINK'}</button>
                 <button type="button" onClick={() => void shareKitchenWhatsApp()}>SEND VIA WHATSAPP</button>
               </div>
@@ -157,7 +148,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
         >
           The Table
         </button>}
-        {restrictedChef && <button className={active === 'kitchen' ? 'tab on' : 'tab'} onClick={() => router.push(`/kitchen?from=${eventId}&delegate=1`)}>Kitchen</button>}
+        {(restrictedChef || active === 'kitchen') && <button className={active === 'kitchen' ? 'tab on' : 'tab'} onClick={() => router.push(`/kitchen?from=${eventId}${restrictedChef ? '&delegate=1' : ''}`)}>Kitchen</button>}
         <button
           className={active === 'menu' ? 'tab on' : 'tab'}
           onClick={() => router.push(`/events/${eventId}/menu`)}

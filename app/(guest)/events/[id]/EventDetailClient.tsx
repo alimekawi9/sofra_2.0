@@ -658,7 +658,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       hostNeedsPreferences={hostNeedsPreferences}
       onAddHostPreferences={() => router.push('/events/' + params.id + '/rsvp?preferences=1')}
       hostNeedsKitchen={hostNeedsKitchen}
-      onAddHostKitchen={() => router.push('/kitchen?from=' + params.id)}
+      onAddHostKitchen={() => router.push(`/events/${params.id}/kitchen-setup`)}
       onEditRsvp={() => router.push('/events/' + params.id + '/rsvp?edit=1')}
       onRsvp={() => router.push('/events/' + params.id + '/rsvp')}
       onEditEvent={(section) => router.push('/host/' + params.id + '/edit' + (section ? '#' + section : ''))}

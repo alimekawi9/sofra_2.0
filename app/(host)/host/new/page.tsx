@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
+import { HostCreateForm, type NewEventQuestionChoice } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
-import SofraTransition from '@/components/SofraTransition'
 import '@/components/sofra-v2/sofra-v2.css'
 import { eventDateForStorage } from '@/lib/event-date'
 import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection } from '@/lib/event-custom-details'
@@ -30,9 +29,9 @@ export default function HostNewPage() {
   const [dressCode, setDressCode] = useState('')
   const [customDetails, setCustomDetails] = useState<CustomDetailSection[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const [customizing, setCustomizing] = useState(false)
   const [error, setError] = useState('')
-  const [kitchenPlan, setKitchenPlan] = useState<'now' | 'later' | 'chef'>('now')
+  const [kitchenPlan, setKitchenPlan] = useState<'now' | 'later' | 'chef' | null>(null)
+  const [questionChoice, setQuestionChoice] = useState<NewEventQuestionChoice>('default')
 
   useEffect(() => {
     const stored = localStorage.getItem('sofra_user_id')
@@ -87,8 +86,8 @@ export default function HostNewPage() {
       title: title.trim(),
       tagline: tagline.trim() || null,
       event_date: eventDateForStorage(dateTime),
-      venue: place?.venueName || location.trim(),
-      address: place?.formattedAddress || null,
+      venue: location === 'undecided' ? null : place?.venueName || location.trim(),
+      address: location === 'undecided' ? null : place?.formattedAddress || null,
       dress_code: dressCode.trim() || null,
       custom_details: sanitizeCustomDetails(customDetails),
       theme,
@@ -128,39 +127,36 @@ export default function HostNewPage() {
       setError(saveError ?? 'Something went wrong. Please try again.')
       return
     }
-    if (kitchenPlan === 'now') router.push('/kitchen?from=' + id)
-    else if (kitchenPlan === 'chef') router.push('/events/' + id + '/table?kitchenShare=1')
-    else router.push('/events/' + id)
-  }
-
-  async function handleCustomizeQuestions() {
-    if (customizing) return
-    setCustomizing(true)
-    setError('')
-    const { id, error: saveError } = await saveEventRow()
-    setCustomizing(false)
-    if (saveError || !id) {
-      setError(saveError ?? 'Something went wrong. Please try again.')
+    if (questionChoice === 'none') {
+      const { error: questionnaireError } = await supabase.from('event_questionnaires').upsert(
+        { event_id: id, config: { questions: [] }, updated_at: new Date().toISOString() },
+        { onConflict: 'event_id' }
+      )
+      if (questionnaireError) {
+        setError('Your Sofra was created, but the question choice could not be saved. Try again.')
+        return
+      }
+    }
+    if (questionChoice === 'custom') {
+      router.push(`/host/${id}/questionnaire?onboarding=1&kitchenPlan=${kitchenPlan}`)
       return
     }
-    router.push('/host/' + id + '/questionnaire')
+    if (kitchenPlan === 'chef') router.push('/events/' + id + '/table?kitchenShare=1')
+    else if (kitchenPlan === 'now') router.push('/events/' + id + '/kitchen-setup')
+    else router.push('/events/' + id)
   }
 
   return (
     <>
-      <SofraTransition
-        active={submitting || customizing}
-        label={customizing ? 'Preparing your questions' : 'Saving your Sofra'}
-      />
       <HostCreateForm
       title={title}
-      onTitleChange={setTitle}
+      onTitleChange={(value) => { setTitle(value); setError('') }}
       tagline={tagline}
       onTaglineChange={setTagline}
       dateTime={dateTime}
-      onDateTimeChange={setDateTime}
+      onDateTimeChange={(value) => { setDateTime(value); setError('') }}
       location={location}
-      onLocationChange={(value) => { setLocation(value); setPlace(null) }}
+      onLocationChange={(value) => { setLocation(value); setPlace(null); setError('') }}
       onPlaceSelect={setPlace}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
@@ -172,11 +168,11 @@ export default function HostNewPage() {
       onImageChange={onImageChange}
       onImageRemove={onImageRemove}
       submitting={submitting}
-      onCustomizeQuestions={handleCustomizeQuestions}
-      customizingQuestions={customizing}
       error={error}
       kitchenPlan={kitchenPlan}
       onKitchenPlanChange={setKitchenPlan}
+      questionChoice={questionChoice}
+      onQuestionChoiceChange={setQuestionChoice}
       onSubmit={handleSubmit}
       />
     </>

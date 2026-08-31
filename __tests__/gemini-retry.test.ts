@@ -3,7 +3,7 @@ jest.mock('server-only', () => ({}))
 jest.mock('@google/genai')
 
 import { GoogleGenAI } from '@google/genai'
-import { callGeminiJson, GeminiError } from '@/lib/gemini'
+import { callGeminiJson, callGeminiJsonWithInlineData, GeminiError } from '@/lib/gemini'
 
 const mockGenerateContent = jest.fn()
 ;(GoogleGenAI as unknown as jest.Mock).mockImplementation(() => ({
@@ -35,4 +35,21 @@ it('does not retry a non-transient failure', async () => {
   mockGenerateContent.mockRejectedValue(new Error('some other unexpected failure'))
   await expect(callGeminiJson('prompt')).rejects.toBeInstanceOf(GeminiError)
   expect(mockGenerateContent).toHaveBeenCalledTimes(1)
+})
+
+it('retries a truncated menu extraction with the expanded output budget', async () => {
+  mockGenerateContent
+    .mockResolvedValueOnce({ text: '{"dishes":[', candidates: [{ finishReason: 'MAX_TOKENS' }] })
+    .mockResolvedValueOnce({ text: '{"dishes":[]}', candidates: [{ finishReason: 'STOP' }] })
+
+  await expect(callGeminiJsonWithInlineData(
+    'menu',
+    { mimeType: 'application/pdf', data: 'JVBERg==' },
+    {},
+    { maxOutputTokens: 16_000, retryMaxOutputTokens: 32_000, timeoutMs: 45_000 }
+  )).resolves.toEqual({ dishes: [] })
+
+  expect(mockGenerateContent).toHaveBeenCalledTimes(2)
+  expect(mockGenerateContent.mock.calls[0][0].config.maxOutputTokens).toBe(16_000)
+  expect(mockGenerateContent.mock.calls[1][0].config.maxOutputTokens).toBe(32_000)
 })
