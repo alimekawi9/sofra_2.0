@@ -103,8 +103,8 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
   useEffect(() => {
     const name = restaurantName.trim()
     setSimilarDismissed(false)
+    setSimilarMenu(null)
     if (name.length < RESTAURANT_NAME_SEARCH_MIN_LENGTH || !userId) {
-      setSimilarMenu(null)
       return
     }
     let cancelled = false
@@ -115,6 +115,7 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
           p_restaurant_name: name,
         })
         if (cancelled) return
+        if (searchError) console.error('Similar restaurant menu search failed', searchError)
         setSimilarMenu(searchError || !data ? null : data as SimilarRestaurantMenu)
       } catch (searchError) {
         if (!cancelled) { console.error('Similar restaurant menu search failed', searchError); setSimilarMenu(null) }

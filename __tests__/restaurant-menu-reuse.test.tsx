@@ -85,6 +85,23 @@ it('dismissing the suggestion hides it without touching the rest of the form', a
   expect(screen.getByLabelText(/restaurant name/i)).toHaveValue('Tanoreen')
 })
 
+it('does not resurface a dismissed match while a new search is still debouncing', async () => {
+  makeSupabase({
+    similar: { restaurant_name: 'Tanoreen', dishes: [{ name: 'Baba Ghanouj', role: 'starter', tags: [], contains_allergens: [] }] },
+  })
+  render(<RestaurantMenusPage params={{ id: 'event-1' }} />)
+
+  const input = await screen.findByLabelText(/restaurant name/i)
+  await userEvent.type(input, 'Tanoreen')
+  await waitFor(() => expect(screen.getByText(/previously reviewed menu for/i)).toBeInTheDocument(), { timeout: 1000 })
+
+  await userEvent.click(screen.getByRole('button', { name: /upload a new menu instead/i }))
+  expect(screen.queryByText(/previously reviewed menu for/i)).not.toBeInTheDocument()
+
+  await userEvent.type(input, 'n')
+  expect(screen.queryByText(/previously reviewed menu for/i)).not.toBeInTheDocument()
+})
+
 it('a failed search silently falls back to the plain upload form', async () => {
   const sb = makeSupabase({ similar: null })
   sb.rpc.mockImplementation((fn: string) => {
