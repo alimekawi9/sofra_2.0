@@ -116,8 +116,8 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
         })
         if (cancelled) return
         setSimilarMenu(searchError || !data ? null : data as SimilarRestaurantMenu)
-      } catch {
-        if (!cancelled) setSimilarMenu(null)
+      } catch (searchError) {
+        if (!cancelled) { console.error('Similar restaurant menu search failed', searchError); setSimilarMenu(null) }
       }
     }, RESTAURANT_NAME_SEARCH_DEBOUNCE_MS)
 
