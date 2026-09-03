@@ -52,6 +52,7 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
   const [guests, setGuests] = useState<TasteProfile[]>([])
   const [drafts, setDrafts] = useState<Record<string, DishDraft>>({})
   const [editingDishIds, setEditingDishIds] = useState<Set<string>>(new Set())
+  const [addingAnotherMenu, setAddingAnotherMenu] = useState(false)
 
   async function loadMenus(currentUserId: string) {
     const { data, error: loadError } = await supabase.rpc('get_event_restaurant_menus', {
@@ -116,6 +117,7 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
       })
       if (saveError || !menuId) throw saveError ?? new Error('Could not save extraction')
       setRestaurantName(''); setMenuText(''); setMenuFile(null)
+      setAddingAnotherMenu(false)
       setNotice(`${payload.dishes.length} dishes extracted. Review every suggestion before comparing table fit.`)
       await loadMenus(userId)
     } catch (extractError) {
@@ -168,17 +170,22 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
         <span>{eventTitle} · AI extracts possible metadata. You confirm every dish before Sofra applies its existing deterministic table-fit rules.</span>
       </header>
 
-      <section className="sv2-restaurant-upload" aria-labelledby="restaurant-upload-title">
-        <div><h2 id="restaurant-upload-title">Add a restaurant menu</h2><span>Paste text or upload one clear menu image or PDF.</span></div>
-        <label>RESTAURANT NAME<input value={restaurantName} onChange={(event) => setRestaurantName(event.target.value)} maxLength={160} placeholder="Restaurant name" /></label>
-        <label>PASTE MENU TEXT<textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} maxLength={40000} placeholder="Paste dish names and descriptions…" /></label>
-        <label className="sv2-restaurant-file">OR UPLOAD A MENU FILE<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setMenuFile(event.target.files?.[0] ?? null)} /><span>{menuFile?.name ?? 'CHOOSE JPG, PNG, WEBP, OR PDF'}</span></label>
-        <button type="button" disabled={busy} onClick={() => void extract()}>{busy ? 'READING MENU…' : 'EXTRACT DISHES FOR REVIEW'}</button>
-      </section>
+      {loading && <p className="sv2-restaurant-loading">Loading restaurant menus…</p>}
+
+      {!loading && (menus.length > 0 && !addingAnotherMenu ? (
+        <button type="button" className="sv2-restaurant-add-another" onClick={() => setAddingAnotherMenu(true)}>+ ADD ANOTHER RESTAURANT MENU</button>
+      ) : (
+        <section className="sv2-restaurant-upload" aria-labelledby="restaurant-upload-title">
+          <div><h2 id="restaurant-upload-title">Add a restaurant menu</h2><span>Paste text or upload one clear menu image or PDF.</span></div>
+          <label>RESTAURANT NAME<input value={restaurantName} onChange={(event) => setRestaurantName(event.target.value)} maxLength={160} placeholder="Restaurant name" /></label>
+          <label>PASTE MENU TEXT<textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} maxLength={40000} placeholder="Paste dish names and descriptions…" /></label>
+          <label className="sv2-restaurant-file">OR UPLOAD A MENU FILE<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setMenuFile(event.target.files?.[0] ?? null)} /><span>{menuFile?.name ?? 'CHOOSE JPG, PNG, WEBP, OR PDF'}</span></label>
+          <button type="button" disabled={busy} onClick={() => void extract()}>{busy ? 'READING MENU…' : 'EXTRACT DISHES FOR REVIEW'}</button>
+        </section>
+      ))}
 
       {error && <p className="sv2-restaurant-message error" role="alert">{error}</p>}
       {notice && <p className="sv2-restaurant-message" role="status">{notice}</p>}
-      {loading && <p className="sv2-restaurant-loading">Loading restaurant menus…</p>}
 
       {!loading && menus.map((menu) => <section className="sv2-restaurant-menu" key={menu.id}>
         <header><div><p>{menu.source_type === 'text' ? 'PASTED MENU' : menu.source_type === 'pdf' ? 'UPLOADED PDF' : 'UPLOADED MENU'}</p><h2>{menu.restaurant_name}</h2></div><span>{menu.status === 'confirmed' ? 'REVIEW COMPLETE' : 'HUMAN REVIEW REQUIRED'}</span></header>
