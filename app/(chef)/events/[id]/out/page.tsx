@@ -11,10 +11,14 @@ import { KITCHEN_ALLERGENS, SIGNATURE_TAG_GROUPS } from '@/lib/kitchen-tags'
 import { formatTagLabel } from '@/lib/tag-format'
 import {
   scoreConfirmedRestaurantDish,
+  restaurantMenuSourceLabel,
   MAX_RESTAURANT_MENU_FILE_BYTES,
+  RESTAURANT_NAME_SEARCH_MIN_LENGTH,
+  RESTAURANT_NAME_SEARCH_DEBOUNCE_MS,
   type RestaurantDishProposal,
   type RestaurantMenu,
   type RestaurantMenuDish,
+  type SimilarRestaurantMenu,
 } from '@/lib/restaurant-menu'
 import '@/components/sofra-v2/sofra-v2.css'
 
@@ -53,6 +57,9 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
   const [drafts, setDrafts] = useState<Record<string, DishDraft>>({})
   const [editingDishIds, setEditingDishIds] = useState<Set<string>>(new Set())
   const [addingAnotherMenu, setAddingAnotherMenu] = useState(false)
+  const [similarMenu, setSimilarMenu] = useState<SimilarRestaurantMenu | null>(null)
+  const [similarDismissed, setSimilarDismissed] = useState(false)
+  const [reusing, setReusing] = useState(false)
 
   async function loadMenus(currentUserId: string) {
     const { data, error: loadError } = await supabase.rpc('get_event_restaurant_menus', {
@@ -93,6 +100,30 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
 
   useEffect(() => { void load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const name = restaurantName.trim()
+    setSimilarDismissed(false)
+    if (name.length < RESTAURANT_NAME_SEARCH_MIN_LENGTH || !userId) {
+      setSimilarMenu(null)
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data, error: searchError } = await supabase.rpc('search_similar_restaurant_menu', {
+          p_user_id: userId,
+          p_restaurant_name: name,
+        })
+        if (cancelled) return
+        setSimilarMenu(searchError || !data ? null : data as SimilarRestaurantMenu)
+      } catch {
+        if (!cancelled) setSimilarMenu(null)
+      }
+    }, RESTAURANT_NAME_SEARCH_DEBOUNCE_MS)
+
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [restaurantName, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function extract() {
     if (!restaurantName.trim()) { setError('Add the restaurant name first.'); return }
     if (!menuText.trim() && !menuFile) { setError('Paste menu text or choose a menu image or PDF.'); return }
@@ -123,6 +154,28 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
     } catch (extractError) {
       setError(extractError instanceof Error ? extractError.message : 'Could not extract this menu.')
     } finally { setBusy(false) }
+  }
+
+  async function reuseSimilarMenu() {
+    if (!similarMenu) return
+    setReusing(true); setError(''); setNotice('')
+    const { data: menuId, error: reuseError } = await supabase.rpc('reuse_restaurant_menu', {
+      p_event_id: id,
+      p_user_id: userId,
+      p_restaurant_name: similarMenu.restaurant_name,
+      p_dishes: similarMenu.dishes,
+    })
+    if (reuseError || !menuId) {
+      setError('Could not reuse this menu. Try again.')
+    } else {
+      const dishCount = similarMenu.dishes.length
+      setRestaurantName(''); setMenuText(''); setMenuFile(null)
+      setSimilarMenu(null); setSimilarDismissed(false)
+      setAddingAnotherMenu(false)
+      setNotice(`${dishCount} dish${dishCount === 1 ? '' : 'es'} reused from a previously reviewed '${similarMenu.restaurant_name}' menu.`)
+      await loadMenus(userId)
+    }
+    setReusing(false)
   }
 
   function updateDraft(dishId: string, next: Partial<DishDraft>) {
@@ -178,9 +231,18 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
         <section className="sv2-restaurant-upload" aria-labelledby="restaurant-upload-title">
           <div><h2 id="restaurant-upload-title">Add a restaurant menu</h2><span>Paste text or upload one clear menu image or PDF.</span></div>
           <label>RESTAURANT NAME<input value={restaurantName} onChange={(event) => setRestaurantName(event.target.value)} maxLength={160} placeholder="Restaurant name" /></label>
+          {similarMenu && !similarDismissed && (
+            <div className="sv2-restaurant-reuse-suggestion" role="status">
+              <p>A previously reviewed menu for <strong>{similarMenu.restaurant_name}</strong> already exists ({similarMenu.dishes.length} dish{similarMenu.dishes.length === 1 ? '' : 'es'}).</p>
+              <div>
+                <button type="button" disabled={reusing || busy} onClick={() => void reuseSimilarMenu()}>{reusing ? 'ADDING…' : 'USE THIS MENU'}</button>
+                <button type="button" disabled={reusing || busy} onClick={() => setSimilarDismissed(true)}>UPLOAD A NEW MENU INSTEAD</button>
+              </div>
+            </div>
+          )}
           <label>PASTE MENU TEXT<textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} maxLength={40000} placeholder="Paste dish names and descriptions…" /></label>
           <label className="sv2-restaurant-file">OR UPLOAD A MENU FILE<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setMenuFile(event.target.files?.[0] ?? null)} /><span>{menuFile?.name ?? 'CHOOSE JPG, PNG, WEBP, OR PDF'}</span></label>
-          <button type="button" disabled={busy} onClick={() => void extract()}>{busy ? 'READING MENU…' : 'EXTRACT DISHES FOR REVIEW'}</button>
+          <button type="button" disabled={busy || reusing} onClick={() => void extract()}>{busy ? 'READING MENU…' : 'EXTRACT DISHES FOR REVIEW'}</button>
         </section>
       ))}
 
@@ -188,7 +250,7 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
       {notice && <p className="sv2-restaurant-message" role="status">{notice}</p>}
 
       {!loading && menus.map((menu) => <section className="sv2-restaurant-menu" key={menu.id}>
-        <header><div><p>{menu.source_type === 'text' ? 'PASTED MENU' : menu.source_type === 'pdf' ? 'UPLOADED PDF' : 'UPLOADED MENU'}</p><h2>{menu.restaurant_name}</h2></div><span>{menu.status === 'confirmed' ? 'REVIEW COMPLETE' : 'HUMAN REVIEW REQUIRED'}</span></header>
+        <header><div><p>{restaurantMenuSourceLabel(menu.source_type)}</p><h2>{menu.restaurant_name}</h2></div><span>{menu.status === 'confirmed' ? 'REVIEW COMPLETE' : 'HUMAN REVIEW REQUIRED'}</span></header>
         <div className="sv2-restaurant-dishes">
           {menu.dishes.map((dish) => {
             const draft = drafts[dish.id] ?? initialDraft(dish)
