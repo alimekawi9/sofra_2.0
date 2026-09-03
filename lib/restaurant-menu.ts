@@ -7,14 +7,16 @@ import { dinerDishFit } from './recommendation/pipeline'
 
 export type RestaurantMenuStatus = 'review' | 'confirmed' | 'failed'
 export type RestaurantDishReviewStatus = 'unconfirmed' | 'auto_confirmed' | 'confirmed' | 'excluded'
-export type RestaurantMenuSourceType = 'text' | 'image' | 'pdf'
+export type RestaurantMenuSourceType = 'text' | 'image' | 'pdf' | 'reused'
 
 export const MAX_RESTAURANT_MENU_FILE_BYTES = 5 * 1024 * 1024
+export const RESTAURANT_NAME_SEARCH_MIN_LENGTH = 3
+export const RESTAURANT_NAME_SEARCH_DEBOUNCE_MS = 450
 
 export type RestaurantMenuInlineFile = {
   mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf'
   data: string
-  sourceType: Exclude<RestaurantMenuSourceType, 'text'>
+  sourceType: 'image' | 'pdf'
 }
 
 export type RestaurantDishProposal = {
@@ -57,6 +59,27 @@ export type RestaurantMenu = {
   created_at: string
   confirmed_at: string | null
   dishes: RestaurantMenuDish[]
+}
+
+export type SimilarRestaurantMenuDish = {
+  name: string
+  role: DishRole
+  tags: string[]
+  contains_allergens: string[]
+}
+
+export type SimilarRestaurantMenu = {
+  restaurant_name: string
+  dishes: SimilarRestaurantMenuDish[]
+}
+
+export function restaurantMenuSourceLabel(sourceType: RestaurantMenuSourceType): string {
+  switch (sourceType) {
+    case 'text': return 'PASTED MENU'
+    case 'pdf': return 'UPLOADED PDF'
+    case 'reused': return 'REUSED MENU'
+    case 'image': return 'UPLOADED MENU'
+  }
 }
 
 const allowedTagSet = new Set(tagsForKitchenKind('signature'))

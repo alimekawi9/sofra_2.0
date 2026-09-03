@@ -1,5 +1,5 @@
 import { buildIntel, type TasteProfile } from '@/lib/intel'
-import { parseRestaurantMenuFileDataUrl, restaurantProposalNeedsReview, sanitizeRestaurantMenuExtraction, scoreConfirmedRestaurantDish } from '@/lib/restaurant-menu'
+import { parseRestaurantMenuFileDataUrl, restaurantMenuSourceLabel, restaurantProposalNeedsReview, sanitizeRestaurantMenuExtraction, scoreConfirmedRestaurantDish } from '@/lib/restaurant-menu'
 
 const guest = (name: string, overrides: Partial<TasteProfile> = {}): TasteProfile => ({
   name,
@@ -54,5 +54,12 @@ describe('restaurant menu extraction boundary', () => {
   it('scores a high-confidence auto-confirmed dish through the same deterministic logic', () => {
     const guests = [guest('A')]
     expect(scoreConfirmedRestaurantDish({ id: '1', name: 'Tomato Salad', role: 'starter', tags: ['vegetable'], contains_allergens: [], review_status: 'auto_confirmed' }, buildIntel(guests), guests)).not.toBeNull()
+  })
+
+  it('labels every restaurant-menu source type, including a reused menu', () => {
+    expect(restaurantMenuSourceLabel('text')).toBe('PASTED MENU')
+    expect(restaurantMenuSourceLabel('pdf')).toBe('UPLOADED PDF')
+    expect(restaurantMenuSourceLabel('image')).toBe('UPLOADED MENU')
+    expect(restaurantMenuSourceLabel('reused')).toBe('REUSED MENU')
   })
 })
