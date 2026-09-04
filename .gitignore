@@ -45,3 +45,6 @@ docs/design-refrence/
 # local test/browser artifacts
 task9-artifacts/
 status-check.txt
+
+# Superpowers brainstorming session artifacts
+.superpowers/
