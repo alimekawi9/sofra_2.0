@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type ChangeEvent, type DragEvent } from 'react'
+import { motion } from 'framer-motion'
 import { HostLocationAutocomplete, type PreviewPlace } from './HostLocationAutocomplete'
 import { sv2Display, sv2Sans } from './fonts'
 import { ImageCropDialog } from './ImageCropDialog'
@@ -51,10 +52,15 @@ export interface HostCreateFormProps {
   onBudgetAmountChange?: (value: string) => void
   budgetCurrency?: string
   onBudgetCurrencyChange?: (value: string) => void
+  // Set only by /host/new, right after the entry-plate transition — lets this
+  // component's shell share a Framer Motion layoutId with the plate it grew
+  // out of. Omitted (and therefore inert) everywhere else, including edit mode.
+  shellLayoutId?: string
 }
 
 export function HostCreateForm({
   mode = 'create',
+  shellLayoutId,
   title,
   onTitleChange,
   tagline,
@@ -119,7 +125,7 @@ export function HostCreateForm({
 
   return (
     <div className={`sv2-root sv2-device-page sv2-app-page ${sv2Display.variable} ${sv2Sans.variable}`}>
-      <main className="sv2-device-shell sv2-app-shell sv2-host-shell">
+      <motion.main className="sv2-device-shell sv2-app-shell sv2-host-shell" layoutId={shellLayoutId}>
         <p className="sv2-event-kicker">{isEdit ? 'EDIT YOUR GATHERING' : 'HOST A GATHERING'}</p>
         <h1>{isEdit ? 'Edit your Sofra' : 'Create a Sofra'}</h1>
         {!isEdit && (
@@ -407,7 +413,7 @@ export function HostCreateForm({
             {deleting ? 'DELETING…' : 'DELETE EVENT'}
           </button>
         )}
-      </main>
+      </motion.main>
       {pendingCover && (
         <ImageCropDialog
           file={pendingCover}
