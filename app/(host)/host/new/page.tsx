@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { MotionConfig } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { HostCreateForm, type NewEventQuestionChoice } from '@/components/sofra-v2/HostCreateForm'
+import { HostEntryPlate } from '@/components/sofra-v2/HostEntryPlate'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import '@/components/sofra-v2/sofra-v2.css'
 import { eventDateForStorage } from '@/lib/event-date'
@@ -32,6 +34,7 @@ export default function HostNewPage() {
   const [error, setError] = useState('')
   const [kitchenPlan, setKitchenPlan] = useState<'now' | 'later' | 'chef' | null>(null)
   const [questionChoice, setQuestionChoice] = useState<NewEventQuestionChoice>('default')
+  const [entryRevealed, setEntryRevealed] = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem('sofra_user_id')
@@ -147,34 +150,39 @@ export default function HostNewPage() {
   }
 
   return (
-    <>
-      <HostCreateForm
-      title={title}
-      onTitleChange={(value) => { setTitle(value); setError('') }}
-      tagline={tagline}
-      onTaglineChange={setTagline}
-      dateTime={dateTime}
-      onDateTimeChange={(value) => { setDateTime(value); setError('') }}
-      location={location}
-      onLocationChange={(value) => { setLocation(value); setPlace(null); setError('') }}
-      onPlaceSelect={setPlace}
-      dressCode={dressCode}
-      onDressCodeChange={setDressCode}
-      customDetails={customDetails}
-      onAddCustomDetail={addCustomDetail}
-      onCustomDetailChange={updateCustomDetail}
-      onRemoveCustomDetail={removeCustomDetail}
-      imageDataUrl={imageDataUrl}
-      onImageChange={onImageChange}
-      onImageRemove={onImageRemove}
-      submitting={submitting}
-      error={error}
-      kitchenPlan={kitchenPlan}
-      onKitchenPlanChange={setKitchenPlan}
-      questionChoice={questionChoice}
-      onQuestionChoiceChange={setQuestionChoice}
-      onSubmit={handleSubmit}
-      />
-    </>
+    <MotionConfig reducedMotion="user">
+      {!entryRevealed ? (
+        <HostEntryPlate onEnter={() => setEntryRevealed(true)} />
+      ) : (
+        <HostCreateForm
+        shellLayoutId="host-entry-shell"
+        title={title}
+        onTitleChange={(value) => { setTitle(value); setError('') }}
+        tagline={tagline}
+        onTaglineChange={setTagline}
+        dateTime={dateTime}
+        onDateTimeChange={(value) => { setDateTime(value); setError('') }}
+        location={location}
+        onLocationChange={(value) => { setLocation(value); setPlace(null); setError('') }}
+        onPlaceSelect={setPlace}
+        dressCode={dressCode}
+        onDressCodeChange={setDressCode}
+        customDetails={customDetails}
+        onAddCustomDetail={addCustomDetail}
+        onCustomDetailChange={updateCustomDetail}
+        onRemoveCustomDetail={removeCustomDetail}
+        imageDataUrl={imageDataUrl}
+        onImageChange={onImageChange}
+        onImageRemove={onImageRemove}
+        submitting={submitting}
+        error={error}
+        kitchenPlan={kitchenPlan}
+        onKitchenPlanChange={setKitchenPlan}
+        questionChoice={questionChoice}
+        onQuestionChoiceChange={setQuestionChoice}
+        onSubmit={handleSubmit}
+        />
+      )}
+    </MotionConfig>
   )
 }

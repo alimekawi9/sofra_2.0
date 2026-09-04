@@ -7,6 +7,11 @@ import { useRouter } from 'next/navigation'
 jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 jest.mock('@/components/sofra-v2/ImageCropDialog', () => ({ ImageCropDialog: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => <button type="button" onClick={() => onConfirm(file)}>USE THIS CROP</button> }))
+jest.mock('framer-motion', () => ({
+  motion: new Proxy({}, { get: (_target, tag) => tag }),
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+  MotionConfig: ({ children }: { children: React.ReactNode }) => children,
+}))
 
 const mockPush = jest.fn()
 beforeEach(() => {
@@ -30,6 +35,15 @@ function makeSupabase() {
   return sb
 }
 
+// Renders the page and clicks through the new entry-plate intro, landing on
+// step 1 of the wizard — the starting point every existing test assumes.
+async function renderHostForm() {
+  const utils = render(<HostNewPage />)
+  await userEvent.click(await screen.findByRole('button', { name: /start hosting a sofra/i }))
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument(), { timeout: 1000 })
+  return utils
+}
+
 async function fillDetails() {
   await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Test Dinner')
   fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
@@ -47,8 +61,14 @@ async function goToKitchen() {
   await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
 }
 
-it('starts with details and a four-step progress indicator', () => {
+it('shows the entry plate first, not the wizard', () => {
   makeSupabase(); render(<HostNewPage />)
+  expect(screen.getByRole('button', { name: /start hosting a sofra/i })).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Create a Sofra' })).not.toBeInTheDocument()
+})
+
+it('starts with details and a four-step progress indicator', async () => {
+  makeSupabase(); await renderHostForm()
   expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument()
   expect(screen.getByText('STEP 1 OF 4')).toBeInTheDocument()
   expect(screen.getByText('Details')).toBeInTheDocument()
@@ -56,14 +76,14 @@ it('starts with details and a four-step progress indicator', () => {
 })
 
 it('validates required details before advancing', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />)
+  const sb = makeSupabase(); await renderHostForm()
   await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
   expect(screen.getByRole('alert')).toHaveTextContent(/add an event name, date and time, and location/i)
   expect(sb.insert).not.toHaveBeenCalled()
 })
 
 it('moves through details and cover without losing entered values', async () => {
-  makeSupabase(); render(<HostNewPage />); await fillDetails()
+  makeSupabase(); await renderHostForm(); await fillDetails()
   await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
   expect(screen.getByText('STEP 2 OF 4')).toBeInTheDocument()
   expect(screen.getByText('Choose a cover image')).toBeInTheDocument()
@@ -72,7 +92,7 @@ it('moves through details and cover without losing entered values', async () => 
 })
 
 it('offers defaults with a preview, customization, and no questions', async () => {
-  makeSupabase(); render(<HostNewPage />); await goToQuestions()
+  makeSupabase(); await renderHostForm(); await goToQuestions()
   expect(screen.getByText('STEP 3 OF 4')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /use sofra's default questions/i })).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
@@ -81,7 +101,7 @@ it('offers defaults with a preview, customization, and no questions', async () =
 })
 
 it('publishes with defaults and follows the selected kitchen path', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />); await goToKitchen()
+  const sb = makeSupabase(); await renderHostForm(); await goToKitchen()
   await userEvent.click(screen.getByRole('button', { name: 'FILL IN LATER' }))
   await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id'))
@@ -90,7 +110,7 @@ it('publishes with defaults and follows the selected kitchen path', async () => 
 })
 
 it('has no kitchen plan pre-selected and blocks submission until one is chosen', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />); await goToKitchen()
+  const sb = makeSupabase(); await renderHostForm(); await goToKitchen()
   for (const label of ['FILL IN LATER', 'FILL KITCHEN NOW', 'SEND TO A CHEF']) {
     expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false')
   }
@@ -101,7 +121,7 @@ it('has no kitchen plan pre-selected and blocks submission until one is chosen',
 })
 
 it('opens the restaurant-or-home kitchen choice after filling the kitchen now', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />); await goToKitchen()
+  const sb = makeSupabase(); await renderHostForm(); await goToKitchen()
   await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
   await userEvent.click(screen.getByRole('button', { name: 'CREATE MY SOFRA' }))
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/events/new-event-id/kitchen-setup'))
@@ -109,7 +129,7 @@ it('opens the restaurant-or-home kitchen choice after filling the kitchen now', 
 })
 
 it('a stray Enter keypress advances one step instead of skipping straight to submission', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />); await fillDetails()
+  const sb = makeSupabase(); await renderHostForm(); await fillDetails()
   fireEvent.submit(screen.getByRole('textbox', { name: /event name/i }).closest('form')!)
   expect(screen.getByText('STEP 2 OF 4')).toBeInTheDocument()
   expect(sb.insert).not.toHaveBeenCalled()
@@ -117,7 +137,7 @@ it('a stray Enter keypress advances one step instead of skipping straight to sub
 })
 
 it('allows the location to remain undecided', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />)
+  const sb = makeSupabase(); await renderHostForm()
   await userEvent.type(screen.getByRole('textbox', { name: /event name/i }), 'Open Location Dinner')
   fireEvent.change(screen.getByTestId('date-input'), { target: { value: '2026-08-01T19:00' } })
   await userEvent.click(screen.getByRole('checkbox', { name: /location undecided/i }))
@@ -130,7 +150,7 @@ it('allows the location to remain undecided', async () => {
 })
 
 it('stores an intentionally empty questionnaire when no questions is selected', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />); await goToQuestions()
+  const sb = makeSupabase(); await renderHostForm(); await goToQuestions()
   await userEvent.click(screen.getByRole('button', { name: /don't include questions/i }))
   await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
   await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
@@ -139,7 +159,7 @@ it('stores an intentionally empty questionnaire when no questions is selected', 
 })
 
 it('opens the full editor after creation when customization is selected', async () => {
-  makeSupabase(); render(<HostNewPage />); await goToQuestions()
+  makeSupabase(); await renderHostForm(); await goToQuestions()
   await userEvent.click(screen.getByRole('button', { name: /customize the questions/i }))
   await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
   await userEvent.click(screen.getByRole('button', { name: 'FILL KITCHEN NOW' }))
@@ -148,7 +168,7 @@ it('opens the full editor after creation when customization is selected', async 
 })
 
 it('uploads a cropped cover only when one was selected', async () => {
-  const sb = makeSupabase(); render(<HostNewPage />); await fillDetails()
+  const sb = makeSupabase(); await renderHostForm(); await fillDetails()
   await userEvent.click(screen.getByRole('button', { name: 'CONTINUE' }))
   const file = new File(['img'], 'cover.jpg', { type: 'image/jpeg' })
   await userEvent.upload(screen.getByLabelText(/choose cover image/i), file)
