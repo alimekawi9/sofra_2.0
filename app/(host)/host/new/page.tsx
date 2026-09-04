@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { MotionConfig } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { HostCreateForm, type NewEventQuestionChoice } from '@/components/sofra-v2/HostCreateForm'
-import { HostEntryPlate } from '@/components/sofra-v2/HostEntryPlate'
+import { HostEntryPlate, HOST_ENTRY_SHELL_LAYOUT_ID } from '@/components/sofra-v2/HostEntryPlate'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import '@/components/sofra-v2/sofra-v2.css'
 import { eventDateForStorage } from '@/lib/event-date'
@@ -155,7 +155,7 @@ export default function HostNewPage() {
         <HostEntryPlate onEnter={() => setEntryRevealed(true)} />
       ) : (
         <HostCreateForm
-        shellLayoutId="host-entry-shell"
+        shellLayoutId={HOST_ENTRY_SHELL_LAYOUT_ID}
         title={title}
         onTitleChange={(value) => { setTitle(value); setError('') }}
         tagline={tagline}

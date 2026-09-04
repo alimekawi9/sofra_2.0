@@ -39,8 +39,12 @@ function makeSupabase() {
 // step 1 of the wizard — the starting point every existing test assumes.
 async function renderHostForm() {
   const utils = render(<HostNewPage />)
+  const plateLayoutId = screen.getByRole('button', { name: /start hosting a sofra/i }).querySelector('[layoutid]')?.getAttribute('layoutid')
   await userEvent.click(await screen.findByRole('button', { name: /start hosting a sofra/i }))
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Create a Sofra' })).toBeInTheDocument(), { timeout: 1000 })
+  const shellLayoutId = document.querySelector('main[layoutid]')?.getAttribute('layoutid')
+  expect(shellLayoutId).toBe(plateLayoutId)
+  expect(shellLayoutId).toBeTruthy()
   return utils
 }
 

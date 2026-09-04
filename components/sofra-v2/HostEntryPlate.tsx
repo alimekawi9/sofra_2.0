@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { sv2Display, sv2Sans } from './fonts'
 
+export const HOST_ENTRY_SHELL_LAYOUT_ID = 'host-entry-shell'
+
 export interface HostEntryPlateProps {
   onEnter: () => void
 }
@@ -27,7 +29,7 @@ export function HostEntryPlate({ onEnter }: HostEntryPlateProps) {
         disabled={leaving}
         aria-label="Start hosting a Sofra"
       >
-        <motion.div layoutId="host-entry-shell" className="sv2-host-entry-plate">
+        <motion.div layoutId={HOST_ENTRY_SHELL_LAYOUT_ID} className="sv2-host-entry-plate">
           <Image src="/design-preview/silver-plate.png" alt="" width={340} height={340} priority />
         </motion.div>
         <AnimatePresence>
