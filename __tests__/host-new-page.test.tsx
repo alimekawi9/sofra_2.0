@@ -74,7 +74,7 @@ it('moves through details and cover without losing entered values', async () => 
 it('offers defaults with a preview, customization, and no questions', async () => {
   makeSupabase(); render(<HostNewPage />); await goToQuestions()
   expect(screen.getByText('STEP 3 OF 4')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /use sofra's questions/i })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: /use sofra's default questions/i })).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByText('ANY LANE TO STAY IN?')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /customize the questions/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /don't include questions/i })).toBeInTheDocument()

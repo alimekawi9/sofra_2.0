@@ -334,7 +334,7 @@ export function HostCreateForm({
               <div className="sv2-question-choice-grid">
                 <button type="button" className="sv2-question-choice-card" aria-pressed={questionChoice === 'default'} onClick={() => onQuestionChoiceChange?.('default')}>
                   <span className="sv2-choice-eyebrow">RECOMMENDED</span>
-                  <strong>Use Sofra&apos;s questions</strong>
+                  <strong>Use Sofra&apos;s default questions</strong>
                   <small>Five questions curated to help plan a table everyone can enjoy.</small>
                   <span className="sv2-question-preview">
                     {sortedQuestions(DEFAULT_QUESTIONNAIRE).slice(0, 3).map((question) => <span key={question.id}>{isCanonical(question) ? resolveCanonicalTitle(question) : question.title}</span>)}
@@ -345,6 +345,12 @@ export function HostCreateForm({
                   <span className="sv2-choice-eyebrow">MAKE IT YOURS</span>
                   <strong>Customize the questions</strong>
                   <small>Edit wording and answers, remove questions, or add your own in the full editor.</small>
+                  <span className="sv2-question-preview">
+                    <span>WHICH TIME WORKS BEST?</span>
+                    <span>CHARCUTERIE OR MEZZE?</span>
+                    <span>WINE OR COCKTAILS?</span>
+                    <em>+ your own ideas</em>
+                  </span>
                 </button>
                 <button type="button" className="sv2-question-choice-card" aria-pressed={questionChoice === 'none'} onClick={() => onQuestionChoiceChange?.('none')}>
                   <span className="sv2-choice-eyebrow">SKIP THE SURVEY</span>
@@ -357,8 +363,8 @@ export function HostCreateForm({
 
           {!isEdit && createStep === 3 && onKitchenPlanChange && (
             <section className="sv2-create-step">
-            <h2>Plan the kitchen</h2>
-            <p className="sv2-create-step-intro">Choose what happens after your Sofra is created.</p>
+            <h2>Let us know what&apos;s in your kitchen</h2>
+            <p className="sv2-create-step-intro">Let&apos;s keep the recommendations familiar, based on what you already have and what you&apos;re used to.</p>
             <fieldset className="sv2-kitchen-plan-field">
               <legend>KITCHEN SETUP</legend>
               <p>The kitchen can be completed now, later, or by someone cooking with you.</p>
