@@ -9,7 +9,6 @@ jest.mock('next/navigation', () => ({ useRouter: jest.fn() }))
 jest.mock('@/components/sofra-v2/ImageCropDialog', () => ({ ImageCropDialog: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => <button type="button" onClick={() => onConfirm(file)}>USE THIS CROP</button> }))
 jest.mock('framer-motion', () => ({
   motion: new Proxy({}, { get: (_target, tag) => tag }),
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   MotionConfig: ({ children }: { children: React.ReactNode }) => children,
 }))
 

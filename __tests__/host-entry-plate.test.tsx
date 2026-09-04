@@ -4,14 +4,13 @@ import { HostEntryPlate } from '@/components/sofra-v2/HostEntryPlate'
 
 jest.mock('framer-motion', () => ({
   motion: new Proxy({}, { get: (_target, tag) => tag }),
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-it('renders the plate scene with the ready-to-host card', () => {
+it('renders the plate scene as a single hero image', () => {
   render(<HostEntryPlate onEnter={jest.fn()} />)
-  expect(screen.getByRole('button', { name: /start hosting a sofra/i })).toBeInTheDocument()
-  expect(screen.getByText(/ready to host/i)).toBeInTheDocument()
-  expect(screen.getByText(/your own sofra\?/i)).toBeInTheDocument()
+  const button = screen.getByRole('button', { name: /start hosting a sofra/i })
+  expect(button).toBeInTheDocument()
+  expect(button.querySelector('img')).toBeInTheDocument()
 })
 
 it('calls onEnter once the leave transition has had time to play', async () => {
