@@ -28,10 +28,10 @@ export function HostEntryPlate({ onEnter }: HostEntryPlateProps) {
         aria-label="Start hosting a Sofra"
       >
         <motion.div layoutId="host-entry-shell" className="sv2-host-entry-plate">
-          <Image src="/design-preview/silver-plate.png" alt="" width={1254} height={1254} priority />
+          <Image src="/design-preview/silver-plate.png" alt="" width={340} height={340} priority />
         </motion.div>
-        {!leaving && (
-          <AnimatePresence>
+        <AnimatePresence>
+          {!leaving && (
             <motion.div className="sv2-host-entry-overlay" exit={{ opacity: 0 }} transition={{ duration: 0.22 }}>
               <svg className="sv2-host-entry-fork" width="18" height="90" viewBox="0 0 18 90" aria-hidden="true">
                 <g fill="none" stroke="#C4A35A" strokeWidth="2">
@@ -49,8 +49,8 @@ export function HostEntryPlate({ onEnter }: HostEntryPlateProps) {
                 <p>Ready to host<br />your own Sofra?</p>
               </div>
             </motion.div>
-          </AnimatePresence>
-        )}
+          )}
+        </AnimatePresence>
       </button>
     </div>
   )
