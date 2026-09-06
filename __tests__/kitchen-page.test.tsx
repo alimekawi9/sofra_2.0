@@ -161,17 +161,14 @@ test('inactive Kitchen chips use the theme primary text color in dark mode', asy
   expect(guacamole.style.border).toBe('1px solid var(--sf-intel-text)')
 })
 
-test('stages preset changes until the single signatures UPDATE action', async () => {
+test('stages preset changes until the single shared submit action', async () => {
   render(<KitchenPage />)
   const hummus = await screen.findByRole('button', { name: 'Hummus' })
 
-  const signatureCard = screen.getByText('Your signatures').parentElement?.parentElement
-  expect(within(signatureCard as HTMLElement).queryByRole('button', { name: /Add selected/i })).not.toBeInTheDocument()
-  expect(within(signatureCard as HTMLElement).getByRole('button', { name: 'UPDATE' })).toBeDisabled()
   fireEvent.click(hummus)
   expect(hummus).toHaveAttribute('aria-pressed', 'true')
   expect(writes.some(write => write.kind === 'insert')).toBe(false)
-  fireEvent.click(within(signatureCard as HTMLElement).getByRole('button', { name: 'UPDATE' }))
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some(write => write.table === 'signatures' && write.kind === 'insert')).toBe(true))
 })
@@ -200,10 +197,9 @@ test('creating a signature persists the raw main role and hides saved-signature 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), {
     target: { value: 'Lamb Shoulder' },
   })
-  const signatureCard = document.querySelector('.sv2-kitchen-signatures') as HTMLElement
   await waitFor(() => expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true'))
   expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
-  fireEvent.click(within(signatureCard).getByRole('button', { name: 'UPDATE' }))
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => expect(writes.some((write) =>
     write.table === 'signatures'
@@ -213,29 +209,13 @@ test('creating a signature persists the raw main role and hides saved-signature 
   expect(screen.queryByLabelText('Edit a saved signature')).not.toBeInTheDocument()
 })
 
-test('pantry update strips legacy roles and keeps raw descriptive tags', async () => {
-  render(<KitchenPage />)
-  await screen.findByRole('button', { name: 'Tomato' })
-  fireEvent.change(screen.getByLabelText('Edit a saved pantry item'), {
-    target: { value: pantry.id },
-  })
-  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
-  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
-
-  await waitFor(() => {
-    const update = writes.find((write) => write.table === 'pantry_items' && write.kind === 'update')
-    expect(update?.payload.tags).toEqual(['savory'])
-  })
-})
-
 test('adding a pantry item persists binary availability without quantity or unit', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Tomato' })
 
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
-  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
   await waitFor(() => expect(screen.getByRole('button', { name: 'Savory' })).toHaveAttribute('aria-pressed', 'true'))
-  fireEvent.click(within(pantryCard).getByRole('button', { name: 'UPDATE' }))
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => {
     const insert = writes.find((write) => write.table === 'pantry_items' && write.kind === 'insert')
@@ -261,8 +241,8 @@ test('offers clear-all controls for signatures and pantry, with the empty pantry
   expect(within(signatureCard).getByRole('button', { name: 'CLEAR ALL' })).toBeInTheDocument()
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
   expect(within(pantryCard).getByRole('button', { name: 'Tomato' })).toHaveAttribute('aria-pressed', 'false')
-  expect(within(pantryCard).queryByRole('button', { name: 'I HAVE NOTHING' })).not.toBeInTheDocument()
-  fireEvent.click(within(pantryCard).getByRole('button', { name: 'I LITERALLY HAVE NOTHING' }))
+  expect(screen.queryByRole('button', { name: 'I HAVE NOTHING' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' }))
   await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
 })
 
@@ -272,12 +252,30 @@ test('a pantry selection immediately replaces the empty action and stays selecte
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
-  expect(within(pantryCard).getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'Chicken thighs' }))
-  expect(within(pantryCard).queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'Fruits' }))
   expect(within(pantryCard).queryByRole('button', { name: 'Chicken thighs' })).not.toBeInTheDocument()
-  expect(within(pantryCard).queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+})
+
+test('clicking a saved pantry chip stages its removal instead of deleting immediately', async () => {
+  render(<KitchenPage />)
+  const tomato = await screen.findByRole('button', { name: 'Tomato' })
+
+  fireEvent.click(tomato)
+  expect(tomato).toHaveAttribute('aria-pressed', 'false')
+  expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(false)
+
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+  await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
+})
+
+test('there is no way to reopen a saved pantry item for editing', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+  expect(screen.queryByLabelText('Edit a saved pantry item')).not.toBeInTheDocument()
 })

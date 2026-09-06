@@ -122,10 +122,9 @@ function KitchenPageInner() {
   const [pantryName, setPantryName] = useState('')
   const [pantryTagsList, setPantryTagsList] = useState<string[]>([])
   const [pantryAllergensList, setPantryAllergensList] = useState<string[]>([])
-  const [editingPantryId, setEditingPantryId] = useState<string | null>(null)
   const [pantryAdding, setPantryAdding] = useState(false)
   const [pantryAddError, setPantryAddError] = useState('')
-  const [pantryDeleteError, setPantryDeleteError] = useState('')
+  const [pendingRemovedPantryIds, setPendingRemovedPantryIds] = useState<string[]>([])
   const [pantryTagsRevealed, setPantryTagsRevealed] = useState(false)
   const [pantrySuggesting, setPantrySuggesting] = useState(false)
   const [pantrySuggestionReady, setPantrySuggestionReady] = useState(false)
@@ -244,61 +243,6 @@ function KitchenPageInner() {
     setSigAllergensList((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))
   }
 
-  async function saveSignatureChanges() {
-    const uid = uidRef.current
-    if (!uid || sigAdding) return
-    const formHasContent = Boolean(sigName.trim() || editingSignatureId || sigTagsList.length || sigAllergensList.length)
-    if (formHasContent && (!sigName.trim() || !sigTagsRevealed || !sigTagsList.some(isDishRole) || withoutDishRoles(sigTagsList).length === 0)) {
-      setSigAddError('Enter a name, then choose a role and at least one descriptive tag.')
-      return
-    }
-    setSigAdding(true)
-    setDishBatchError('')
-
-    const keyToPreset = new Map(DISH_PRESETS.map((p) => [dishPresetKey(p), p] as const))
-    const targets = selectedDishKeys
-      .map((k) => keyToPreset.get(k))
-      .filter((p): p is DishPreset => Boolean(p))
-
-    const existing = editingSignatureId ? signatures.find(signature => signature.id === editingSignatureId) : null
-    const formOperation = formHasContent
-      ? (editingSignatureId
-          ? supabase.from('signatures').update({ name: sigName.trim(), tags: Array.from(new Set(sigTagsList)), contains_allergens: sigAllergensList, novelty_score: existing?.novelty_score ?? null, is_substantial: existing?.is_substantial ?? null }).eq('id', editingSignatureId).eq('chef_id', uid)
-          : supabase.from('signatures').insert({ chef_id: uid, name: sigName.trim(), tags: Array.from(new Set(sigTagsList)), contains_allergens: sigAllergensList, novelty_score: null, is_substantial: null }))
-      : null
-    const results = await Promise.allSettled([
-      ...targets.map((p) =>
-        supabase
-          .from('signatures')
-          .insert({
-            chef_id: uid,
-            name: p.name,
-            tags: withDishRole(p.tags, p.role),
-            contains_allergens: p.allergens,
-            novelty_score:p.novelty_score??null,
-            is_substantial:p.is_substantial??(p.role==='main'),
-            preset_key: dishPresetKey(p),
-          })
-          .select('id, name, tags, contains_allergens, novelty_score, is_substantial, preset_key')
-          .single()
-      ),
-      ...pendingRemovedSignatureIds.map(id => supabase.from('signatures').delete().eq('id', id).eq('chef_id', uid)),
-      ...(formOperation ? [formOperation] : []),
-    ])
-
-    const failed = results.some(result => result.status === 'rejected' || Boolean(result.value.error))
-    if (failed) {
-      setDishBatchError("Couldn't update signatures. Your pending changes are still here with the option to try again.")
-      setSigAdding(false)
-      return
-    }
-    setSelectedDishKeys([])
-    setPendingRemovedSignatureIds([])
-    cancelSignatureEdit()
-    await loadData()
-    setSigAdding(false)
-  }
-
   function toggleIngredientSelection(name: string) {
     setNothingInPantry(false)
     setSelectedIngredients((prev) =>
@@ -406,8 +350,6 @@ function KitchenPageInner() {
     return sigName.trim() !== existing.name || !sameValues(sigTagsList, existing.tags) || !sameValues(sigAllergensList, existing.contains_allergens)
   }, [editingSignatureId, sigAllergensList, sigName, sigTagsList, signatures])
 
-  const signaturesDirty = selectedDishKeys.length > 0 || pendingRemovedSignatureIds.length > 0 || signatureFormDirty
-
   const filteredIngredients: string[] =
     ingredientCategory === 'All'
       ? INGREDIENT_CATEGORIES.flatMap((c) => INGREDIENT_PRESETS[c] ?? [])
@@ -436,18 +378,7 @@ function KitchenPageInner() {
     cancelSignatureEdit()
   }
 
-  function editPantryItem(item: PantryItem) {
-    setEditingPantryId(item.id)
-    setPantryName(item.name)
-    setPantryTagsList(pantryTagsForPersistence(item.tags))
-    setPantryAllergensList([...item.contains_allergens])
-    setPantryAddError('')
-    setPantryTagsRevealed(true)
-    setPantrySuggestionReady(false)
-  }
-
   function cancelPantryEdit() {
-    setEditingPantryId(null)
     setPantryName('')
     setPantryTagsList([])
     setPantryAllergensList([])
@@ -517,7 +448,7 @@ function KitchenPageInner() {
 
   useEffect(() => {
     const name = pantryName.trim()
-    if (editingPantryId || !name) {
+    if (!name) {
       pantrySuggestionRequestRef.current += 1
       setPantrySuggesting(false)
       return
@@ -527,25 +458,10 @@ function KitchenPageInner() {
     setPantrySuggesting(true)
     const timer = setTimeout(() => void suggestKitchenMetadata('pantry', name, requestId), 550)
     return () => clearTimeout(timer)
-  }, [editingPantryId, pantryName]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pantryName]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function deletePantryItem(item: PantryItem) {
-    const uid = uidRef.current
-    if (!uid) return
-    setPantryDeleteError('')
-    const prev = pantry
-    setPantry((p) => p.filter((x) => x.id !== item.id))
-
-    const { error } = await supabase
-      .from('pantry_items')
-      .delete()
-      .eq('id', item.id)
-      .eq('chef_id', uid)
-
-    if (error) {
-      setPantry(prev)
-      setPantryDeleteError('Failed to remove item. Try again.')
-    }
+  function togglePantryRemoval(item: PantryItem) {
+    setPendingRemovedPantryIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])
   }
 
   async function handlePantryDone() {
@@ -570,57 +486,77 @@ function KitchenPageInner() {
     pantryDoneTimeoutRef.current = setTimeout(() => setPantryDoneSaved(false), 2000)
   }
 
-  async function savePantryAndContinue() {
+  async function submitKitchen() {
     const uid = uidRef.current
-    if (!uid || pantryAdding || ingredientBatchAdding || publishingDraft) return
+    if (!uid || sigAdding || pantryAdding || ingredientBatchAdding || sigSuggesting || pantrySuggesting || publishingDraft) return
 
+    const sigFormHasContent = Boolean(sigName.trim() || editingSignatureId || sigTagsList.length || sigAllergensList.length)
+    if (sigFormHasContent && (!sigName.trim() || !sigTagsRevealed || !sigTagsList.some(isDishRole) || withoutDishRoles(sigTagsList).length === 0)) {
+      setSigAddError('Enter a name, then choose a role and at least one descriptive tag.')
+      return
+    }
     const name = pantryName.trim()
-    const formHasContent = Boolean(name || editingPantryId || pantryTagsList.length || pantryAllergensList.length)
-    const tags = pantryTagsForPersistence(pantryTagsList)
-    if (formHasContent && (!name || tags.length === 0)) {
+    const pantryTags = pantryTagsForPersistence(pantryTagsList)
+    const pantryFormHasContent = Boolean(name || pantryTagsList.length || pantryAllergensList.length)
+    if (pantryFormHasContent && (!name || pantryTags.length === 0)) {
       setPantryAddError('Enter an ingredient name and choose at least one descriptive tag.')
       return
     }
 
+    setSigAdding(true)
     setPantryAdding(true)
     setIngredientBatchAdding(true)
+    setDishBatchError('')
     setPantryAddError('')
     setIngredientBatchError('')
 
-    const allergens = pantryAllergensList
-    const formPayload = {
-      name,
-      week_of: weekOf,
-      tags,
-      contains_allergens: allergens,
-    }
-    const formOperation = formHasContent
-      ? (editingPantryId
-          ? supabase.from('pantry_items').update(formPayload).eq('id', editingPantryId).eq('chef_id', uid)
-          : supabase.from('pantry_items').insert({ chef_id: uid, ...formPayload }))
+    const keyToPreset = new Map(DISH_PRESETS.map((p) => [dishPresetKey(p), p] as const))
+    const dishTargets = selectedDishKeys.map((k) => keyToPreset.get(k)).filter((p): p is DishPreset => Boolean(p))
+    const existingSignature = editingSignatureId ? signatures.find(s => s.id === editingSignatureId) : null
+    const sigFormOperation = sigFormHasContent
+      ? (editingSignatureId
+          ? supabase.from('signatures').update({ name: sigName.trim(), tags: Array.from(new Set(sigTagsList)), contains_allergens: sigAllergensList, novelty_score: existingSignature?.novelty_score ?? null, is_substantial: existingSignature?.is_substantial ?? null }).eq('id', editingSignatureId).eq('chef_id', uid)
+          : supabase.from('signatures').insert({ chef_id: uid, name: sigName.trim(), tags: Array.from(new Set(sigTagsList)), contains_allergens: sigAllergensList, novelty_score: null, is_substantial: null }))
       : null
+
+    const pantryAllergens = pantryAllergensList
+    const pantryFormPayload = { name, week_of: weekOf, tags: pantryTags, contains_allergens: pantryAllergens }
+    const pantryFormOperation = pantryFormHasContent
+      ? supabase.from('pantry_items').insert({ chef_id: uid, ...pantryFormPayload })
+      : null
+
     const results = await Promise.allSettled([
-      ...(nothingInPantry ? pantry.map((item) => supabase.from('pantry_items').delete().eq('id', item.id).eq('chef_id', uid)) : []),
-      ...selectedIngredients.map((selectedName) =>
-        supabase.from('pantry_items').insert({
-          chef_id: uid,
-          name: selectedName,
-          week_of: weekOf,
-          tags,
-          contains_allergens: allergens,
-        })
+      ...dishTargets.map((p) =>
+        supabase.from('signatures').insert({
+          chef_id: uid, name: p.name, tags: withDishRole(p.tags, p.role), contains_allergens: p.allergens,
+          novelty_score: p.novelty_score ?? null, is_substantial: p.is_substantial ?? (p.role === 'main'),
+          preset_key: dishPresetKey(p),
+        }).select('id, name, tags, contains_allergens, novelty_score, is_substantial, preset_key').single()
       ),
-      ...(formOperation ? [formOperation] : []),
+      ...pendingRemovedSignatureIds.map(id => supabase.from('signatures').delete().eq('id', id).eq('chef_id', uid)),
+      ...(sigFormOperation ? [sigFormOperation] : []),
+      ...(nothingInPantry ? pantry.map((item) => supabase.from('pantry_items').delete().eq('id', item.id).eq('chef_id', uid)) : []),
+      ...(!nothingInPantry ? pendingRemovedPantryIds.map(id => supabase.from('pantry_items').delete().eq('id', id).eq('chef_id', uid)) : []),
+      ...selectedIngredients.map((selectedName) =>
+        supabase.from('pantry_items').insert({ chef_id: uid, name: selectedName, week_of: weekOf, tags: pantryTags, contains_allergens: pantryAllergens })
+      ),
+      ...(pantryFormOperation ? [pantryFormOperation] : []),
     ])
-    const failed = results.some((result) => result.status === 'rejected' || Boolean(result.value.error))
+
+    const failed = results.some(result => result.status === 'rejected' || Boolean(result.value.error))
+    setSigAdding(false)
     setPantryAdding(false)
     setIngredientBatchAdding(false)
     if (failed) {
-      setPantryAddError('Could not update your pantry. Your selections are still here. Try again.')
+      setDishBatchError("Couldn't update your kitchen. Your pending changes are still here with the option to try again.")
       return
     }
 
+    setSelectedDishKeys([])
+    setPendingRemovedSignatureIds([])
+    cancelSignatureEdit()
     setSelectedIngredients([])
+    setPendingRemovedPantryIds([])
     setNothingInPantry(false)
     cancelPantryEdit()
     await loadData()
@@ -792,9 +728,6 @@ function KitchenPageInner() {
                     )
                   })}
                 </div>
-                {dishBatchError && (
-                  <p style={{ color: C.rose, fontSize: 12, margin: 0 }}>{dishBatchError}</p>
-                )}
               </div>
 
               <div
@@ -874,9 +807,6 @@ function KitchenPageInner() {
                 {sigAddError && (
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
-                <button className="add" onClick={() => void saveSignatureChanges()} disabled={!signaturesDirty || sigAdding || sigSuggesting} style={{ marginTop: 12, width: '100%' }}>
-                  {sigAdding ? 'SAVING...' : signatures.length === 0 ? 'SUBMIT' : 'UPDATE'}
-                </button>
               </div>
             </section>
 
@@ -942,13 +872,13 @@ function KitchenPageInner() {
                   {customPantry.map((item) => nothingInPantry ? (
                     <button key={item.id} type="button" aria-pressed="false" style={presetChip(false)} onClick={() => setNothingInPantry(false)}>{item.name}</button>
                   ) : (
-                    <button key={item.id} type="button" aria-pressed="true" style={presetChip(true)} onClick={() => void deletePantryItem(item)}>{item.name}</button>
+                    <button key={item.id} type="button" aria-pressed={!pendingRemovedPantryIds.includes(item.id)} style={presetChip(!pendingRemovedPantryIds.includes(item.id))} onClick={() => togglePantryRemoval(item)}>{item.name}</button>
                   ))}
                   {filteredIngredients.map((name) => {
                     const saved = pantry.find((item) => item.name.toLowerCase() === name.toLowerCase())
-                    const on = (!nothingInPantry && Boolean(saved)) || selectedIngredients.includes(name)
+                    const on = (!nothingInPantry && Boolean(saved) && !pendingRemovedPantryIds.includes(saved?.id ?? '')) || selectedIngredients.includes(name)
                     return saved && !nothingInPantry ? (
-                      <button key={name} type="button" aria-pressed="true" style={presetChip(true)} onClick={() => void deletePantryItem(saved)}>{name}</button>
+                      <button key={name} type="button" aria-pressed={on} style={presetChip(on)} onClick={() => togglePantryRemoval(saved)}>{name}</button>
                     ) : saved ? (
                       <button key={name} type="button" onClick={() => setNothingInPantry(false)} style={presetChip(false)} aria-pressed="false">{name}</button>
                     ) : (
@@ -969,26 +899,6 @@ function KitchenPageInner() {
               </div>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                {pantry.length > 0 && (
-                  <label className="sv2-inventory-edit-select">
-                    Edit a saved pantry item
-                    <select
-                      value={editingPantryId ?? ''}
-                      onChange={(event) => {
-                        const item = pantry.find((savedItem) => savedItem.id === event.target.value)
-                        if (item) editPantryItem(item)
-                        else cancelPantryEdit()
-                      }}
-                    >
-                      <option value="">Choose a pantry item</option>
-                      {pantry.map((item) => (
-                        <option key={item.id} value={item.id}>{item.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                 <input
                   className="field sm"
                   placeholder="Add an ingredient…"
@@ -997,17 +907,12 @@ function KitchenPageInner() {
                     setNothingInPantry(false)
                     setPantryName(e.target.value)
                     setPantryAddError('')
-                    if (!editingPantryId) {
-                      setPantryTagsList([])
-                      setPantryAllergensList([])
-                      setPantryTagsRevealed(false)
-                      setPantrySuggestionReady(false)
-                    }
+                    setPantryTagsList([])
+                    setPantryAllergensList([])
+                    setPantryTagsRevealed(false)
+                    setPantrySuggestionReady(false)
                   }}
                 />
-                {editingPantryId && (
-                  <button onClick={cancelPantryEdit} style={clearBtn}>Cancel</button>
-                )}
               </div>
               {pantrySuggesting && <SuggestionLoadingNotice />}
               {pantrySuggestionReady && <SuggestionReviewNotice />}
@@ -1051,35 +956,32 @@ function KitchenPageInner() {
               {pantryAddError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
               )}
-              {pantryDeleteError && (
-                <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryDeleteError}</p>
-              )}
-
-              <button
-                className="add"
-                onClick={() => void savePantryAndContinue()}
-                disabled={pantryDoneSaved || publishingDraft || pantryAdding || ingredientBatchAdding || pantrySuggesting}
-                style={{
-                  width: '100%',
-                  marginTop: 12,
-                }}
-              >
-                {publishingDraft
-                  ? 'Publishing…'
-                  : pantryAdding || ingredientBatchAdding
-                    ? 'SAVING...'
-                  : backEvent && !backEvent.isPublished
-                    ? 'Publish Invite'
-                  : pantryDoneSaved
-                    ? 'Saved ✓'
-                    : !pantryHasAnythingSelected
-                      ? 'I LITERALLY HAVE NOTHING'
-                      : pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
-              </button>
-              {publishError && (
-                <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{publishError}</p>
-              )}
             </section>
+
+            <button
+              className="add"
+              onClick={() => void submitKitchen()}
+              disabled={pantryDoneSaved || publishingDraft || sigAdding || pantryAdding || ingredientBatchAdding || sigSuggesting || pantrySuggesting}
+              style={{ width: '100%', marginTop: 12 }}
+            >
+              {publishingDraft
+                ? 'Publishing…'
+                : sigAdding || pantryAdding || ingredientBatchAdding
+                  ? 'SAVING...'
+                : backEvent && !backEvent.isPublished
+                  ? 'Publish Invite'
+                : pantryDoneSaved
+                  ? 'Saved ✓'
+                  : !pantryHasAnythingSelected
+                    ? 'I LITERALLY HAVE NOTHING'
+                    : signatures.length === 0 && pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
+            </button>
+            {dishBatchError && (
+              <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{dishBatchError}</p>
+            )}
+            {publishError && (
+              <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{publishError}</p>
+            )}
 
             {/* Brief */}
             <div style={briefStyle}>
