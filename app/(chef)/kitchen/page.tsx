@@ -94,10 +94,15 @@ function KitchenPageInner() {
   const searchParams = useSearchParams()
   const fromEventId = searchParams?.get('from') ?? null
   const fromPage = searchParams?.get('from_page') === 'table' ? 'table' : 'menu'
+  // Scroll-linked opacity via useTransform isn't part of Framer Motion's animation engine, so
+  // MotionConfig's reducedMotion prop (used in HostEntryPlate.tsx) wouldn't affect it — no reduced-motion
+  // handling needed here since this is a plain scroll-position mapping, not a triggered animation.
   const scrollTrackRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({ target: scrollTrackRef, offset: ['start start', 'end end'] })
   const signaturesOpacity = useTransform(scrollYProgress, [0, 0.45, 0.55], [1, 1, 0])
   const pantryOpacity = useTransform(scrollYProgress, [0.45, 0.55, 1], [0, 1, 1])
+  const [signaturesActive, setSignaturesActive] = useState(true)
+  useEffect(() => scrollYProgress.on('change', (v) => setSignaturesActive(v < 0.5)), [scrollYProgress])
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
@@ -712,7 +717,7 @@ function KitchenPageInner() {
             <div ref={scrollTrackRef} className="sv2-kitchen-scroll-track">
               <div className="sv2-kitchen-scroll-frame">
             {/* ── Signatures ── */}
-            <motion.section className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity }}>
+            <motion.section className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity, pointerEvents: signaturesActive ? 'auto' : 'none' }} aria-hidden={!signaturesActive}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Your signatures</span>
                 <span style={faintSm}>dishes Sofra can always plate</span>
@@ -875,7 +880,7 @@ function KitchenPageInner() {
             </motion.section>
 
             {/* ── Pantry ── */}
-            <motion.section className="sv2-kitchen-card sv2-kitchen-pantry" style={{ ...cardStyle, opacity: pantryOpacity }}>
+            <motion.section className="sv2-kitchen-card sv2-kitchen-pantry" style={{ ...cardStyle, opacity: pantryOpacity, pointerEvents: signaturesActive ? 'none' : 'auto' }} aria-hidden={signaturesActive}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>This week’s pantry</span>
                 <span style={faintSm}>what’s fresh with Sofra building new dishes from it</span>

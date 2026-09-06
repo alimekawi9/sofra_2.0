@@ -1913,5 +1913,5 @@
 @media(max-width:560px){.sv2-create-step-actions>button{width:min(48%,220px)!important}.sv2-create-step-actions>button:only-child{width:min(100%,260px)!important}.sv2-question-choice-card{min-height:120px!important;padding:17px!important}}
 
 .sv2-kitchen-scroll-track{position:relative;height:180vh}
-.sv2-kitchen-scroll-frame{position:sticky;top:0;height:100vh;display:flex;align-items:center;overflow:hidden}
-.sv2-kitchen-scroll-frame .sv2-kitchen-card{position:absolute;inset:0;margin:auto 0;max-height:100%;overflow-y:auto}
+.sv2-kitchen-scroll-frame{position:sticky;top:0;height:100vh;overflow:hidden}
+.sv2-kitchen-scroll-frame .sv2-kitchen-card{position:absolute;inset:0;margin:auto 0!important;max-height:100%;overflow-y:auto}
