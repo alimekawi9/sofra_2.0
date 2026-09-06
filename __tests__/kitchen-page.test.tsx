@@ -7,6 +7,12 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 
+jest.mock('framer-motion', () => ({
+  motion: new Proxy({}, { get: (_target, tag) => tag }),
+  useScroll: () => ({ scrollYProgress: { on: () => () => {}, get: () => 0 } }),
+  useTransform: () => 0,
+}))
+
 type Write = { table: string; kind: 'insert' | 'update' | 'delete'; payload: Record<string, unknown> }
 let writes: Write[] = []
 

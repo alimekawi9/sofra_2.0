@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
@@ -93,6 +94,10 @@ function KitchenPageInner() {
   const searchParams = useSearchParams()
   const fromEventId = searchParams?.get('from') ?? null
   const fromPage = searchParams?.get('from_page') === 'table' ? 'table' : 'menu'
+  const scrollTrackRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({ target: scrollTrackRef, offset: ['start start', 'end end'] })
+  const signaturesOpacity = useTransform(scrollYProgress, [0, 0.45, 0.55], [1, 1, 0])
+  const pantryOpacity = useTransform(scrollYProgress, [0.45, 0.55, 1], [0, 1, 1])
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
@@ -704,8 +709,10 @@ function KitchenPageInner() {
 
         {!loading && !fetchError && (
           <>
+            <div ref={scrollTrackRef} className="sv2-kitchen-scroll-track">
+              <div className="sv2-kitchen-scroll-frame">
             {/* ── Signatures ── */}
-            <section className="sv2-kitchen-card sv2-kitchen-signatures" style={cardStyle}>
+            <motion.section className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity }}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Your signatures</span>
                 <span style={faintSm}>dishes Sofra can always plate</span>
@@ -865,10 +872,10 @@ function KitchenPageInner() {
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
               </div>
-            </section>
+            </motion.section>
 
             {/* ── Pantry ── */}
-            <section className="sv2-kitchen-card sv2-kitchen-pantry" style={cardStyle}>
+            <motion.section className="sv2-kitchen-card sv2-kitchen-pantry" style={{ ...cardStyle, opacity: pantryOpacity }}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>This week’s pantry</span>
                 <span style={faintSm}>what’s fresh with Sofra building new dishes from it</span>
@@ -1013,7 +1020,9 @@ function KitchenPageInner() {
               {pantryAddError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
               )}
-            </section>
+            </motion.section>
+              </div>
+            </div>
 
             <button
               className="add"
