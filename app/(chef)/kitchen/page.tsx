@@ -103,6 +103,16 @@ function KitchenPageInner() {
   const pantryOpacity = useTransform(scrollYProgress, [0.45, 0.55, 1], [0, 1, 1])
   const [signaturesActive, setSignaturesActive] = useState(true)
   useEffect(() => scrollYProgress.on('change', (v) => setSignaturesActive(v < 0.5)), [scrollYProgress])
+  const signaturesSectionRef = useRef<HTMLElement>(null)
+  const pantrySectionRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    // aria-hidden alone doesn't remove an element from the Tab order or block a keypress on an
+    // already-focused control inside it — set the native `inert` DOM property (not typed on JSX by this
+    // project's @types/react version, so assigned imperatively) so the currently invisible section is
+    // truly unreachable by keyboard too, not just by pointer/screen reader.
+    if (signaturesSectionRef.current) signaturesSectionRef.current.inert = !signaturesActive
+    if (pantrySectionRef.current) pantrySectionRef.current.inert = signaturesActive
+  }, [signaturesActive])
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
@@ -717,7 +727,7 @@ function KitchenPageInner() {
             <div ref={scrollTrackRef} className="sv2-kitchen-scroll-track">
               <div className="sv2-kitchen-scroll-frame">
             {/* ── Signatures ── */}
-            <motion.section className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity, pointerEvents: signaturesActive ? 'auto' : 'none' }} aria-hidden={!signaturesActive}>
+            <motion.section ref={signaturesSectionRef} className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity, pointerEvents: signaturesActive ? 'auto' : 'none' }} aria-hidden={!signaturesActive}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Your signatures</span>
                 <span style={faintSm}>dishes Sofra can always plate</span>
@@ -880,7 +890,7 @@ function KitchenPageInner() {
             </motion.section>
 
             {/* ── Pantry ── */}
-            <motion.section className="sv2-kitchen-card sv2-kitchen-pantry" style={{ ...cardStyle, opacity: pantryOpacity, pointerEvents: signaturesActive ? 'none' : 'auto' }} aria-hidden={signaturesActive}>
+            <motion.section ref={pantrySectionRef} className="sv2-kitchen-card sv2-kitchen-pantry" style={{ ...cardStyle, opacity: pantryOpacity, pointerEvents: signaturesActive ? 'none' : 'auto' }} aria-hidden={signaturesActive}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>This week’s pantry</span>
                 <span style={faintSm}>what’s fresh with Sofra building new dishes from it</span>
