@@ -37,6 +37,12 @@ const pantry = {
 let signatureRows: Array<Record<string, unknown>> = []
 let pantryRows: Array<Record<string, unknown>> = []
 
+// Lets a test force a specific delete (by row id) to fail server-side, so
+// partial-batch-failure reconciliation can be exercised: the row must NOT be
+// filtered out of the mock "server" rows, and the resolved value must carry
+// an error so submitKitchen's per-operation success check sees it as failed.
+let failDeleteIds = new Set<string>()
+
 function applyUpdate(table: string, id: string, payload: Record<string, unknown>) {
   const rows = table === 'signatures' ? signatureRows : pantryRows
   const idx = rows.findIndex((r) => r.id === id)
@@ -45,13 +51,17 @@ function applyUpdate(table: string, id: string, payload: Record<string, unknown>
 
 function builder(table: string) {
   let write: Write | null = null
-  const chain: Record<string, jest.Mock> & { then?: Promise<unknown>['then'] } = {
+  const chain: Record<string, jest.Mock> & { then?: Promise<unknown>['then']; error?: unknown } = {
     select: jest.fn(() => chain),
     eq: jest.fn((col: string, val: string) => {
       if (col === 'id' && write?.kind === 'update') applyUpdate(table, val, write.payload)
       if (col === 'id' && write?.kind === 'delete') {
-        if (table === 'pantry_items') pantryRows = pantryRows.filter((row) => row.id !== val)
-        if (table === 'signatures') signatureRows = signatureRows.filter((row) => row.id !== val)
+        if (failDeleteIds.has(val)) {
+          chain.error = { message: 'boom' }
+        } else {
+          if (table === 'pantry_items') pantryRows = pantryRows.filter((row) => row.id !== val)
+          if (table === 'signatures') signatureRows = signatureRows.filter((row) => row.id !== val)
+        }
       }
       return chain
     }),
@@ -97,6 +107,7 @@ beforeEach(() => {
   writes = []
   signatureRows = [{ ...signature }, { ...savedPreset }]
   pantryRows = [{ ...pantry }]
+  failDeleteIds = new Set()
   localStorage.setItem('sofra_user_id', 'chef-1')
   global.fetch = jest.fn(async (_input, init) => {
     const body = JSON.parse(String(init?.body ?? '{}')) as { kind?: string }
@@ -278,4 +289,78 @@ test('there is no way to reopen a saved pantry item for editing', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Tomato' })
   expect(screen.queryByLabelText('Edit a saved pantry item')).not.toBeInTheDocument()
+})
+
+test('submit label reflects pending signature changes even when the pantry is empty', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
+  expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+
+  fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Lamb Shoulder' } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true'))
+
+  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'UPDATE' })).toBeInTheDocument()
+})
+
+test('CLEAR ALL resets a previously staged pantry removal', async () => {
+  render(<KitchenPage />)
+  const tomato = await screen.findByRole('button', { name: 'Tomato' })
+  const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
+
+  fireEvent.click(tomato)
+  expect(tomato).toHaveAttribute('aria-pressed', 'false')
+
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
+  expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+
+  fireEvent.click(within(pantryCard).getByRole('button', { name: 'Chicken thighs' }))
+  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+
+  expect(within(pantryCard).getByRole('button', { name: 'Tomato' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('a single submit batches both a new preset signature insert and a staged pantry removal', async () => {
+  render(<KitchenPage />)
+  const hummus = await screen.findByRole('button', { name: 'Hummus' })
+  const tomato = await screen.findByRole('button', { name: 'Tomato' })
+
+  fireEvent.click(hummus)
+  fireEvent.click(tomato)
+
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+
+  await waitFor(() => {
+    expect(writes.some((write) =>
+      write.table === 'signatures' && write.kind === 'insert' && write.payload.name === 'Hummus'
+    )).toBe(true)
+    expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true)
+  })
+})
+
+test('partial batch failure keeps only the failed operation pending after reconciling with the server', async () => {
+  render(<KitchenPage />)
+  const hummus = await screen.findByRole('button', { name: 'Hummus' })
+  const tomato = await screen.findByRole('button', { name: 'Tomato' })
+
+  fireEvent.click(hummus)
+  fireEvent.click(tomato)
+  expect(tomato).toHaveAttribute('aria-pressed', 'false')
+
+  failDeleteIds.add('pantry-1')
+
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+
+  await waitFor(() => expect(screen.getByText(/Some changes saved, but a few couldn't/i)).toBeInTheDocument())
+
+  // The succeeded signature insert committed and is no longer a pending selection —
+  // loadData()'s refresh now shows it as an already-saved chip.
+  const hummusAfter = await screen.findByRole('button', { name: 'Hummus' })
+  expect(hummusAfter).toHaveAttribute('aria-pressed', 'true')
+
+  // The failed pantry removal remains staged so the user can retry it.
+  expect(screen.getByRole('button', { name: 'Tomato' })).toHaveAttribute('aria-pressed', 'false')
 })

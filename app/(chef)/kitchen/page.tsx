@@ -251,6 +251,7 @@ function KitchenPageInner() {
   }
 
   function selectEmptyPantry() {
+    setPendingRemovedPantryIds([])
     setNothingInPantry(true)
     setSelectedIngredients([])
     setPantryName('')
@@ -367,6 +368,9 @@ function KitchenPageInner() {
   const pantryHasAnythingSelected = selectedIngredients.length > 0
     || Boolean(pantryName.trim())
     || (!nothingInPantry && pantry.length > 0)
+  const signatureHasAnythingSelected = selectedDishKeys.length > 0
+    || pendingRemovedSignatureIds.length > 0
+    || Boolean(sigName.trim() || editingSignatureId || sigTagsList.length || sigAllergensList.length)
 
   function toggleSignatureRemoval(signature: Signature) {
     setPendingRemovedSignatureIds(prev => prev.includes(signature.id) ? prev.filter(id => id !== signature.id) : [...prev, signature.id])
@@ -525,41 +529,94 @@ function KitchenPageInner() {
       ? supabase.from('pantry_items').insert({ chef_id: uid, ...pantryFormPayload })
       : null
 
-    const results = await Promise.allSettled([
-      ...dishTargets.map((p) =>
-        supabase.from('signatures').insert({
+    const pantryClearIds = nothingInPantry ? pantry.map((item) => item.id) : []
+    const pantryRemovalIds = !nothingInPantry ? pendingRemovedPantryIds : []
+
+    type KitchenOp =
+      | { kind: 'dishInsert'; key: string }
+      | { kind: 'sigRemove'; id: string }
+      | { kind: 'sigForm' }
+      | { kind: 'pantryClearAll'; id: string }
+      | { kind: 'pantryRemove'; id: string }
+      | { kind: 'ingredientInsert'; name: string }
+      | { kind: 'pantryForm' }
+
+    const ops: { meta: KitchenOp; run: () => PromiseLike<{ error: unknown }> }[] = [
+      ...dishTargets.map((p) => ({
+        meta: { kind: 'dishInsert', key: dishPresetKey(p) } as KitchenOp,
+        run: () => supabase.from('signatures').insert({
           chef_id: uid, name: p.name, tags: withDishRole(p.tags, p.role), contains_allergens: p.allergens,
           novelty_score: p.novelty_score ?? null, is_substantial: p.is_substantial ?? (p.role === 'main'),
           preset_key: dishPresetKey(p),
-        }).select('id, name, tags, contains_allergens, novelty_score, is_substantial, preset_key').single()
-      ),
-      ...pendingRemovedSignatureIds.map(id => supabase.from('signatures').delete().eq('id', id).eq('chef_id', uid)),
-      ...(sigFormOperation ? [sigFormOperation] : []),
-      ...(nothingInPantry ? pantry.map((item) => supabase.from('pantry_items').delete().eq('id', item.id).eq('chef_id', uid)) : []),
-      ...(!nothingInPantry ? pendingRemovedPantryIds.map(id => supabase.from('pantry_items').delete().eq('id', id).eq('chef_id', uid)) : []),
-      ...selectedIngredients.map((selectedName) =>
-        supabase.from('pantry_items').insert({ chef_id: uid, name: selectedName, week_of: weekOf, tags: pantryTags, contains_allergens: pantryAllergens })
-      ),
-      ...(pantryFormOperation ? [pantryFormOperation] : []),
-    ])
+        }).select('id, name, tags, contains_allergens, novelty_score, is_substantial, preset_key').single(),
+      })),
+      ...pendingRemovedSignatureIds.map((id) => ({
+        meta: { kind: 'sigRemove', id } as KitchenOp,
+        run: () => supabase.from('signatures').delete().eq('id', id).eq('chef_id', uid),
+      })),
+      ...(sigFormOperation ? [{ meta: { kind: 'sigForm' } as KitchenOp, run: () => sigFormOperation }] : []),
+      ...pantryClearIds.map((id) => ({
+        meta: { kind: 'pantryClearAll', id } as KitchenOp,
+        run: () => supabase.from('pantry_items').delete().eq('id', id).eq('chef_id', uid),
+      })),
+      ...pantryRemovalIds.map((id) => ({
+        meta: { kind: 'pantryRemove', id } as KitchenOp,
+        run: () => supabase.from('pantry_items').delete().eq('id', id).eq('chef_id', uid),
+      })),
+      ...selectedIngredients.map((selectedName) => ({
+        meta: { kind: 'ingredientInsert', name: selectedName } as KitchenOp,
+        run: () => supabase.from('pantry_items').insert({ chef_id: uid, name: selectedName, week_of: weekOf, tags: pantryTags, contains_allergens: pantryAllergens }),
+      })),
+      ...(pantryFormOperation ? [{ meta: { kind: 'pantryForm' } as KitchenOp, run: () => pantryFormOperation }] : []),
+    ]
 
-    const failed = results.some(result => result.status === 'rejected' || Boolean(result.value.error))
+    const results = await Promise.allSettled(ops.map((op) => op.run()))
+
+    const succeeded: KitchenOp[] = []
+    const failed: KitchenOp[] = []
+    results.forEach((result, i) => {
+      const ok = result.status === 'fulfilled' && !result.value?.error
+      ;(ok ? succeeded : failed).push(ops[i].meta)
+    })
+
+    const failedDishKeys = new Set(failed.filter((m) => m.kind === 'dishInsert').map((m) => (m as { key: string }).key))
+    const failedSigRemoveIds = new Set(failed.filter((m) => m.kind === 'sigRemove').map((m) => (m as { id: string }).id))
+    const sigFormFailed = failed.some((m) => m.kind === 'sigForm')
+    const failedPantryClearIds = new Set(failed.filter((m) => m.kind === 'pantryClearAll').map((m) => (m as { id: string }).id))
+    const failedPantryRemoveIds = new Set(failed.filter((m) => m.kind === 'pantryRemove').map((m) => (m as { id: string }).id))
+    const failedIngredientNames = new Set(failed.filter((m) => m.kind === 'ingredientInsert').map((m) => (m as { name: string }).name))
+    const pantryFormFailed = failed.some((m) => m.kind === 'pantryForm')
+
     setSigAdding(false)
     setPantryAdding(false)
     setIngredientBatchAdding(false)
-    if (failed) {
-      setDishBatchError("Couldn't update your kitchen. Your pending changes are still here with the option to try again.")
+
+    // Always refresh from the DB so the UI reflects whatever actually committed, even on partial failure.
+    await loadData()
+
+    setSelectedDishKeys((prev) => prev.filter((k) => failedDishKeys.has(k)))
+    setPendingRemovedSignatureIds((prev) => prev.filter((id) => failedSigRemoveIds.has(id)))
+    if (!sigFormFailed) cancelSignatureEdit()
+
+    if (nothingInPantry) {
+      // Stay in the "nothing in pantry" state only if some of those deletions failed; otherwise it's genuinely empty now.
+      setNothingInPantry(failedPantryClearIds.size > 0)
+      setPendingRemovedPantryIds([])
+    } else {
+      setPendingRemovedPantryIds((prev) => prev.filter((id) => failedPantryRemoveIds.has(id)))
+    }
+    setSelectedIngredients((prev) => prev.filter((n) => failedIngredientNames.has(n)))
+    if (!pantryFormFailed) cancelPantryEdit()
+
+    if (failed.length > 0) {
+      setDishBatchError(
+        succeeded.length > 0
+          ? "Some changes saved, but a few couldn't. They're still here so you can try again."
+          : "Couldn't update your kitchen. Your pending changes are still here with the option to try again."
+      )
       return
     }
 
-    setSelectedDishKeys([])
-    setPendingRemovedSignatureIds([])
-    cancelSignatureEdit()
-    setSelectedIngredients([])
-    setPendingRemovedPantryIds([])
-    setNothingInPantry(false)
-    cancelPantryEdit()
-    await loadData()
     await handlePantryDone()
   }
 
@@ -972,7 +1029,7 @@ function KitchenPageInner() {
                   ? 'Publish Invite'
                 : pantryDoneSaved
                   ? 'Saved ✓'
-                  : !pantryHasAnythingSelected
+                  : !pantryHasAnythingSelected && !signatureHasAnythingSelected
                     ? 'I LITERALLY HAVE NOTHING'
                     : signatures.length === 0 && pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
             </button>
