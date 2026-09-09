@@ -646,3 +646,24 @@
   150-200 lines of parallel, non-trivial stateful logic) into one shared hook. Deliberately not done in this
   pass, given the risk of introducing a new bug in logic that had just been fixed twice; worth doing as a
   dedicated follow-up.
+
+# Kitchen page crash and stale kitchen-type fixes (2026-09-09)
+
+- Fixed the Kitchen page throwing an unhandled runtime error ("Target ref is defined but not hydrated")
+  on every real page load. Root cause, confirmed by reading Framer Motion's actual `useScroll` source: it
+  gives a target ref exactly one microtask to hydrate before throwing, but `scrollTrackRef`'s div only
+  mounted once the async `loadData()` Supabase fetch resolved — always far longer than one microtask. This
+  bug predates this session's work (part of the original Kitchen scroll-crossfade feature) and was
+  previously undetected because the existing test suite fully mocks `framer-motion`, so the real
+  hydration-timing check never ran. Fixed by keeping the ref-target div mounted on every render (loading,
+  error, and loaded), applying its real scroll-track sizing/content only once data is ready. Verified with
+  a new permanent test, `__tests__/kitchen-page-scroll-hydration.test.tsx`, that deliberately does NOT mock
+  `framer-motion` — confirmed it reproduces the exact reported error against the pre-fix code, then passes
+  clean with the fix.
+- Backfilled `kitchen_type` (migration `20260909000003_backfill_event_kitchen_type.sql`, applied to the
+  linked database) for events that completed kitchen setup before that column existed — previously they'd
+  be asked the independent-vs-restaurant question one more time despite having already finished setup,
+  since the redirect-skip logic only engages once `kitchen_type` is actually set. Both backfill signals are
+  unambiguous: a `restaurant_menus` row is only reachable via the restaurant path, and `kitchen_status =
+  'complete'` is set in exactly one place in the whole codebase (the finish step of the independent
+  pantry/signatures flow) — the restaurant path never sets it.
