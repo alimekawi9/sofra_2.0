@@ -184,7 +184,7 @@ export function PreferencesReceipt({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/design-preview/divider-line.svg" alt="" className="sv2-divider" />
         <h3 className="sv2-section-label">{proteinTitle || 'WHAT SOUNDS BEST TONIGHT?'}</h3>
-        <p className="sv2-section-sub">{proteinHelperText || 'Choose up to two.'}</p>
+        <p className="sv2-section-sub">{proteinHelperText || 'Choose up to three.'}</p>
         <div className="sv2-checkbox-grid">
           {PROTEIN_PREFERENCE_OPTIONS.filter((option) => !hiddenCanonicalOptions.protein?.includes(option.value)).map((option) => (
             <CheckboxRow

@@ -69,7 +69,7 @@ export const CANONICAL_DEFAULTS: Record<
 > = {
   dietary: { title: 'ANY LANE TO STAY IN?' },
   avoid: { title: 'ANYTHING YOU AVOID?' },
-  protein: { title: 'WHAT SOUNDS BEST TONIGHT?', helperText: 'Choose up to two.' },
+  protein: { title: 'WHAT SOUNDS BEST TONIGHT?', helperText: 'Choose up to three.' },
   flavor: { title: 'FLAVOURS YOU LEAN TOWARDS', helperText: 'Choose up to three.' },
   adventurousness: { title: 'HOW BRAVE IS YOUR PALATE?', sliderMinLabel: 'THE USUAL', sliderMaxLabel: 'ANYTHING ONCE' },
 }

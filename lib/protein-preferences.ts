@@ -31,7 +31,7 @@ export function updateProteinPreferenceSelection(
       blocked: false,
     }
   }
-  if (specific.length >= 2) {
+  if (specific.length >= 3) {
     return { preferences: [...specific], blocked: true }
   }
   return { preferences: [...specific, value], blocked: false }
@@ -80,7 +80,7 @@ export function normalizeProteinPreferences(
     const raw = value.trim().toLowerCase().replace(/\s+/g, '_')
     return LEGACY[raw] ?? (LABELS.has(raw) ? [raw as ProteinPreference] : [])
   })
-  const unique = Array.from(new Set(normalized)).slice(0, 2)
+  const unique = Array.from(new Set(normalized)).slice(0, 3)
   return unique.includes('no_preference') ? ['no_preference'] : unique
 }
 

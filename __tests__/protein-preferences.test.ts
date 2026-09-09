@@ -37,7 +37,7 @@ describe('protein preference mapping', () => {
     expect(normalizeProteinPreferences([], 'seafood')).toEqual(['fish', 'shellfish'])
   })
 
-  it('applies the same selection rules to create and edit state', () => {
+  it('applies the same selection rules to create and edit state, now allowing three', () => {
     expect(updateProteinPreferenceSelection([], 'fish')).toEqual({
       preferences: ['fish'], blocked: false,
     })
@@ -45,10 +45,13 @@ describe('protein preference mapping', () => {
       preferences: ['fish', 'grain_pasta'], blocked: false,
     })
     expect(updateProteinPreferenceSelection(['fish', 'grain_pasta'], 'chicken')).toEqual({
-      preferences: ['fish', 'grain_pasta'], blocked: true,
+      preferences: ['fish', 'grain_pasta', 'chicken'], blocked: false,
     })
-    expect(updateProteinPreferenceSelection(['fish', 'grain_pasta'], 'fish')).toEqual({
-      preferences: ['grain_pasta'], blocked: false,
+    expect(updateProteinPreferenceSelection(['fish', 'grain_pasta', 'chicken'], 'shellfish')).toEqual({
+      preferences: ['fish', 'grain_pasta', 'chicken'], blocked: true,
+    })
+    expect(updateProteinPreferenceSelection(['fish', 'grain_pasta', 'chicken'], 'fish')).toEqual({
+      preferences: ['grain_pasta', 'chicken'], blocked: false,
     })
     expect(updateProteinPreferenceSelection(['fish'], 'no_preference')).toEqual({
       preferences: ['no_preference'], blocked: false,
@@ -56,6 +59,11 @@ describe('protein preference mapping', () => {
     expect(updateProteinPreferenceSelection(['no_preference'], 'fish')).toEqual({
       preferences: ['fish'], blocked: false,
     })
+  })
+
+  it('caps normalized legacy preferences at three, not two', () => {
+    expect(normalizeProteinPreferences(['fish', 'grain_pasta', 'chicken', 'shellfish'], null))
+      .toEqual(['fish', 'grain_pasta', 'chicken'])
   })
 
   it('uses semantic labels without mutating raw values', () => {
