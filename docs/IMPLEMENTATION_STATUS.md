@@ -686,3 +686,18 @@
   correction. A failed suggestion (nothing to preview) and reopening an already-staged draft via its edit
   pencil both still go straight to the full picker, since both are cases where the chef needs to build or
   fix tags manually rather than just glance at a guess.
+- Fixed the shared Kitchen submit button's silently-lost pill styling. Root cause, confirmed by rendering
+  the real component and checking the actual DOM: the button sits outside both `.sv2-kitchen-card`
+  sections (correct — it submits both at once, by design since the submit-unification work), but its
+  styling rule, `.sv2-production-kitchen .sv2-kitchen-card .add`, required exactly that nesting to match.
+  With the rule never matching, the button silently fell back to a *different*, unrelated global `.add`
+  rule in `app/globals.css` with different proportions — not literally unstyled, which is why it still
+  looked like a button, just not the intended one. Fixed by dropping the `.sv2-kitchen-card` requirement
+  from the selector (and its `:disabled`/`:focus-visible` variants) rather than moving the button, since it
+  needs to stay outside both sections by design.
+- Removed the "Brief" note under the submit button, and renamed its empty-state label from "I LITERALLY
+  HAVE NOTHING" to "I have an empty kitchen".
+- `ChefTabs`' "Fill Kitchen Myself" / "Send To A Chef" actions no longer render while already on the
+  Kitchen page itself (`active === 'kitchen'`) — redundant once you're already there. They still show on
+  every other chef-workspace page, and the "Kitchen set up ✓" label (once complete) is unaffected and still
+  shows everywhere, including on the Kitchen page.
