@@ -655,11 +655,10 @@
   mounted once the async `loadData()` Supabase fetch resolved — always far longer than one microtask. This
   bug predates this session's work (part of the original Kitchen scroll-crossfade feature) and was
   previously undetected because the existing test suite fully mocks `framer-motion`, so the real
-  hydration-timing check never ran. Fixed by keeping the ref-target div mounted on every render (loading,
-  error, and loaded), applying its real scroll-track sizing/content only once data is ready. Verified with
-  a new permanent test, `__tests__/kitchen-page-scroll-hydration.test.tsx`, that deliberately does NOT mock
-  `framer-motion` — confirmed it reproduces the exact reported error against the pre-fix code, then passes
-  clean with the fix.
+  hydration-timing check never ran. **Superseded the same day** — see below: the whole scroll-crossfade
+  mechanism this bug lived in was subsequently removed entirely, after a second, related bug surfaced in
+  real use (scrolling a long tag list could itself trigger the crossfade and hide the section being
+  interacted with). The interim fix and its dedicated test both no longer exist.
 - Backfilled `kitchen_type` (migration `20260909000003_backfill_event_kitchen_type.sql`, applied to the
   linked database) for events that completed kitchen setup before that column existed — previously they'd
   be asked the independent-vs-restaurant question one more time despite having already finished setup,
@@ -667,3 +666,23 @@
   unambiguous: a `restaurant_menus` row is only reachable via the restaurant path, and `kitchen_status =
   'complete'` is set in exactly one place in the whole codebase (the finish step of the independent
   pantry/signatures flow) — the restaurant path never sets it.
+- **Removed the scroll-crossfade entirely, per explicit user request after real-browser testing surfaced a
+  second bug it caused**: `.sv2-kitchen-scroll-frame .sv2-kitchen-card` constrained each section to
+  `max-height:100%` with its own `overflow-y:auto`, so scrolling a long tag list inside a card to see the
+  rest of it could bottom out and start scrolling the outer page too — which is exactly what drives the
+  crossfade, so the section being actively used could switch opacity/pointer-events/`inert` and disappear
+  mid-interaction. Rather than patch this further, removed `useScroll`/`useTransform`, the
+  `signaturesActive`/`inert` wiring, both `motion.section` wrappers, and the scroll-track/scroll-frame CSS.
+  Signatures and Pantry are plain `<section>` elements again, stacked in normal document flow with native
+  page scrolling — no JS-driven visibility toggling to fight the user's own scroll gesture.
+- **Implemented the compact tag-suggestion preview that was designed during this feature's original
+  brainstorming but never actually built.** The Task 8 implementation kept the pre-existing "reveal the
+  full tag-group picker immediately, with suggested tags pre-selected" behavior verbatim instead of the
+  agreed "show a compact preview first, edit only on request" flow — so every suggestion still showed every
+  possible tag in every group, identical to before the staging feature existed. Added
+  `sigTagsEditing`/`pantryTagsEditing` state (default false) and a new `SuggestionPreview` component: a
+  successful suggestion now shows its guessed tags/allergens as small read-only chips plus an "Edit tags"
+  link, not the full picker. Tapping "Edit tags" reveals the same full picker as before, unchanged, for
+  correction. A failed suggestion (nothing to preview) and reopening an already-staged draft via its edit
+  pencil both still go straight to the full picker, since both are cases where the chef needs to build or
+  fix tags manually rather than just glance at a guess.
