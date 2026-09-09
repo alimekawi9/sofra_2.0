@@ -869,6 +869,16 @@ function KitchenPageInner() {
           </div>
         </div>
 
+        {/*
+          scrollTrackRef's div must stay mounted on every render, including while loading. Framer
+          Motion's useScroll({ target }) only waits one microtask for the target ref to hydrate before
+          throwing "Target ref is defined but not hydrated" (node_modules/framer-motion/dist/es/value/use-scroll.mjs) --
+          far less time than the async loadData() fetch takes. Mounting this div unconditionally (with
+          its real .sv2-kitchen-scroll-track sizing only applied once content is ready, so the loading/error
+          states keep their normal compact layout instead of an empty 180vh block) means target.current is
+          a real, stable DOM node from the very first render.
+        */}
+        <div ref={scrollTrackRef} className={!loading && !fetchError ? 'sv2-kitchen-scroll-track' : undefined}>
         {loading && (
           <div style={{ color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}>
             Loading…
@@ -897,8 +907,6 @@ function KitchenPageInner() {
         )}
 
         {!loading && !fetchError && (
-          <>
-            <div ref={scrollTrackRef} className="sv2-kitchen-scroll-track">
               <div className="sv2-kitchen-scroll-frame">
             {/* ── Signatures ── */}
             <motion.section ref={signaturesSectionRef} className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity, pointerEvents: signaturesActive ? 'auto' : 'none' }} aria-hidden={!signaturesActive}>
@@ -1199,8 +1207,11 @@ function KitchenPageInner() {
               </div>
             </motion.section>
               </div>
-            </div>
+        )}
+        </div>
 
+        {!loading && !fetchError && (
+          <>
             <button
               className="add"
               onClick={() => void submitKitchen()}
