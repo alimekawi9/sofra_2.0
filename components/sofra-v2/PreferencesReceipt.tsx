@@ -185,6 +185,7 @@ export function PreferencesReceipt({
         <input
           type="text"
           className="sv2-avoid-other-input"
+          aria-label="Anything else to avoid?"
           placeholder="Anything else to avoid? (optional)"
           value={avoidOther}
           onChange={(e) => onAvoidOtherChange(e.target.value)}
