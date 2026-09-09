@@ -250,9 +250,11 @@ describe('PreferencesReceipt', () => {
 
   it('always explains the maximum flavor selection count', () => {
     const { rerender } = render(<PreferencesReceipt {...baseProps} />)
-    expect(screen.getByText('Choose up to three.')).toHaveClass('sv2-section-sub')
+    const defaultHints = screen.getAllByText('Choose up to three.')
+    expect(defaultHints.some((el) => el.classList.contains('sv2-section-sub'))).toBe(true)
     rerender(<PreferencesReceipt {...baseProps} flavorHintVisible />)
-    expect(screen.getByText('Choose up to three.')).toHaveClass('sv2-hint')
+    expect(screen.getByTestId('flavor-hint')).toHaveClass('sv2-hint')
+    expect(screen.getByTestId('flavor-hint')).toHaveTextContent('Choose up to three.')
   })
 
   it('calls onToggleProtein with the raw preference value when a protein option is clicked', async () => {
@@ -280,9 +282,9 @@ describe('PreferencesReceipt', () => {
 
   it('reflects a controlled proteinHintVisible prop', () => {
     const { rerender } = render(<PreferencesReceipt {...baseProps} proteinHintVisible={false} />)
-    expect(screen.queryByText('Only two at a time with one tap to swap it out.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Only three at a time with one tap to swap it out.')).not.toBeInTheDocument()
     rerender(<PreferencesReceipt {...baseProps} proteinHintVisible />)
-    expect(screen.getByText('Only two at a time with one tap to swap it out.')).toBeInTheDocument()
+    expect(screen.getByText('Only three at a time with one tap to swap it out.')).toBeInTheDocument()
   })
 
   describe('driven end-to-end with the real protein-preference utility', () => {
@@ -315,17 +317,23 @@ describe('PreferencesReceipt', () => {
       )
     }
 
-    it('caps protein preference selection at two', async () => {
+    it('caps protein preference selection at three', async () => {
       const user = userEvent.setup()
-      const [first, second, third] = PROTEIN_PREFERENCE_OPTIONS.filter((o) => o.value !== 'no_preference')
+      const specifics = PROTEIN_PREFERENCE_OPTIONS.filter((o) => o.value !== 'no_preference')
+      const [first, second, third] = specifics
+      // Skip 'shellfish' as the fourth click: it shares its accessible name
+      // with the allergen checkbox rendered elsewhere in the full receipt.
+      const fourth = specifics.find((o) => o.value === 'vegetable')!
       render(<ControlledHarness />)
       await user.click(screen.getByRole('checkbox', { name: first.label }))
       await user.click(screen.getByRole('checkbox', { name: second.label }))
       await user.click(screen.getByRole('checkbox', { name: third.label }))
-      expect(screen.getByText('Only two at a time with one tap to swap it out.')).toBeInTheDocument()
+      await user.click(screen.getByRole('checkbox', { name: fourth.label }))
+      expect(screen.getByText('Only three at a time with one tap to swap it out.')).toBeInTheDocument()
       expect(screen.getByRole('checkbox', { name: first.label })).toBeChecked()
       expect(screen.getByRole('checkbox', { name: second.label })).toBeChecked()
-      expect(screen.getByRole('checkbox', { name: third.label })).not.toBeChecked()
+      expect(screen.getByRole('checkbox', { name: third.label })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: fourth.label })).not.toBeChecked()
     })
 
     it('selecting "no preference" clears any specific selections (exclusivity)', async () => {

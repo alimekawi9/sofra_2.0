@@ -260,15 +260,17 @@ describe('Step 2 — checkbox groups', () => {
     }
   })
 
-  it('renders the natural protein question and permits two specifics but blocks a third', async () => {
+  it('renders the natural protein question and permits three specifics but blocks a fourth', async () => {
     await navigateToStep2()
     expect(screen.getByText('WHAT SOUNDS BEST TONIGHT?')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Chicken' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Fish' }))
     await userEvent.click(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1])
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Vegetable-forward' }))
     expect(screen.getByRole('checkbox', { name: 'Chicken' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Fish' })).toBeChecked()
-    expect(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1]).not.toBeChecked()
+    expect(screen.getAllByRole('checkbox', { name: 'Shellfish' })[1]).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Vegetable-forward' })).not.toBeChecked()
     expect(screen.getByTestId('protein-hint')).toBeInTheDocument()
   })
 
