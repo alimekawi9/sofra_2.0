@@ -9,6 +9,7 @@ import '@/components/sofra-v2/sofra-v2.css'
 import {
   DISH_PRESETS,
   CUISINES,
+  DISH_ROLES,
   isDishRole,
   withDishRole,
   withoutDishRoles,
@@ -30,6 +31,9 @@ import {
 
 const CUISINE_FILTERS = ['All', ...CUISINES] as const
 type CuisineFilter = (typeof CUISINE_FILTERS)[number]
+
+const ROLE_FILTERS = ['All', ...DISH_ROLES] as const
+type RoleFilter = (typeof ROLE_FILTERS)[number]
 
 const INGREDIENT_CATEGORY_FILTERS = ['All', ...INGREDIENT_CATEGORIES] as const
 type IngredientCategoryFilter = (typeof INGREDIENT_CATEGORY_FILTERS)[number]
@@ -139,6 +143,7 @@ function KitchenPageInner() {
   const [sigSuggestionReady, setSigSuggestionReady] = useState(false)
   const sigSuggestionRequestRef = useRef(0)
   const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
+  const [presetRole, setPresetRole] = useState<RoleFilter>('All')
   const [selectedDishKeys, setSelectedDishKeys] = useState<string[]>([])
   const [pendingRemovedSignatureIds, setPendingRemovedSignatureIds] = useState<string[]>([])
   const [dishBatchError, setDishBatchError] = useState('')
@@ -345,10 +350,10 @@ function KitchenPageInner() {
     setIngredientBatchAdding(false)
   }
 
-  const filteredPresets =
-    presetCuisine === 'All'
-      ? DISH_PRESETS
-      : DISH_PRESETS.filter((d) => d.cuisine === presetCuisine)
+  const filteredPresets = DISH_PRESETS.filter((d) =>
+    (presetCuisine === 'All' || d.cuisine === presetCuisine)
+    && (presetRole === 'All' || d.role === presetRole)
+  )
 
   const persistedPresetByKey = useMemo(() => {
     const byKey = new Map<string, Signature>()
@@ -382,9 +387,11 @@ function KitchenPageInner() {
       : (INGREDIENT_PRESETS[ingredientCategory] ?? [])
 
   const presetSignatureNamesLC = new Set(DISH_PRESETS.map((preset) => canonicalDishName(preset.name)))
-  const customSignatures = signatures.filter(
-    (signature) => !signature.preset_key && !presetSignatureNamesLC.has(canonicalDishName(signature.name))
-  )
+  const customSignatures = signatures.filter((signature) => {
+    if (signature.preset_key || presetSignatureNamesLC.has(canonicalDishName(signature.name))) return false
+    if (presetRole === 'All') return true
+    return signature.tags.find(isDishRole) === presetRole
+  })
   const presetPantryNamesLC = new Set(
     INGREDIENT_CATEGORIES.flatMap((category) => INGREDIENT_PRESETS[category] ?? [])
       .map((name) => name.toLowerCase())
@@ -766,7 +773,7 @@ function KitchenPageInner() {
                     <button type="button" onClick={clearAllSignatures}>CLEAR ALL</button>
                   )}
                 </div>
-                <div className="sv2-preset-categories" aria-label="Signature categories">
+                <div className="sv2-preset-categories" aria-label="Signature cuisine categories">
                   {CUISINE_FILTERS.map((c) => {
                     const on = presetCuisine === c
                     return (
@@ -785,6 +792,29 @@ function KitchenPageInner() {
                         }}
                       >
                         {c}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="sv2-preset-categories" aria-label="Signature role categories">
+                  {ROLE_FILTERS.map((r) => {
+                    const on = presetRole === r
+                    return (
+                      <button
+                        key={r}
+                        className="chip"
+                        onClick={() => setPresetRole(r)}
+                        style={{
+                          background: on ? C.burgundy : 'transparent',
+                          borderColor: on ? C.onBurgundy : C.cream,
+                          color: on ? C.onBurgundy : C.cream,
+                          padding: '5px 11px',
+                          fontSize: 12,
+                          fontFamily: 'system-ui, sans-serif',
+                          borderRadius: 14,
+                        }}
+                      >
+                        {r === 'All' ? 'All' : formatTagLabel(r)}
                       </button>
                     )
                   })}

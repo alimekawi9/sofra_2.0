@@ -155,9 +155,13 @@ test('signature picker exposes Main while pantry has no role controls or legacy 
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Test dish' } })
-  expect(screen.queryByRole('button', { name: 'Main' })).not.toBeInTheDocument()
+  // 'Main' is ambiguous once the Role filter row exists (a persistent filter tab) alongside the
+  // "Add your own dish" Role tag group, so scope to the tag-group container once it reveals.
+  expect(screen.queryByText('Role')).not.toBeInTheDocument()
   expect(screen.getByText('Finding suggested tags...')).toBeInTheDocument()
-  const main = await screen.findByRole('button', { name: 'Main' })
+  const roleGroup = await screen.findByText('Role')
+  const roleGroupContainer = roleGroup.parentElement as HTMLElement
+  const main = within(roleGroupContainer).getByRole('button', { name: 'Main' })
   expect(main).toBeInTheDocument()
   expect(main).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByText(/review or adjust them/i)).toBeInTheDocument()
@@ -257,7 +261,11 @@ test('creating a signature persists the raw main role and hides saved-signature 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), {
     target: { value: 'Lamb Shoulder' },
   })
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true'))
+  // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
   expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
@@ -359,7 +367,11 @@ test('submit label reflects pending signature changes even when the pantry is em
 
   activateSignatures()
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Lamb Shoulder' } })
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true'))
+  // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
 
   expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'UPDATE' })).toBeInTheDocument()
@@ -467,4 +479,33 @@ test('a custom pantry item with no confident category mapping only shows under A
 
   fireEvent.click(screen.getByRole('button', { name: 'All' }))
   expect(screen.getByRole('button', { name: 'House Spice Blend' })).toBeInTheDocument()
+})
+
+test('a preset dish only shows under its matching Role tab, not every role', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Hummus' }) // Levantine starter preset
+
+  fireEvent.click(screen.getByRole('button', { name: 'Main' }))
+  expect(screen.queryByRole('button', { name: 'Hummus' })).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Starter' }))
+  expect(screen.getByRole('button', { name: 'Hummus' })).toBeInTheDocument()
+})
+
+test('a custom signature dish only shows under its matching Role tab', async () => {
+  signatureRows.push({
+    id: 'sig-custom-dessert',
+    name: 'Rosewater Panna Cotta',
+    tags: ['dessert', 'savory'],
+    contains_allergens: [],
+    preset_key: null,
+  })
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Rosewater Panna Cotta' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Main' }))
+  expect(screen.queryByRole('button', { name: 'Rosewater Panna Cotta' })).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Dessert' }))
+  expect(screen.getByRole('button', { name: 'Rosewater Panna Cotta' })).toBeInTheDocument()
 })
