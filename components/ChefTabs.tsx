@@ -28,14 +28,17 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
     router.push(`/events/${eventId}/kitchen-setup?from_page=${active}`)
   }
 
+  const [kitchenComplete, setKitchenComplete] = useState(false)
+
   useEffect(() => {
     if (restrictedChef) return
     async function checkHost() {
       const userId = localStorage.getItem('sofra_user_id')
       if (!userId) return
-      const { data } = await supabase.from('events').select('host_id').eq('id', eventId).maybeSingle()
+      const { data } = await supabase.from('events').select('host_id,kitchen_status').eq('id', eventId).maybeSingle()
       const allowed = data !== null && await isEventManager(supabase, eventId, userId, data.host_id)
       setCanDelegateKitchen(allowed)
+      setKitchenComplete(data?.kitchen_status === 'complete')
       if (allowed && new URLSearchParams(window.location.search).get('kitchenShare') === '1') setKitchenSharing(true)
     }
     void checkHost()
@@ -105,31 +108,37 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
             </div>
           )}
         </div>
-        {canDelegateKitchen && <div className="sv2-chef-kitchen-actions">
-          <button
-            onClick={fillKitchenMyself}
-            className="sv2-chef-kitchen-action"
-            aria-label="Fill kitchen myself"
-          >
-            Fill Kitchen Myself
-          </button>
-          <div className="sv2-chef-share-wrap">
-            <button
-              onClick={() => setKitchenSharing((open) => !open)}
-              className="sv2-chef-kitchen-action"
-              aria-expanded={kitchenSharing}
-            >
-              Send To A Chef
-            </button>
-            {kitchenSharing && (
-              <div className="sv2-host-invite-popover sv2-chef-share-popover" aria-label="Chef sharing options">
-                <p>This link lets one person choose whether they are working with a restaurant menu or at home / elsewhere.</p>
-                <button type="button" onClick={() => void copyKitchenLink()}>{kitchenCopied ? 'COPIED!' : 'COPY CHEF LINK'}</button>
-                <button type="button" onClick={() => void shareKitchenWhatsApp()}>SEND VIA WHATSAPP</button>
-              </div>
-            )}
+        {canDelegateKitchen && (kitchenComplete ? (
+          <div className="sv2-chef-kitchen-actions">
+            <span className="sv2-chef-kitchen-complete" aria-label="Kitchen set up">Kitchen set up ✓</span>
           </div>
-        </div>}
+        ) : (
+          <div className="sv2-chef-kitchen-actions">
+            <button
+              onClick={fillKitchenMyself}
+              className="sv2-chef-kitchen-action"
+              aria-label="Fill kitchen myself"
+            >
+              Fill Kitchen Myself
+            </button>
+            <div className="sv2-chef-share-wrap">
+              <button
+                onClick={() => setKitchenSharing((open) => !open)}
+                className="sv2-chef-kitchen-action"
+                aria-expanded={kitchenSharing}
+              >
+                Send To A Chef
+              </button>
+              {kitchenSharing && (
+                <div className="sv2-host-invite-popover sv2-chef-share-popover" aria-label="Chef sharing options">
+                  <p>This link lets one person choose whether they are working with a restaurant menu or at home / elsewhere.</p>
+                  <button type="button" onClick={() => void copyKitchenLink()}>{kitchenCopied ? 'COPIED!' : 'COPY CHEF LINK'}</button>
+                  <button type="button" onClick={() => void shareKitchenWhatsApp()}>SEND VIA WHATSAPP</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
       {kitchenShareError && <p role="alert" className="sv2-kitchen-action-error">{kitchenShareError}</p>}
 

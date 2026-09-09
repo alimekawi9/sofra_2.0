@@ -24,11 +24,14 @@ export default function KitchenSetupChoicePage({ params }: { params: { id: strin
     async function load() {
       const stored = localStorage.getItem('sofra_user_id')
       if (!stored) { router.replace(`/login?next=${encodeURIComponent(`/events/${params.id}/kitchen-setup${search.toString() ? `?${search.toString()}` : ''}`)}`); return }
-      const { data: event, error: eventError } = await supabase.from('events').select('host_id,chef_id,title').eq('id', params.id).maybeSingle()
+      const { data: event, error: eventError } = await supabase.from('events').select('host_id,chef_id,title,kitchen_type').eq('id', params.id).maybeSingle()
       if (eventError || !event) { setError("Couldn't load this kitchen."); setLoading(false); return }
       const isManager = await isEventManager(supabase, params.id, stored, event.host_id)
       const isChef = event.chef_id === stored && !isManager
       if (!isManager && !isChef) { router.replace(`/events/${params.id}`); return }
+      const delegate = isChef ? '&delegate=1' : ''
+      if (event.kitchen_type === 'restaurant') { router.replace(`/events/${params.id}/out?from_page=${fromPage}${delegate}`); return }
+      if (event.kitchen_type === 'independent') { router.replace(`/kitchen?from=${params.id}&from_page=${fromPage}${delegate}`); return }
       setManager(isManager)
       setDelegatedChef(isChef)
       setTitle(event.title)
@@ -40,10 +43,11 @@ export default function KitchenSetupChoicePage({ params }: { params: { id: strin
   async function choose(kind: KitchenKind) {
     setBusy(kind)
     setError('')
-    if (manager) {
-      const { error: updateError } = await supabase.from('events').update({ chef_id: null, kitchen_status: 'pending' }).eq('id', params.id)
-      if (updateError) { setError('Could not open this kitchen. Try again.'); setBusy(null); return }
-    }
+    const updatePayload = manager
+      ? { chef_id: null, kitchen_status: 'pending', kitchen_type: kind }
+      : { kitchen_type: kind }
+    const { error: updateError } = await supabase.from('events').update(updatePayload).eq('id', params.id)
+    if (updateError) { setError('Could not open this kitchen. Try again.'); setBusy(null); return }
     const delegate = delegatedChef ? '&delegate=1' : ''
     if (kind === 'restaurant') router.push(`/events/${params.id}/out?from_page=${fromPage}${delegate}`)
     else router.push(`/kitchen?from=${params.id}&from_page=${fromPage}${delegate}`)

@@ -24,7 +24,7 @@ function makeSupabase(chefId: string | null = null) {
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             maybeSingle: jest.fn().mockResolvedValue({
-              data: { host_id: 'host-1', chef_id: chefId, title: 'Sunday Table' },
+              data: { host_id: 'host-1', chef_id: chefId, title: 'Sunday Table', kitchen_type: null },
               error: null,
             }),
           }),
@@ -50,7 +50,7 @@ it('asks a host for the kitchen type and opens restaurant review only after Rest
   render(<KitchenSetupChoicePage params={{ id: 'event-1' }} />)
 
   await userEvent.click(await screen.findByRole('button', { name: /restaurant/i }))
-  expect(db.update).toHaveBeenCalledWith({ chef_id: null, kitchen_status: 'pending' })
+  expect(db.update).toHaveBeenCalledWith({ chef_id: null, kitchen_status: 'pending', kitchen_type: 'restaurant' })
   expect(db.updateEq).toHaveBeenCalledWith('id', 'event-1')
   expect(mockPush).toHaveBeenCalledWith('/events/event-1/out?from_page=table')
 })
@@ -64,5 +64,56 @@ it('gives an assigned chef the same choice without removing their assignment', a
 
   await userEvent.click(await screen.findByRole('button', { name: /home \/ other/i }))
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/kitchen?from=event-1&from_page=table&delegate=1'))
-  expect(db.update).not.toHaveBeenCalled()
+  expect(db.update).toHaveBeenCalledWith({ kitchen_type: 'independent' })
+})
+
+it('redirects straight to the restaurant flow when kitchen_type is already set, without showing the choice', async () => {
+  localStorage.setItem('sofra_user_id', 'host-1')
+  const updateEq = jest.fn().mockResolvedValue({ error: null })
+  const update = jest.fn().mockReturnValue({ eq: updateEq })
+  const sb = {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({
+            data: { host_id: 'host-1', chef_id: null, title: 'Sunday Table', kitchen_type: 'restaurant' },
+            error: null,
+          }),
+        }),
+      }),
+      update,
+    })),
+  }
+  ;(createClient as jest.Mock).mockReturnValue(sb)
+  ;(isEventManager as jest.Mock).mockResolvedValue(true)
+
+  render(<KitchenSetupChoicePage params={{ id: 'event-1' }} />)
+
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1/out?from_page=table'))
+  expect(screen.queryByRole('button', { name: /restaurant/i })).not.toBeInTheDocument()
+})
+
+it('redirects straight to the kitchen when kitchen_type is already independent', async () => {
+  localStorage.setItem('sofra_user_id', 'host-1')
+  const update = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
+  const sb = {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({
+            data: { host_id: 'host-1', chef_id: null, title: 'Sunday Table', kitchen_type: 'independent' },
+            error: null,
+          }),
+        }),
+      }),
+      update,
+    })),
+  }
+  ;(createClient as jest.Mock).mockReturnValue(sb)
+  ;(isEventManager as jest.Mock).mockResolvedValue(true)
+
+  render(<KitchenSetupChoicePage params={{ id: 'event-1' }} />)
+
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/kitchen?from=event-1&from_page=table'))
+  expect(screen.queryByRole('button', { name: /home \/ other/i })).not.toBeInTheDocument()
 })

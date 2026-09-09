@@ -10,14 +10,14 @@ const HOST_UID = 'uid-host'
 const COHOST_UID = 'uid-cohost'
 const GUEST_UID = 'uid-guest'
 
-function makeSupabase({ isCohost = false }: { isCohost?: boolean } = {}) {
+function makeSupabase({ isCohost = false, kitchenStatus = 'pending' }: { isCohost?: boolean; kitchenStatus?: string } = {}) {
   const sb = {
     from: jest.fn((table: string) => {
       if (table === 'events') {
         return {
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({ data: { host_id: HOST_UID }, error: null }),
+              maybeSingle: jest.fn().mockResolvedValue({ data: { host_id: HOST_UID, kitchen_status: kitchenStatus }, error: null }),
             }),
           }),
         }
@@ -65,6 +65,15 @@ it('shows kitchen-delegation actions to the original host', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Send To A Chef' }))
   expect(screen.getByRole('button', { name: 'COPY CHEF LINK' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'SEND VIA WHATSAPP' })).toBeInTheDocument()
+})
+
+it('replaces the delegation buttons with a quiet label once the kitchen is complete', async () => {
+  localStorage.setItem('sofra_user_id', HOST_UID)
+  makeSupabase({ kitchenStatus: 'complete' })
+  render(<ChefTabs eventId="event-1" active="table" title="Dinner" />)
+  expect(await screen.findByText('Kitchen set up ✓')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Fill kitchen myself' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Send To A Chef' })).not.toBeInTheDocument()
 })
 
 it('also shows kitchen-delegation actions to an accepted co-host, not just the original host', async () => {
