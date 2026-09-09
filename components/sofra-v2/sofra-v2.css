@@ -1105,7 +1105,7 @@
   font-family:var(--sv2-sans-family)!important;
 }
 .sv2-production-kitchen .sv2-kitchen-card .field::placeholder{color:var(--sv2-muted)}
-.sv2-production-kitchen .sv2-kitchen-card .add{
+.sv2-production-kitchen .add{
   min-height:42px;
   padding:10px 16px;
   border:1px solid var(--sv2-ink);
@@ -1116,7 +1116,7 @@
   letter-spacing:.7px;
   text-transform:uppercase;
 }
-.sv2-production-kitchen .sv2-kitchen-card .add:disabled{opacity:.4}
+.sv2-production-kitchen .add:disabled{opacity:.4}
 .sv2-production-kitchen .sv2-kitchen-card button{font-family:var(--sv2-sans-family)!important}
 .sv2-production-kitchen .sv2-kitchen-card button[aria-pressed]{cursor:pointer}
 .sv2-production-saved-chip{display:inline-flex;overflow:hidden;border:1px solid var(--sv2-ink);border-radius:999px;background:var(--sv2-ink);color:var(--sv2-off-white)}
@@ -1124,7 +1124,7 @@
 .sv2-inventory-edit-select{display:grid;gap:7px;color:var(--sv2-muted);font-size:10px;letter-spacing:.7px;text-transform:uppercase}
 .sv2-inventory-edit-select select{min-height:44px;padding:10px 13px;border:1px solid var(--sv2-line);border-radius:14px;background:rgba(255,255,255,.3);color:var(--sv2-ink);font:400 12px var(--sv2-sans-family)}
 .sv2-production-kitchen .sv2-kitchen-card button[aria-pressed]:focus-visible,
-.sv2-production-kitchen .sv2-kitchen-card .add:focus-visible{outline:2px solid var(--sv2-ink);outline-offset:2px}
+.sv2-production-kitchen .add:focus-visible{outline:2px solid var(--sv2-ink);outline-offset:2px}
 .sv2-production-kitchen .sv2-kitchen-shell>div:last-child{
   border-color:var(--sv2-line)!important;
   border-radius:18px!important;

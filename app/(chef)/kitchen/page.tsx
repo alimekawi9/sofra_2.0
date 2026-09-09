@@ -1222,7 +1222,7 @@ function KitchenPageInner() {
                 : pantryDoneSaved
                   ? 'Saved ✓'
                   : !pantryHasAnythingSelected && !signatureHasAnythingSelected
-                    ? 'I LITERALLY HAVE NOTHING'
+                    ? 'I have an empty kitchen'
                     : signatures.length === 0 && pantry.length === 0 ? 'SUBMIT' : 'UPDATE'}
             </button>
             {dishBatchError && (
@@ -1231,15 +1231,6 @@ function KitchenPageInner() {
             {publishError && (
               <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{publishError}</p>
             )}
-
-            {/* Brief */}
-            <div style={briefStyle}>
-              <span style={{ color: C.gold, fontSize: 15 }}>✦</span>
-              <span>
-                Signatures give Sofra dishes it can trust. The pantry lets it invent new ones that
-                fit the table with no need to write every recipe.
-              </span>
-            </div>
           </>
         )}
       </div>
@@ -1477,18 +1468,4 @@ const clearBtn: React.CSSProperties = {
   cursor: 'pointer',
   padding: '4px 6px',
   textDecoration: 'underline',
-}
-
-const briefStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 10,
-  background: 'rgba(217,161,91,0.08)',
-  border: '1px solid rgba(217,161,91,0.22)',
-  borderRadius: 16,
-  padding: '14px 16px',
-  color: '#5C1515',
-  fontSize: 14,
-  lineHeight: 1.5,
-  fontFamily: 'system-ui, sans-serif',
-  marginTop: 4,
 }

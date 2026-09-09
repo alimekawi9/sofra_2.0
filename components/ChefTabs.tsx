@@ -112,7 +112,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
           <div className="sv2-chef-kitchen-actions">
             <span className="sv2-chef-kitchen-complete" aria-label="Kitchen set up">Kitchen set up ✓</span>
           </div>
-        ) : (
+        ) : active === 'kitchen' ? null : (
           <div className="sv2-chef-kitchen-actions">
             <button
               onClick={fillKitchenMyself}

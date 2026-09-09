@@ -76,6 +76,15 @@ it('replaces the delegation buttons with a quiet label once the kitchen is compl
   expect(screen.queryByRole('button', { name: 'Send To A Chef' })).not.toBeInTheDocument()
 })
 
+it('hides the delegation buttons while already on the Kitchen page itself', async () => {
+  localStorage.setItem('sofra_user_id', HOST_UID)
+  makeSupabase()
+  render(<ChefTabs eventId="event-1" active="kitchen" title="Dinner" />)
+  await screen.findByRole('button', { name: 'Kitchen' })
+  expect(screen.queryByRole('button', { name: 'Fill kitchen myself' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Send To A Chef' })).not.toBeInTheDocument()
+})
+
 it('also shows kitchen-delegation actions to an accepted co-host, not just the original host', async () => {
   localStorage.setItem('sofra_user_id', COHOST_UID)
   makeSupabase({ isCohost: true })

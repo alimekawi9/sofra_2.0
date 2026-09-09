@@ -285,7 +285,7 @@ test('offers clear-all controls for signatures and pantry, with the empty pantry
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
   expect(within(pantryCard).getByRole('button', { name: 'Tomato' })).toHaveAttribute('aria-pressed', 'false')
   expect(screen.queryByRole('button', { name: 'I HAVE NOTHING' })).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' }))
+  fireEvent.click(screen.getByRole('button', { name: 'I have an empty kitchen' }))
   await waitFor(() => expect(writes.some((write) => write.table === 'pantry_items' && write.kind === 'delete')).toBe(true))
 })
 
@@ -295,14 +295,14 @@ test('a pantry selection immediately replaces the empty action and stays selecte
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
-  expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'I have an empty kitchen' })).toBeInTheDocument()
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'Chicken thighs' }))
-  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'I have an empty kitchen' })).not.toBeInTheDocument()
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'Fruits' }))
   expect(within(pantryCard).queryByRole('button', { name: 'Chicken thighs' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'I have an empty kitchen' })).not.toBeInTheDocument()
 })
 
 test('clicking a saved pantry chip stages its removal instead of deleting immediately', async () => {
@@ -329,12 +329,12 @@ test('submit label reflects pending signature changes even when the pantry is em
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
-  expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'I have an empty kitchen' })).toBeInTheDocument()
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Lamb Shoulder' } })
   await screen.findByRole('button', { name: 'Edit tags' })
 
-  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'I have an empty kitchen' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'UPDATE' })).toBeInTheDocument()
 })
 
@@ -347,10 +347,10 @@ test('CLEAR ALL resets a previously staged pantry removal', async () => {
   expect(tomato).toHaveAttribute('aria-pressed', 'false')
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
-  expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'I have an empty kitchen' })).toBeInTheDocument()
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'Chicken thighs' }))
-  expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'I have an empty kitchen' })).not.toBeInTheDocument()
 
   expect(within(pantryCard).getByRole('button', { name: 'Tomato' })).toHaveAttribute('aria-pressed', 'true')
 })
