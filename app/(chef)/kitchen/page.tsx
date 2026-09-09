@@ -11,6 +11,7 @@ import {
   CUISINES,
   DISH_ROLES,
   isDishRole,
+  dishRoleFromTags,
   withDishRole,
   withoutDishRoles,
   canonicalDishName,
@@ -390,7 +391,7 @@ function KitchenPageInner() {
   const customSignatures = signatures.filter((signature) => {
     if (signature.preset_key || presetSignatureNamesLC.has(canonicalDishName(signature.name))) return false
     if (presetRole === 'All') return true
-    return signature.tags.find(isDishRole) === presetRole
+    return dishRoleFromTags(signature.tags) === presetRole
   })
   const presetPantryNamesLC = new Set(
     INGREDIENT_CATEGORIES.flatMap((category) => INGREDIENT_PRESETS[category] ?? [])
@@ -773,52 +774,14 @@ function KitchenPageInner() {
                     <button type="button" onClick={clearAllSignatures}>CLEAR ALL</button>
                   )}
                 </div>
-                <div className="sv2-preset-categories" aria-label="Signature cuisine categories">
-                  {CUISINE_FILTERS.map((c) => {
-                    const on = presetCuisine === c
-                    return (
-                      <button
-                        key={c}
-                        className="chip"
-                        onClick={() => setPresetCuisine(c)}
-                        style={{
-                          background: on ? C.burgundy : 'transparent',
-                          borderColor: on ? C.onBurgundy : C.cream,
-                          color: on ? C.onBurgundy : C.cream,
-                          padding: '5px 11px',
-                          fontSize: 12,
-                          fontFamily: 'system-ui, sans-serif',
-                          borderRadius: 14,
-                        }}
-                      >
-                        {c}
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="sv2-preset-categories" aria-label="Signature role categories">
-                  {ROLE_FILTERS.map((r) => {
-                    const on = presetRole === r
-                    return (
-                      <button
-                        key={r}
-                        className="chip"
-                        onClick={() => setPresetRole(r)}
-                        style={{
-                          background: on ? C.burgundy : 'transparent',
-                          borderColor: on ? C.onBurgundy : C.cream,
-                          color: on ? C.onBurgundy : C.cream,
-                          padding: '5px 11px',
-                          fontSize: 12,
-                          fontFamily: 'system-ui, sans-serif',
-                          borderRadius: 14,
-                        }}
-                      >
-                        {r === 'All' ? 'All' : formatTagLabel(r)}
-                      </button>
-                    )
-                  })}
-                </div>
+                <FilterTabRow ariaLabel="Signature cuisine categories" options={CUISINE_FILTERS} value={presetCuisine} onChange={setPresetCuisine} />
+                <FilterTabRow
+                  ariaLabel="Signature role categories"
+                  options={ROLE_FILTERS}
+                  value={presetRole}
+                  onChange={setPresetRole}
+                  formatLabel={(r) => (r === 'All' ? 'All' : formatTagLabel(r))}
+                />
                 <div
                   className="sv2-production-inventory-chips sv2-preset-subjects"
                   aria-label="Signature dishes"
@@ -959,29 +922,7 @@ function KitchenPageInner() {
                     <button type="button" onClick={selectEmptyPantry}>CLEAR ALL</button>
                   )}
                 </div>
-                <div className="sv2-preset-categories" aria-label="Pantry categories">
-                  {INGREDIENT_CATEGORY_FILTERS.map((c) => {
-                    const on = ingredientCategory === c
-                    return (
-                      <button
-                        key={c}
-                        className="chip"
-                        onClick={() => setIngredientCategory(c)}
-                        style={{
-                          background: on ? C.burgundy : 'transparent',
-                          borderColor: on ? C.onBurgundy : C.cream,
-                          color: on ? C.onBurgundy : C.cream,
-                          padding: '5px 11px',
-                          fontSize: 12,
-                          fontFamily: 'system-ui, sans-serif',
-                          borderRadius: 14,
-                        }}
-                      >
-                        {c}
-                      </button>
-                    )
-                  })}
-                </div>
+                <FilterTabRow ariaLabel="Pantry categories" options={INGREDIENT_CATEGORY_FILTERS} value={ingredientCategory} onChange={setIngredientCategory} />
                 <div
                   className="sv2-production-pantry-chips sv2-preset-subjects"
                   aria-label="Pantry items"
@@ -1157,6 +1098,46 @@ function SuggestionReviewNotice() {
   return (
     <div role="status" style={{ color: C.cream, fontFamily: 'system-ui, sans-serif', fontSize: 12, lineHeight: 1.45 }}>
       Sofra suggested the selected tags below. Review or adjust them, then save to confirm.
+    </div>
+  )
+}
+
+function FilterTabRow<T extends string>({
+  ariaLabel,
+  options,
+  value,
+  onChange,
+  formatLabel,
+}: {
+  ariaLabel: string
+  options: readonly T[]
+  value: T
+  onChange: (value: T) => void
+  formatLabel?: (value: T) => string
+}) {
+  return (
+    <div className="sv2-preset-categories" aria-label={ariaLabel}>
+      {options.map((option) => {
+        const on = value === option
+        return (
+          <button
+            key={option}
+            className="chip"
+            onClick={() => onChange(option)}
+            style={{
+              background: on ? C.burgundy : 'transparent',
+              borderColor: on ? C.onBurgundy : C.cream,
+              color: on ? C.onBurgundy : C.cream,
+              padding: '5px 11px',
+              fontSize: 12,
+              fontFamily: 'system-ui, sans-serif',
+              borderRadius: 14,
+            }}
+          >
+            {formatLabel ? formatLabel(option) : option}
+          </button>
+        )
+      })}
     </div>
   )
 }
