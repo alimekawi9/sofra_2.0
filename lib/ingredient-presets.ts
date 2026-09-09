@@ -59,7 +59,12 @@ export const INGREDIENT_PRESETS: Record<string, string[]> = {
 // never guessed into the wrong tab, and never excluded from "All".
 const PROTEIN_TAG_TO_CATEGORY: Record<string, (typeof INGREDIENT_CATEGORIES)[number]> = {
   beef: 'Proteins', lamb: 'Proteins', chicken: 'Proteins', turkey: 'Proteins', pork: 'Proteins',
-  duck: 'Proteins', fish: 'Proteins', shellfish: 'Proteins', legume: 'Proteins', tofu: 'Proteins', mushroom: 'Proteins',
+  duck: 'Proteins', fish: 'Proteins', shellfish: 'Proteins', legume: 'Proteins', tofu: 'Proteins',
+  // Mushroom is a "Protein"-group descriptive tag, but the curated preset picker already files its
+  // "Mushrooms" entry under Vegetables (see INGREDIENT_PRESETS.Vegetables above) -- mapping it to
+  // Proteins here would split the same ingredient across two different tabs depending on whether it
+  // was typed manually or picked as a preset.
+  mushroom: 'Vegetables',
   vegetable: 'Vegetables',
   fruit: 'Fruits',
   dairy: 'Dairy & Eggs', egg: 'Dairy & Eggs',
