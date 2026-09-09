@@ -153,6 +153,10 @@ function KitchenPageInner() {
   const [sigSuggestionReady, setSigSuggestionReady] = useState(false)
   const sigSuggestionRequestRef = useRef(0)
   const [stagedSignatureDrafts, setStagedSignatureDrafts] = useState<StagedSignatureDraft[]>([])
+  // Set when the draft area is blurred while a suggestion fetch is still in flight -- staging can't
+  // happen yet (no tags to stage), so this defers it until the auto-stage effect below sees the
+  // suggestion actually resolve. Cleared by that effect once consumed, and by onFocus if the chef comes
+  // back to keep editing before it resolves.
   const sigStageIntentRef = useRef(false)
   // Tracks the name last set programmatically via editStagedSignatureDraft, so the suggestion effect
   // below can skip re-fetching for it. Compared by NAME (not a plain boolean) because setSigName can be
@@ -180,6 +184,7 @@ function KitchenPageInner() {
   const [pantrySuggestionReady, setPantrySuggestionReady] = useState(false)
   const pantrySuggestionRequestRef = useRef(0)
   const [stagedPantryDrafts, setStagedPantryDrafts] = useState<StagedPantryDraft[]>([])
+  // See sigStageIntentRef above -- same "stage once the in-flight suggestion resolves" purpose.
   const pantryStageIntentRef = useRef(false)
   // See suppressSigSuggestForNameRef above -- same name-comparison approach for the same reason.
   const suppressPantrySuggestForNameRef = useRef<string | null>(null)
@@ -600,6 +605,13 @@ function KitchenPageInner() {
   }
 
   function editStagedSignatureDraft(draft: StagedSignatureDraft) {
+    // Preserve any complete, ready-to-stage draft already in the form before switching to edit a
+    // different one -- otherwise the setSigName/etc. below would silently overwrite and lose it with no
+    // chip, no error, and no recovery. If a suggestion for that old content was still in flight,
+    // tryStageSignatureDraft() harmlessly arms stage-intent for it; clear it right after since we're
+    // abandoning that draft's suggestion entirely, not waiting for it anymore.
+    tryStageSignatureDraft()
+    sigStageIntentRef.current = false
     setStagedSignatureDrafts((prev) => prev.filter((d) => d.localId !== draft.localId))
     suppressSigSuggestForNameRef.current = draft.name
     setSigName(draft.name)
@@ -632,6 +644,9 @@ function KitchenPageInner() {
   }
 
   function editStagedPantryDraft(draft: StagedPantryDraft) {
+    // See editStagedSignatureDraft above -- preserve any complete in-progress draft before switching.
+    tryStagePantryDraft()
+    pantryStageIntentRef.current = false
     setStagedPantryDrafts((prev) => prev.filter((d) => d.localId !== draft.localId))
     suppressPantrySuggestForNameRef.current = draft.name
     setPantryName(draft.name)

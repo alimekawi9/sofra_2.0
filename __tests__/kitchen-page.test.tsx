@@ -621,3 +621,33 @@ test('reopening a staged draft whose name matches the already-typed input does n
     expect(calls.some(([, init]) => JSON.parse(String(init?.body ?? '{}')).name === 'Beef Stew')).toBe(true)
   })
 })
+
+test('clicking a different staged draft\'s edit pencil stages the complete draft still in the form first', async () => {
+  // Regression: editStagedSignatureDraft used to overwrite the form's current name/tags unconditionally,
+  // silently discarding a complete, ready-to-stage draft the chef hadn't blurred away from yet.
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+  const input = screen.getByPlaceholderText('Add a signature dish…')
+
+  fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+  fireEvent.blur(input, { relatedTarget: document.body })
+  await screen.findByRole('button', { name: 'Grilled Salmon' })
+
+  // Start a second, complete entry, but don't blur away from it -- click straight into editing the
+  // already-staged "Grilled Salmon" instead.
+  fireEvent.change(input, { target: { value: 'Roasted Duck' } })
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Grilled Salmon' }))
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Roasted Duck' })).toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: 'Grilled Salmon' })).not.toBeInTheDocument()
+  expect(input).toHaveValue('Grilled Salmon')
+})
