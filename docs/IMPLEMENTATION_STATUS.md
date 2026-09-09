@@ -600,3 +600,49 @@
   submit button appear in the raw response. The unified test suite (including `__tests__/kitchen-page.test.tsx`)
   is the actual coverage for this markup; the transition itself still needs a real browser check before
   considering this fully done.
+
+# Kitchen inventory sleekness and preferences (2026-09-09)
+
+- Adding a custom signature dish or pantry ingredient no longer needs its own submit button. The
+  suggestion API now always commits to a best guess across every relevant tag group (role, protein,
+  texture, method, temperature, flavor) instead of ever declining for low confidence — with allergens kept
+  conservative and excluded from that "always guess" latitude, per a code-review catch during this same
+  pass. That guess is shown while typing, and stepping away from the draft area (blur) auto-stages it as a
+  name-only chip — no Enter key required, mobile-first. A small edit pencil on the staged chip reopens it
+  (repopulating the form and removing it from the staged list) if the guess needs correcting; switching to
+  edit a *different* staged chip first stages whatever complete draft was still in the form, rather than
+  silently discarding it. Multiple staged drafts across both signatures and pantry submit together with the
+  existing single page-wide submit action, using the same per-operation partial-failure reconciliation
+  already built for the rest of this page — a failed staged insert stays staged for retry; a succeeded one
+  clears.
+- Signature dishes gained a Role filter row (Starter/Main/Side/Dessert/Flex) alongside the existing Cuisine
+  tabs, and custom/staged dishes are now filterable by it. A shared `FilterTabRow` component now backs all
+  three filter-tab rows on this page (Cuisine, Role, and the pre-existing Pantry category row), replacing
+  three copies of the same inline JSX/styling. Custom pantry ingredients are now filtered by their inferred
+  category (derived from their existing protein/base tag, reconciled against the curated preset picker's
+  own placement — e.g. mushroom is filed under Vegetables to match the existing "Mushrooms" preset, not
+  Proteins) instead of always appearing under every tab; an ingredient with no confident category mapping
+  shows only under "All".
+- The recurring "Fill Kitchen Myself" / "Send To A Chef" header pair is replaced with a quiet "Kitchen set
+  up ✓" label once `kitchen_status` is `'complete'`. The independent-vs-restaurant kitchen-type choice is
+  now persisted (`events.kitchen_type`, migration `20260909000001_add_event_kitchen_type.sql`) and skipped
+  entirely on repeat visits once already chosen.
+- The "Anything you avoid?" question gained an optional free-text supplement (`taste_profiles.avoid_other`,
+  migration `20260909000002_add_taste_profile_avoid_other.sql`) on both the guest RSVP flow and the host's
+  own `/profile/preferences` editor. It is not fed into any scoring/matching logic — guest-facing context
+  for the host, same as other free-text questionnaire answers.
+- The protein preference question ("What sounds best tonight?") now allows 3 selections instead of 2.
+- Both new migrations were applied to the linked Supabase database during this work.
+- **Known limitation:** the actual staging/blur/auto-suggest interaction has not been visually verified in
+  a real browser in this environment — there is no Playwright/chromium-cli tooling available here. Test
+  coverage (`__tests__/kitchen-page.test.tsx`) exercises the underlying state machine, including two real
+  bugs a code-quality review caught and a follow-up commit fixed (a suggestion-suppression flag that could
+  get permanently stuck on a same-value re-edit, and a different staged item's edit pencil silently
+  discarding an unrelated in-progress draft) — each with a regression test verified to fail on the pre-fix
+  code — but the actual feel of the blur-to-stage timing still needs a real device/browser check.
+- **Deferred follow-up (not done, explicitly flagged rather than skipped silently):** a code-quality review
+  recommended extracting the near-duplicated signature/pantry staging logic (`tryStage*Draft`,
+  `editStaged*Draft`, `handle*DraftBlur`, the suggestion-suppression and stage-intent effects — roughly
+  150-200 lines of parallel, non-trivial stateful logic) into one shared hook. Deliberately not done in this
+  pass, given the risk of introducing a new bug in logic that had just been fixed twice; worth doing as a
+  dedicated follow-up.
