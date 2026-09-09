@@ -137,6 +137,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [exportStep, setExportStep] = useState<'draft' | 'choose' | 'preview'>('draft')
   const [menuDesign, setMenuDesign] = useState<MenuDesignKey>('folk')
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
+  const [swapAiCourseId, setSwapAiCourseId] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [aiNotice, setAiNotice] = useState('')
@@ -269,12 +270,18 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   async function handleSwap(course: PersistedCourse) {
     if (!intel) return
     setActionError('')
-    const exclude = new Set(course.source ? [course.source] : [])
+    // Exclude every dish already used anywhere in this menu, not just this
+    // slot's own dish -- otherwise the same signature could be offered as
+    // e.g. both a main and a side at once.
+    const exclude = new Set(courses.map((c) => c.source).filter((s): s is string => !!s))
     const next = draftCourse(course.slot as Slot, intel, signatures, pantry, exclude)
 
     if (next.origin === 'empty') {
-      setSwapNoOptions(course.id)
-      setTimeout(() => setSwapNoOptions(null), 2000)
+      const generated = await requestAiSwap(course)
+      if (!generated) {
+        setSwapNoOptions(course.id)
+        setTimeout(() => setSwapNoOptions(null), 2000)
+      }
       return
     }
 
@@ -304,6 +311,31 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     if (error) {
       setCourses(prev)
       setActionError('Failed to swap dish. Try again.')
+    }
+  }
+
+  // Deterministic swap only ever draws from stored signatures (draftCourse in
+  // lib/menu.ts) -- once those run out for this slot, guest preferences alone
+  // can still produce a good dish, so this asks the LLM for exactly one new
+  // one. Only reached once the deterministic path has already come up empty,
+  // so it never adds a network/LLM call to an ordinary swap.
+  async function requestAiSwap(course: PersistedCourse): Promise<boolean> {
+    setSwapAiCourseId(course.id)
+    try {
+      const res = await fetch('/api/menu/swap-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: id, userId: localStorage.getItem('sofra_user_id'), courseId: course.id }),
+      })
+      if (!res.ok) return false
+      const { row } = (await res.json()) as { row?: PersistedCourse }
+      if (!row) return false
+      setCourses((prev) => prev.map((c) => (c.id === course.id ? row : c)))
+      return true
+    } catch {
+      return false
+    } finally {
+      setSwapAiCourseId(null)
     }
   }
 
@@ -726,10 +758,10 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
                         className="mini"
-                        disabled={isLocked}
+                        disabled={isLocked || swapAiCourseId === persisted.id}
                         onClick={() => !isLocked && void handleSwap(persisted)}
                       >
-                        Swap
+                        {swapAiCourseId === persisted.id ? 'Finding a dish…' : 'Swap'}
                       </button>
                       <button
                         className="mini"
