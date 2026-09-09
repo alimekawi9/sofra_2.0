@@ -699,5 +699,7 @@
   HAVE NOTHING" to "I have an empty kitchen".
 - `ChefTabs`' "Fill Kitchen Myself" / "Send To A Chef" actions no longer render while already on the
   Kitchen page itself (`active === 'kitchen'`) — redundant once you're already there. They still show on
-  every other chef-workspace page, and the "Kitchen set up ✓" label (once complete) is unaffected and still
-  shows everywhere, including on the Kitchen page.
+  every other chef-workspace page.
+- The "Kitchen set up ✓" label that previously replaced those actions once the kitchen was complete has
+  been removed entirely, everywhere (including the Kitchen page) — nothing renders in that slot once
+  complete. The now-unused `.sv2-chef-kitchen-complete` CSS rule was removed with it.
