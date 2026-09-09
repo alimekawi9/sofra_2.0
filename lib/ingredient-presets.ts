@@ -51,3 +51,25 @@ export const INGREDIENT_PRESETS: Record<string, string[]> = {
     'Walnuts', 'Capers', 'Anchovies', 'Soy sauce', 'Miso paste',
   ],
 }
+
+// Best-effort mapping from a custom pantry item's stored Protein-group tag
+// (lib/kitchen-tags.ts's DESCRIPTIVE_TAG_GROUPS "Protein" group) to the
+// curated category it belongs to in this picker. An item whose tags don't
+// map to any of these returns null and is only ever shown under "All" --
+// never guessed into the wrong tab, and never excluded from "All".
+const PROTEIN_TAG_TO_CATEGORY: Record<string, (typeof INGREDIENT_CATEGORIES)[number]> = {
+  beef: 'Proteins', lamb: 'Proteins', chicken: 'Proteins', turkey: 'Proteins', pork: 'Proteins',
+  duck: 'Proteins', fish: 'Proteins', shellfish: 'Proteins', legume: 'Proteins', tofu: 'Proteins', mushroom: 'Proteins',
+  vegetable: 'Vegetables',
+  fruit: 'Fruits',
+  dairy: 'Dairy & Eggs', egg: 'Dairy & Eggs',
+  grain: 'Grains & Starches', pasta: 'Grains & Starches',
+}
+
+export function inferIngredientCategory(tags: readonly string[]): (typeof INGREDIENT_CATEGORIES)[number] | null {
+  for (const tag of tags) {
+    const mapped = PROTEIN_TAG_TO_CATEGORY[tag]
+    if (mapped) return mapped
+  }
+  return null
+}

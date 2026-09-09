@@ -427,3 +427,44 @@ test('partial batch failure keeps only the failed operation pending after reconc
   const hummusAfter = await screen.findByRole('button', { name: 'Hummus' })
   expect(hummusAfter).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('a custom pantry item only shows under its inferred category tab, not every tab', async () => {
+  pantryRows.push({
+    id: 'pantry-carrot',
+    name: 'Heirloom Carrots',
+    week_of: '2026-08-03',
+    tags: ['vegetable', 'savory'],
+    contains_allergens: [],
+  })
+  render(<KitchenPage />)
+  activatePantry()
+  await screen.findByRole('button', { name: 'Heirloom Carrots' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Proteins' }))
+  expect(screen.queryByRole('button', { name: 'Heirloom Carrots' })).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Vegetables' }))
+  expect(screen.getByRole('button', { name: 'Heirloom Carrots' })).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'All' }))
+  expect(screen.getByRole('button', { name: 'Heirloom Carrots' })).toBeInTheDocument()
+})
+
+test('a custom pantry item with no confident category mapping only shows under All', async () => {
+  pantryRows.push({
+    id: 'pantry-mystery',
+    name: 'House Spice Blend',
+    week_of: '2026-08-03',
+    tags: ['savory'],
+    contains_allergens: [],
+  })
+  render(<KitchenPage />)
+  activatePantry()
+  await screen.findByRole('button', { name: 'House Spice Blend' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Proteins' }))
+  expect(screen.queryByRole('button', { name: 'House Spice Blend' })).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'All' }))
+  expect(screen.getByRole('button', { name: 'House Spice Blend' })).toBeInTheDocument()
+})

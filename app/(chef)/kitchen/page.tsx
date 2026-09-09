@@ -16,7 +16,7 @@ import {
   dishPresetKey,
   type DishPreset,
 } from '@/lib/dish-presets'
-import { INGREDIENT_PRESETS, INGREDIENT_CATEGORIES } from '@/lib/ingredient-presets'
+import { INGREDIENT_PRESETS, INGREDIENT_CATEGORIES, inferIngredientCategory } from '@/lib/ingredient-presets'
 import { formatTagLabel } from '@/lib/tag-format'
 import SofraTransition from '@/components/SofraTransition'
 import ChefTabs from '@/components/ChefTabs'
@@ -389,7 +389,11 @@ function KitchenPageInner() {
     INGREDIENT_CATEGORIES.flatMap((category) => INGREDIENT_PRESETS[category] ?? [])
       .map((name) => name.toLowerCase())
   )
-  const customPantry = pantry.filter((item) => !presetPantryNamesLC.has(item.name.toLowerCase()))
+  const customPantry = pantry.filter((item) => {
+    if (presetPantryNamesLC.has(item.name.toLowerCase())) return false
+    if (ingredientCategory === 'All') return true
+    return inferIngredientCategory(item.tags) === ingredientCategory
+  })
   const pantryHasAnythingSelected = selectedIngredients.length > 0
     || Boolean(pantryName.trim())
     || (!nothingInPantry && pantry.length > 0)
