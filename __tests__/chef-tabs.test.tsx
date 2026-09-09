@@ -67,11 +67,11 @@ it('shows kitchen-delegation actions to the original host', async () => {
   expect(screen.getByRole('button', { name: 'SEND VIA WHATSAPP' })).toBeInTheDocument()
 })
 
-it('replaces the delegation buttons with a quiet label once the kitchen is complete', async () => {
+it('shows nothing in place of the delegation buttons once the kitchen is complete', async () => {
   localStorage.setItem('sofra_user_id', HOST_UID)
   makeSupabase({ kitchenStatus: 'complete' })
   render(<ChefTabs eventId="event-1" active="table" title="Dinner" />)
-  expect(await screen.findByText('Kitchen set up ✓')).toBeInTheDocument()
+  await screen.findByRole('button', { name: 'The Table' })
   expect(screen.queryByRole('button', { name: 'Fill kitchen myself' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Send To A Chef' })).not.toBeInTheDocument()
 })

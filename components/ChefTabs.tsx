@@ -108,11 +108,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
             </div>
           )}
         </div>
-        {canDelegateKitchen && (kitchenComplete ? (
-          <div className="sv2-chef-kitchen-actions">
-            <span className="sv2-chef-kitchen-complete" aria-label="Kitchen set up">Kitchen set up ✓</span>
-          </div>
-        ) : active === 'kitchen' ? null : (
+        {canDelegateKitchen && !kitchenComplete && active !== 'kitchen' && (
           <div className="sv2-chef-kitchen-actions">
             <button
               onClick={fillKitchenMyself}
@@ -138,7 +134,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
               )}
             </div>
           </div>
-        ))}
+        )}
       </div>
       {kitchenShareError && <p role="alert" className="sv2-kitchen-action-error">{kitchenShareError}</p>}
 
