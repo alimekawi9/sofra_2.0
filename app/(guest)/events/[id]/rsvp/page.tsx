@@ -85,6 +85,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
   const [guests, setGuests] = useState<InviteCardGuest[]>([])
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
+  const [avoidOther, setAvoidOther] = useState('')
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
   const [proteinHint, setProteinHint] = useState(false)
   const [flavors, setFlavors] = useState<string[]>([])
@@ -182,6 +183,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         const p = profileRow as Record<string, unknown>
         setDietary((p.dietary as string[]) ?? [])
         setAvoid((p.avoid as string[]) ?? [])
+        setAvoidOther((p.avoid_other as string | null) ?? '')
         if (!proteinPreferencesDirtyRef.current) {
           const hydratedPreferences = normalizeProteinPreferences(
             p.protein_preferences as string[] | null | undefined,
@@ -304,6 +306,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
           user_id: uidRef.current,
           dietary,
           avoid,
+          avoid_other: avoidOther.trim() || null,
           protein_preferences: proteinPreferencesForSubmit,
           flavor_preference: flavorsForSubmit,
           adventurousness,
@@ -463,6 +466,8 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
         onSelectNoDietaryRestriction={() => setDietary([])}
         avoid={avoid}
         onToggleAvoid={(it) => toggleChip(avoid, setAvoid, it)}
+        avoidOther={avoidOther}
+        onAvoidOtherChange={setAvoidOther}
         proteinPreferences={proteinPreferences}
         onToggleProtein={toggleProtein}
         proteinHintVisible={proteinHint}

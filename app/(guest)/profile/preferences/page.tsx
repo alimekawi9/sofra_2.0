@@ -19,6 +19,7 @@ import '@/components/sofra-v2/sofra-v2.css'
 type TasteProfileRow = {
   dietary: string[] | null
   avoid: string[] | null
+  avoid_other: string | null
   protein_anchor: string | null
   protein_preferences: string[] | null
   flavor_preference: string[] | null
@@ -31,6 +32,7 @@ export default function ProfilePreferencesPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
+  const [avoidOther, setAvoidOther] = useState('')
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
   const [flavors, setFlavors] = useState<string[]>([])
   const [adventurousness, setAdventurousness] = useState(50)
@@ -50,7 +52,7 @@ export default function ProfilePreferencesPage() {
 
     void supabase
       .from('taste_profiles')
-      .select('dietary,avoid,protein_anchor,protein_preferences,flavor_preference,adventurousness')
+      .select('dietary,avoid,avoid_other,protein_anchor,protein_preferences,flavor_preference,adventurousness')
       .eq('user_id', stored)
       .maybeSingle()
       .then(({ data, error: loadError }: { data: TasteProfileRow | null; error: { message?: string } | null }) => {
@@ -62,6 +64,7 @@ export default function ProfilePreferencesPage() {
         if (!data) return
         setDietary(data.dietary ?? [])
         setAvoid(data.avoid ?? [])
+        setAvoidOther(data.avoid_other ?? '')
         setProteinPreferences(normalizeProteinPreferences(data.protein_preferences, data.protein_anchor))
         setFlavors(data.flavor_preference ?? [])
         setAdventurousness(data.adventurousness ?? 50)
@@ -94,6 +97,7 @@ export default function ProfilePreferencesPage() {
       user_id: userId,
       dietary,
       avoid,
+      avoid_other: avoidOther.trim() || null,
       protein_preferences: proteinPreferences,
       flavor_preference: normalizeFlavorPreferencesForSubmission(flavors),
       adventurousness,
@@ -114,6 +118,8 @@ export default function ProfilePreferencesPage() {
       onSelectNoDietaryRestriction={() => setDietary([])}
       avoid={avoid}
       onToggleAvoid={(value) => toggleValue(avoid, value, setAvoid)}
+      avoidOther={avoidOther}
+      onAvoidOtherChange={setAvoidOther}
       proteinPreferences={proteinPreferences}
       onToggleProtein={toggleProtein}
       proteinHintVisible={proteinHint}

@@ -21,6 +21,7 @@ export default function DesignPreviewPreferencesPage() {
   const router=useRouter()
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
+  const [avoidOther, setAvoidOther] = useState('')
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
   const [proteinHintVisible, setProteinHintVisible] = useState(false)
   const [flavors, setFlavors] = useState<string[]>([])
@@ -50,6 +51,8 @@ export default function DesignPreviewPreferencesPage() {
       onSelectNoDietaryRestriction={() => setDietary([])}
       avoid={avoid}
       onToggleAvoid={(value) => setAvoid((current) => toggleValue(current, value))}
+      avoidOther={avoidOther}
+      onAvoidOtherChange={setAvoidOther}
       proteinPreferences={proteinPreferences}
       onToggleProtein={handleToggleProtein}
       proteinHintVisible={proteinHintVisible}

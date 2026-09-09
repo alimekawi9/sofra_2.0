@@ -501,6 +501,7 @@ function CustomQuestionCard({
 function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
   const [dietary, setDietary] = useState<string[]>([])
   const [avoid, setAvoid] = useState<string[]>([])
+  const [avoidOther, setAvoidOther] = useState('')
   const [proteinPreferences, setProteinPreferences] = useState<ProteinPreference[]>([])
   const [flavors, setFlavors] = useState<string[]>([])
   const [adventurousness, setAdventurousness] = useState(50)
@@ -528,6 +529,8 @@ function QuestionnairePreview({ config }: { config: QuestionnaireConfig }) {
         onSelectNoDietaryRestriction={() => setDietary([])}
         avoid={avoid}
         onToggleAvoid={(v) => toggle(avoid, setAvoid, v)}
+        avoidOther={avoidOther}
+        onAvoidOtherChange={setAvoidOther}
         proteinPreferences={proteinPreferences}
         onToggleProtein={(v) => toggle(proteinPreferences, setProteinPreferences, v)}
         proteinHintVisible={false}

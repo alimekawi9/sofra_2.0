@@ -50,6 +50,30 @@ it('loads and saves profile preferences without requiring an event or RSVP', asy
   expect(push).toHaveBeenCalledWith('/profile')
 })
 
+it('round-trips the optional avoid-other text field', async () => {
+  localStorage.setItem('sofra_user_id', 'guest-1')
+  const sb = makeSupabase({
+    dietary: [],
+    avoid: ['Nuts'],
+    avoid_other: 'no cilantro please',
+    protein_anchor: null,
+    protein_preferences: ['fish'],
+    flavor_preference: [],
+    adventurousness: 50,
+  })
+  render(<ProfilePreferencesPage />)
+
+  const input = await screen.findByPlaceholderText('Anything else to avoid? (optional)')
+  expect(input).toHaveValue('no cilantro please')
+  fireEvent.change(input, { target: { value: 'also no raw onions' } })
+  fireEvent.click(screen.getByRole('button', { name: 'SAVE MY PREFERENCES' }))
+
+  await waitFor(() => expect(sb.upsert).toHaveBeenCalledWith(expect.objectContaining({
+    user_id: 'guest-1',
+    avoid_other: 'also no raw onions',
+  }), { onConflict: 'user_id' }))
+})
+
 it('returns signed-out users to login with the preference destination preserved', async () => {
   makeSupabase()
   render(<ProfilePreferencesPage />)

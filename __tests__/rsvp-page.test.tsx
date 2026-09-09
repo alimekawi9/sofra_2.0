@@ -253,6 +253,27 @@ describe('Step 2 — checkbox groups', () => {
     }
   })
 
+  it('round-trips the optional avoid-other free-text field', async () => {
+    const sb = makeSupabase({
+      profileRow: {
+        user_id: 'uid-1', dietary: [], avoid: ['Nuts'], avoid_other: 'no cilantro please',
+        flavor_preference: [], adventurousness: 50,
+      },
+    })
+    render(<RSVPPage params={{ id: 'event-1' }} />)
+    await waitFor(() => screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save me a seat/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'UPDATE MY PREFERENCES' }))
+    const input = await screen.findByPlaceholderText('Anything else to avoid? (optional)')
+    expect(input).toHaveValue('no cilantro please')
+    fireEvent.change(input, { target: { value: 'also no raw onions' } })
+    await userEvent.click(screen.getByRole('button', { name: /save my seat/i }))
+    await waitFor(() => expect(sb.profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ avoid_other: 'also no raw onions' }),
+      { onConflict: 'user_id' }
+    ))
+  })
+
   it('renders all flavor checkboxes', async () => {
     await navigateToStep2()
     for (const chip of ['Umami','Spicy','Plain & clean','Saucy','Smoky','Bright & sour','Sweet-savoury','Herby']) {

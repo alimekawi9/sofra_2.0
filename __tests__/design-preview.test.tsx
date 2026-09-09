@@ -171,6 +171,8 @@ describe('PreferencesReceipt', () => {
     onToggleDietary: noop,
     avoid: [] as string[],
     onToggleAvoid: noop,
+    avoidOther: '',
+    onAvoidOtherChange: noop,
     proteinPreferences: [] as ProteinPreference[],
     onToggleProtein: noop,
     proteinHintVisible: false,

@@ -12,7 +12,7 @@ it('emits the complete ordered option list when a guest changes a ranking', asyn
 })
 
 it('keeps a ranking question at question number one ahead of canonical questions', () => {
-  render(<PreferencesReceipt dietary={[]} onToggleDietary={() => {}} avoid={[]} onToggleAvoid={() => {}} proteinPreferences={[]} onToggleProtein={() => {}} proteinHintVisible={false} flavors={[]} onToggleFlavor={() => {}} flavorHintVisible={false} adventurousness={50} onAdventurousnessChange={() => {}} onSave={() => {}} questionOrders={{ dietary: 1 }} visibleCanonicalQuestions={['dietary']} extraContent={<div style={{ order: 0 }}><h3>RANK THE DATES</h3></div>} />)
+  render(<PreferencesReceipt dietary={[]} onToggleDietary={() => {}} avoid={[]} onToggleAvoid={() => {}} avoidOther="" onAvoidOtherChange={() => {}} proteinPreferences={[]} onToggleProtein={() => {}} proteinHintVisible={false} flavors={[]} onToggleFlavor={() => {}} flavorHintVisible={false} adventurousness={50} onAdventurousnessChange={() => {}} onSave={() => {}} questionOrders={{ dietary: 1 }} visibleCanonicalQuestions={['dietary']} extraContent={<div style={{ order: 0 }}><h3>RANK THE DATES</h3></div>} />)
   const ranking = screen.getByRole('heading', { name: 'RANK THE DATES' })
   const dietary = screen.getByRole('heading', { name: 'ANY LANE TO STAY IN?' })
   expect(getComputedStyle(ranking.parentElement!).order).toBe('0')
@@ -35,7 +35,7 @@ it('updates a custom survey slider continuously while it is dragged', () => {
 
 it('updates the canonical adventurousness slider continuously while it is dragged', () => {
   const onAdventurousnessChange = jest.fn()
-  render(<PreferencesReceipt dietary={[]} onToggleDietary={() => {}} avoid={[]} onToggleAvoid={() => {}} proteinPreferences={[]} onToggleProtein={() => {}} proteinHintVisible={false} flavors={[]} onToggleFlavor={() => {}} flavorHintVisible={false} adventurousness={50} onAdventurousnessChange={onAdventurousnessChange} onSave={() => {}} visibleCanonicalQuestions={['adventurousness']} />)
+  render(<PreferencesReceipt dietary={[]} onToggleDietary={() => {}} avoid={[]} onToggleAvoid={() => {}} avoidOther="" onAvoidOtherChange={() => {}} proteinPreferences={[]} onToggleProtein={() => {}} proteinHintVisible={false} flavors={[]} onToggleFlavor={() => {}} flavorHintVisible={false} adventurousness={50} onAdventurousnessChange={onAdventurousnessChange} onSave={() => {}} visibleCanonicalQuestions={['adventurousness']} />)
 
   fireEvent.input(screen.getByRole('slider', { name: 'Adventurousness' }), { target: { value: '82' } })
   expect(onAdventurousnessChange).toHaveBeenCalledWith(82)

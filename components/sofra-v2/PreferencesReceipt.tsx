@@ -12,6 +12,8 @@ export interface PreferencesReceiptProps {
   onSelectNoDietaryRestriction?: () => void
   avoid: string[]
   onToggleAvoid: (value: string) => void
+  avoidOther: string
+  onAvoidOtherChange: (value: string) => void
   proteinPreferences: ProteinPreference[]
   onToggleProtein: (value: ProteinPreference) => void
   proteinHintVisible: boolean
@@ -78,6 +80,8 @@ export function PreferencesReceipt({
   onSelectNoDietaryRestriction = () => {},
   avoid,
   onToggleAvoid,
+  avoidOther,
+  onAvoidOtherChange,
   proteinPreferences,
   onToggleProtein,
   proteinHintVisible,
@@ -178,6 +182,14 @@ export function PreferencesReceipt({
             />
           ))}
         </div>
+        <input
+          type="text"
+          className="sv2-avoid-other-input"
+          placeholder="Anything else to avoid? (optional)"
+          value={avoidOther}
+          onChange={(e) => onAvoidOtherChange(e.target.value)}
+          maxLength={200}
+        />
         </div>}
 
         {shows('protein') && <div style={{ order: questionOrders.protein ?? 2 }}>
