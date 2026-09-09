@@ -182,6 +182,23 @@ test('saved signatures and pantry items render once as active chips', async () =
   expect(screen.getAllByRole('button', { name: 'Tomato' })).toHaveLength(1)
 })
 
+test('the inactive section is inert immediately after load, before any scroll', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+
+  const signaturesSection = document.querySelector('.sv2-kitchen-signatures') as (HTMLElement & { inert: boolean }) | null
+  const pantrySection = document.querySelector('.sv2-kitchen-pantry') as (HTMLElement & { inert: boolean }) | null
+  expect(signaturesSection).toBeTruthy()
+  expect(pantrySection).toBeTruthy()
+
+  // Regression: an effect keyed only to `[signaturesActive]` never re-runs once the sections first
+  // mount, since `signaturesActive` doesn't change value between its default and the sections' first
+  // render — silently leaving `inert` unset (and the section keyboard-reachable) until the user's first
+  // scroll. This must hold true with no activatePantry()/activateSignatures() call at all.
+  expect(signaturesSection?.inert).toBe(false)
+  expect(pantrySection?.inert).toBe(true)
+})
+
 test('rehydrates a saved preset with the exact filled pending-selection style', async () => {
   render(<KitchenPage />)
 

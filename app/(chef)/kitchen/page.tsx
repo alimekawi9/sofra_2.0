@@ -110,9 +110,14 @@ function KitchenPageInner() {
     // already-focused control inside it — set the native `inert` DOM property (not typed on JSX by this
     // project's @types/react version, so assigned imperatively) so the currently invisible section is
     // truly unreachable by keyboard too, not just by pointer/screen reader.
+    // No dependency array: the sections (and their refs) don't exist until `loading` flips false, and
+    // `signaturesActive` itself doesn't change value between mount and that point (it defaults to `true`,
+    // matching scroll position 0), so a `[signaturesActive]`-only effect would never re-run once the refs
+    // actually attach. Running after every render is cheap (two conditional property writes) and
+    // guarantees the very first render where the refs are non-null still applies the correct value.
     if (signaturesSectionRef.current) signaturesSectionRef.current.inert = !signaturesActive
     if (pantrySectionRef.current) pantrySectionRef.current.inert = signaturesActive
-  }, [signaturesActive])
+  })
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
