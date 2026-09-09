@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import KitchenPage from '@/app/(chef)/kitchen/page'
 
 const push = jest.fn()
@@ -6,36 +6,6 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: jest.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }))
-
-jest.mock('framer-motion', () => ({
-  motion: new Proxy({}, { get: (_target, tag) => tag }),
-  useScroll: () => ({
-    scrollYProgress: {
-      on: (_event: string, cb: (v: number) => void) => {
-        ;(globalThis as any).__scrollChangeCallback = cb
-        return () => {}
-      },
-      get: () => 0,
-    },
-  }),
-  useTransform: () => 0,
-}))
-
-// The Kitchen page's Signatures/Pantry sections are scroll-linked and crossfade:
-// only one is interactive/accessible (pointer-events + aria-hidden) at a time,
-// matching real scroll position. Tests default to the Signatures section active
-// (matching real top-of-scroll page load) and must explicitly "scroll" to flip
-// which section is active before querying/interacting with the other one.
-function activatePantry() {
-  act(() => {
-    ;(globalThis as any).__scrollChangeCallback?.(0.6)
-  })
-}
-function activateSignatures() {
-  act(() => {
-    ;(globalThis as any).__scrollChangeCallback?.(0.2)
-  })
-}
 
 type Write = { table: string; kind: 'insert' | 'update' | 'delete'; payload: Record<string, unknown> }
 let writes: Write[] = []
@@ -180,27 +150,9 @@ test('saved signatures and pantry items render once as active chips', async () =
   expect(savedSignature).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getAllByRole('button', { name: 'Roast Chicken' })).toHaveLength(1)
 
-  activatePantry()
   const savedPantry = await screen.findByRole('button', { name: 'Tomato' })
   expect(savedPantry).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getAllByRole('button', { name: 'Tomato' })).toHaveLength(1)
-})
-
-test('the inactive section is inert immediately after load, before any scroll', async () => {
-  render(<KitchenPage />)
-  await screen.findByRole('button', { name: 'Roast Chicken' })
-
-  const signaturesSection = document.querySelector('.sv2-kitchen-signatures') as (HTMLElement & { inert: boolean }) | null
-  const pantrySection = document.querySelector('.sv2-kitchen-pantry') as (HTMLElement & { inert: boolean }) | null
-  expect(signaturesSection).toBeTruthy()
-  expect(pantrySection).toBeTruthy()
-
-  // Regression: an effect keyed only to `[signaturesActive]` never re-runs once the sections first
-  // mount, since `signaturesActive` doesn't change value between its default and the sections' first
-  // render — silently leaving `inert` unset (and the section keyboard-reachable) until the user's first
-  // scroll. This must hold true with no activatePantry()/activateSignatures() call at all.
-  expect(signaturesSection?.inert).toBe(false)
-  expect(pantrySection?.inert).toBe(true)
 })
 
 test('rehydrates a saved preset with the exact filled pending-selection style', async () => {
@@ -213,7 +165,6 @@ test('rehydrates a saved preset with the exact filled pending-selection style', 
 
 test('renders a saved pantry preset with visible selected text colors', async () => {
   render(<KitchenPage />)
-  activatePantry()
   const tomato = await screen.findByRole('button', { name: 'Tomato' })
   expect(tomato).toHaveStyle({ background: '#5C1515', color: 'var(--sf-intel-on-burgundy)' })
 })
@@ -279,7 +230,6 @@ test('creating a signature persists the raw main role and hides saved-signature 
 
 test('adding a pantry item persists binary availability without quantity or unit', async () => {
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'Tomato' })
 
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
@@ -296,7 +246,6 @@ test('adding a pantry item persists binary availability without quantity or unit
 
 test('does not render pantry quantity or unit controls', async () => {
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'Tomato' })
 
   expect(screen.queryByLabelText('Quantity amount')).not.toBeInTheDocument()
@@ -309,7 +258,6 @@ test('offers clear-all controls for signatures and pantry, with the empty pantry
   const signatureCard = document.querySelector('.sv2-kitchen-signatures') as HTMLElement
   expect(within(signatureCard).getByRole('button', { name: 'CLEAR ALL' })).toBeInTheDocument()
 
-  activatePantry()
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
   await screen.findByRole('button', { name: 'Tomato' })
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
@@ -321,7 +269,6 @@ test('offers clear-all controls for signatures and pantry, with the empty pantry
 
 test('a pantry selection immediately replaces the empty action and stays selected when filtered out of view', async () => {
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'Tomato' })
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
 
@@ -338,7 +285,6 @@ test('a pantry selection immediately replaces the empty action and stays selecte
 
 test('clicking a saved pantry chip stages its removal instead of deleting immediately', async () => {
   render(<KitchenPage />)
-  activatePantry()
   const tomato = await screen.findByRole('button', { name: 'Tomato' })
 
   fireEvent.click(tomato)
@@ -351,21 +297,18 @@ test('clicking a saved pantry chip stages its removal instead of deleting immedi
 
 test('there is no way to reopen a saved pantry item for editing', async () => {
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'Tomato' })
   expect(screen.queryByLabelText('Edit a saved pantry item')).not.toBeInTheDocument()
 })
 
 test('submit label reflects pending signature changes even when the pantry is empty', async () => {
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'Tomato' })
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
 
   fireEvent.click(within(pantryCard).getByRole('button', { name: 'CLEAR ALL' }))
   expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
 
-  activateSignatures()
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Lamb Shoulder' } })
   // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
   await waitFor(() => {
@@ -379,7 +322,6 @@ test('submit label reflects pending signature changes even when the pantry is em
 
 test('CLEAR ALL resets a previously staged pantry removal', async () => {
   render(<KitchenPage />)
-  activatePantry()
   const tomato = await screen.findByRole('button', { name: 'Tomato' })
   const pantryCard = document.querySelector('.sv2-kitchen-pantry') as HTMLElement
 
@@ -400,7 +342,6 @@ test('a single submit batches both a new preset signature insert and a staged pa
   const hummus = await screen.findByRole('button', { name: 'Hummus' })
   fireEvent.click(hummus)
 
-  activatePantry()
   const tomato = await screen.findByRole('button', { name: 'Tomato' })
   fireEvent.click(tomato)
 
@@ -419,7 +360,6 @@ test('partial batch failure keeps only the failed operation pending after reconc
   const hummus = await screen.findByRole('button', { name: 'Hummus' })
   fireEvent.click(hummus)
 
-  activatePantry()
   const tomato = await screen.findByRole('button', { name: 'Tomato' })
   fireEvent.click(tomato)
   expect(tomato).toHaveAttribute('aria-pressed', 'false')
@@ -435,7 +375,6 @@ test('partial batch failure keeps only the failed operation pending after reconc
 
   // The succeeded signature insert committed and is no longer a pending selection —
   // loadData()'s refresh now shows it as an already-saved chip.
-  activateSignatures()
   const hummusAfter = await screen.findByRole('button', { name: 'Hummus' })
   expect(hummusAfter).toHaveAttribute('aria-pressed', 'true')
 })
@@ -449,16 +388,16 @@ test('a custom pantry item only shows under its inferred category tab, not every
     contains_allergens: [],
   })
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'Heirloom Carrots' })
+  const pantryCategories = document.querySelector('[aria-label="Pantry categories"]') as HTMLElement
 
-  fireEvent.click(screen.getByRole('button', { name: 'Proteins' }))
+  fireEvent.click(within(pantryCategories).getByRole('button', { name: 'Proteins' }))
   expect(screen.queryByRole('button', { name: 'Heirloom Carrots' })).not.toBeInTheDocument()
 
-  fireEvent.click(screen.getByRole('button', { name: 'Vegetables' }))
+  fireEvent.click(within(pantryCategories).getByRole('button', { name: 'Vegetables' }))
   expect(screen.getByRole('button', { name: 'Heirloom Carrots' })).toBeInTheDocument()
 
-  fireEvent.click(screen.getByRole('button', { name: 'All' }))
+  fireEvent.click(within(pantryCategories).getByRole('button', { name: 'All' }))
   expect(screen.getByRole('button', { name: 'Heirloom Carrots' })).toBeInTheDocument()
 })
 
@@ -471,13 +410,13 @@ test('a custom pantry item with no confident category mapping only shows under A
     contains_allergens: [],
   })
   render(<KitchenPage />)
-  activatePantry()
   await screen.findByRole('button', { name: 'House Spice Blend' })
+  const pantryCategories = document.querySelector('[aria-label="Pantry categories"]') as HTMLElement
 
-  fireEvent.click(screen.getByRole('button', { name: 'Proteins' }))
+  fireEvent.click(within(pantryCategories).getByRole('button', { name: 'Proteins' }))
   expect(screen.queryByRole('button', { name: 'House Spice Blend' })).not.toBeInTheDocument()
 
-  fireEvent.click(screen.getByRole('button', { name: 'All' }))
+  fireEvent.click(within(pantryCategories).getByRole('button', { name: 'All' }))
   expect(screen.getByRole('button', { name: 'House Spice Blend' })).toBeInTheDocument()
 })
 
@@ -569,7 +508,6 @@ test('multiple staged dish and ingredient drafts submit together in one batch', 
   fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
   await screen.findByRole('button', { name: 'Grilled Salmon' })
 
-  activatePantry()
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Fresh Basil' } })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Savory' })).toBeInTheDocument())
   fireEvent.blur(screen.getByPlaceholderText('Add an ingredient…'), { relatedTarget: document.body })

@@ -1915,9 +1915,5 @@
 .sv2-create-step-actions{display:flex;margin-top:32px;align-items:center;justify-content:center;gap:12px}.sv2-create-step-actions>button{width:min(100%,240px)!important;min-height:52px!important;margin:0!important;border-radius:999px!important;font:600 12px var(--sv2-sans-family)!important;letter-spacing:.09em}.sv2-create-step-actions .sv2-create-back{border:1px solid var(--sv2-ink)!important;background:transparent!important;color:var(--sv2-ink)!important}.sv2-create-step-actions>button:not(.sv2-create-back){border:1px solid var(--sv2-ink)!important;background:var(--sv2-ink)!important;color:var(--sv2-off-white)!important}
 @media(max-width:560px){.sv2-create-step-actions>button{width:min(48%,220px)!important}.sv2-create-step-actions>button:only-child{width:min(100%,260px)!important}.sv2-question-choice-card{min-height:120px!important;padding:17px!important}}
 
-.sv2-kitchen-scroll-track{position:relative;height:180vh}
-.sv2-kitchen-scroll-frame{position:sticky;top:0;height:100vh;overflow:hidden}
-.sv2-kitchen-scroll-frame .sv2-kitchen-card{position:absolute;inset:0;margin:auto 0!important;max-height:100%;overflow-y:auto}
-
 .sv2-staged-draft-chip{display:inline-flex;align-items:center;gap:4px}
 .sv2-staged-draft-edit{width:20px;height:20px;border-radius:50%;border:none;background:rgba(255,255,255,.25);cursor:pointer;font-size:11px;line-height:1}

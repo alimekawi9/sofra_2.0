@@ -1,7 +1,6 @@
 'use client'
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { C } from '@/lib/theme'
@@ -108,30 +107,6 @@ function KitchenPageInner() {
   const searchParams = useSearchParams()
   const fromEventId = searchParams?.get('from') ?? null
   const fromPage = searchParams?.get('from_page') === 'table' ? 'table' : 'menu'
-  // Scroll-linked opacity via useTransform isn't part of Framer Motion's animation engine, so
-  // MotionConfig's reducedMotion prop (used in HostEntryPlate.tsx) wouldn't affect it — no reduced-motion
-  // handling needed here since this is a plain scroll-position mapping, not a triggered animation.
-  const scrollTrackRef = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({ target: scrollTrackRef, offset: ['start start', 'end end'] })
-  const signaturesOpacity = useTransform(scrollYProgress, [0, 0.45, 0.55], [1, 1, 0])
-  const pantryOpacity = useTransform(scrollYProgress, [0.45, 0.55, 1], [0, 1, 1])
-  const [signaturesActive, setSignaturesActive] = useState(true)
-  useEffect(() => scrollYProgress.on('change', (v) => setSignaturesActive(v < 0.5)), [scrollYProgress])
-  const signaturesSectionRef = useRef<HTMLElement>(null)
-  const pantrySectionRef = useRef<HTMLElement>(null)
-  useEffect(() => {
-    // aria-hidden alone doesn't remove an element from the Tab order or block a keypress on an
-    // already-focused control inside it — set the native `inert` DOM property (not typed on JSX by this
-    // project's @types/react version, so assigned imperatively) so the currently invisible section is
-    // truly unreachable by keyboard too, not just by pointer/screen reader.
-    // No dependency array: the sections (and their refs) don't exist until `loading` flips false, and
-    // `signaturesActive` itself doesn't change value between mount and that point (it defaults to `true`,
-    // matching scroll position 0), so a `[signaturesActive]`-only effect would never re-run once the refs
-    // actually attach. Running after every render is cheap (two conditional property writes) and
-    // guarantees the very first render where the refs are non-null still applies the correct value.
-    if (signaturesSectionRef.current) signaturesSectionRef.current.inert = !signaturesActive
-    if (pantrySectionRef.current) pantrySectionRef.current.inert = signaturesActive
-  })
   const supabase = createClient()
   const uidRef = useRef<string | null>(null)
 
@@ -869,16 +844,6 @@ function KitchenPageInner() {
           </div>
         </div>
 
-        {/*
-          scrollTrackRef's div must stay mounted on every render, including while loading. Framer
-          Motion's useScroll({ target }) only waits one microtask for the target ref to hydrate before
-          throwing "Target ref is defined but not hydrated" (node_modules/framer-motion/dist/es/value/use-scroll.mjs) --
-          far less time than the async loadData() fetch takes. Mounting this div unconditionally (with
-          its real .sv2-kitchen-scroll-track sizing only applied once content is ready, so the loading/error
-          states keep their normal compact layout instead of an empty 180vh block) means target.current is
-          a real, stable DOM node from the very first render.
-        */}
-        <div ref={scrollTrackRef} className={!loading && !fetchError ? 'sv2-kitchen-scroll-track' : undefined}>
         {loading && (
           <div style={{ color: C.dim, fontSize: 13, fontFamily: 'system-ui, sans-serif' }}>
             Loading…
@@ -907,9 +872,9 @@ function KitchenPageInner() {
         )}
 
         {!loading && !fetchError && (
-              <div className="sv2-kitchen-scroll-frame">
+          <>
             {/* ── Signatures ── */}
-            <motion.section ref={signaturesSectionRef} className="sv2-kitchen-card sv2-kitchen-signatures" style={{ ...cardStyle, opacity: signaturesOpacity, pointerEvents: signaturesActive ? 'auto' : 'none' }} aria-hidden={!signaturesActive}>
+            <section className="sv2-kitchen-card sv2-kitchen-signatures" style={cardStyle}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>Your signatures</span>
                 <span style={faintSm}>dishes Sofra can always plate</span>
@@ -1065,10 +1030,10 @@ function KitchenPageInner() {
                   <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{sigAddError}</p>
                 )}
               </div>
-            </motion.section>
+            </section>
 
             {/* ── Pantry ── */}
-            <motion.section ref={pantrySectionRef} className="sv2-kitchen-card sv2-kitchen-pantry" style={{ ...cardStyle, opacity: pantryOpacity, pointerEvents: signaturesActive ? 'none' : 'auto' }} aria-hidden={signaturesActive}>
+            <section className="sv2-kitchen-card sv2-kitchen-pantry" style={cardStyle}>
               <div style={cardHeadRow}>
                 <span style={cardTitle}>This week’s pantry</span>
                 <span style={faintSm}>what’s fresh with Sofra building new dishes from it</span>
@@ -1205,10 +1170,9 @@ function KitchenPageInner() {
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
               )}
               </div>
-            </motion.section>
-              </div>
+            </section>
+          </>
         )}
-        </div>
 
         {!loading && !fetchError && (
           <>
