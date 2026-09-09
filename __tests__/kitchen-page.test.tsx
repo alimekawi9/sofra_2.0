@@ -120,15 +120,23 @@ beforeEach(() => {
   })
 })
 
-test('signature picker exposes Main while pantry has no role controls or legacy role chip', async () => {
+test('signature picker previews the suggested Main role, then exposes it as an editable button once Edit tags is tapped', async () => {
   render(<KitchenPage />)
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Test dish' } })
-  // 'Main' is ambiguous once the Role filter row exists (a persistent filter tab) alongside the
-  // "Add your own dish" Role tag group, so scope to the tag-group container once it reveals.
   expect(screen.queryByText('Role')).not.toBeInTheDocument()
   expect(screen.getByText('Finding suggested tags...')).toBeInTheDocument()
+  // The compact preview shows the suggested tag as read-only text, not a toggle button, until Edit
+  // tags is tapped -- its presence is the signal the suggestion resolved (the Role tag-group section
+  // itself, distinct from the persistent Role filter tab which also happens to say "Main", hasn't
+  // rendered yet).
+  await screen.findByRole('button', { name: 'Edit tags' })
+  expect(screen.queryByText('Role')).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit tags' }))
+  // 'Main' is ambiguous once the Role filter row exists (a persistent filter tab) alongside the
+  // "Add your own dish" Role tag group, so scope to the tag-group container once it reveals.
   const roleGroup = await screen.findByText('Role')
   const roleGroupContainer = roleGroup.parentElement as HTMLElement
   const main = within(roleGroupContainer).getByRole('button', { name: 'Main' })
@@ -212,11 +220,9 @@ test('creating a signature persists the raw main role and hides saved-signature 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), {
     target: { value: 'Lamb Shoulder' },
   })
-  // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  // The compact preview's "Edit tags" button is the signal the suggestion resolved; submitting works
+  // directly from the previewed (not necessarily manually opened) tags.
+  await screen.findByRole('button', { name: 'Edit tags' })
   expect(writes.some((write) => write.table === 'signatures' && write.kind === 'insert')).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
@@ -233,7 +239,7 @@ test('adding a pantry item persists binary availability without quantity or unit
   await screen.findByRole('button', { name: 'Tomato' })
 
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Chicken' } })
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Savory' })).toHaveAttribute('aria-pressed', 'true'))
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
 
   await waitFor(() => {
@@ -242,6 +248,22 @@ test('adding a pantry item persists binary availability without quantity or unit
     expect(insert?.payload).not.toHaveProperty('quantity_amount')
     expect(insert?.payload).not.toHaveProperty('quantity_unit')
   })
+})
+
+test('pantry ingredient previews the suggested tag as read-only text, then exposes it as an editable button once Edit tags is tapped', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Tomato' })
+
+  fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Basil' } })
+  expect(screen.getByText('Finding suggested tags...')).toBeInTheDocument()
+  await screen.findByRole('button', { name: 'Edit tags' })
+  // Preview shows the suggested tag as read-only text and offers no toggle button for it yet.
+  expect(screen.getByText('Savory')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Savory' })).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit tags' }))
+  const savory = screen.getByRole('button', { name: 'Savory' })
+  expect(savory).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('does not render pantry quantity or unit controls', async () => {
@@ -310,11 +332,7 @@ test('submit label reflects pending signature changes even when the pantry is em
   expect(screen.getByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).toBeInTheDocument()
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Lamb Shoulder' } })
-  // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
 
   expect(screen.queryByRole('button', { name: 'I LITERALLY HAVE NOTHING' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'UPDATE' })).toBeInTheDocument()
@@ -454,11 +472,7 @@ test('a valid custom dish stages as a name-only chip when the draft area loses f
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Grilled Salmon' } })
-  // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Grilled Salmon' })).toBeInTheDocument())
@@ -482,16 +496,15 @@ test('editing a staged draft removes it from the list and repopulates the form',
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Grilled Salmon' } })
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
   await screen.findByRole('button', { name: 'Grilled Salmon' })
 
   fireEvent.click(screen.getByRole('button', { name: 'Edit Grilled Salmon' }))
   expect(screen.queryByRole('button', { name: 'Grilled Salmon' })).not.toBeInTheDocument()
   expect(screen.getByPlaceholderText('Add a signature dish…')).toHaveValue('Grilled Salmon')
+  // Reopening a staged draft goes straight to the full editor (not the compact preview), since tapping
+  // its edit pencil is already an explicit "let me fix this" action.
   const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
   expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
 })
@@ -501,15 +514,12 @@ test('multiple staged dish and ingredient drafts submit together in one batch', 
   await screen.findByRole('button', { name: 'Roast Chicken' })
 
   fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Grilled Salmon' } })
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
   await screen.findByRole('button', { name: 'Grilled Salmon' })
 
   fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Fresh Basil' } })
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Savory' })).toBeInTheDocument())
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.blur(screen.getByPlaceholderText('Add an ingredient…'), { relatedTarget: document.body })
   await screen.findByRole('button', { name: 'Fresh Basil' })
 
@@ -532,20 +542,14 @@ test('reopening a staged draft whose name matches the already-typed input does n
   const input = screen.getByPlaceholderText('Add a signature dish…')
 
   fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.blur(input, { relatedTarget: document.body })
   await screen.findByRole('button', { name: 'Grilled Salmon' })
 
   // Retype the exact same name the just-staged chip has, so the input already equals draft.name when
   // Edit is clicked below.
   fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
 
   const fetchCallsBeforeEdit = (global.fetch as jest.Mock).mock.calls.length
   fireEvent.click(screen.getByRole('button', { name: 'Edit Grilled Salmon' }))
@@ -568,20 +572,14 @@ test('clicking a different staged draft\'s edit pencil stages the complete draft
   const input = screen.getByPlaceholderText('Add a signature dish…')
 
   fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
   fireEvent.blur(input, { relatedTarget: document.body })
   await screen.findByRole('button', { name: 'Grilled Salmon' })
 
   // Start a second, complete entry, but don't blur away from it -- click straight into editing the
   // already-staged "Grilled Salmon" instead.
   fireEvent.change(input, { target: { value: 'Roasted Duck' } })
-  await waitFor(() => {
-    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
-    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
-  })
+  await screen.findByRole('button', { name: 'Edit tags' })
 
   fireEvent.click(screen.getByRole('button', { name: 'Edit Grilled Salmon' }))
 

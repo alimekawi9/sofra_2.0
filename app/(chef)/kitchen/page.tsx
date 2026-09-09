@@ -147,6 +147,13 @@ function KitchenPageInner() {
   const [pendingRemovedSignatureIds, setPendingRemovedSignatureIds] = useState<string[]>([])
   const [dishBatchError, setDishBatchError] = useState('')
 
+  // Whether the full tag-group picker is shown for the signature currently being typed/edited.
+  // Defaults to false: a fresh suggestion shows a compact read-only preview of the guessed tags first
+  // (see SuggestionPreview below), and this only flips true if the chef explicitly taps "Edit tags", if
+  // suggestion failed outright (nothing to preview), or when reopening an already-staged draft (an
+  // explicit "go fix this" action, so it jumps straight to the full editor).
+  const [sigTagsEditing, setSigTagsEditing] = useState(false)
+
   const [pantry, setPantry] = useState<PantryItem[]>([])
   const [pantryName, setPantryName] = useState('')
   const [pantryTagsList, setPantryTagsList] = useState<string[]>([])
@@ -158,6 +165,8 @@ function KitchenPageInner() {
   const [pantrySuggesting, setPantrySuggesting] = useState(false)
   const [pantrySuggestionReady, setPantrySuggestionReady] = useState(false)
   const pantrySuggestionRequestRef = useRef(0)
+  // See sigTagsEditing above -- same compact-preview-by-default purpose for pantry ingredients.
+  const [pantryTagsEditing, setPantryTagsEditing] = useState(false)
   const [stagedPantryDrafts, setStagedPantryDrafts] = useState<StagedPantryDraft[]>([])
   // See sigStageIntentRef above -- same "stage once the in-flight suggestion resolves" purpose.
   const pantryStageIntentRef = useRef(false)
@@ -251,6 +260,7 @@ function KitchenPageInner() {
     setSigAllergensList([])
     setSigTagsRevealed(false)
     setSigSuggestionReady(false)
+    setSigTagsEditing(false)
   }
 
   function toggleDishSelection(p: DishPreset) {
@@ -431,6 +441,7 @@ function KitchenPageInner() {
     setPantryAllergensList([])
     setPantryTagsRevealed(false)
     setPantrySuggestionReady(false)
+    setPantryTagsEditing(false)
   }
 
   async function suggestKitchenMetadata(kind: 'signature' | 'pantry', name: string, requestId: number) {
@@ -468,9 +479,11 @@ function KitchenPageInner() {
       if (kind === 'signature') {
         setSigTagsRevealed(true)
         setSigSuggestionReady(false)
+        setSigTagsEditing(true) // nothing to preview -- go straight to manual selection
       } else {
         setPantryTagsRevealed(true)
         setPantrySuggestionReady(false)
+        setPantryTagsEditing(true)
       }
       setError(`${error instanceof Error ? error.message : 'Could not suggest metadata.'} You can choose the tags manually below.`)
     } finally {
@@ -594,6 +607,7 @@ function KitchenPageInner() {
     setSigAllergensList(draft.allergens)
     setSigTagsRevealed(true)
     setSigSuggestionReady(true)
+    setSigTagsEditing(true) // reopening a staged draft is an explicit "let me fix this" action
     sigDraftContainerRef.current?.querySelector('input')?.focus()
   }
 
@@ -629,6 +643,7 @@ function KitchenPageInner() {
     setPantryAllergensList(draft.allergens)
     setPantryTagsRevealed(true)
     setPantrySuggestionReady(true)
+    setPantryTagsEditing(true) // reopening a staged draft is an explicit "let me fix this" action
     pantryDraftContainerRef.current?.querySelector('input')?.focus()
   }
 
@@ -986,6 +1001,7 @@ function KitchenPageInner() {
                         setSigAllergensList([])
                         setSigTagsRevealed(false)
                         setSigSuggestionReady(false)
+                        setSigTagsEditing(false)
                       }
                     }}
                   />
@@ -994,8 +1010,15 @@ function KitchenPageInner() {
                   )}
                 </div>
                 {sigSuggesting && <SuggestionLoadingNotice />}
-                {sigSuggestionReady && <SuggestionReviewNotice />}
-                {sigTagsRevealed && <><TagGroupsPicker
+                {sigTagsRevealed && !sigTagsEditing && (
+                  <SuggestionPreview
+                    tags={sigTagsList}
+                    allergens={sigAllergensList}
+                    onEdit={() => setSigTagsEditing(true)}
+                  />
+                )}
+                {sigSuggestionReady && sigTagsEditing && <SuggestionReviewNotice />}
+                {sigTagsRevealed && sigTagsEditing && <><TagGroupsPicker
                   groups={SIGNATURE_TAG_GROUPS}
                   selected={sigTagsList}
                   onToggle={toggleTag}
@@ -1124,15 +1147,23 @@ function KitchenPageInner() {
                     setPantryAllergensList([])
                     setPantryTagsRevealed(false)
                     setPantrySuggestionReady(false)
+                    setPantryTagsEditing(false)
                   }}
                 />
               </div>
               {pantrySuggesting && <SuggestionLoadingNotice />}
-              {pantrySuggestionReady && <SuggestionReviewNotice />}
+              {pantryTagsRevealed && !pantryTagsEditing && (
+                <SuggestionPreview
+                  tags={pantryTagsList}
+                  allergens={pantryAllergensList}
+                  onEdit={() => setPantryTagsEditing(true)}
+                />
+              )}
+              {pantrySuggestionReady && pantryTagsEditing && <SuggestionReviewNotice />}
               {/* Tag/allergen chips apply to whichever pantry insert fires next —
                   the manual "Add" button OR the preset "Add selected" batch —
                   and clear on success. Same UX pattern as signatures. */}
-              {pantryTagsRevealed && <><div style={{ marginTop: 12 }}>
+              {pantryTagsRevealed && pantryTagsEditing && <><div style={{ marginTop: 12 }}>
                 <TagGroupsPicker
                   groups={PANTRY_TAG_GROUPS}
                   selected={pantryTagsList}
@@ -1255,6 +1286,68 @@ function SuggestionReviewNotice() {
   return (
     <div role="status" style={{ color: C.cream, fontFamily: 'system-ui, sans-serif', fontSize: 12, lineHeight: 1.45 }}>
       Sofra suggested the selected tags below. Review or adjust them, then save to confirm.
+    </div>
+  )
+}
+
+function SuggestionPreview({
+  tags,
+  allergens,
+  onEdit,
+}: {
+  tags: string[]
+  allergens: string[]
+  onEdit: () => void
+}) {
+  return (
+    <div role="status" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 2 }}>
+      {tags.map((t) => (
+        <span
+          key={t}
+          style={{
+            background: 'transparent',
+            border: `1px solid ${C.cream}`,
+            borderRadius: 14,
+            color: C.cream,
+            padding: '4px 10px',
+            fontSize: 12,
+            fontFamily: 'system-ui, sans-serif',
+          }}
+        >
+          {formatTagLabel(t)}
+        </span>
+      ))}
+      {allergens.length > 0 && (
+        <span
+          style={{
+            background: 'transparent',
+            border: `1px solid ${C.danger}`,
+            borderRadius: 14,
+            color: C.danger,
+            padding: '4px 10px',
+            fontSize: 12,
+            fontFamily: 'system-ui, sans-serif',
+          }}
+        >
+          Contains {allergens.map(formatTagLabel).join(', ')}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onEdit}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: C.gold,
+          fontSize: 12,
+          fontFamily: 'system-ui, sans-serif',
+          cursor: 'pointer',
+          padding: '4px 2px',
+          textDecoration: 'underline',
+        }}
+      >
+        Edit tags
+      </button>
     </div>
   )
 }
