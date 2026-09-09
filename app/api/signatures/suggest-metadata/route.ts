@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     : 'This is a raw pantry ingredient. Never assign a dish role.'
   const prompt = `Classify the kitchen item named "${name}" for a cooking and menu-planning application.
 ${roleInstruction}
-Select only labels strongly implied by the ordinary meaning of the name. Do not invent ingredients, preparation methods, temperature, diet claims, or allergens that the name does not support. Allergens are cautious suggestions for the user to review, not a safety guarantee. Return only the requested structured JSON.`
+Always commit to your single best reasonable guess for every relevant label, even if the name is unfamiliar, vague, or ambiguous -- a human reviews every suggestion afterward and can correct it, so an imperfect guess is far more useful than no guess at all. Only choose from the exact provided label lists. Do not invent ingredients, preparation methods, or claims the name doesn't support, but never simply omit a label out of caution. Allergens are cautious suggestions for the user to review, not a safety guarantee. Return only the requested structured JSON.`
 
   try {
     const result = await callGeminiJson<SuggestedMetadata>(prompt, schema)
@@ -42,15 +42,14 @@ Select only labels strongly implied by the ordinary meaning of the name. Do not 
       : []
     if (kind === 'signature') {
       const role = tags.find(isDishRole) ?? 'flex'
-      tags = withDishRole(withoutDishRoles(tags), role)
-      if (withoutDishRoles(tags).length === 0) {
-        return NextResponse.json({ error: 'No reliable descriptive tags were found. Choose them manually.' }, { status: 422 })
-      }
+      const descriptive = withoutDishRoles(tags)
+      // The prompt asks the model to always commit to a guess, but this never trusts that blindly -- if it
+      // still returns nothing usable, fall back to one safe, neutral descriptive tag so the response is
+      // never empty (submitKitchen's own validation already requires at least one descriptive tag).
+      tags = withDishRole(descriptive.length > 0 ? descriptive : ['savory'], role)
     } else {
-      tags = pantryTagsForPersistence(tags)
-      if (tags.length === 0) {
-        return NextResponse.json({ error: 'No reliable tags were found. Choose them manually.' }, { status: 422 })
-      }
+      const pantryTags = pantryTagsForPersistence(tags)
+      tags = pantryTags.length > 0 ? pantryTags : ['savory']
     }
     const allergenSet = new Set<string>(KITCHEN_ALLERGENS)
     const modelAllergens = Array.isArray(result.allergens)
