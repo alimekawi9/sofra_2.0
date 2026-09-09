@@ -154,7 +154,13 @@ function KitchenPageInner() {
   const sigSuggestionRequestRef = useRef(0)
   const [stagedSignatureDrafts, setStagedSignatureDrafts] = useState<StagedSignatureDraft[]>([])
   const sigStageIntentRef = useRef(false)
-  const suppressSigSuggestRef = useRef(false)
+  // Tracks the name last set programmatically via editStagedSignatureDraft, so the suggestion effect
+  // below can skip re-fetching for it. Compared by NAME (not a plain boolean) because setSigName can be
+  // a same-value no-op re-render (e.g. reopening a draft whose name matches whatever's already typed) --
+  // a boolean flag would never get consumed in that case (the effect's [sigName] dependency wouldn't
+  // change), leaking the suppression into a later, unrelated name change. Cleared unconditionally on the
+  // effect's next run regardless of match, so it can never stay stuck.
+  const suppressSigSuggestForNameRef = useRef<string | null>(null)
   const sigDraftContainerRef = useRef<HTMLDivElement>(null)
   const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
   const [presetRole, setPresetRole] = useState<RoleFilter>('All')
@@ -175,7 +181,8 @@ function KitchenPageInner() {
   const pantrySuggestionRequestRef = useRef(0)
   const [stagedPantryDrafts, setStagedPantryDrafts] = useState<StagedPantryDraft[]>([])
   const pantryStageIntentRef = useRef(false)
-  const suppressPantrySuggestRef = useRef(false)
+  // See suppressSigSuggestForNameRef above -- same name-comparison approach for the same reason.
+  const suppressPantrySuggestForNameRef = useRef<string | null>(null)
   const pantryDraftContainerRef = useRef<HTMLDivElement>(null)
   const [pantryDoneSaved, setPantryDoneSaved] = useState(false)
   const pantryDoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -494,11 +501,14 @@ function KitchenPageInner() {
 
   useEffect(() => {
     const name = sigName.trim()
-    if (suppressSigSuggestRef.current) {
-      suppressSigSuggestRef.current = false
-      sigSuggestionRequestRef.current += 1
-      setSigSuggesting(false)
-      return
+    if (suppressSigSuggestForNameRef.current !== null) {
+      const shouldSuppress = suppressSigSuggestForNameRef.current === name
+      suppressSigSuggestForNameRef.current = null
+      if (shouldSuppress) {
+        sigSuggestionRequestRef.current += 1
+        setSigSuggesting(false)
+        return
+      }
     }
     if (editingSignatureId || !name) {
       sigSuggestionRequestRef.current += 1
@@ -514,11 +524,14 @@ function KitchenPageInner() {
 
   useEffect(() => {
     const name = pantryName.trim()
-    if (suppressPantrySuggestRef.current) {
-      suppressPantrySuggestRef.current = false
-      pantrySuggestionRequestRef.current += 1
-      setPantrySuggesting(false)
-      return
+    if (suppressPantrySuggestForNameRef.current !== null) {
+      const shouldSuppress = suppressPantrySuggestForNameRef.current === name
+      suppressPantrySuggestForNameRef.current = null
+      if (shouldSuppress) {
+        pantrySuggestionRequestRef.current += 1
+        setPantrySuggesting(false)
+        return
+      }
     }
     if (!name) {
       pantrySuggestionRequestRef.current += 1
@@ -588,7 +601,7 @@ function KitchenPageInner() {
 
   function editStagedSignatureDraft(draft: StagedSignatureDraft) {
     setStagedSignatureDrafts((prev) => prev.filter((d) => d.localId !== draft.localId))
-    suppressSigSuggestRef.current = true
+    suppressSigSuggestForNameRef.current = draft.name
     setSigName(draft.name)
     setSigTagsList(draft.tags)
     setSigAllergensList(draft.allergens)
@@ -620,7 +633,7 @@ function KitchenPageInner() {
 
   function editStagedPantryDraft(draft: StagedPantryDraft) {
     setStagedPantryDrafts((prev) => prev.filter((d) => d.localId !== draft.localId))
-    suppressPantrySuggestRef.current = true
+    suppressPantrySuggestForNameRef.current = draft.name
     setPantryName(draft.name)
     setPantryTagsList(draft.tags)
     setPantryAllergensList(draft.allergens)

@@ -582,3 +582,42 @@ test('multiple staged dish and ingredient drafts submit together in one batch', 
     expect(writes.some((w) => w.table === 'pantry_items' && w.kind === 'insert' && w.payload.name === 'Fresh Basil')).toBe(true)
   })
 })
+
+test('reopening a staged draft whose name matches the already-typed input does not suppress a later, unrelated suggestion', async () => {
+  // Regression: setSigName(draft.name) inside editStagedSignatureDraft is a same-value no-op when the
+  // input already holds that exact name (e.g. the chef retyped it before clicking Edit). A boolean
+  // "suppress the next suggestion" flag would then never get consumed -- React doesn't re-run an effect
+  // whose dependency didn't actually change value -- and would silently swallow the NEXT, genuinely
+  // different dish's suggestion instead.
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+  const input = screen.getByPlaceholderText('Add a signature dish…')
+
+  fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+  fireEvent.blur(input, { relatedTarget: document.body })
+  await screen.findByRole('button', { name: 'Grilled Salmon' })
+
+  // Retype the exact same name the just-staged chip has, so the input already equals draft.name when
+  // Edit is clicked below.
+  fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  const fetchCallsBeforeEdit = (global.fetch as jest.Mock).mock.calls.length
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Grilled Salmon' }))
+  // setSigName('Grilled Salmon') is a no-op here since the input already holds that value.
+  expect(input).toHaveValue('Grilled Salmon')
+
+  // Now type a genuinely different name -- this must still trigger a real suggestion fetch.
+  fireEvent.change(input, { target: { value: 'Beef Stew' } })
+  await waitFor(() => {
+    const calls = (global.fetch as jest.Mock).mock.calls.slice(fetchCallsBeforeEdit)
+    expect(calls.some(([, init]) => JSON.parse(String(init?.body ?? '{}')).name === 'Beef Stew')).toBe(true)
+  })
+})
