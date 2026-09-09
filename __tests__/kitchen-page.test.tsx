@@ -509,3 +509,76 @@ test('a custom signature dish only shows under its matching Role tab', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Dessert' }))
   expect(screen.getByRole('button', { name: 'Rosewater Panna Cotta' })).toBeInTheDocument()
 })
+
+test('a valid custom dish stages as a name-only chip when the draft area loses focus', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+
+  fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Grilled Salmon' } })
+  // Scoped to the Role tag-group container: 'Main' is also the label of the persistent Role filter tab.
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+  fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Grilled Salmon' })).toBeInTheDocument())
+  expect(screen.getByPlaceholderText('Add a signature dish…')).toHaveValue('')
+  expect(writes.some((w) => w.table === 'signatures' && w.kind === 'insert')).toBe(false)
+})
+
+test('blurring before the suggestion resolves still stages once it\'s ready', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+
+  const input = screen.getByPlaceholderText('Add a signature dish…')
+  fireEvent.change(input, { target: { value: 'Grilled Salmon' } })
+  fireEvent.blur(input, { relatedTarget: document.body })
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Grilled Salmon' })).toBeInTheDocument())
+})
+
+test('editing a staged draft removes it from the list and repopulates the form', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+
+  fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Grilled Salmon' } })
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+  fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
+  await screen.findByRole('button', { name: 'Grilled Salmon' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Grilled Salmon' }))
+  expect(screen.queryByRole('button', { name: 'Grilled Salmon' })).not.toBeInTheDocument()
+  expect(screen.getByPlaceholderText('Add a signature dish…')).toHaveValue('Grilled Salmon')
+  const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+  expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('multiple staged dish and ingredient drafts submit together in one batch', async () => {
+  render(<KitchenPage />)
+  await screen.findByRole('button', { name: 'Roast Chicken' })
+
+  fireEvent.change(screen.getByPlaceholderText('Add a signature dish…'), { target: { value: 'Grilled Salmon' } })
+  await waitFor(() => {
+    const roleGroupContainer = screen.getByText('Role').parentElement as HTMLElement
+    expect(within(roleGroupContainer).getByRole('button', { name: 'Main' })).toHaveAttribute('aria-pressed', 'true')
+  })
+  fireEvent.blur(screen.getByPlaceholderText('Add a signature dish…'), { relatedTarget: document.body })
+  await screen.findByRole('button', { name: 'Grilled Salmon' })
+
+  activatePantry()
+  fireEvent.change(screen.getByPlaceholderText('Add an ingredient…'), { target: { value: 'Fresh Basil' } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Savory' })).toBeInTheDocument())
+  fireEvent.blur(screen.getByPlaceholderText('Add an ingredient…'), { relatedTarget: document.body })
+  await screen.findByRole('button', { name: 'Fresh Basil' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'UPDATE' }))
+
+  await waitFor(() => {
+    expect(writes.some((w) => w.table === 'signatures' && w.kind === 'insert' && w.payload.name === 'Grilled Salmon')).toBe(true)
+    expect(writes.some((w) => w.table === 'pantry_items' && w.kind === 'insert' && w.payload.name === 'Fresh Basil')).toBe(true)
+  })
+})

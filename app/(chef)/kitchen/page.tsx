@@ -63,6 +63,12 @@ function currentMonday(): string {
   return d.toISOString().slice(0, 10)
 }
 
+let draftIdCounter = 0
+function nextLocalDraftId(): string {
+  draftIdCounter += 1
+  return `draft-${draftIdCounter}`
+}
+
 type Signature = {
   id: string
   name: string
@@ -72,6 +78,9 @@ type Signature = {
   is_substantial: boolean | null
   preset_key: string | null
 }
+
+type StagedSignatureDraft = { localId: string; name: string; tags: string[]; allergens: string[] }
+type StagedPantryDraft = { localId: string; name: string; tags: string[]; allergens: string[] }
 
 type PantryItem = {
   id: string
@@ -143,6 +152,10 @@ function KitchenPageInner() {
   const [sigSuggesting, setSigSuggesting] = useState(false)
   const [sigSuggestionReady, setSigSuggestionReady] = useState(false)
   const sigSuggestionRequestRef = useRef(0)
+  const [stagedSignatureDrafts, setStagedSignatureDrafts] = useState<StagedSignatureDraft[]>([])
+  const sigStageIntentRef = useRef(false)
+  const suppressSigSuggestRef = useRef(false)
+  const sigDraftContainerRef = useRef<HTMLDivElement>(null)
   const [presetCuisine, setPresetCuisine] = useState<CuisineFilter>('All')
   const [presetRole, setPresetRole] = useState<RoleFilter>('All')
   const [selectedDishKeys, setSelectedDishKeys] = useState<string[]>([])
@@ -160,6 +173,10 @@ function KitchenPageInner() {
   const [pantrySuggesting, setPantrySuggesting] = useState(false)
   const [pantrySuggestionReady, setPantrySuggestionReady] = useState(false)
   const pantrySuggestionRequestRef = useRef(0)
+  const [stagedPantryDrafts, setStagedPantryDrafts] = useState<StagedPantryDraft[]>([])
+  const pantryStageIntentRef = useRef(false)
+  const suppressPantrySuggestRef = useRef(false)
+  const pantryDraftContainerRef = useRef<HTMLDivElement>(null)
   const [pantryDoneSaved, setPantryDoneSaved] = useState(false)
   const pantryDoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ingredientCategory, setIngredientCategory] = useState<IngredientCategoryFilter>('All')
@@ -403,10 +420,12 @@ function KitchenPageInner() {
     return inferIngredientCategory(item.tags) === ingredientCategory
   })
   const pantryHasAnythingSelected = selectedIngredients.length > 0
+    || stagedPantryDrafts.length > 0
     || Boolean(pantryName.trim())
     || (!nothingInPantry && pantry.length > 0)
   const signatureHasAnythingSelected = selectedDishKeys.length > 0
     || pendingRemovedSignatureIds.length > 0
+    || stagedSignatureDrafts.length > 0
     || Boolean(sigName.trim() || editingSignatureId || sigTagsList.length || sigAllergensList.length)
 
   function toggleSignatureRemoval(signature: Signature) {
@@ -475,6 +494,12 @@ function KitchenPageInner() {
 
   useEffect(() => {
     const name = sigName.trim()
+    if (suppressSigSuggestRef.current) {
+      suppressSigSuggestRef.current = false
+      sigSuggestionRequestRef.current += 1
+      setSigSuggesting(false)
+      return
+    }
     if (editingSignatureId || !name) {
       sigSuggestionRequestRef.current += 1
       setSigSuggesting(false)
@@ -489,6 +514,12 @@ function KitchenPageInner() {
 
   useEffect(() => {
     const name = pantryName.trim()
+    if (suppressPantrySuggestRef.current) {
+      suppressPantrySuggestRef.current = false
+      pantrySuggestionRequestRef.current += 1
+      setPantrySuggesting(false)
+      return
+    }
     if (!name) {
       pantrySuggestionRequestRef.current += 1
       setPantrySuggesting(false)
@@ -500,6 +531,20 @@ function KitchenPageInner() {
     const timer = setTimeout(() => void suggestKitchenMetadata('pantry', name, requestId), 550)
     return () => clearTimeout(timer)
   }, [pantryName]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (sigSuggestionReady && sigStageIntentRef.current) {
+      sigStageIntentRef.current = false
+      tryStageSignatureDraft()
+    }
+  }, [sigSuggestionReady]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (pantrySuggestionReady && pantryStageIntentRef.current) {
+      pantryStageIntentRef.current = false
+      tryStagePantryDraft()
+    }
+  }, [pantrySuggestionReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function togglePantryRemoval(item: PantryItem) {
     setPendingRemovedPantryIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])
@@ -525,6 +570,71 @@ function KitchenPageInner() {
     setPantryDoneSaved(true)
     if (pantryDoneTimeoutRef.current) clearTimeout(pantryDoneTimeoutRef.current)
     pantryDoneTimeoutRef.current = setTimeout(() => setPantryDoneSaved(false), 2000)
+  }
+
+  function tryStageSignatureDraft() {
+    const name = sigName.trim()
+    if (!name) return
+    if (sigSuggesting && !sigSuggestionReady) {
+      sigStageIntentRef.current = true
+      return
+    }
+    const hasRole = sigTagsList.some(isDishRole)
+    const hasDescriptive = withoutDishRoles(sigTagsList).length > 0
+    if (!hasRole || !hasDescriptive) return
+    setStagedSignatureDrafts((prev) => [...prev, { localId: nextLocalDraftId(), name, tags: [...sigTagsList], allergens: [...sigAllergensList] }])
+    cancelSignatureEdit()
+  }
+
+  function editStagedSignatureDraft(draft: StagedSignatureDraft) {
+    setStagedSignatureDrafts((prev) => prev.filter((d) => d.localId !== draft.localId))
+    suppressSigSuggestRef.current = true
+    setSigName(draft.name)
+    setSigTagsList(draft.tags)
+    setSigAllergensList(draft.allergens)
+    setSigTagsRevealed(true)
+    setSigSuggestionReady(true)
+    sigDraftContainerRef.current?.querySelector('input')?.focus()
+  }
+
+  function handleSignatureDraftBlur() {
+    setTimeout(() => {
+      const active = document.activeElement
+      if (!sigDraftContainerRef.current) return
+      if (!active || !sigDraftContainerRef.current.contains(active)) tryStageSignatureDraft()
+    }, 0)
+  }
+
+  function tryStagePantryDraft() {
+    const name = pantryName.trim()
+    if (!name) return
+    if (pantrySuggesting && !pantrySuggestionReady) {
+      pantryStageIntentRef.current = true
+      return
+    }
+    const tags = pantryTagsForPersistence(pantryTagsList)
+    if (tags.length === 0) return
+    setStagedPantryDrafts((prev) => [...prev, { localId: nextLocalDraftId(), name, tags, allergens: [...pantryAllergensList] }])
+    cancelPantryEdit()
+  }
+
+  function editStagedPantryDraft(draft: StagedPantryDraft) {
+    setStagedPantryDrafts((prev) => prev.filter((d) => d.localId !== draft.localId))
+    suppressPantrySuggestRef.current = true
+    setPantryName(draft.name)
+    setPantryTagsList(draft.tags)
+    setPantryAllergensList(draft.allergens)
+    setPantryTagsRevealed(true)
+    setPantrySuggestionReady(true)
+    pantryDraftContainerRef.current?.querySelector('input')?.focus()
+  }
+
+  function handlePantryDraftBlur() {
+    setTimeout(() => {
+      const active = document.activeElement
+      if (!pantryDraftContainerRef.current) return
+      if (!active || !pantryDraftContainerRef.current.contains(active)) tryStagePantryDraft()
+    }, 0)
   }
 
   async function submitKitchen() {
@@ -573,10 +683,12 @@ function KitchenPageInner() {
       | { kind: 'dishInsert'; key: string }
       | { kind: 'sigRemove'; id: string }
       | { kind: 'sigForm' }
+      | { kind: 'stagedSignature'; localId: string }
       | { kind: 'pantryClearAll'; id: string }
       | { kind: 'pantryRemove'; id: string }
       | { kind: 'ingredientInsert'; name: string }
       | { kind: 'pantryForm' }
+      | { kind: 'stagedPantry'; localId: string }
 
     const ops: { meta: KitchenOp; run: () => PromiseLike<{ error: unknown }> }[] = [
       ...dishTargets.map((p) => ({
@@ -592,6 +704,13 @@ function KitchenPageInner() {
         run: () => supabase.from('signatures').delete().eq('id', id).eq('chef_id', uid),
       })),
       ...(sigFormOperation ? [{ meta: { kind: 'sigForm' } as KitchenOp, run: () => sigFormOperation }] : []),
+      ...stagedSignatureDrafts.map((draft) => ({
+        meta: { kind: 'stagedSignature', localId: draft.localId } as KitchenOp,
+        run: () => supabase.from('signatures').insert({
+          chef_id: uid, name: draft.name, tags: Array.from(new Set(draft.tags)), contains_allergens: draft.allergens,
+          novelty_score: null, is_substantial: null,
+        }),
+      })),
       ...pantryClearIds.map((id) => ({
         meta: { kind: 'pantryClearAll', id } as KitchenOp,
         run: () => supabase.from('pantry_items').delete().eq('id', id).eq('chef_id', uid),
@@ -605,6 +724,12 @@ function KitchenPageInner() {
         run: () => supabase.from('pantry_items').insert({ chef_id: uid, name: selectedName, week_of: weekOf, tags: pantryTags, contains_allergens: pantryAllergens }),
       })),
       ...(pantryFormOperation ? [{ meta: { kind: 'pantryForm' } as KitchenOp, run: () => pantryFormOperation }] : []),
+      ...stagedPantryDrafts.map((draft) => ({
+        meta: { kind: 'stagedPantry', localId: draft.localId } as KitchenOp,
+        run: () => supabase.from('pantry_items').insert({
+          chef_id: uid, name: draft.name, week_of: weekOf, tags: draft.tags, contains_allergens: draft.allergens,
+        }),
+      })),
     ]
 
     const results = await Promise.allSettled(ops.map((op) => op.run()))
@@ -619,10 +744,12 @@ function KitchenPageInner() {
     const failedDishKeys = new Set(failed.filter((m) => m.kind === 'dishInsert').map((m) => (m as { key: string }).key))
     const failedSigRemoveIds = new Set(failed.filter((m) => m.kind === 'sigRemove').map((m) => (m as { id: string }).id))
     const sigFormFailed = failed.some((m) => m.kind === 'sigForm')
+    const failedStagedSignatureIds = new Set(failed.filter((m) => m.kind === 'stagedSignature').map((m) => (m as { localId: string }).localId))
     const failedPantryClearIds = new Set(failed.filter((m) => m.kind === 'pantryClearAll').map((m) => (m as { id: string }).id))
     const failedPantryRemoveIds = new Set(failed.filter((m) => m.kind === 'pantryRemove').map((m) => (m as { id: string }).id))
     const failedIngredientNames = new Set(failed.filter((m) => m.kind === 'ingredientInsert').map((m) => (m as { name: string }).name))
     const pantryFormFailed = failed.some((m) => m.kind === 'pantryForm')
+    const failedStagedPantryIds = new Set(failed.filter((m) => m.kind === 'stagedPantry').map((m) => (m as { localId: string }).localId))
 
     setSigAdding(false)
     setPantryAdding(false)
@@ -633,6 +760,7 @@ function KitchenPageInner() {
 
     setSelectedDishKeys((prev) => prev.filter((k) => failedDishKeys.has(k)))
     setPendingRemovedSignatureIds((prev) => prev.filter((id) => failedSigRemoveIds.has(id)))
+    setStagedSignatureDrafts((prev) => prev.filter((d) => failedStagedSignatureIds.has(d.localId)))
     if (!sigFormFailed) cancelSignatureEdit()
 
     if (nothingInPantry) {
@@ -643,6 +771,7 @@ function KitchenPageInner() {
       setPendingRemovedPantryIds((prev) => prev.filter((id) => failedPantryRemoveIds.has(id)))
     }
     setSelectedIngredients((prev) => prev.filter((n) => failedIngredientNames.has(n)))
+    setStagedPantryDrafts((prev) => prev.filter((d) => failedStagedPantryIds.has(d.localId)))
     if (!pantryFormFailed) cancelPantryEdit()
 
     if (failed.length > 0) {
@@ -792,6 +921,14 @@ function KitchenPageInner() {
                       {signature.name}
                     </button>
                   ))}
+                  {stagedSignatureDrafts
+                    .filter((draft) => presetRole === 'All' || draft.tags.find(isDishRole) === presetRole)
+                    .map((draft) => (
+                      <span key={draft.localId} className="sv2-staged-draft-chip">
+                        <button type="button" aria-pressed="true" style={presetChip(true)} disabled>{draft.name}</button>
+                        <button type="button" aria-label={`Edit ${draft.name}`} onClick={() => editStagedSignatureDraft(draft)} className="sv2-staged-draft-edit">✎</button>
+                      </span>
+                    ))}
                   {filteredPresets.map((p) => {
                     const key = dishPresetKey(p)
                     const saved = persistedPresetByKey.get(key)
@@ -812,6 +949,9 @@ function KitchenPageInner() {
               </div>
 
               <div
+                ref={sigDraftContainerRef}
+                onBlur={handleSignatureDraftBlur}
+                onFocus={() => { sigStageIntentRef.current = false }}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -933,6 +1073,14 @@ function KitchenPageInner() {
                   ) : (
                     <button key={item.id} type="button" aria-pressed={!pendingRemovedPantryIds.includes(item.id)} style={presetChip(!pendingRemovedPantryIds.includes(item.id))} onClick={() => togglePantryRemoval(item)}>{item.name}</button>
                   ))}
+                  {stagedPantryDrafts
+                    .filter((draft) => ingredientCategory === 'All' || inferIngredientCategory(draft.tags) === ingredientCategory)
+                    .map((draft) => (
+                      <span key={draft.localId} className="sv2-staged-draft-chip">
+                        <button type="button" aria-pressed="true" style={presetChip(true)} disabled>{draft.name}</button>
+                        <button type="button" aria-label={`Edit ${draft.name}`} onClick={() => editStagedPantryDraft(draft)} className="sv2-staged-draft-edit">✎</button>
+                      </span>
+                    ))}
                   {filteredIngredients.map((name) => {
                     const saved = pantry.find((item) => item.name.toLowerCase() === name.toLowerCase())
                     const on = (!nothingInPantry && Boolean(saved) && !pendingRemovedPantryIds.includes(saved?.id ?? '')) || selectedIngredients.includes(name)
@@ -957,6 +1105,11 @@ function KitchenPageInner() {
                 )}
               </div>
 
+              <div
+                ref={pantryDraftContainerRef}
+                onBlur={handlePantryDraftBlur}
+                onFocus={() => { pantryStageIntentRef.current = false }}
+              >
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                 <input
                   className="field sm"
@@ -1015,6 +1168,7 @@ function KitchenPageInner() {
               {pantryAddError && (
                 <p style={{ color: C.rose, fontSize: 13, marginTop: 8 }}>{pantryAddError}</p>
               )}
+              </div>
             </motion.section>
               </div>
             </div>
