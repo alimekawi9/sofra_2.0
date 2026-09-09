@@ -567,3 +567,36 @@
 - `HostCreateForm` gained one new optional prop, `shellLayoutId`, used only by `/host/new` to make its shell element a Framer Motion shared-layout target; `/host/[id]/edit` never passes it and is unaffected. Both the plate's `layoutId` and `HostCreateForm`'s `shellLayoutId` derive from one shared exported constant, `HOST_ENTRY_SHELL_LAYOUT_ID` (in `HostEntryPlate.tsx`), rather than duplicated string literals.
 - A `prefers-reduced-motion` user gets an instant transition instead of the morph, via `MotionConfig reducedMotion="user"` wrapping both the plate and wizard branches in `/host/new`.
 - **Known limitation:** the actual animation (shared-element morph proportions, timing, and visual appearance in a real browser) has not been visually verified in this environment — there is no Playwright/chromium-cli tooling available here. A structural check (dev server + curl) confirmed the route serves successfully and the plate's expected markup is present, but the transition itself needs a real browser check before considering this fully done.
+
+# Kitchen scroll transition and unified submit (2026-09-06)
+
+- The Kitchen page's Signatures and Pantry sections now share one sticky scroll frame: scrolling from one
+  into the other plays a Framer-Motion-driven crossfade (position/size held in place, opacity swaps) instead
+  of the two sections just being stacked one after another. The currently-invisible section is also made
+  non-interactive (`pointer-events: none`), hidden from assistive technology (`aria-hidden`), and unreachable
+  by keyboard (native `inert`, set imperatively via refs since it isn't yet typed on JSX by this project's
+  `@types/react` version) — so it can't silently intercept clicks, get announced, or be tabbed into while
+  invisible.
+- One shared submit button, positioned after the Pantry section, now saves everything from both sections in
+  a single action — new/removed signature selections, new/removed pantry selections, any newly-typed custom
+  dish or ingredient, and the existing kitchen-completion/invite-publish step. The two separate per-section
+  submit buttons are gone. The submit batch is tagged per-operation so a partial failure (e.g. the pantry
+  side commits but a signature op fails) refreshes from the database and only leaves the genuinely-failed
+  operations pending for retry, instead of risking duplicate inserts if the whole batch were blindly
+  resubmitted.
+- Removing a saved pantry ingredient is now staged, matching how signature dish removal already worked —
+  clicking a saved chip toggles it off visually; nothing is deleted from the database until the shared
+  submit button is pressed. The submit button's empty-state label ("I LITERALLY HAVE NOTHING") reflects
+  pantry state as before.
+- The "Edit a saved pantry item" dropdown is removed. A saved ingredient can still be removed (by clicking
+  its chip), but its tags/allergens can no longer be reopened and changed after the fact. Signature dish
+  editing is unaffected.
+- **Known limitation:** the actual scroll animation (crossfade timing, exact scroll distance) has not been
+  visually verified in this environment — there is no Playwright/chromium-cli tooling available here. Unlike
+  the host-entry-plate structural check, a dev-server-plus-curl check of `/kitchen` could not confirm the
+  expected markup: this route renders `{loading && <p>Loading…</p>}` until a client-side Supabase fetch
+  resolves, so the server-rendered HTML is only that loading shell regardless of auth state, and none of
+  `sv2-kitchen-scroll-track`, `sv2-kitchen-signatures`, `sv2-kitchen-pantry`, or the single `class="add"`
+  submit button appear in the raw response. The unified test suite (including `__tests__/kitchen-page.test.tsx`)
+  is the actual coverage for this markup; the transition itself still needs a real browser check before
+  considering this fully done.
