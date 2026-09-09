@@ -703,3 +703,29 @@
 - The "Kitchen set up ✓" label that previously replaced those actions once the kitchen was complete has
   been removed entirely, everywhere (including the Kitchen page) — nothing renders in that slot once
   complete. The now-unused `.sv2-chef-kitchen-complete` CSS rule was removed with it.
+
+# Swap's near-empty-inventory fallback (2026-09-09)
+
+- `draftCourse` (the deterministic Table/Menu Swap path, `lib/menu.ts`) only ever draws from stored
+  signature dishes. Once a chef has too few signatures left for a slot after excluding what's already
+  used, it either returns `origin: 'empty'` ("no options") or, with only 1-2 signatures total, keeps
+  re-offering the same one or two dishes on every press. Guest protein/flavor/dietary preferences are
+  still enough signal to compose a genuinely new dish in that dead end, so this is now the one place in
+  Swap that calls an LLM: `POST /api/menu/swap-ai` builds a single-dish gap brief (reusing
+  `buildRecommendationPlan`/`buildMenuCreationBrief`/`buildCompactGapPrompt` with `signatures: []`, so it
+  can never re-suggest a signature the deterministic path already ruled out) and asks Gemini for exactly
+  one dish. It only fires once the client's `draftCourse` call already returned `'empty'` — never on an
+  ordinary swap — keeping usage rare and each call cheap (one dish, not a whole menu).
+- The proposed dish is deterministically re-checked with `dinerDishFit` against every actual guest's
+  stated allergies/diet before it is ever persisted; a conflict is rejected outright rather than shown.
+  It persists as `dish_origin: 'pantry-composed'` with `source: null`, matching the same shape the main
+  generation pipeline already uses for LLM-composed dishes with no single backing pantry item — no schema
+  or `deriveCourse` changes were needed.
+- `handleSwap` (`app/(chef)/events/[id]/menu/page.tsx`) was also fixed to exclude every dish already used
+  anywhere on the current menu, not just the slot being swapped — previously only the current slot's own
+  dish was excluded, so the same signature could end up recommended for two different slots (e.g. both a
+  main and a side) at once. The widened exclude set also feeds the new fallback's avoid-list, so the LLM
+  is told the same set of names to avoid repeating.
+- The Swap button shows "Finding a dish…" and disables itself only for the specific course being
+  AI-swapped while the request is in flight; a network/Gemini/safety-validation failure falls back to the
+  existing "no options" toast rather than erroring visibly.
