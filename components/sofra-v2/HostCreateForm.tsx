@@ -273,7 +273,7 @@ export function HostCreateForm({
                 <div className="sv2-dress-code-photos-panel">
                   <p className="sv2-dress-code-photos-hint">Optional example photos guests can see, showing what you mean.</p>
                   {(dressCodePhotos.length > 0 || pendingDressCodePhotoFiles.length > 0) && (
-                    <div className="sv2-dress-code-photos">
+                    <div className="sv2-dress-code-photos" data-count={Math.min(dressCodePhotoCount, 6)}>
                       {dressCodePhotos.map((photo) => (
                         <div key={photo.id} className="sv2-dress-code-photo-tile">
                           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -327,7 +327,7 @@ export function EventPaper({
           <dd>
             {dressCode}
             {dressCodePhotos.length > 0 && (
-              <div className="sv2-dress-code-photos" aria-label="Dress code reference photos">
+              <div className="sv2-dress-code-photos" data-count={Math.min(dressCodePhotos.length, 6)} aria-label="Dress code reference photos">
                 {dressCodePhotos.map((photo) => (
                   <div key={photo.id} className="sv2-dress-code-photo-tile">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

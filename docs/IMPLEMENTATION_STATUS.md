@@ -887,3 +887,18 @@
   interrupting Save/Publish — consistent with the rest of this feature's error-handling stance, and because
   both pages navigate away immediately on a successful save regardless, so a post-navigation error message
   would never actually be seen.
+
+# Calendar button sizing and dress code photo grid (2026-09-10)
+
+- `.sv2-calendar-action` now matches `.sv2-map-links a`'s size exactly (`min-height:32px`, `padding:7px 8px`,
+  9px font, down from a taller/larger ad hoc size) for visual consistency between the two button rows in the
+  same facts list. `.sv2-calendar-actions`' margin-top dropped from 14px to 10px (matching the map links'
+  own top margin, "lifting" the buttons closer to Time) and gained a matching 10px margin-bottom so there's
+  breathing room before the Location row's divider line below it. The buttons already wrap to a second line
+  on narrow layouts (`flex-wrap:wrap`); `min-width` was reduced from a flat 150px to 130px so that still
+  happens readily without being needlessly wide.
+- Dress code reference photos (both the event-detail preview in `EventPaper.tsx` and the create/edit form's
+  preview in `HostCreateForm.tsx`) now use the exact same grid/tile styling as the Shared Album's preview
+  grid — a responsive `repeat(3,1fr)` grid with `aspect-ratio:1` tiles (single-photo and two-photo layouts
+  get the same `data-count`-driven overrides the album grid already has) — replacing the earlier small fixed
+  56×56px flex-wrapped tiles, per feedback that they should look like the Shared Album's own preview.
