@@ -19,8 +19,12 @@ export default function NavBar(){
         const isHost=item.label==='HOST'
         const className=[isHost?'sf-production-nav-host':'',active?'sf-production-nav-current':''].filter(Boolean).join(' ')||undefined
         return <Link key={item.href} href={item.href} className={className} aria-current={active?'page':undefined}>
-          {isHost && <Image src="/sofra-table-mark.png" alt="" width={26} height={19} aria-hidden="true" className="sf-production-nav-host-mark" />}
-          {item.label}
+          {isHost ? (
+            <span className="sf-production-nav-host-mark-wrap">
+              <Image src="/sofra-table-mark.png" alt="" width={68} height={49} aria-hidden="true" className="sf-production-nav-host-mark" />
+              <span className="sf-production-nav-host-label">{item.label}</span>
+            </span>
+          ) : item.label}
         </Link>
       })}
     </div>

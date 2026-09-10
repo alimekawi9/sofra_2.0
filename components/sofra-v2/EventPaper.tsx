@@ -420,8 +420,6 @@ export function EventPaper({
                   <button type="button" onClick={() => onEditEvent()}>Edit Event</button>
                 </div>
 
-                {!isPast && calendarButtons}
-
                 {(pendingUpdateNotice || updateNoticeError) && (
                   <aside className="sv2-event-update-notice" aria-label="Event update reminder">
                     <div>
@@ -475,7 +473,7 @@ export function EventPaper({
                     </span>
                     <span className="sv2-disclosure-line" aria-hidden="true" />
                   </button>
-                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFacts}</div>}
+                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFacts}{!isPast && calendarButtons}</div>}
                 </section>
 
                 {prepItems.length > 0 && onSavePrepItem && onSubmitFeedback && (

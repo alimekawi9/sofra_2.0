@@ -783,20 +783,24 @@
   (not just the choice buttons, which an earlier test already covered) never appears when `kitchen_type` is
   already set; confirmed it fails pre-fix, passes post-fix.
 - The bottom navigation's `HOST` tab now uses the existing burgundy table-mark logo
-  (`public/sofra-table-mark.png`, already used in `WelcomeCard` and the empty-menu illustration) as a small
-  badge with a fixed burgundy background (`--sf-production-burgundy-deep`, theme-invariant) and the app's
-  "on burgundy" cream/beige text color (`--sf-intel-on-burgundy`, also theme-invariant), replacing the
-  plain text-only treatment shared with `SOFRAS`/`PROFILE`.
+  (`public/sofra-table-mark.png`, already used in `WelcomeCard` and the empty-menu illustration) as the
+  button itself — no separate background block. The word `HOST` is overlaid centered on top of the logo in
+  the app's "on burgundy" cream/beige text color (`--sf-intel-on-burgundy`, theme-invariant, since the mark
+  image itself is a fixed burgundy silhouette regardless of light/dark mode), replacing the plain text-only
+  treatment shared with `SOFRAS`/`PROFILE`. (An earlier version of this put the logo inside a separate
+  rounded burgundy badge as a small icon beside the text; corrected same-day per feedback that the logo
+  itself should be the button surface.)
 
 # Add to Calendar (2026-09-10)
 
 - Both the guest event-detail view (reached immediately after RSVP submission — Sofra has no separate RSVP
   confirmation screen, guests land back on the event page) and the host event-detail view (reached right
   after finishing the create-Sofra wizard) now offer `Google Calendar` and `Apple Calendar` buttons, since
-  both flows converge on the same shared `EventPaper` component. The host's pair sits directly under the
-  `Set the Sofra` / `Edit Event` actions, always visible; the guest's sits directly under the event facts
-  list, in the same place for both roles conceptually even though the two are separate (pre-existing,
-  duplicated) `<dl className="sv2-event-facts">` blocks in `EventPaper.tsx`.
+  both flows converge on the same shared `EventPaper` component. For the host, the buttons are the last
+  item inside the existing collapsible `Date · Time` disclosure (`sv2-host-details-disclosure`), after the
+  rest of the event facts — collapsed by default like the rest of that section, not a separately-visible
+  action row. Guests have no such collapsible; their pair sits directly under their own (separate,
+  pre-existing, duplicated) `<dl className="sv2-event-facts">` block, i.e. still last in that facts list.
 - New `lib/calendar.ts` (`googleCalendarUrl`, `buildIcsFile`, `icsDataUrl`) builds both a Google Calendar
   compose-URL and a minimal RFC 5545 `.ics` file client-side — no backend route, no dependency. "Add to
   Apple Calendar" is the standard `.ics`-file pattern (Apple Calendar has no separate web API); the button
