@@ -67,13 +67,21 @@ it('shows kitchen-delegation actions to the original host', async () => {
   expect(screen.getByRole('button', { name: 'SEND VIA WHATSAPP' })).toBeInTheDocument()
 })
 
-it('shows nothing in place of the delegation buttons once the kitchen is complete', async () => {
+it('replaces the delegation buttons with a single Edit Kitchen action once the kitchen is complete', async () => {
   localStorage.setItem('sofra_user_id', HOST_UID)
   makeSupabase({ kitchenStatus: 'complete' })
   render(<ChefTabs eventId="event-1" active="table" title="Dinner" />)
-  await screen.findByRole('button', { name: 'The Table' })
+  expect(await screen.findByRole('button', { name: 'Edit kitchen' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Fill kitchen myself' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Send To A Chef' })).not.toBeInTheDocument()
+})
+
+it('hides Edit Kitchen too while already on the Kitchen page itself', async () => {
+  localStorage.setItem('sofra_user_id', HOST_UID)
+  makeSupabase({ kitchenStatus: 'complete' })
+  render(<ChefTabs eventId="event-1" active="kitchen" title="Dinner" />)
+  await screen.findByRole('button', { name: 'Kitchen' })
+  expect(screen.queryByRole('button', { name: 'Edit kitchen' })).not.toBeInTheDocument()
 })
 
 it('hides the delegation buttons while already on the Kitchen page itself', async () => {

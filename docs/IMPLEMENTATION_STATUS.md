@@ -703,6 +703,8 @@
 - The "Kitchen set up ✓" label that previously replaced those actions once the kitchen was complete has
   been removed entirely, everywhere (including the Kitchen page) — nothing renders in that slot once
   complete. The now-unused `.sv2-chef-kitchen-complete` CSS rule was removed with it.
+- **Superseded the next day** — see "Edit Kitchen action" below: that slot no longer renders nothing once
+  complete; it shows a single `Edit Kitchen` action in the same place and style.
 
 # Swap's near-empty-inventory fallback (2026-09-09)
 
@@ -757,3 +759,14 @@
   building one from scratch was judged out of scope for this pass. Typecheck and the full existing suite
   (929 passed, same 19 pre-existing unrelated failures) both pass with no regressions; the actual click-path
   has not been visually verified in a real browser in this environment.
+
+# Edit Kitchen action (2026-09-10)
+
+- The header slot beside Swap/Lock that used to show `Fill Kitchen Myself` / `Send To A Chef` (and
+  briefly, then not at all, showed a completion label — see the two entries above) now shows a single
+  `Edit Kitchen` action, same place and same `sv2-chef-kitchen-action` style as before, once
+  `kitchen_status` is `'complete'`. It still routes through the existing `fillKitchenMyself` handler
+  (`/events/[id]/kitchen-setup?from_page=...`), which already loads and edits the chef's existing
+  signatures/pantry regardless of completion state — no new routing logic was needed. Still hidden while
+  already on the Kitchen page itself, and still gated to the host/an accepted co-host
+  (`canDelegateKitchen`), matching every other rule this slot already followed.
