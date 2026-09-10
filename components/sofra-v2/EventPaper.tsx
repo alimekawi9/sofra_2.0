@@ -20,6 +20,7 @@ import type { EventPrepItem, EventPrepKey } from '@/lib/event-prep'
 import { EventPrepChecklist } from './EventPrepChecklist'
 import { SofraFeedbackPrompt } from './SofraFeedbackPrompt'
 import { googleCalendarUrl, icsDataUrl } from '@/lib/calendar'
+import { MAX_DRESS_CODE_PHOTOS } from '@/lib/event-dress-code-photos'
 import { isEventDateUndecided } from '@/lib/event-date'
 
 export interface EventPaperGuest {
@@ -46,6 +47,11 @@ export interface EventPaperProps {
   venue: string
   address: string | null
   dressCode: string | null
+  dressCodePhotos?: Array<{ id: string; url: string }>
+  dressCodePhotoError?: string
+  uploadingDressCodePhoto?: boolean
+  onUploadDressCodePhotos?: (files: File[]) => void
+  onDeleteDressCodePhoto?: (photoId: string) => void
   customDetails: CustomDetailSection[]
   coverUrl: string | null
   unlocked: boolean
@@ -164,6 +170,11 @@ export function EventPaper({
   venue,
   address,
   dressCode,
+  dressCodePhotos = [],
+  dressCodePhotoError = '',
+  uploadingDressCodePhoto = false,
+  onUploadDressCodePhotos,
+  onDeleteDressCodePhoto,
   customDetails,
   coverUrl,
   unlocked,
@@ -260,7 +271,10 @@ export function EventPaper({
       return { kind, text: 'New photos were uploaded to the Shared Album.' }
     })
 
-  const eventFacts = (
+  // Split in two so calendar export can sit right after Date/Time/Location --
+  // the section it's actually about -- rather than at the bottom of the
+  // whole facts list, after unrelated things like Dress code.
+  const eventFactsDateTime = (
     <dl className="sv2-event-facts">
       <div><dt>Date</dt><dd>{dateLabel}</dd></div>
       <div><dt>Time</dt><dd>{timeLabel}</dd></div>
@@ -277,7 +291,61 @@ export function EventPaper({
           )}
         </dd>
       </div>
-      {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}
+    </dl>
+  )
+
+  // The host always sees the Dress code row, even with no text/photos yet,
+  // since it's the only place to add reference photos; a guest only sees it
+  // once there's actually something to show.
+  const showDressCodeRow = isHost || Boolean(dressCode) || dressCodePhotos.length > 0
+  const dressCodePhotoUpload = isHost && onUploadDressCodePhotos && (
+    <label className={`sv2-dress-code-photo-add${uploadingDressCodePhoto ? ' is-disabled' : ''}`}>
+      {uploadingDressCodePhoto ? 'Uploading…' : dressCodePhotos.length > 0 ? '+ Add more photos' : '+ Add example photos'}
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        disabled={uploadingDressCodePhoto || dressCodePhotos.length >= MAX_DRESS_CODE_PHOTOS}
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? [])
+          event.target.value = ''
+          if (files.length) onUploadDressCodePhotos(files)
+        }}
+      />
+    </label>
+  )
+  const eventFactsExtra = (showDressCodeRow || customDetails.length > 0 || !isHost) && (
+    <dl className="sv2-event-facts">
+      {showDressCodeRow && (
+        <div>
+          <dt>Dress code</dt>
+          <dd>
+            {dressCode}
+            {dressCodePhotos.length > 0 && (
+              <div className="sv2-dress-code-photos" aria-label="Dress code reference photos">
+                {dressCodePhotos.map((photo) => (
+                  <div key={photo.id} className="sv2-dress-code-photo-tile">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo.url} alt="" />
+                    {isHost && onDeleteDressCodePhoto && (
+                      <button
+                        type="button"
+                        className="sv2-dress-code-photo-remove"
+                        aria-label="Remove this reference photo"
+                        onClick={() => onDeleteDressCodePhoto(photo.id)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {dressCodePhotoUpload}
+            {dressCodePhotoError && <p role="alert" className="sv2-dress-code-photo-error">{dressCodePhotoError}</p>}
+          </dd>
+        </div>
+      )}
       {customDetails.map((section) => (
         <div key={section.id}><dt>{section.label}</dt><dd>{section.body}</dd></div>
       ))}
@@ -473,7 +541,7 @@ export function EventPaper({
                     </span>
                     <span className="sv2-disclosure-line" aria-hidden="true" />
                   </button>
-                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFacts}{!isPast && calendarButtons}</div>}
+                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFactsDateTime}{!isPast && calendarButtons}{eventFactsExtra}</div>}
                 </section>
 
                 {prepItems.length > 0 && onSavePrepItem && onSubmitFeedback && (
@@ -594,42 +662,9 @@ export function EventPaper({
 
             {tagline && <p className="sv2-event-note">{tagline}</p>}
 
-            <dl className="sv2-event-facts">
-              <div><dt>Date</dt><dd>{dateLabel}</dd></div>
-              <div><dt>Time</dt><dd>{timeLabel}</dd></div>
-              <div>
-                <dt>Location</dt>
-                <dd>
-                  {venue}
-                  {unlocked && address ? ` with ${address}` : !unlocked ? ' (RSVP to see the address)' : ''}
-                  {unlocked && address && (
-                    <span className="sv2-map-links" aria-label="Open location in maps">
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >Google Maps</a>
-                      <a
-                        href={`https://maps.apple.com/?q=${encodeURIComponent(address)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >Apple Maps</a>
-                    </span>
-                  )}
-                </dd>
-              </div>
-              {dressCode && <div><dt>Dress code</dt><dd>{dressCode}</dd></div>}
-              {customDetails.map((section) => (
-                <div key={section.id}><dt>{section.label}</dt><dd>{section.body}</dd></div>
-              ))}
-              {!isHost && (
-                <div>
-                  <dt>Your RSVP</dt>
-                  <dd>{isPast ? 'Attended' : myRsvpStatus ? RSVP_LABELS[myRsvpStatus] : 'Not yet responded'}</dd>
-                </div>
-              )}
-            </dl>
-            {calendarButtons}
+            {eventFactsDateTime}
+            {!isPast && calendarButtons}
+            {eventFactsExtra}
 
             {unlocked ? (
               <section className="sv2-guest-overview" aria-labelledby="sv2-guest-heading">

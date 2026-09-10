@@ -796,11 +796,15 @@
 - Both the guest event-detail view (reached immediately after RSVP submission — Sofra has no separate RSVP
   confirmation screen, guests land back on the event page) and the host event-detail view (reached right
   after finishing the create-Sofra wizard) now offer `Google Calendar` and `Apple Calendar` buttons, since
-  both flows converge on the same shared `EventPaper` component. For the host, the buttons are the last
-  item inside the existing collapsible `Date · Time` disclosure (`sv2-host-details-disclosure`), after the
-  rest of the event facts — collapsed by default like the rest of that section, not a separately-visible
-  action row. Guests have no such collapsible; their pair sits directly under their own (separate,
-  pre-existing, duplicated) `<dl className="sv2-event-facts">` block, i.e. still last in that facts list.
+  both flows converge on the same shared `EventPaper` component.
+- **Placement, corrected same-day per feedback:** the event facts `<dl>` (previously one block covering
+  Date/Time/Location *and* Dress code/custom details/Your RSVP together) is now split into
+  `eventFactsDateTime` and `eventFactsExtra`, with the calendar buttons rendered between them — i.e.
+  directly after Date/Time/Location, before Dress code, not after it. For the host that's still inside the
+  collapsible `Date · Time` disclosure (`sv2-host-details-disclosure`), just positioned correctly within
+  it; for the guest (no such collapsible) it's the same split, just always visible. The guest's previously
+  separate, duplicated inline `<dl>` markup was replaced with the same two shared consts, removing that
+  duplication as a side effect.
 - New `lib/calendar.ts` (`googleCalendarUrl`, `buildIcsFile`, `icsDataUrl`) builds both a Google Calendar
   compose-URL and a minimal RFC 5545 `.ics` file client-side — no backend route, no dependency. "Add to
   Apple Calendar" is the standard `.ics`-file pattern (Apple Calendar has no separate web API); the button
@@ -828,3 +832,32 @@
 - New `__tests__/calendar.test.ts` covers both formats: correct floating timestamps, optional
   description/location inclusion, custom duration, midnight rollover, ICS special-character escaping, and
   that the `.ics` data URI decodes back to the same calendar text. 9 tests, all passing.
+
+# Dress code reference photos (2026-09-10)
+
+- The host can now upload up to `MAX_DRESS_CODE_PHOTOS` (6) reference images illustrating the dress code
+  (e.g. a "cocktail attire" example) directly in the Dress code row of `EventPaper.tsx`, next to the
+  existing free-text field — not a separate edit-event-form flow. Small thumbnail previews are visible to
+  everyone (host and guest alike, unconditionally — dress code isn't gated behind RSVP unlock, matching the
+  existing text field), but only the host can add or remove one, each with an inline `×` on its thumbnail.
+  The host sees this row even with no dress code text or photos yet, since it's the only place to add them;
+  a guest only sees the row once there's actually something to show.
+- New `event_dress_code_photos` table (migration `20260910000001_add_event_dress_code_photos.sql`, applied
+  to the linked Supabase database) — deliberately separate from `event_photos` (the guest-contributed
+  Shared Album): no uploader roster, no captions/comments, host-only writes, matching this codebase's
+  existing convention of a child table (not a URL array column) for any multi-image gallery. Reuses the
+  existing `event-photos` Storage bucket under a `dress-code/<eventId>/...` path prefix rather than
+  provisioning a new bucket. RLS disabled, following the same explicitly-accepted anonymous-access MVP
+  posture already used for `event_photos` and most other application tables in this codebase.
+- New `lib/event-dress-code-photos.ts` (`fetchDressCodePhotos`, `uploadDressCodePhotos`,
+  `deleteDressCodePhoto`) mirrors `lib/shared-album.ts`'s upload-then-insert-with-rollback-on-failure
+  pattern and reuses its exported `runBatchWithConcurrency` helper rather than duplicating it. 8 new tests
+  in `__tests__/event-dress-code-photos.test.ts`.
+- A failed background fetch of existing dress-code photos on page load is deliberately silent (console-only,
+  no user-visible alert) — these are a minor illustrative extra, not worth an error banner on every guest's
+  page load. `dressCodePhotoError` is reserved for host-initiated upload/delete failures, where the host
+  took an action and should hear back about it. (A first version surfaced the fetch failure as an alert too,
+  which collided with the Shared Album's own `role="alert"` upload-limit message in existing tests whose
+  Supabase mocks predate this table — `getByRole('alert')` then matched two elements. Caught by the full
+  suite comparison before committing; fixed by making the background fetch failure silent, which is also
+  simply the better product behavior here, not just a test workaround.)

@@ -7,6 +7,7 @@ import { EventPaper, type EventPaperGuest } from '@/components/sofra-v2/EventPap
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
 import { fetchAlbumPhotos, uploadPhotoBatch, type AlbumPhoto } from '@/lib/shared-album'
+import { fetchDressCodePhotos, uploadDressCodePhotos, deleteDressCodePhoto, MAX_DRESS_CODE_PHOTOS, type DressCodePhoto } from '@/lib/event-dress-code-photos'
 import { forgetPendingInvite, rememberPendingInvite } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
 import { formatEventDate, formatEventTime, isEventDateUndecided } from '@/lib/event-date'
@@ -95,6 +96,9 @@ export default function EventDetailClient({ params }: { params: { id: string } }
   const [photos, setPhotos] = useState<AlbumPhoto[]>([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState('')
+  const [dressCodePhotos, setDressCodePhotos] = useState<DressCodePhoto[]>([])
+  const [uploadingDressCodePhoto, setUploadingDressCodePhoto] = useState(false)
+  const [dressCodePhotoError, setDressCodePhotoError] = useState('')
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null)
   const [removeGuestError, setRemoveGuestError] = useState('')
@@ -128,6 +132,21 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     setPhotos(loaded)
     setPhotoError('')
     return true
+  }
+
+  // A failed background fetch here just means "show no photos" (same as
+  // genuinely having none) rather than an alert banner -- these are a minor
+  // illustrative extra, not something worth interrupting every guest's page
+  // load over. dressCodePhotoError stays reserved for host-initiated
+  // upload/delete failures below, where the host took an action and should
+  // hear back about it.
+  async function loadDressCodePhotos() {
+    const { photos: loaded, error: loadError } = await fetchDressCodePhotos(supabase, params.id)
+    if (loadError) {
+      console.error('Dress code photo fetch failed', { eventId: params.id, message: loadError })
+      return
+    }
+    setDressCodePhotos(loaded)
   }
 
   async function loadMessages() {
@@ -278,6 +297,10 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       setHostNeedsPreferences(needsHostPreferences)
       setHostNeedsKitchen(hostViewing && ev.kitchen_status === 'pending' && ev.kitchen_plan === 'later')
 
+      // Dress code reference photos are visible the same as the dress code
+      // text itself -- not gated behind RSVP unlock the way the address is.
+      void loadDressCodePhotos()
+
       if (hostViewing) {
         const [{ requests, error: pendingError }, updateReminder, prepState] = await Promise.all([
           listPendingEventAccessRequests(supabase, params.id, stored),
@@ -420,6 +443,44 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     if (succeeded.length > 0) {
       setPhotos((current) => [...succeeded, ...current])
       router.push('/events/' + params.id + '/album')
+    }
+  }
+
+  async function handleUploadDressCodePhotos(files: File[]) {
+    if (!isHost) return
+    const room = MAX_DRESS_CODE_PHOTOS - dressCodePhotos.length
+    if (room <= 0) {
+      setDressCodePhotoError(`You can add up to ${MAX_DRESS_CODE_PHOTOS} example photos.`)
+      return
+    }
+    const toUpload = files.slice(0, room)
+    setUploadingDressCodePhoto(true)
+    setDressCodePhotoError('')
+    const { succeeded, failed } = await uploadDressCodePhotos(supabase, {
+      eventId: params.id,
+      files: toUpload,
+      startingSortOrder: dressCodePhotos.length,
+    })
+    setUploadingDressCodePhoto(false)
+    if (succeeded.length > 0) setDressCodePhotos((current) => [...current, ...succeeded])
+    if (failed.length > 0) {
+      console.error('Dress code photo upload failed', { eventId: params.id, failed })
+      setDressCodePhotoError('Could not upload one or more photos. Try again.')
+    } else if (files.length > toUpload.length) {
+      setDressCodePhotoError(`Only added ${toUpload.length} — up to ${MAX_DRESS_CODE_PHOTOS} example photos per event.`)
+    }
+  }
+
+  async function handleDeleteDressCodePhoto(photoId: string) {
+    if (!isHost) return
+    const photo = dressCodePhotos.find((item) => item.id === photoId)
+    if (!photo) return
+    const prev = dressCodePhotos
+    setDressCodePhotos((current) => current.filter((item) => item.id !== photoId))
+    const result = await deleteDressCodePhoto(supabase, photo)
+    if (!result.ok) {
+      setDressCodePhotos(prev)
+      setDressCodePhotoError('Could not remove that photo. Try again.')
     }
   }
 
@@ -633,6 +694,11 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       venue={event?.venue ?? 'Venue pending'}
       address={event?.address ?? null}
       dressCode={event?.dress_code ?? null}
+      dressCodePhotos={dressCodePhotos}
+      dressCodePhotoError={dressCodePhotoError}
+      uploadingDressCodePhoto={uploadingDressCodePhoto}
+      onUploadDressCodePhotos={handleUploadDressCodePhotos}
+      onDeleteDressCodePhoto={handleDeleteDressCodePhoto}
       customDetails={event?.custom_details ?? []}
       coverUrl={event?.cover_url ?? null}
       unlocked={unlocked}
