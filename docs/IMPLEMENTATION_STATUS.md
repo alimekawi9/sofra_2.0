@@ -902,3 +902,21 @@
   grid — a responsive `repeat(3,1fr)` grid with `aspect-ratio:1` tiles (single-photo and two-photo layouts
   get the same `data-count`-driven overrides the album grid already has) — replacing the earlier small fixed
   56×56px flex-wrapped tiles, per feedback that they should look like the Shared Album's own preview.
+- **That grid still rendered broken** (one ~100px-wide tile, then one giant tile stretching the rest of the
+  row) even after the change above. Root cause: `.sv2-event-facts div{display:grid;grid-template-columns:
+  100px 1fr;...}` — the pre-existing rule that lays out each Date/Time/Location/etc. row — used the
+  descendant combinator (a bare space), so it matched *every* div anywhere inside `.sv2-event-facts`, not
+  just its direct row children. That included the newly-added `.sv2-dress-code-photos` grid container and
+  each `.sv2-dress-code-photo-tile`, and `.sv2-event-facts div`'s class+type selector out-specifies a
+  single-class selector like `.sv2-dress-code-photos`, so its `grid-template-columns:100px 1fr` silently
+  won over my own grid rule on those elements. A second, narrower-column copy of the same bug existed for
+  the host's collapsed details panel (`.sv2-host-details-expanded .sv2-event-facts div{grid-template-
+  columns:84px 1fr}`) — the version actually visible in the reported screenshot, which shows the host's
+  view. Fixed both by scoping them to `.sv2-event-facts > div` / `.sv2-host-details-expanded .sv2-event-facts
+  > div` (direct-child combinator) instead, which is what these rules actually meant to target — matches
+  the row wrapper divs written as `<div><dt>...</dt><dd>...</dd></div>` and nothing nested deeper.
+- Separately, `+ ADD EXAMPLE PHOTOS` (the upload trigger shown when there are no photos yet) could render on
+  the same line as the dress code text instead of below it, since `inline-flex` still lets it sit beside
+  preceding inline text when there's room. Changed `.sv2-dress-code-photo-add` to `display:flex;width:fit-
+  content` — a block-level box (which always starts its own line) sized to its own content rather than
+  stretching full width.
