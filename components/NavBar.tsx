@@ -21,7 +21,7 @@ export default function NavBar(){
         return <Link key={item.href} href={item.href} className={className} aria-current={active?'page':undefined}>
           {isHost ? (
             <span className="sf-production-nav-host-mark-wrap">
-              <Image src="/sofra-table-mark.png" alt="" width={68} height={49} aria-hidden="true" className="sf-production-nav-host-mark" />
+              <Image src="/sofra-table-mark.png" alt="" width={86} height={62} aria-hidden="true" className="sf-production-nav-host-mark" />
               <span className="sf-production-nav-host-label">{item.label}</span>
             </span>
           ) : item.label}
