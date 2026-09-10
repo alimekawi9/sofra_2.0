@@ -19,6 +19,8 @@ import type { PendingEventUpdateNotice } from '@/lib/event-update-notices'
 import type { EventPrepItem, EventPrepKey } from '@/lib/event-prep'
 import { EventPrepChecklist } from './EventPrepChecklist'
 import { SofraFeedbackPrompt } from './SofraFeedbackPrompt'
+import { googleCalendarUrl, icsDataUrl } from '@/lib/calendar'
+import { isEventDateUndecided } from '@/lib/event-date'
 
 export interface EventPaperGuest {
   id: string
@@ -39,6 +41,8 @@ export interface EventPaperProps {
   tagline: string | null
   dateLabel: string
   timeLabel: string
+  /** Raw stored `event_date` (a floating wall-clock value; see lib/event-date.ts), for calendar export. Null while still loading. */
+  eventDateIso: string | null
   venue: string
   address: string | null
   dressCode: string | null
@@ -123,6 +127,27 @@ const RSVP_LABELS: Record<string, string> = {
 // Decorative only — stand-ins for hidden guest avatars, not real guest colors.
 const LOCKED_TABLE_TINTS = ['#7A2324', '#8A5A2B', '#4A5240', '#6E3B45', '#8A6A2B', '#3A4A5A']
 
+function GoogleCalendarGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="sv2-calendar-glyph sv2-calendar-glyph-outline">
+      <path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+      <circle cx="8" cy="14" r="1.2" fill="#4285F4" stroke="none" />
+      <circle cx="12" cy="14" r="1.2" fill="#EA4335" stroke="none" />
+      <circle cx="16" cy="14" r="1.2" fill="#FBBC05" stroke="none" />
+      <circle cx="10" cy="17" r="1.2" fill="#34A853" stroke="none" />
+    </svg>
+  )
+}
+
+function AppleGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="sv2-calendar-glyph sv2-calendar-glyph-solid">
+      <path d="M15.5 8.1c-1.2 0-2.5.7-3.3.7-.8 0-1.9-.7-3.1-.68-1.6.02-3.1.94-3.9 2.38-1.68 2.9-.43 7.2 1.2 9.56.8 1.15 1.75 2.45 3 2.4 1.2-.05 1.66-.78 3.1-.78 1.44 0 1.86.78 3.13.75 1.3-.02 2.11-1.17 2.9-2.33.9-1.32 1.28-2.6 1.3-2.67-.03-.01-2.5-.96-2.52-3.8-.02-2.38 1.94-3.52 2.03-3.58-1.1-1.63-2.83-1.81-3.43-1.85-1.55-.13-2.87.9-3.37.9Z" />
+      <path d="M14.9 6.2c.67-.8 1.12-1.93 1-3.05-.96.04-2.12.65-2.81 1.45-.62.71-1.16 1.86-1.01 2.95 1.07.08 2.16-.55 2.82-1.35Z" />
+    </svg>
+  )
+}
+
 export function EventPaper({
   eventId,
   loading,
@@ -135,6 +160,7 @@ export function EventPaper({
   tagline,
   dateLabel,
   timeLabel,
+  eventDateIso,
   venue,
   address,
   dressCode,
@@ -264,6 +290,32 @@ export function EventPaper({
     </dl>
   )
 
+  // No calendar event can be built until there's a real date -- an
+  // undecided date has no wall-clock time to export.
+  const calendarLocation = [venue, unlocked && address ? address : null].filter(Boolean).join(', ')
+  const calendarDetails = eventDateIso && !isEventDateUndecided(eventDateIso)
+    ? { title, description: tagline ?? undefined, location: calendarLocation || undefined, startIso: eventDateIso }
+    : null
+  const calendarButtons = calendarDetails && (
+    <div className="sv2-calendar-actions" aria-label="Add to calendar">
+      <a
+        className="sv2-calendar-action sv2-calendar-google"
+        href={googleCalendarUrl(calendarDetails)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <GoogleCalendarGlyph /> Google Calendar
+      </a>
+      <a
+        className="sv2-calendar-action sv2-calendar-apple"
+        href={icsDataUrl(calendarDetails)}
+        download={`${title || 'sofra-event'}.ics`}
+      >
+        <AppleGlyph /> Apple Calendar
+      </a>
+    </div>
+  )
+
   const guestRoster = (
     <section className="sv2-guest-overview" aria-labelledby="sv2-guest-heading">
       <div className="sv2-section-heading">
@@ -367,6 +419,8 @@ export function EventPaper({
                   {!isPast && <button className="sv2-host-primary-action" type="button" onClick={onViewTable}>Set the Sofra</button>}
                   <button type="button" onClick={() => onEditEvent()}>Edit Event</button>
                 </div>
+
+                {!isPast && calendarButtons}
 
                 {(pendingUpdateNotice || updateNoticeError) && (
                   <aside className="sv2-event-update-notice" aria-label="Event update reminder">
@@ -577,6 +631,7 @@ export function EventPaper({
                 </div>
               )}
             </dl>
+            {calendarButtons}
 
             {unlocked ? (
               <section className="sv2-guest-overview" aria-labelledby="sv2-guest-heading">

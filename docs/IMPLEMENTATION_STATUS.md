@@ -770,3 +770,57 @@
   signatures/pantry regardless of completion state — no new routing logic was needed. Still hidden while
   already on the Kitchen page itself, and still gated to the host/an accepted co-host
   (`canDelegateKitchen`), matching every other rule this slot already followed.
+
+# Kitchen-type question flash fix and HOST tab restyle (2026-09-10)
+
+- Fixed a second, distinct flash on the same `/events/[id]/kitchen-setup` screen (the independent-vs-
+  restaurant chooser): its `<header>`, including the "Is this at a restaurant or at home / elsewhere?"
+  headline and the Back link, rendered unconditionally — even during the brief loading window before the
+  effect discovers `kitchen_type` is already set and redirects away. Every "Edit Kitchen" visit (or any
+  revisit) briefly flashed the full question text before the redirect fired. Gated the header and choice
+  grid behind `!loading && !error`, so nothing beyond a neutral "Opening the kitchen…" line renders until
+  it's confirmed the question genuinely needs asking. Added a regression test asserting the heading itself
+  (not just the choice buttons, which an earlier test already covered) never appears when `kitchen_type` is
+  already set; confirmed it fails pre-fix, passes post-fix.
+- The bottom navigation's `HOST` tab now uses the existing burgundy table-mark logo
+  (`public/sofra-table-mark.png`, already used in `WelcomeCard` and the empty-menu illustration) as a small
+  badge with a fixed burgundy background (`--sf-production-burgundy-deep`, theme-invariant) and the app's
+  "on burgundy" cream/beige text color (`--sf-intel-on-burgundy`, also theme-invariant), replacing the
+  plain text-only treatment shared with `SOFRAS`/`PROFILE`.
+
+# Add to Calendar (2026-09-10)
+
+- Both the guest event-detail view (reached immediately after RSVP submission — Sofra has no separate RSVP
+  confirmation screen, guests land back on the event page) and the host event-detail view (reached right
+  after finishing the create-Sofra wizard) now offer `Google Calendar` and `Apple Calendar` buttons, since
+  both flows converge on the same shared `EventPaper` component. The host's pair sits directly under the
+  `Set the Sofra` / `Edit Event` actions, always visible; the guest's sits directly under the event facts
+  list, in the same place for both roles conceptually even though the two are separate (pre-existing,
+  duplicated) `<dl className="sv2-event-facts">` blocks in `EventPaper.tsx`.
+- New `lib/calendar.ts` (`googleCalendarUrl`, `buildIcsFile`, `icsDataUrl`) builds both a Google Calendar
+  compose-URL and a minimal RFC 5545 `.ics` file client-side — no backend route, no dependency. "Add to
+  Apple Calendar" is the standard `.ics`-file pattern (Apple Calendar has no separate web API); the button
+  is a plain `<a download>` pointing at a `data:text/calendar` URI, which downloads on desktop and typically
+  opens the system "Add to Calendar" sheet directly on iOS Safari.
+- Both formats deliberately use *floating* (timezone-suffix-free) timestamps — `DTSTART`/`DTEND` with no
+  `Z`/offset, and Google's `dates=` param unsuffixed — matching how `event_date` is treated everywhere else
+  in Sofra (`lib/event-date.ts`: the stored Y/M/D/H/M digits are the literal wall-clock time every viewer
+  should see, never converted per device timezone). The helpers read the stored ISO string back out with
+  `Date`'s UTC getters, the same technique `formatEventDate`/`formatEventTime` already use, so the exported
+  calendar time always matches what's shown on the page.
+- Sofra has no stored event end time, so calendar events default to a 3-hour duration
+  (`DEFAULT_DURATION_HOURS` in `lib/calendar.ts`); duration arithmetic correctly rolls over midnight since
+  it operates on real `Date` millisecond math before re-extracting UTC fields, not string manipulation.
+- Calendar buttons are omitted entirely when the event's date is the undecided sentinel
+  (`isEventDateUndecided`) — there's no real time to export yet. Location is included only when there's a
+  venue, and the address component is included only when `unlocked` (i.e., never leaked to a guest who
+  hasn't RSVP'd, matching the existing address-privacy boundary already enforced elsewhere on this page).
+- The Google/Apple icons are small hand-drawn inline SVGs (`GoogleCalendarGlyph`/`AppleGlyph` in
+  `EventPaper.tsx`) rather than the literal trademarked logos, matching this file's existing icon
+  convention — e.g. its own "Share via WhatsApp" button already uses a generic share glyph, not the
+  WhatsApp bubble. The Google glyph reuses the same generic calendar-outline path already used elsewhere in
+  this file (the host details-disclosure icon) with four small dots in Google's brand colors; the Apple
+  glyph is an originally-drawn, simplified apple-fruit silhouette, not a trace of Apple's actual mark.
+- New `__tests__/calendar.test.ts` covers both formats: correct floating timestamps, optional
+  description/location inclusion, custom duration, midnight rollover, ICS special-character escaping, and
+  that the `.ics` data URI decodes back to the same calendar text. 9 tests, all passing.

@@ -629,6 +629,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
       tagline={event?.tagline ?? null}
       dateLabel={event ? formatDate(event.event_date) : ''}
       timeLabel={event ? formatTime(event.event_date) : ''}
+      eventDateIso={event?.event_date ?? null}
       venue={event?.venue ?? 'Venue pending'}
       address={event?.address ?? null}
       dressCode={event?.dress_code ?? null}
