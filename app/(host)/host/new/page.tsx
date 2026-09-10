@@ -10,6 +10,7 @@ import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplet
 import '@/components/sofra-v2/sofra-v2.css'
 import { eventDateForStorage } from '@/lib/event-date'
 import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection } from '@/lib/event-custom-details'
+import { uploadDressCodePhotos } from '@/lib/event-dress-code-photos'
 
 export default function HostNewPage() {
   const router = useRouter()
@@ -29,6 +30,7 @@ export default function HostNewPage() {
   const [location, setLocation] = useState('')
   const [place, setPlace] = useState<PreviewPlace | null>(null)
   const [dressCode, setDressCode] = useState('')
+  const [pendingDressCodePhotos, setPendingDressCodePhotos] = useState<File[]>([])
   const [customDetails, setCustomDetails] = useState<CustomDetailSection[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -50,6 +52,14 @@ export default function HostNewPage() {
   function onImageRemove() {
     coverFileRef.current = null
     setImageDataUrl(undefined)
+  }
+
+  function addDressCodePhotoFiles(files: File[]) {
+    setPendingDressCodePhotos((current) => [...current, ...files])
+  }
+
+  function removePendingDressCodePhoto(index: number) {
+    setPendingDressCodePhotos((current) => current.filter((_, i) => i !== index))
   }
 
   function addCustomDetail() {
@@ -100,24 +110,41 @@ export default function HostNewPage() {
       kitchen_plan: kitchenPlan,
     }
 
+    let eventId: string
     if (createdEventIdRef.current) {
       const { error: updateError } = await supabase
         .from('events')
         .update(payload)
         .eq('id', createdEventIdRef.current)
       if (updateError) return { id: null, error: 'Something went wrong. Please try again.' }
-      return { id: createdEventIdRef.current, error: null }
+      eventId = createdEventIdRef.current
+    } else {
+      const { data, error: insertError } = await supabase
+        .from('events')
+        .insert(payload)
+        .select('id')
+        .single()
+
+      if (insertError) return { id: null, error: 'Something went wrong. Please try again.' }
+      createdEventIdRef.current = data!.id
+      eventId = data!.id
     }
 
-    const { data, error: insertError } = await supabase
-      .from('events')
-      .insert(payload)
-      .select('id')
-      .single()
+    // Best-effort and silent: dress code reference photos are a minor
+    // illustrative extra, not worth failing or interrupting the publish
+    // flow over -- this always navigates away right after a successful
+    // save, so there's nowhere to durably show an error anyway. Pending
+    // files are cleared regardless of outcome so a later saveEventRow call
+    // (e.g. the final publish after an earlier CUSTOMIZE GUEST QUESTIONS
+    // save) doesn't re-attempt and duplicate the same uploads.
+    if (pendingDressCodePhotos.length > 0) {
+      const files = pendingDressCodePhotos
+      setPendingDressCodePhotos([])
+      const { failed } = await uploadDressCodePhotos(supabase, { eventId, files, startingSortOrder: 0 })
+      if (failed.length > 0) console.error('Dress code photo upload failed during event creation', { eventId, failed })
+    }
 
-    if (insertError) return { id: null, error: 'Something went wrong. Please try again.' }
-    createdEventIdRef.current = data!.id
-    return { id: data!.id, error: null }
+    return { id: eventId, error: null }
   }
 
   async function handleSubmit() {
@@ -167,6 +194,9 @@ export default function HostNewPage() {
         onPlaceSelect={setPlace}
         dressCode={dressCode}
         onDressCodeChange={setDressCode}
+        pendingDressCodePhotoFiles={pendingDressCodePhotos}
+        onAddDressCodePhotoFiles={addDressCodePhotoFiles}
+        onRemovePendingDressCodePhoto={removePendingDressCodePhoto}
         customDetails={customDetails}
         onAddCustomDetail={addCustomDetail}
         onCustomDetailChange={updateCustomDetail}

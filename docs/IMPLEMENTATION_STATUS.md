@@ -862,3 +862,28 @@
   Supabase mocks predate this table — `getByRole('alert')` then matched two elements. Caught by the full
   suite comparison before committing; fixed by making the background fetch failure silent, which is also
   simply the better product behavior here, not just a test workaround.)
+
+# Dress code photo prompt during create/edit (2026-09-10)
+
+- The original pass only let a host manage dress code reference photos from the already-created event's
+  detail page. Per feedback, the host is now also prompted for them directly inside the create-a-Sofra
+  wizard and the edit-event form (`HostCreateForm.tsx`, shared by both), right under the Dress code text
+  field — a collapsed `+ ADD INSPO PHOTOS` toggle (renamed to `+ INSPO PHOTOS (n)` once any exist, `HIDE
+  INSPO PHOTOS` while open) that expands to the same thumbnail-grid-plus-upload UI used on the event detail
+  page, so it doesn't take up space until the host actually wants it.
+- During **create**, there's no `event_id` yet, so newly picked files are staged as plain `File[]` in the
+  page's own state (mirroring exactly how the cover image is already staged via `coverFileRef` and only
+  actually uploaded in `handleSubmit`/`saveEventRow`) and previewed locally via `URL.createObjectURL`
+  (generated and revoked inside `HostCreateForm` itself via `useMemo`/`useEffect`, since the File objects
+  are the source of truth the parent page owns). The actual upload happens once the real event id is known,
+  right before `saveEventRow` returns it; on success the pending list is cleared immediately so a second
+  `saveEventRow` call (e.g. the final publish after an earlier `CUSTOMIZE GUEST QUESTIONS` save had already
+  created the row) can't re-upload and duplicate the same photos.
+- During **edit**, already-persisted photos are loaded on mount and removed immediately on delete (there's
+  nothing staged/undoable about an already-saved photo), while newly picked files follow the same
+  stage-then-upload-on-Save pattern as create, with `startingSortOrder` continuing on from the existing
+  count.
+- Both flows treat a failed upload as best-effort and silent (console-only) rather than blocking or
+  interrupting Save/Publish — consistent with the rest of this feature's error-handling stance, and because
+  both pages navigate away immediately on a successful save regardless, so a post-navigation error message
+  would never actually be seen.

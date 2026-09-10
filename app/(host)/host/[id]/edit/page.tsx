@@ -12,6 +12,7 @@ import { generateCustomDetailId, sanitizeCustomDetails, type CustomDetailSection
 import { customQuestions, type QuestionnaireConfig } from '@/lib/questionnaire'
 import { computeTbdSuggestions, type TbdSuggestion } from '@/lib/event-tbd-suggestions'
 import { recordEventUpdateNotice } from '@/lib/event-update-notices'
+import { fetchDressCodePhotos, uploadDressCodePhotos, deleteDressCodePhoto, type DressCodePhoto } from '@/lib/event-dress-code-photos'
 
 export default function HostEditPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -32,6 +33,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   const [location, setLocation] = useState('')
   const [place, setPlace] = useState<PreviewPlace | null>(null)
   const [dressCode, setDressCode] = useState('')
+  const [dressCodePhotos, setDressCodePhotos] = useState<DressCodePhoto[]>([])
+  const [pendingDressCodePhotos, setPendingDressCodePhotos] = useState<File[]>([])
+  const [dressCodePhotoError, setDressCodePhotoError] = useState('')
   const [customDetails, setCustomDetails] = useState<CustomDetailSection[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -82,6 +86,9 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       setBudgetAmount(ev.budget_amount ? String(ev.budget_amount) : '')
       setBudgetCurrency(ev.budget_currency ?? 'USD')
 
+      const { photos: loadedDressCodePhotos } = await fetchDressCodePhotos(supabase, params.id)
+      setDressCodePhotos(loadedDressCodePhotos)
+
       // Suggestions are optional and additive: only fetch questionnaire data
       // at all when a field is actually still TBD, and never block the form
       // if this fails.
@@ -128,6 +135,31 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
   function onImageRemove() {
     coverFileRef.current = null
     setImageDataUrl(undefined)
+  }
+
+  function addDressCodePhotoFiles(files: File[]) {
+    setPendingDressCodePhotos((current) => [...current, ...files])
+    setDressCodePhotoError('')
+  }
+
+  function removePendingDressCodePhoto(index: number) {
+    setPendingDressCodePhotos((current) => current.filter((_, i) => i !== index))
+  }
+
+  // Already-persisted photos are removed immediately (there's nothing
+  // staged/undoable about them, unlike a newly-picked pending file) rather
+  // than deferred to Save, matching how deleting an existing signature or
+  // pantry ingredient elsewhere in this app takes effect right away.
+  async function removeDressCodePhoto(photoId: string) {
+    const photo = dressCodePhotos.find((item) => item.id === photoId)
+    if (!photo) return
+    const prev = dressCodePhotos
+    setDressCodePhotos((current) => current.filter((item) => item.id !== photoId))
+    const result = await deleteDressCodePhoto(supabase, photo)
+    if (!result.ok) {
+      setDressCodePhotos(prev)
+      setDressCodePhotoError('Could not remove that photo. Try again.')
+    }
   }
 
   // The suggested value is a guest-written label (e.g. "Saturday, August 30
@@ -233,6 +265,21 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
     await Promise.all(changedKinds.filter((kind): kind is 'date' | 'time' | 'location' => kind !== null)
       .map((kind) => recordEventUpdateNotice(supabase, params.id, uidRef.current!, kind)))
 
+    // Best-effort and silent, same as event creation: dress code reference
+    // photos are a minor illustrative extra, not worth failing or
+    // interrupting Save over, and this always navigates away right after
+    // success anyway.
+    if (pendingDressCodePhotos.length > 0) {
+      const files = pendingDressCodePhotos
+      setPendingDressCodePhotos([])
+      const { failed } = await uploadDressCodePhotos(supabase, {
+        eventId: params.id,
+        files,
+        startingSortOrder: dressCodePhotos.length,
+      })
+      if (failed.length > 0) console.error('Dress code photo upload failed while saving event', { eventId: params.id, failed })
+    }
+
     router.push('/events/' + params.id)
   }
 
@@ -284,6 +331,12 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
       onUseLocationSuggestion={useLocationSuggestion}
       dressCode={dressCode}
       onDressCodeChange={setDressCode}
+      dressCodePhotos={dressCodePhotos}
+      pendingDressCodePhotoFiles={pendingDressCodePhotos}
+      onAddDressCodePhotoFiles={addDressCodePhotoFiles}
+      onRemoveDressCodePhoto={removeDressCodePhoto}
+      onRemovePendingDressCodePhoto={removePendingDressCodePhoto}
+      dressCodePhotoError={dressCodePhotoError}
       customDetails={customDetails}
       onAddCustomDetail={addCustomDetail}
       onCustomDetailChange={updateCustomDetail}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ChangeEvent, type DragEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
 import { motion } from 'framer-motion'
 import { HostLocationAutocomplete, type PreviewPlace } from './HostLocationAutocomplete'
 import { sv2Display, sv2Sans } from './fonts'
@@ -8,6 +8,7 @@ import { ImageCropDialog } from './ImageCropDialog'
 import type { CustomDetailSection } from '@/lib/event-custom-details'
 import type { TbdSuggestion } from '@/lib/event-tbd-suggestions'
 import { DEFAULT_QUESTIONNAIRE, isCanonical, resolveCanonicalTitle, sortedQuestions } from '@/lib/questionnaire'
+import { MAX_DRESS_CODE_PHOTOS } from '@/lib/event-dress-code-photos'
 
 export type NewEventQuestionChoice = 'default' | 'custom' | 'none'
 
@@ -24,6 +25,12 @@ export interface HostCreateFormProps {
   onPlaceSelect: (place: PreviewPlace | null) => void
   dressCode: string
   onDressCodeChange: (value: string) => void
+  dressCodePhotos?: Array<{ id: string; url: string }>
+  pendingDressCodePhotoFiles?: File[]
+  onAddDressCodePhotoFiles?: (files: File[]) => void
+  onRemoveDressCodePhoto?: (photoId: string) => void
+  onRemovePendingDressCodePhoto?: (index: number) => void
+  dressCodePhotoError?: string
   customDetails: CustomDetailSection[]
   onAddCustomDetail: () => void
   onCustomDetailChange: (id: string, patch: Partial<Pick<CustomDetailSection, 'label' | 'body'>>) => void
@@ -72,6 +79,12 @@ export function HostCreateForm({
   onPlaceSelect,
   dressCode,
   onDressCodeChange,
+  dressCodePhotos = [],
+  pendingDressCodePhotoFiles = [],
+  onAddDressCodePhotoFiles,
+  onRemoveDressCodePhoto,
+  onRemovePendingDressCodePhoto,
+  dressCodePhotoError = '',
   customDetails,
   onAddCustomDetail,
   onCustomDetailChange,
@@ -103,10 +116,21 @@ export function HostCreateForm({
 }: HostCreateFormProps) {
   const [pendingCover, setPendingCover] = useState<File | null>(null)
   const [createStep, setCreateStep] = useState(0)
+  const [dressCodePhotosOpen, setDressCodePhotosOpen] = useState(false)
 
   function chooseImage(file?: File) {
     if (file) setPendingCover(file)
   }
+
+  // Local-only object URLs so a picked-but-not-yet-uploaded file previews
+  // immediately; the File objects themselves live in the parent page and are
+  // only actually uploaded once the event is created/saved.
+  const pendingDressCodePhotoPreviews = useMemo(
+    () => pendingDressCodePhotoFiles.map((file) => URL.createObjectURL(file)),
+    [pendingDressCodePhotoFiles]
+  )
+  useEffect(() => () => { pendingDressCodePhotoPreviews.forEach((url) => URL.revokeObjectURL(url)) }, [pendingDressCodePhotoPreviews])
+  const dressCodePhotoCount = dressCodePhotos.length + pendingDressCodePhotoFiles.length
 
   const isEdit = mode === 'edit'
   const createSteps = ['Details', 'Look', 'Guest questions', 'Kitchen']
@@ -234,6 +258,62 @@ export function HostCreateForm({
               placeholder="A touch of red, or paste a Pinterest link"
             />
           </label>
+
+          {onAddDressCodePhotoFiles && (
+            <div className="sv2-dress-code-photos-field">
+              <button
+                type="button"
+                className="sv2-add-detail-section"
+                aria-expanded={dressCodePhotosOpen}
+                onClick={() => setDressCodePhotosOpen((open) => !open)}
+              >
+                {dressCodePhotosOpen ? 'HIDE INSPO PHOTOS' : dressCodePhotoCount > 0 ? `+ INSPO PHOTOS (${dressCodePhotoCount})` : '+ ADD INSPO PHOTOS'}
+              </button>
+              {dressCodePhotosOpen && (
+                <div className="sv2-dress-code-photos-panel">
+                  <p className="sv2-dress-code-photos-hint">Optional example photos guests can see, showing what you mean.</p>
+                  {(dressCodePhotos.length > 0 || pendingDressCodePhotoFiles.length > 0) && (
+                    <div className="sv2-dress-code-photos">
+                      {dressCodePhotos.map((photo) => (
+                        <div key={photo.id} className="sv2-dress-code-photo-tile">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={photo.url} alt="" />
+                          {onRemoveDressCodePhoto && (
+                            <button type="button" className="sv2-dress-code-photo-remove" aria-label="Remove this photo" onClick={() => onRemoveDressCodePhoto(photo.id)}>×</button>
+                          )}
+                        </div>
+                      ))}
+                      {pendingDressCodePhotoPreviews.map((url, index) => (
+                        <div key={url} className="sv2-dress-code-photo-tile">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" />
+                          {onRemovePendingDressCodePhoto && (
+                            <button type="button" className="sv2-dress-code-photo-remove" aria-label="Remove this photo" onClick={() => onRemovePendingDressCodePhoto(index)}>×</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {dressCodePhotoCount < MAX_DRESS_CODE_PHOTOS && (
+                    <label className="sv2-dress-code-photo-add">
+                      + Add photos
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files ?? [])
+                          event.target.value = ''
+                          if (files.length) onAddDressCodePhotoFiles(files.slice(0, MAX_DRESS_CODE_PHOTOS - dressCodePhotoCount))
+                        }}
+                      />
+                    </label>
+                  )}
+                  {dressCodePhotoError && <p role="alert" className="sv2-dress-code-photo-error">{dressCodePhotoError}</p>}
+                </div>
+              )}
+            </div>
+          )}
 
           <fieldset className="sv2-custom-details-field">
             <legend>ADDITIONAL DETAILS <span>OPTIONAL</span></legend>

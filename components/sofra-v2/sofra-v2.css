@@ -930,6 +930,11 @@
 .sv2-dress-code-photo-add.is-disabled{opacity:.5;cursor:default}
 .sv2-dress-code-photo-add input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .sv2-dress-code-photo-error{color:var(--sv2-rose);font-size:11px;margin-top:6px}
+.sv2-dress-code-photos-field{margin-top:10px}
+.sv2-dress-code-photos-panel{margin-top:8px;padding:14px;border:1px solid var(--sv2-line);border-radius:14px}
+.sv2-dress-code-photos-hint{margin:0 0 8px;color:var(--sv2-muted);font-size:11px}
+.sv2-dress-code-photos-panel .sv2-dress-code-photos{margin-top:0;margin-bottom:8px}
+.sv2-dress-code-photos-panel .sv2-dress-code-photo-add{margin-top:0}
 .sv2-event-disclosure{border-top:1px solid var(--sv2-line);}
 .sv2-event-disclosure > button{width:100%;min-height:48px;padding:0;border:0;background:transparent;color:var(--sv2-ink);display:flex;align-items:center;justify-content:space-between;font:500 12px var(--sv2-sans-family);text-transform:uppercase;cursor:pointer;}
 .sv2-event-disclosure > div{padding:0 0 16px;font-size:13px;line-height:1.6;}
