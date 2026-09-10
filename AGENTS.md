@@ -25,7 +25,7 @@ Before making recommendation-engine changes, read:
 - Flavor preference weight is 35%.
 - Adventurousness weight is 20%.
 - Every diner should have more than half the menu satisfying their preferences.
-- Dish count is decided solely by guest-count-based menu structure (`calculateTargetDishCount`); it never scales as a side effect of any other feature. Per-dish portion/batch-size guidance may scale with guest count — variety (dish count) and quantity (batch size) are scaled independently, never as a substitute for one another.
+- Dish count is decided by guest-count-based menu structure (`calculateTargetDishCount`) at generation time; it never scales as a side effect of any other feature. Per-dish portion/batch-size guidance may scale with guest count — variety (dish count) and quantity (batch size) are scaled independently, never as a substitute for one another. The one exception is explicit host action: the chef may manually add or remove individual courses after generation, deliberately departing from the guest-count-derived count for that specific menu.
 
 ## Working rules
 

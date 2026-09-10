@@ -32,7 +32,7 @@ Sofra helps chefs generate shared menus based on:
 - Ingredient quantities and units are optional, additive pantry metadata — not required to add an ingredient, and not read by any deduction or shopping-cart logic yet (that's deferred; see docs/DECISION_LOG.md).
 - Drinks are not part of the recommendation flow.
 - Menus do not use fixed start, sea, land, green, and finish slots.
-- Menu size (dish count) changes based on guest count, and only based on guest count — no other feature (e.g. portion/batch-size scaling) may change dish count as a side effect.
+- Menu size (dish count) is set at generation time based on guest count, and only based on guest count — no other feature (e.g. portion/batch-size scaling) may change dish count as a side effect. The chef may still explicitly add or remove individual courses afterward; that is a deliberate, visible host action, not an automatic side effect.
 - Per-dish portion/batch-size guidance may scale with guest count once dish-count scaling has already maxed out; this only ever changes displayed portion text, never which or how many dishes exist.
 - Dish roles are starter, main, side, dessert, and flex.
 - Signature dishes are prioritized when they strongly fit the table.

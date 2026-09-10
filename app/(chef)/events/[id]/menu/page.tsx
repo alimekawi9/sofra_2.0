@@ -138,6 +138,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
   const [menuDesign, setMenuDesign] = useState<MenuDesignKey>('folk')
   const [swapNoOptions, setSwapNoOptions] = useState<string | null>(null)
   const [swapAiCourseId, setSwapAiCourseId] = useState<string | null>(null)
+  const [addingAfterId, setAddingAfterId] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [aiNotice, setAiNotice] = useState('')
@@ -267,13 +268,17 @@ export default function MenuPage({ params }: { params: { id: string } }) {
 
   useEffect(() => { void loadAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleSwap(course: PersistedCourse) {
+  // Shared by Swap and by a freshly-added empty course: try the deterministic
+  // signature pool first, falling back to the AI swap route once that pool is
+  // confirmed empty. `currentCourses` is threaded through explicitly (rather
+  // than reading the `courses` state closure) since a caller may have just
+  // inserted a new row and not yet seen React re-render with it.
+  async function fillCourse(course: PersistedCourse, currentCourses: PersistedCourse[]): Promise<void> {
     if (!intel) return
-    setActionError('')
     // Exclude every dish already used anywhere in this menu, not just this
     // slot's own dish -- otherwise the same signature could be offered as
     // e.g. both a main and a side at once.
-    const exclude = new Set(courses.map((c) => c.source).filter((s): s is string => !!s))
+    const exclude = new Set(currentCourses.map((c) => c.source).filter((s): s is string => !!s))
     const next = draftCourse(course.slot as Slot, intel, signatures, pantry, exclude)
 
     if (next.origin === 'empty') {
@@ -285,9 +290,8 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       return
     }
 
-    const prev = courses
     setCourses(
-      courses.map((c) =>
+      currentCourses.map((c) =>
         c.id === course.id
           ? {
               ...c,
@@ -309,8 +313,58 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       })
       .eq('id', course.id)
     if (error) {
-      setCourses(prev)
+      setCourses(currentCourses)
       setActionError('Failed to swap dish. Try again.')
+    }
+  }
+
+  async function handleSwap(course: PersistedCourse) {
+    setActionError('')
+    await fillCourse(course, courses)
+  }
+
+  // Adds a new course of the same role as `afterCourse`, appended at the end
+  // of the menu, and immediately tries to fill it the same way Swap would --
+  // the host shouldn't have to add a blank slot and then separately remember
+  // to press Swap on it.
+  async function handleAddCourse(afterCourse: PersistedCourse) {
+    setActionError('')
+    setAddingAfterId(afterCourse.id)
+    try {
+      const maxSortOrder = courses.reduce((max, c) => Math.max(max, c.sort_order), -1)
+      const { data: created, error: insertError } = await supabase
+        .from('menu_courses')
+        .insert({
+          menu_id: afterCourse.menu_id,
+          slot: afterCourse.slot,
+          dish_name: '',
+          dish_origin: 'empty',
+          sort_order: maxSortOrder + 1,
+        })
+        .select('*')
+        .single()
+      if (insertError || !created) {
+        setActionError('Failed to add a course. Try again.')
+        return
+      }
+      const row = created as PersistedCourse
+      const nextCourses = [...courses, row]
+      setCourses(nextCourses)
+      await fillCourse(row, nextCourses)
+    } finally {
+      setAddingAfterId(null)
+    }
+  }
+
+  async function handleRemoveCourse(course: PersistedCourse) {
+    if (course.locked) return
+    setActionError('')
+    const prev = courses
+    setCourses(courses.filter((c) => c.id !== course.id))
+    const { error } = await supabase.from('menu_courses').delete().eq('id', course.id)
+    if (error) {
+      setCourses(prev)
+      setActionError('Failed to remove the course. Try again.')
     }
   }
 
@@ -755,7 +809,25 @@ export default function MenuPage({ params }: { params: { id: string } }) {
                     >
                       {derived.slotLabel}
                     </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="sv2-menu-course-step"
+                        aria-label={`Remove ${derived.dishName || 'this course'}`}
+                        disabled={isLocked || aiLoading}
+                        onClick={() => void handleRemoveCourse(persisted)}
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        className="sv2-menu-course-step"
+                        aria-label={`Add another ${derived.slotLabel.toLowerCase()} course`}
+                        disabled={aiLoading || addingAfterId === persisted.id}
+                        onClick={() => void handleAddCourse(persisted)}
+                      >
+                        +
+                      </button>
                       <button
                         className="mini"
                         disabled={isLocked || swapAiCourseId === persisted.id}

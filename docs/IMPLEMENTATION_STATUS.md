@@ -729,3 +729,31 @@
 - The Swap button shows "Finding a dish…" and disables itself only for the specific course being
   AI-swapped while the request is in flight; a network/Gemini/safety-validation failure falls back to the
   existing "no options" toast rather than erroring visibly.
+
+# Manual course add/remove on the drafted menu (2026-09-09)
+
+- Each course card on the Table/Menu drafting page now has small `−`/`+` buttons beside Swap/Lock, so a
+  host can manually remove a course entirely or add another one, addressing the earlier "dish count should
+  correlate to guest count, but if the host wants more they should be able to add them" feedback. This is a
+  deliberate exception to the "dish count is guest-count-only" rule, documented as such in `AGENTS.md`,
+  `docs/SOFRA_PRODUCT_SPEC.md`, and `docs/DECISION_LOG.md` — the automatic formula still owns the count at
+  generation time; this is an explicit, visible, one-course-at-a-time host action afterward, not an
+  automatic side effect of another feature.
+- `+` adds a new course with the same role as the course it's attached to (e.g. `+` on a Side adds another
+  Side), appended at the end of the menu, and immediately tries to fill it — first through the existing
+  deterministic signature pool (`draftCourse`), then through the same `swap-ai` LLM fallback Swap already
+  uses once that pool is exhausted. The host never has to add a blank slot and separately remember to press
+  Swap on it. `−` deletes a course outright; both actions are disabled on a locked course, and both are
+  disabled while any AI operation (Swap, Add, or a full Regenerate) is already in flight to avoid racing
+  concurrent writes to the same menu.
+- `handleSwap`'s fill logic (deterministic pool, then `swap-ai` fallback, then persistence) was extracted
+  into a shared `fillCourse(course, currentCourses)` helper reused by both Swap and Add, taking the course
+  list as an explicit parameter rather than reading the `courses` state closure — a freshly-inserted course
+  from Add hasn't necessarily been reflected in a React re-render yet when its fill immediately follows.
+- New courses are appended at the end of the list (`sort_order = max + 1`) rather than inserted at a
+  specific position; there is no course-reordering feature yet, so this keeps the implementation simple.
+- **Known limitation:** no automated test coverage was added for this page-level interaction — this page
+  has no existing component test harness (unlike the new `/api/menu/swap-ai` route, which does), and
+  building one from scratch was judged out of scope for this pass. Typecheck and the full existing suite
+  (929 passed, same 19 pre-existing unrelated failures) both pass with no regressions; the actual click-path
+  has not been visually verified in a real browser in this environment.

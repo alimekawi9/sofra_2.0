@@ -1208,6 +1208,9 @@
 .sv2-menu-draft-course .mini{min-height:34px;padding:7px 11px;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:var(--sv2-ink);font:500 9px var(--sv2-sans-family);letter-spacing:.5px;text-transform:uppercase}
 .sv2-menu-draft-course .mini:last-child{border-color:var(--sv2-ink)}
 .sv2-menu-draft-course .mini:disabled{opacity:.35;cursor:default}
+.sv2-menu-course-step{width:26px;height:26px;min-height:0;padding:0;border:1px solid var(--sv2-line);border-radius:999px;background:transparent;color:var(--sv2-ink)!important;font:400 15px/1 var(--sv2-sans-family)!important;font-style:normal!important;display:flex;align-items:center;justify-content:center}
+.sv2-menu-course-step:hover:not(:disabled){border-color:var(--sv2-ink)}
+.sv2-menu-course-step:disabled{opacity:.35;cursor:default}
 .sv2-menu-table-fit{border-color:rgba(122,23,30,.25)!important;border-radius:16px!important;background:rgba(122,23,30,.025)}
 .sv2-menu-table-fit-ok{border-color:rgba(89,112,67,.3)!important;background:rgba(89,112,67,.04)}
 

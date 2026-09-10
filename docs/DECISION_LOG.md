@@ -45,6 +45,7 @@
 
 - Dish count (variety) and portion/batch size (quantity) scale independently. Dish count is decided solely by `calculateTargetDishCount` (guest count only); portion guidance may separately scale with guest count, but never as a substitute for dish count and never by changing which or how many dishes exist.
 - `portionGuidance(slot, guestCount?)` (`lib/menu.ts`) stays at its static per-slot baseline for guest counts at or under 13 — the guest count at which `calculateTargetDishCount` already caps dish count at its maximum of 9. Beyond that point, dish count can't grow further, so the per-dish batch estimate scales up proportionally instead, capped at 4x the baseline.
+- `calculateTargetDishCount` still owns the count produced at generation time. It is not the only way a menu's course count can change: the chef can explicitly add or remove individual courses afterward (Table/Menu page). That's a deliberate, visible per-course action the chef takes one course at a time, not an automatic formula or a side effect of an unrelated feature, so it doesn't conflict with this rule's intent.
 
 ## Pending: Deficit-weighted whole-menu course selection
 
