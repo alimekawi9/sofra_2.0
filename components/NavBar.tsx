@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import {usePathname} from 'next/navigation'
 
@@ -15,7 +16,12 @@ export default function NavBar(){
     <div className="sf-production-nav-inner">
       {ITEMS.map(item=>{
         const active=item.matches(pathname)
-        return <Link key={item.href} href={item.href} className={active?'sf-production-nav-current':undefined} aria-current={active?'page':undefined}>{item.label}</Link>
+        const isHost=item.label==='HOST'
+        const className=[isHost?'sf-production-nav-host':'',active?'sf-production-nav-current':''].filter(Boolean).join(' ')||undefined
+        return <Link key={item.href} href={item.href} className={className} aria-current={active?'page':undefined}>
+          {isHost && <Image src="/sofra-table-mark.png" alt="" width={26} height={19} aria-hidden="true" className="sf-production-nav-host-mark" />}
+          {item.label}
+        </Link>
       })}
     </div>
   </nav>

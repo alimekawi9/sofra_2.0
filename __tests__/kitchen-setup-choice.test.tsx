@@ -91,6 +91,11 @@ it('redirects straight to the restaurant flow when kitchen_type is already set, 
 
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/events/event-1/out?from_page=table'))
   expect(screen.queryByRole('button', { name: /restaurant/i })).not.toBeInTheDocument()
+  // Regression: the choice buttons were already correctly hidden, but the
+  // headline question text itself used to render unconditionally, flashing
+  // "Is this at a restaurant or at home / elsewhere?" even when a redirect
+  // (not a real question) was about to happen.
+  expect(screen.queryByRole('heading', { name: /is this at a restaurant/i })).not.toBeInTheDocument()
 })
 
 it('redirects straight to the kitchen when kitchen_type is already independent', async () => {

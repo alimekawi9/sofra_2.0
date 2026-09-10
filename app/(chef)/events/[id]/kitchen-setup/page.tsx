@@ -53,18 +53,28 @@ export default function KitchenSetupChoicePage({ params }: { params: { id: strin
     else router.push(`/kitchen?from=${params.id}&from_page=${fromPage}${delegate}`)
   }
 
+  // While `loading` is true we don't yet know whether this event already has
+  // a kitchen_type -- and if it does, this component is about to be replaced
+  // by a redirect and never actually needs to ask anything. Rendering the
+  // question (or even the Back link) before that's resolved means every
+  // visit flashes "Is this at a restaurant or at home / elsewhere?" for a
+  // frame even when the chef already answered that once. So nothing beyond a
+  // neutral loading line renders until we're sure the question is real.
   return <div className="sv2-root sv2-device-page sv2-app-page sv2-kitchen-choice-page">
     <main className="sv2-device-shell sv2-app-shell sv2-kitchen-choice-shell">
-      {!delegatedChef && <button type="button" className="sv2-back-link" onClick={() => router.push(`/events/${params.id}/${fromPage}`)}>← Back</button>}
-      <header><p>SOFRA · KITCHEN</p><h1>Is this at a restaurant or at home / elsewhere?</h1><span>{title}</span></header>
-      {loading ? <p className="sv2-kitchen-choice-state">Opening the kitchen…</p> : <div className="sv2-kitchen-choice-grid">
-        <button type="button" disabled={Boolean(busy)} onClick={() => void choose('independent')}>
-          <span aria-hidden="true">01</span><strong>Home / other</strong><small>Use signatures and pantry inventory to compose the menu.</small>
-        </button>
-        <button type="button" disabled={Boolean(busy)} onClick={() => void choose('restaurant')}>
-          <span aria-hidden="true">02</span><strong>Restaurant</strong><small>Upload or paste the restaurant menu, review its dishes, and compare table fit.</small>
-        </button>
-      </div>}
+      {loading && !error && <p className="sv2-kitchen-choice-state">Opening the kitchen…</p>}
+      {!loading && !error && <>
+        {!delegatedChef && <button type="button" className="sv2-back-link" onClick={() => router.push(`/events/${params.id}/${fromPage}`)}>← Back</button>}
+        <header><p>SOFRA · KITCHEN</p><h1>Is this at a restaurant or at home / elsewhere?</h1><span>{title}</span></header>
+        <div className="sv2-kitchen-choice-grid">
+          <button type="button" disabled={Boolean(busy)} onClick={() => void choose('independent')}>
+            <span aria-hidden="true">01</span><strong>Home / other</strong><small>Use signatures and pantry inventory to compose the menu.</small>
+          </button>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void choose('restaurant')}>
+            <span aria-hidden="true">02</span><strong>Restaurant</strong><small>Upload or paste the restaurant menu, review its dishes, and compare table fit.</small>
+          </button>
+        </div>
+      </>}
       {busy && <p className="sv2-kitchen-choice-state">Opening {busy === 'restaurant' ? 'restaurant menus' : 'your kitchen'}…</p>}
       {error && <p className="sv2-kitchen-choice-error" role="alert">{error}</p>}
     </main>
