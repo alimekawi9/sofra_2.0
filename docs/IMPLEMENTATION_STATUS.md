@@ -797,14 +797,15 @@
   confirmation screen, guests land back on the event page) and the host event-detail view (reached right
   after finishing the create-Sofra wizard) now offer `Google Calendar` and `Apple Calendar` buttons, since
   both flows converge on the same shared `EventPaper` component.
-- **Placement, corrected same-day per feedback:** the event facts `<dl>` (previously one block covering
-  Date/Time/Location *and* Dress code/custom details/Your RSVP together) is now split into
-  `eventFactsDateTime` and `eventFactsExtra`, with the calendar buttons rendered between them — i.e.
-  directly after Date/Time/Location, before Dress code, not after it. For the host that's still inside the
-  collapsible `Date · Time` disclosure (`sv2-host-details-disclosure`), just positioned correctly within
-  it; for the guest (no such collapsible) it's the same split, just always visible. The guest's previously
-  separate, duplicated inline `<dl>` markup was replaced with the same two shared consts, removing that
-  duplication as a side effect.
+- **Placement, corrected twice same-day per feedback:** the event facts `<dl>` (originally one block
+  covering Date/Time/Location *and* Dress code/custom details/Your RSVP together) is now split into three —
+  `eventFactsDate` (Date, Time), `eventFactsLocation` (Location), `eventFactsExtra` (Dress code, custom
+  details, Your RSVP) — with the calendar buttons rendered between the first two, i.e. directly under the
+  stated Time, before Location (an earlier pass only moved them out from after Dress code to after Location,
+  which still wasn't specific enough). For the host that's inside the collapsible `Date · Time` disclosure
+  (`sv2-host-details-disclosure`); for the guest (no such collapsible) it's the same split, just always
+  visible. The guest's previously separate, duplicated inline `<dl>` markup was replaced with these same
+  shared consts, removing that duplication as a side effect.
 - New `lib/calendar.ts` (`googleCalendarUrl`, `buildIcsFile`, `icsDataUrl`) builds both a Google Calendar
   compose-URL and a minimal RFC 5545 `.ics` file client-side — no backend route, no dependency. "Add to
   Apple Calendar" is the standard `.ics`-file pattern (Apple Calendar has no separate web API); the button

@@ -271,13 +271,18 @@ export function EventPaper({
       return { kind, text: 'New photos were uploaded to the Shared Album.' }
     })
 
-  // Split in two so calendar export can sit right after Date/Time/Location --
-  // the section it's actually about -- rather than at the bottom of the
-  // whole facts list, after unrelated things like Dress code.
-  const eventFactsDateTime = (
+  // Split into three so calendar export can sit directly under the stated
+  // Time -- the section it's actually about -- rather than after Location
+  // (still a different topic) or at the bottom of the whole facts list.
+  const eventFactsDate = (
     <dl className="sv2-event-facts">
       <div><dt>Date</dt><dd>{dateLabel}</dd></div>
       <div><dt>Time</dt><dd>{timeLabel}</dd></div>
+    </dl>
+  )
+
+  const eventFactsLocation = (
+    <dl className="sv2-event-facts">
       <div>
         <dt>Location</dt>
         <dd>
@@ -541,7 +546,7 @@ export function EventPaper({
                     </span>
                     <span className="sv2-disclosure-line" aria-hidden="true" />
                   </button>
-                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFactsDateTime}{!isPast && calendarButtons}{eventFactsExtra}</div>}
+                  {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFactsDate}{!isPast && calendarButtons}{eventFactsLocation}{eventFactsExtra}</div>}
                 </section>
 
                 {prepItems.length > 0 && onSavePrepItem && onSubmitFeedback && (
@@ -662,8 +667,9 @@ export function EventPaper({
 
             {tagline && <p className="sv2-event-note">{tagline}</p>}
 
-            {eventFactsDateTime}
+            {eventFactsDate}
             {!isPast && calendarButtons}
+            {eventFactsLocation}
             {eventFactsExtra}
 
             {unlocked ? (
