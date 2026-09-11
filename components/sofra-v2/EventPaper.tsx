@@ -370,23 +370,30 @@ export function EventPaper({
     ? { title, description: tagline ?? undefined, location: calendarLocation || undefined, startIso: eventDateIso }
     : null
   const calendarButtons = calendarDetails && (
-    <div className="sv2-calendar-actions" aria-label="Add to calendar">
-      <a
-        className="sv2-calendar-action sv2-calendar-google"
-        href={googleCalendarUrl(calendarDetails)}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <GoogleCalendarGlyph /> Google Calendar
-      </a>
-      <a
-        className="sv2-calendar-action sv2-calendar-apple"
-        href={icsDataUrl(calendarDetails)}
-        download={`${title || 'sofra-event'}.ics`}
-      >
-        <AppleGlyph /> Apple Calendar
-      </a>
-    </div>
+    <dl className="sv2-event-facts sv2-calendar-facts">
+      <div>
+        <dt><span className="sv2-sr-only">Add to calendar</span></dt>
+        <dd>
+          <div className="sv2-calendar-actions" aria-label="Add to calendar">
+            <a
+              className="sv2-calendar-action sv2-calendar-google"
+              href={googleCalendarUrl(calendarDetails)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <GoogleCalendarGlyph /> Google Calendar
+            </a>
+            <a
+              className="sv2-calendar-action sv2-calendar-apple"
+              href={icsDataUrl(calendarDetails)}
+              download={`${title || 'sofra-event'}.ics`}
+            >
+              <AppleGlyph /> Apple Calendar
+            </a>
+          </div>
+        </dd>
+      </div>
+    </dl>
   )
 
   const guestRoster = (

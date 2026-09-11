@@ -916,8 +916,8 @@
 .sv2-event-facts dt{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;}
 .sv2-event-facts dd{margin:0;font-size:13px;}
 .sv2-map-links{display:flex;flex-wrap:nowrap;gap:8px;margin-top:10px}.sv2-map-links a{display:inline-flex;flex:1 1 0;min-width:0;align-items:center;justify-content:center;min-height:32px;padding:7px 8px;border:1px solid var(--sv2-ink);border-radius:999px;color:var(--sv2-ink);font:500 9px/1 var(--sv2-sans-family);letter-spacing:.04em;white-space:nowrap;text-decoration:none;text-transform:uppercase;transition:background-color .18s ease,color .18s ease}.sv2-map-links a:hover,.sv2-map-links a:focus-visible{background:var(--sv2-ink);color:var(--sv2-card-bg);outline:none}
-.sv2-calendar-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:10px}
-.sv2-calendar-action{display:inline-flex;flex:1 1 0;min-width:130px;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:7px 8px;border:1px solid var(--sv2-ink);border-radius:999px;color:var(--sv2-ink);font:500 9px/1 var(--sv2-sans-family);letter-spacing:.04em;white-space:nowrap;text-decoration:none;text-transform:uppercase;transition:background-color .18s ease,color .18s ease}
+.sv2-calendar-facts{margin-top:-14px;margin-bottom:8px}.sv2-calendar-facts>div{padding-top:0;border-top:0}.sv2-calendar-actions{display:flex;flex-wrap:nowrap;gap:8px;margin:0}
+.sv2-calendar-action{display:inline-flex;flex:1 1 0;min-width:0;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:7px 8px;border:1px solid var(--sv2-ink);border-radius:999px;color:var(--sv2-ink);font:500 9px/1 var(--sv2-sans-family);letter-spacing:.04em;white-space:nowrap;text-decoration:none;text-transform:uppercase;transition:background-color .18s ease,color .18s ease}
 .sv2-calendar-action:hover,.sv2-calendar-action:focus-visible{background:var(--sv2-ink);color:var(--sv2-card-bg);outline:none}
 .sv2-calendar-glyph{width:14px;height:14px;flex-shrink:0}
 .sv2-calendar-glyph-outline{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -929,7 +929,7 @@
 .sv2-dress-code-photo-tile{position:relative;aspect-ratio:1;padding:0;margin:0;border:0;border-radius:8px;overflow:hidden;background:var(--sv2-line)}
 .sv2-dress-code-photo-tile img{width:100%;height:100%;object-fit:cover;display:block}
 .sv2-dress-code-photo-remove{position:absolute;top:2px;right:2px;width:18px;height:18px;padding:0;border:none;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:1;cursor:pointer}
-.sv2-dress-code-photo-add{display:flex;width:fit-content;align-items:center;margin-top:8px;padding:7px 11px;border:1px solid var(--sv2-ink);border-radius:999px;color:var(--sv2-ink);font:500 9px var(--sv2-sans-family);letter-spacing:.5px;text-transform:uppercase;cursor:pointer}
+.sv2-dress-code-photo-add{display:flex;width:calc((100% - 8px)/2);min-height:32px;box-sizing:border-box;align-items:center;justify-content:center;margin-top:10px;padding:7px 8px;border:1px solid var(--sv2-ink);border-radius:999px;color:var(--sv2-ink);font:500 9px/1 var(--sv2-sans-family);letter-spacing:.04em;white-space:nowrap;text-transform:uppercase;cursor:pointer}
 .sv2-dress-code-photo-add.is-disabled{opacity:.5;cursor:default}
 .sv2-dress-code-photo-add input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .sv2-dress-code-photo-error{color:var(--sv2-rose);font-size:11px;margin-top:6px}
