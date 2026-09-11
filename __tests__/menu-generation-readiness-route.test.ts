@@ -2,8 +2,10 @@
 
 import { POST } from '@/app/api/menu/generate-ai/route'
 import { createClient } from '@/lib/supabase/server'
+import { requireAppUser } from '@/lib/auth/server-user'
 
 jest.mock('@/lib/supabase/server')
+jest.mock('@/lib/auth/server-user')
 
 function request(body: unknown) {
   return { json: async () => body } as Request
@@ -22,7 +24,7 @@ function pendingEventClient(event: { host_id: string; chef_id: string | null }) 
   return from
 }
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => { jest.clearAllMocks(); (requireAppUser as jest.Mock).mockResolvedValue({ authUserId: 'auth-1', appUserId: 'host-1' }) })
 
 it('requires an explicit confirmation before a host generates without Kitchen data', async () => {
   pendingEventClient({ host_id: 'host-1', chef_id: null })
@@ -33,6 +35,7 @@ it('requires an explicit confirmation before a host generates without Kitchen da
 
 it('shows the same warning handshake to the assigned chef', async () => {
   pendingEventClient({ host_id: 'host-1', chef_id: 'chef-1' })
+  ;(requireAppUser as jest.Mock).mockResolvedValue({ authUserId: 'auth-chef', appUserId: 'chef-1' })
   const response = await POST(request({ eventId: 'event-1', userId: 'chef-1' }))
   expect(response.status).toBe(409)
   expect(await response.json()).toEqual(expect.objectContaining({ code: 'KITCHEN_UNFILLED' }))

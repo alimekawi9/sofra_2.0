@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { AlbumAvatar } from '@/components/sofra-v2/AlbumAvatar'
 import { SofraHistoryArtwork } from '@/components/sofra-v2/SofraHistoryArtwork'
 import { fetchProfileHistory, type ProfileHistoryEntry } from '@/lib/profiles'
@@ -42,9 +43,9 @@ export default function PublicProfilePage({ params }: { params: { userId: string
     setLoading(true)
     setError('')
     try {
-      const storedViewerId = localStorage.getItem('sofra_user_id')
+      const storedViewerId = await getCurrentAppUserId(supabase)
       if (!storedViewerId) {
-        router.push('/name?next=' + encodeURIComponent(`/profile/${params.userId}`))
+        router.push('/login?next=' + encodeURIComponent(`/profile/${params.userId}`))
         return
       }
       setViewerId(storedViewerId)

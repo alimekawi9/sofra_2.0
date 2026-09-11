@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import '@/components/sofra-v2/sofra-v2.css'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { normalizeProteinPreferences } from '@/lib/protein-preferences'
@@ -158,7 +159,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
     setLoading(true)
     setFetchError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push('/login'); return }
 
       const { data: ev, error: evErr } = await supabase
@@ -379,7 +380,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       const res = await fetch('/api/menu/swap-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: id, userId: localStorage.getItem('sofra_user_id'), courseId: course.id }),
+        body: JSON.stringify({ eventId: id, courseId: course.id }),
       })
       if (!res.ok) return false
       const { row } = (await res.json()) as { row?: PersistedCourse }
@@ -425,7 +426,7 @@ export default function MenuPage({ params }: { params: { id: string } }) {
       const res = await fetch('/api/menu/generate-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: id, userId: localStorage.getItem('sofra_user_id'), proceedWithoutKitchen }),
+        body: JSON.stringify({ eventId: id, proceedWithoutKitchen }),
       })
 
       if (!res.ok) {

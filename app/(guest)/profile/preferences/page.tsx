@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { PreferencesReceipt } from '@/components/sofra-v2/PreferencesReceipt'
 import {
   normalizeProteinPreferences,
@@ -43,14 +44,10 @@ export default function ProfilePreferencesPage() {
 
   useEffect(() => {
     let active = true
-    const stored = localStorage.getItem('sofra_user_id')
-    if (!stored) {
-      router.replace('/login?next=%2Fprofile%2Fpreferences')
-      return
-    }
-    setUserId(stored)
-
-    void supabase
+    void getCurrentAppUserId(supabase).then((stored) => {
+      if (!stored) { router.replace('/login?next=%2Fprofile%2Fpreferences'); return }
+      setUserId(stored)
+      return supabase
       .from('taste_profiles')
       .select('dietary,avoid,avoid_other,protein_anchor,protein_preferences,flavor_preference,adventurousness')
       .eq('user_id', stored)
@@ -69,6 +66,7 @@ export default function ProfilePreferencesPage() {
         setFlavors(data.flavor_preference ?? [])
         setAdventurousness(data.adventurousness ?? 50)
       })
+    })
 
     return () => { active = false }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

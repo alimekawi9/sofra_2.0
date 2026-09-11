@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import { InviteCard, type InviteResponse } from '@/components/sofra-v2/InviteCard'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -47,7 +48,7 @@ export default function CohostInvitePage({ params }: { params: { id: string } })
       // only after the recipient chooses to open the actual invitation.
       if (!claimed) { setLoading(false); return }
 
-      const userId = localStorage.getItem('sofra_user_id')
+      const userId = await getCurrentAppUserId(supabase)
       if (!userId) {
         router.replace(loginDestination(currentPath))
         return
@@ -62,15 +63,15 @@ export default function CohostInvitePage({ params }: { params: { id: string } })
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function claim() {
+  async function claim() {
     const path = `/events/${params.id}/cohost?token=${encodeURIComponent(token)}&claim=1`
-    if (localStorage.getItem('sofra_user_id')) router.push(path)
+    if (await getCurrentAppUserId(supabase)) router.push(path)
     else router.replace(loginDestination(path))
   }
 
   async function respond(accept: boolean) {
-    const uid = localStorage.getItem('sofra_user_id')
-    if (!uid) { claim(); return }
+    const uid = await getCurrentAppUserId(supabase)
+    if (!uid) { await claim(); return }
     setSubmitting(true); setError('')
     const { data: saved, error: updateError } = await supabase.rpc('respond_to_cohost_invite', {
       p_token: token, p_user_id: uid, p_accept: accept,

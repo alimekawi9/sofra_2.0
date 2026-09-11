@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import '@/components/sofra-v2/sofra-v2.css'
 import { buildIntel } from '@/lib/intel'
 import type { TasteProfile, TableIntel } from '@/lib/intel'
@@ -113,7 +114,7 @@ export default function TablePage({ params }: { params: { id: string } }) {
     setLoading(true)
     setFetchError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push('/login'); return }
 
       const { data: ev, error: evErr } = await supabase

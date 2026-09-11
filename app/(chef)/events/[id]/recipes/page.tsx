@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChefTabs from "@/components/ChefTabs";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentAppUserId } from "@/lib/auth/client-user";
 import { buildIntel, type TasteProfile, type TableIntel } from "@/lib/intel";
 import {
   deriveCourse,
@@ -87,7 +88,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
     setLoading(true);
     setError("");
     try {
-      const userId = localStorage.getItem("sofra_user_id");
+      const userId = await getCurrentAppUserId(supabase);
       if (!userId) {
         router.push("/login");
         return;
@@ -233,7 +234,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
     instructions: string,
     ingredients: RecipeIngredient[],
   ) {
-    const userId = localStorage.getItem("sofra_user_id");
+    const userId = await getCurrentAppUserId(supabase);
     const response = await fetch("/api/recipes", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -289,7 +290,7 @@ export default function RecipesPage({ params }: { params: { id: string } }) {
         targetServings = course
           ? dishEaterCount(course, intel)
           : Math.max(1, intel?.guestCount ?? 4),
-        userId = localStorage.getItem("sofra_user_id"),
+        userId = await getCurrentAppUserId(supabase),
         ingredientNames = fromDraft
           ? draft.ingredientNames.map((x) => x.trim()).filter(Boolean)
           : [];

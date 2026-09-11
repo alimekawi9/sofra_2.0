@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { DEFAULT_EVENT_IMAGE_PATH } from '@/lib/event-images'
 import { loginDestination } from '@/lib/event-entry'
 import { getEventAccessRequestStatus, requestEventAccess, type EventAccessRequestStatus } from '@/lib/event-access-requests'
@@ -27,7 +28,7 @@ export default function RequestEventAccessPage({ params }: { params: { id: strin
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) {
         router.replace(loginDestination(`/events/${params.id}/request-access`))
         return

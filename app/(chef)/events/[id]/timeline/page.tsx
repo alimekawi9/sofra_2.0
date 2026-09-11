@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { isEventManager } from '@/lib/event-access'
 import {
   addClockMinutes,
@@ -36,7 +37,7 @@ export default function EventTimelinePage({ params }: { params: { id: string } }
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.replace('/login?next=' + encodeURIComponent(`/events/${params.id}/timeline`)); return }
       const { data: eventRow, error: eventError } = await supabase.from('events')
         .select('host_id,title,event_date').eq('id', params.id).maybeSingle()

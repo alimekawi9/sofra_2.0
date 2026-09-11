@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { EventsBoard, type EventsBoardEvent, type EventsBoardStatus } from '@/components/sofra-v2/EventsBoard'
 import { readPendingInvites } from '@/lib/pending-invites'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -53,7 +54,7 @@ export default function EventsPage() {
   async function loadData() {
     setLoading(true)
     setError('')
-    const uid = localStorage.getItem('sofra_user_id')
+    const uid = await getCurrentAppUserId(supabase)
     if (!uid) { router.push('/login'); return }
 
     try {

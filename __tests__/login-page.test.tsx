@@ -1,142 +1,50 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import LoginPage from '@/app/(auth)/login/page'
-import { safeNext } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 jest.mock('@/lib/supabase/client')
 jest.mock('next/navigation', () => ({ useRouter: jest.fn(), useSearchParams: jest.fn() }))
-
 const replace = jest.fn()
 let query = new URLSearchParams()
-
-function makeSupabase(existingId: string | null) {
-  const insert = jest.fn().mockResolvedValue({ error: null })
-  const maybeSingle = jest.fn().mockResolvedValue({
-    data: existingId ? { id: existingId } : null,
-    error: null,
-  })
-  const from = jest.fn().mockReturnValue({
-    select: jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue({ maybeSingle }),
-    }),
-    insert,
-  })
-  ;(createClient as jest.Mock).mockReturnValue({ from })
-  return { insert }
-}
+const getUser = jest.fn(), signInWithOAuth = jest.fn(), signInWithOtp = jest.fn()
 
 beforeEach(() => {
-  jest.clearAllMocks()
-  localStorage.clear()
-  query = new URLSearchParams()
-  ;(useRouter as jest.Mock).mockReturnValue({ replace })
-  ;(useSearchParams as jest.Mock).mockImplementation(() => query)
-  Object.defineProperty(globalThis, 'crypto', {
-    value: { randomUUID: jest.fn().mockReturnValue('new-user-id') },
-    configurable: true,
-  })
+  jest.clearAllMocks(); query = new URLSearchParams()
+  getUser.mockResolvedValue({ data: { user: null } }); signInWithOAuth.mockResolvedValue({ error: null }); signInWithOtp.mockResolvedValue({ error: null })
+  ;(createClient as jest.Mock).mockReturnValue({ auth: { getUser, signInWithOAuth, signInWithOtp } })
+  ;(useRouter as jest.Mock).mockReturnValue({ replace }); (useSearchParams as jest.Mock).mockImplementation(() => query)
 })
 
-afterEach(() => {
-  jest.restoreAllMocks()
-})
-
-async function goToPhoneStep() {
-  await userEvent.click(screen.getByRole('button', { name: /yalla/i }))
-}
-
-it('shows the welcome splash first, with no form fields', async () => {
-  makeSupabase(null)
+it('preserves the welcome splash then offers Google and email below the plate', async () => {
   render(<LoginPage />)
-  expect(screen.getByRole('button', { name: /yalla/i })).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('button', { name: /yalla/i })).toBeInTheDocument())
+  await userEvent.click(screen.getByRole('button', { name: /yalla/i }))
+  expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /continue with email/i })).toBeInTheDocument()
   expect(screen.queryByLabelText(/phone/i)).not.toBeInTheDocument()
 })
 
-it('opens the existing phone page immediately for an invite entry', () => {
-  query.set('invite', '1')
-  query.set('next', '/events/ev-1/rsvp')
-  makeSupabase(null)
+it('starts Google OAuth with the safe return destination', async () => {
+  query.set('invite', '1'); query.set('next', '/events/ev-1/rsvp')
   render(<LoginPage />)
-  expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /yalla/i })).not.toBeInTheDocument()
+  await userEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+  expect(signInWithOAuth).toHaveBeenCalledWith(expect.objectContaining({ provider: 'google', options: expect.objectContaining({ redirectTo: expect.stringContaining(encodeURIComponent('/events/ev-1/rsvp')) }) }))
 })
 
-it('skips invite login when a local identity exists and preserves the destination', async () => {
-  localStorage.setItem('sofra_user_id', 'stored-user')
-  query.set('invite', '1')
-  query.set('next', '/events/ev-1/rsvp')
-  makeSupabase(null)
-  render(<LoginPage />)
-  await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-1/rsvp'))
-  expect(screen.queryByLabelText(/phone number/i)).not.toBeInTheDocument()
+it('sends a magic link and shows confirmation', async () => {
+  query.set('invite', '1'); render(<LoginPage />)
+  await userEvent.click(await screen.findByRole('button', { name: /continue with email/i }))
+  await userEvent.type(screen.getByLabelText('EMAIL'), 'guest@example.com')
+  await userEvent.click(screen.getByRole('button', { name: /email me a link/i }))
+  await waitFor(() => expect(signInWithOtp).toHaveBeenCalledWith(expect.objectContaining({ email: 'guest@example.com' })))
+  expect(screen.getByText(/check your email/i)).toBeInTheDocument()
 })
 
-it('an existing phone logs the user in directly, without ever asking for a name', async () => {
-  const setItem = jest.spyOn(Storage.prototype, 'setItem')
-  query.set('next', '/events/ev-1')
-  makeSupabase('existing-user-id')
-  render(<LoginPage />)
-  await goToPhoneStep()
-  await userEvent.type(screen.getByLabelText(/phone number/i), '1234567890')
-  await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-  await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-1'))
-  expect(localStorage.getItem('sofra_user_id')).toBe('existing-user-id')
-  expect(setItem.mock.invocationCallOrder[0]).toBeLessThan(replace.mock.invocationCallOrder[0])
-  expect(screen.queryByLabelText(/your name/i)).not.toBeInTheDocument()
-})
-
-it('a new phone number advances to the name step, then creates the user with both fields', async () => {
-  const setItem = jest.spyOn(Storage.prototype, 'setItem')
-  query.set('next', '/events/ev-1')
-  const { insert } = makeSupabase(null)
-  render(<LoginPage />)
-  await goToPhoneStep()
-  await userEvent.type(screen.getByLabelText(/phone number/i), '1234567890')
-  await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-
-  await waitFor(() => expect(screen.getByLabelText(/your name/i)).toBeInTheDocument())
-  await userEvent.type(screen.getByLabelText(/your name/i), 'Layla')
-  await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-
-  await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-1'))
-  expect(insert).toHaveBeenCalledWith({ id: 'new-user-id', name: 'Layla', phone: '+201234567890' })
-  expect(localStorage.getItem('sofra_user_id')).toBe('new-user-id')
-  expect(replace.mock.invocationCallOrder[0]).toBeGreaterThan(insert.mock.invocationCallOrder[0])
-  expect(setItem.mock.invocationCallOrder[0]).toBeLessThan(replace.mock.invocationCallOrder[0])
-})
-
-it('falls back to /events when next is missing', async () => {
-  makeSupabase('existing-user-id')
-  render(<LoginPage />)
-  await goToPhoneStep()
-  await userEvent.type(screen.getByLabelText(/phone number/i), '1234567890')
-  await userEvent.click(screen.getByRole('button', { name: /continue/i }))
-  await waitFor(() => expect(replace).toHaveBeenCalledWith('/events'))
-})
-
-it('redirects immediately to next if an identity is already stored', async () => {
-  localStorage.setItem('sofra_user_id', 'already-logged-in')
-  query.set('next', '/events/ev-2')
-  makeSupabase(null)
+it('redirects an authenticated Supabase user without using localStorage', async () => {
+  query.set('next', '/events/ev-2'); getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
   render(<LoginPage />)
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/events/ev-2'))
-})
-
-it('requires the phone step and does not offer a name-only bypass', async () => {
-  query.set('next', '/events/ev-1')
-  makeSupabase(null)
-  render(<LoginPage />)
-  await goToPhoneStep()
-  expect(screen.queryByRole('link', { name: /continue with just your name/i })).not.toBeInTheDocument()
-})
-
-it.each(['https://evil.example/path', '//evil.example/path', 'events/ev-1'])(
-  'rejects unsafe next destination %s',
-  (destination) => expect(safeNext(destination)).toBe('/events')
-)
-
-it('accepts an internal application path', () => {
-  expect(safeNext('/events/ev-1')).toBe('/events/ev-1')
+  expect(localStorage.getItem('sofra_user_id')).toBeNull()
 })

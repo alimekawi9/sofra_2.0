@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { MotionConfig } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { HostCreateForm, type NewEventQuestionChoice } from '@/components/sofra-v2/HostCreateForm'
 import { HostEntryPlate, HOST_ENTRY_SHELL_LAYOUT_ID } from '@/components/sofra-v2/HostEntryPlate'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
@@ -39,9 +40,10 @@ export default function HostNewPage() {
   const [entryRevealed, setEntryRevealed] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem('sofra_user_id')
-    if (!stored) { router.push('/login'); return }
-    uidRef.current = stored
+    void getCurrentAppUserId(supabase).then((stored) => {
+      if (!stored) { router.push('/login'); return }
+      uidRef.current = stored
+    })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function onImageChange(file: File) {

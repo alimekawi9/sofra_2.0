@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { EventChat } from '@/components/sofra-v2/EventChat'
 import { sv2Display, sv2Sans } from '@/components/sofra-v2/fonts'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { fetchEventMessages, markEventChatRead, sendEventMessage, type EventChatMessage } from '@/lib/event-chat'
 import '@/components/sofra-v2/sofra-v2.css'
 import { loginDestination } from '@/lib/event-entry'
@@ -39,7 +40,7 @@ export default function EventChatPage({ params }: { params: { id: string } }) {
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) {
         router.replace(loginDestination('/events/' + params.id + '/chat'))
         return

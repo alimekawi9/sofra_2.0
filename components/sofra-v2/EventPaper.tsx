@@ -121,7 +121,8 @@ export interface EventPaperProps {
   onOpenTimeline?: () => void
   onSendPhotoReminder?: () => void
   feedbackSubmitted?: boolean
-  onSubmitFeedback?: (rating: number, ease: number, comment: string) => Promise<boolean>
+  onSubmitHostFeedback?: (rating: number, ease: number, comment: string) => Promise<boolean>
+  onSubmitGuestDietaryFeedback?: (dietaryNeedsMissed: boolean) => Promise<boolean>
 }
 
 const RSVP_LABELS: Record<string, string> = {
@@ -244,7 +245,8 @@ export function EventPaper({
   onOpenTimeline,
   onSendPhotoReminder,
   feedbackSubmitted = false,
-  onSubmitFeedback,
+  onSubmitHostFeedback,
+  onSubmitGuestDietaryFeedback,
 }: EventPaperProps) {
   const safeUnreadMessages = Number.isFinite(unreadMessages) ? Math.max(0, Math.floor(unreadMessages)) : 0
   const albumFeedbackLocked = !isHost && isPast && !feedbackSubmitted
@@ -556,14 +558,14 @@ export function EventPaper({
                   {detailsOpen && <div className="sv2-host-details-expanded">{tagline && <p className="sv2-event-note">{tagline}</p>}{eventFactsDate}{!isPast && calendarButtons}{eventFactsLocation}{eventFactsExtra}</div>}
                 </section>
 
-                {prepItems.length > 0 && onSavePrepItem && onSubmitFeedback && (
+                {prepItems.length > 0 && onSavePrepItem && onSubmitHostFeedback && (
                   <EventPrepChecklist
                     items={prepItems}
                     isPast={isPast}
                     savingKey={prepSavingKey}
                     error={prepError}
                     onSaveItem={onSavePrepItem}
-                    onSubmitFeedback={onSubmitFeedback}
+                    onSubmitFeedback={onSubmitHostFeedback}
                     onAction={(action) => {
                       if (action === 'edit-concept') return onEditEvent('concept')
                       if (action === 'edit-estimates') return onEditEvent('prep-estimates')
@@ -825,8 +827,8 @@ export function EventPaper({
                   </div>
                 )}
 
-                {albumFeedbackLocked && onSubmitFeedback ? (
-                  <SofraFeedbackPrompt submitted={false} onSubmit={onSubmitFeedback} />
+                {albumFeedbackLocked && onSubmitGuestDietaryFeedback ? (
+                  <SofraFeedbackPrompt submitted={false} onSubmit={onSubmitGuestDietaryFeedback} />
                 ) : <>
                   <AddPhotosControl disabled={uploadingPhoto} currentCount={photos.length} onFilesConfirmed={onFilesConfirmed} />
                   <PhotoUploadProgress state={uploadProgress} onDismiss={onDismissUploadProgress} />

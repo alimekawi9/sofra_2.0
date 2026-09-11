@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { SharedAlbumPage, type AlbumPhotoView } from '@/components/sofra-v2/SharedAlbumPage'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
 import type { SaveProgressState } from '@/components/sofra-v2/PhotoSaveProgress'
@@ -108,7 +109,7 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) {
         const query = searchParams.toString()
         router.replace(loginDestination(`/events/${params.id}/album${query ? `?${query}` : ''}`))
@@ -368,15 +369,13 @@ export default function EventAlbumPage({ params }: { params: { id: string } }) {
     ])
   }
 
-  async function submitFeedback(rating: number, ease: number, comment: string): Promise<boolean> {
+  async function submitFeedback(dietaryNeedsMissed: boolean): Promise<boolean> {
     const userId = uidRef.current
     if (!userId) return false
-    const { data, error: feedbackError } = await supabase.rpc('submit_sofra_feedback', {
+    const { data, error: feedbackError } = await supabase.rpc('submit_guest_dietary_feedback', {
       p_event_id: params.id,
       p_user_id: userId,
-      p_rating: rating,
-      p_planning_ease: ease,
-      p_comment: comment,
+      p_dietary_needs_missed: dietaryNeedsMissed,
     })
     if (feedbackError || data !== true) {
       setError('Could not send feedback. Try again.')

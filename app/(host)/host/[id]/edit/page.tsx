@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { HostCreateForm } from '@/components/sofra-v2/HostCreateForm'
 import type { PreviewPlace } from '@/components/sofra-v2/HostLocationAutocomplete'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -49,7 +50,7 @@ export default function HostEditPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     async function load() {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push('/login'); return }
       uidRef.current = stored
 

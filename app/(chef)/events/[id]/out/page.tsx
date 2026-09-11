@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { isEventManager } from '@/lib/event-access'
 import { fetchEventTasteAttendees } from '@/lib/event-attendees'
 import { buildIntel, type TasteProfile } from '@/lib/intel'
@@ -77,7 +78,7 @@ export default function RestaurantMenusPage({ params }: { params: { id: string }
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push(`/login?next=${encodeURIComponent(`/events/${id}/out`)}`); return }
       const { data: event, error: eventError } = await supabase.from('events').select('host_id,chef_id,title').eq('id', id).maybeSingle()
       if (eventError || !event) throw eventError ?? new Error('Missing event')

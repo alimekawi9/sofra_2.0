@@ -4,6 +4,7 @@ import type { PantryItem, Signature, Slot } from '@/lib/menu'
 import { withoutDishRoles } from '@/lib/dish-presets'
 import { normalizeProteinPreferences } from '@/lib/protein-preferences'
 import { createClient } from '@/lib/supabase/server'
+import { requireAppUser } from '@/lib/auth/server-user'
 import { buildRecommendationPlan, dinerDishFit } from '@/lib/recommendation/pipeline'
 import { buildCompactGapPrompt, buildMenuCreationBrief, type MenuCreationBrief } from '@/lib/recommendation/brief'
 import { MENU_PROPOSAL_SCHEMA, parseMenuProposal } from '@/lib/recommendation/proposal'
@@ -30,21 +31,24 @@ const lower = (xs: string[] = []) => xs.map((x) => x.toLowerCase())
 // swap has already come up empty, so it never competes with the free,
 // synchronous path and never runs on every ordinary swap click.
 export async function POST(req: Request) {
-  let body: { eventId?: unknown; userId?: unknown; courseId?: unknown }
+  let body: { eventId?: unknown; courseId?: unknown }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.eventId !== 'string' || typeof body.userId !== 'string' || typeof body.courseId !== 'string') {
+  if (typeof body.eventId !== 'string' || typeof body.courseId !== 'string') {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
   const supabase = createClient()
+  const currentUser = await requireAppUser(supabase)
+  if (!currentUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  const userId = currentUser.appUserId
   const { data: event } = await supabase.from('events').select('host_id,chef_id').eq('id', body.eventId).maybeSingle()
   if (!event) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  const { data: cohost } = event.host_id === body.userId || event.chef_id === body.userId
+  const { data: cohost } = event.host_id === userId || event.chef_id === userId
     ? { data: null }
-    : await supabase.from('event_cohosts').select('user_id').eq('event_id', body.eventId).eq('user_id', body.userId).maybeSingle()
-  if (event.host_id !== body.userId && event.chef_id !== body.userId && !cohost) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    : await supabase.from('event_cohosts').select('user_id').eq('event_id', body.eventId).eq('user_id', userId).maybeSingle()
+  if (event.host_id !== userId && event.chef_id !== userId && !cohost) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data: targetCourse } = await supabase.from('menu_courses').select('id,menu_id,slot').eq('id', body.courseId).maybeSingle()
   if (!targetCourse) return NextResponse.json({ error: 'Course not found' }, { status: 404 })

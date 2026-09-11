@@ -484,7 +484,7 @@ describe('Shared album', () => {
     })
     const { container } = render(<EventDetailPage params={PARAMS} />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'TAKE THE SURVEY' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'ANSWER TO CONTINUE' })).toBeInTheDocument())
     expect(container.querySelector('.sv2-album-preview-grid')).toHaveClass('is-feedback-locked')
     expect(screen.queryByRole('button', { name: 'VIEW ALBUM' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('ADD PHOTOS', { selector: 'input' })).not.toBeInTheDocument()

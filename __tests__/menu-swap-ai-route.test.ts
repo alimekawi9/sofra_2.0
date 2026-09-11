@@ -3,9 +3,11 @@
 import { POST } from '@/app/api/menu/swap-ai/route'
 import { createClient } from '@/lib/supabase/server'
 import { callGeminiJson } from '@/lib/gemini'
+import { requireAppUser } from '@/lib/auth/server-user'
 
 jest.mock('@/lib/supabase/server')
 jest.mock('@/lib/gemini')
+jest.mock('@/lib/auth/server-user')
 
 function request(body: unknown) {
   return { json: async () => body } as Request
@@ -106,7 +108,7 @@ const VALID_DISH = {
   },
 }
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => { jest.clearAllMocks(); (requireAppUser as jest.Mock).mockResolvedValue({ authUserId: 'auth-host', appUserId: HOST_ID }) })
 
 it('rejects a caller who is neither host, chef, nor co-host', async () => {
   buildSupabase({ hostId: 'someone-else' })

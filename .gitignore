@@ -12,6 +12,8 @@
 # next.js
 /.next/
 /.next-event-prep/
+/.next-dev-fresh/
+/.next-vercel-check/
 /out/
 
 # production

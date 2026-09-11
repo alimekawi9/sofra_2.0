@@ -149,7 +149,7 @@ describe('access control', () => {
       feedbackSubmitted: false,
     })
     render(<EventAlbumPage params={PARAMS} />)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'TAKE THE SURVEY' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'ANSWER TO CONTINUE' })).toBeInTheDocument())
     expect(screen.queryByText('1 memory')).not.toBeInTheDocument()
     expect(sb.from).not.toHaveBeenCalledWith('event_photos')
   })

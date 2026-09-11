@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { C } from '@/lib/theme'
 import '@/components/sofra-v2/sofra-v2.css'
 import {
@@ -189,7 +190,7 @@ function KitchenPageInner() {
     setLoading(true)
     setFetchError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push('/login'); return }
       uidRef.current = stored
       const uid = stored
@@ -388,13 +389,6 @@ function KitchenPageInner() {
     () => new Set(persistedPresetByKey.keys()),
     [persistedPresetByKey]
   )
-
-  const signatureFormDirty = useMemo(() => {
-    const existing = editingSignatureId ? signatures.find(signature => signature.id === editingSignatureId) : null
-    if (!existing) return Boolean(sigName.trim() || sigTagsList.length || sigAllergensList.length)
-    const sameValues = (a: string[], b: string[]) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
-    return sigName.trim() !== existing.name || !sameValues(sigTagsList, existing.tags) || !sameValues(sigAllergensList, existing.contains_allergens)
-  }, [editingSignatureId, sigAllergensList, sigName, sigTagsList, signatures])
 
   const filteredIngredients: string[] =
     ingredientCategory === 'All'

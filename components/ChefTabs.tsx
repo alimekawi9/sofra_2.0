@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { C } from '@/lib/theme'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { isEventManager } from '@/lib/event-access'
 
 interface ChefTabsProps {
@@ -33,7 +34,7 @@ export default function ChefTabs({ eventId, active, title, subtitle, restrictedC
   useEffect(() => {
     if (restrictedChef) return
     async function checkHost() {
-      const userId = localStorage.getItem('sofra_user_id')
+      const userId = await getCurrentAppUserId(supabase)
       if (!userId) return
       const { data } = await supabase.from('events').select('host_id,kitchen_status').eq('id', eventId).maybeSingle()
       const allowed = data !== null && await isEventManager(supabase, eventId, userId, data.host_id)

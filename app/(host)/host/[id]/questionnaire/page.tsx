@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { QuestionnaireEditor } from '@/components/sofra-v2/QuestionnaireEditor'
 import { DEFAULT_QUESTIONNAIRE, validateQuestionnaire, removedQuestionIds, type QuestionnaireConfig } from '@/lib/questionnaire'
 import '@/components/sofra-v2/sofra-v2.css'
@@ -24,7 +25,7 @@ export default function HostQuestionnairePage({ params }: { params: { id: string
 
   useEffect(() => {
     async function load() {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push('/login'); return }
       uidRef.current = stored
 

@@ -1,50 +1,41 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 
-/** The app's deliberate MVP session model: name + phone, id in localStorage. */
-export const UID_KEY = 'sofra_user_id'
-
-export function getUid(): string | null {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(UID_KEY)
-}
-export function setUid(id: string) {
-  window.localStorage.setItem(UID_KEY, id)
-}
-export function clearUid() {
-  window.localStorage.removeItem(UID_KEY)
-}
-
-export type SofraUser = { id: string; name: string; phone: string; photo_url: string | null }
+export type SofraUser = { id: string; name: string; phone: string | null; email: string | null; photo_url: string | null }
 
 export function useCurrentUser() {
+  const supabase = useMemo(() => createClient(), [])
   const [user, setUser] = useState<SofraUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClient()
     let alive = true
-    const uid = getUid()
-    if (!uid) {
-      setLoading(false)
-      return
-    }
-    supabase
+    async function loadUser() {
+      const uid = await getCurrentAppUserId(supabase)
+      if (!uid) { if (alive) setLoading(false); return }
+      const { data } = await supabase
       .from('users')
-      .select('id, name, phone, photo_url')
+      .select('id, name, phone, email, photo_url')
       .eq('id', uid)
       .maybeSingle()
-      .then(({ data }) => {
-        if (!alive) return
-        setUser((data as SofraUser) ?? null)
-        setLoading(false)
-      })
+      if (!alive) return
+      setUser((data as SofraUser) ?? null)
+      setLoading(false)
+    }
+    void loadUser()
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      if (!alive) return
+      setLoading(true)
+      void loadUser()
+    })
     return () => {
       alive = false
+      listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase])
 
   return { user, loading, setUser }
 }

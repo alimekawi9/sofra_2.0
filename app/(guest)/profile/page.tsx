@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { formatProteinPreferenceLabel } from '@/lib/protein-preferences'
 import { ProfileCard, type ProfileHistoryEntry } from '@/components/sofra-v2/ProfileCard'
 import { fetchProfileHistory } from '@/lib/profiles'
@@ -66,7 +67,7 @@ export default function ProfilePage() {
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) { router.push('/login'); return }
       setUserId(stored)
       setHostPreferenceHref('/profile/preferences')
@@ -110,9 +111,9 @@ export default function ProfilePage() {
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleLogout() {
-    localStorage.removeItem('sofra_user_id')
-    router.push('/login')
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.replace('/login')
   }
 
   async function onPhotoSelect(file: File) {

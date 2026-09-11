@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import '@/components/sofra-v2/sofra-v2.css'
 import { loginDestination } from '@/lib/event-entry'
 
@@ -19,7 +20,7 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
 
   useEffect(() => {
     async function load() {
-      const userId = localStorage.getItem('sofra_user_id')
+      const userId = await getCurrentAppUserId(supabase)
       const claimPath = `/events/${params.id}/chef?token=${encodeURIComponent(token)}&claim=1`
       if (!userId) {
         router.replace(loginDestination(claimPath))
@@ -49,7 +50,7 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
   useEffect(() => {
     if (!claimed || loading || error) return
     async function accept() {
-      const userId = localStorage.getItem('sofra_user_id')
+      const userId = await getCurrentAppUserId(supabase)
       if (!userId) return
       const { data, error: acceptError } = await supabase.rpc('accept_kitchen_invite', { p_token: token, p_user_id: userId })
       if (acceptError || data !== params.id) {
@@ -61,9 +62,9 @@ export default function KitchenInvitePage({ params }: { params: { id: string } }
     void accept()
   }, [claimed, loading, error]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function claim() {
+  async function claim() {
     const next = `/events/${params.id}/chef?token=${encodeURIComponent(token)}&claim=1`
-    if (localStorage.getItem('sofra_user_id')) router.push(next)
+    if (await getCurrentAppUserId(supabase)) router.push(next)
     else router.replace(loginDestination(next))
   }
 

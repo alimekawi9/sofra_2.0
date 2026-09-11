@@ -15,6 +15,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { isEventManager } from '@/lib/event-access'
 import { fetchEventAttendees, type SeatingAttendee } from '@/lib/event-attendees'
 import {
@@ -186,7 +187,7 @@ export default function SeatingPage({ params }: { params: { id: string } }) {
     try {
       for (let attempt = 0; ; attempt += 1) {
         try {
-          const stored = localStorage.getItem('sofra_user_id')
+          const stored = await getCurrentAppUserId(supabase)
           if (!stored) { router.push('/login?next=' + encodeURIComponent(`/events/${params.id}/seating`)); return }
           setManagerId(stored)
           const { data: eventRow, error: eventError } = await supabase

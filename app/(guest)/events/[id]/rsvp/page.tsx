@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import {
   normalizeProteinPreferences,
   updateProteinPreferenceSelection,
@@ -106,7 +107,7 @@ export default function RSVPPage({ params }: { params: { id: string } }) {
     setLoading(true)
     setError('')
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) {
         redirectingRef.current = true
         router.replace(loginDestination(`/events/${params.id}/rsvp${window.location.search}`))

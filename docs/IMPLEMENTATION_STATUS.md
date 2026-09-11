@@ -920,3 +920,37 @@
   preceding inline text when there's room. Changed `.sv2-dress-code-photo-add` to `display:flex;width:fit-
   content` — a block-level box (which always starts its own line) sized to its own content rather than
   stretching full width.
+# Verified Google and email authentication (local implementation, 2026-09-10)
+
+- Replaced the production `sofra_user_id` localStorage identity checks with
+  verified Supabase Auth session resolution across login, invitations,
+  profiles, events, hosting, kitchen, menu, recipes, seating, and timeline.
+- Added Google OAuth and email magic-link entry beneath the existing plate,
+  plus a cookie-backed PKCE callback and middleware session refresh.
+- Added exact verified-email legacy profile claiming. Existing Sofra profile
+  IDs and their event history remain stable; `auth_user_id` binds them to
+  `auth.users`. Names are never used to guess account ownership.
+- Google metadata pre-fills name and photo for new profiles. New email-only
+  users complete the existing name plate after following their magic link.
+- Provider dashboard configuration and real delivery/OAuth end-to-end testing
+  remain external setup steps; the local automated flow is covered with mocks.
+- Added a guarded, one-time identity repair migration for the exact verified
+  `alihmekawi@gmail.com` Auth account and legacy `+201271199929` profile. It
+  preserves the legacy profile ID/history and aborts if either identity is
+  ambiguous, already claimed, or a newly-created duplicate has acquired data.
+
+# Guest photo-access safety question (local implementation, 2026-09-10)
+
+- The post-event guest photo gate now asks only: “Did anything you told us
+  about your diet or allergies get missed?” Guests must select Yes or No before
+  continuing to the Shared Album; the previous rating, participation-ease, and
+  freeform-improvement questions were removed from this guest flow.
+- Guest dietary-safety answers use a dedicated database field and RPC, remain
+  private to Sofra, and do not alter or fabricate values in the separate host
+  product-feedback survey.
+
+# Kitchen production-build cleanup (2026-09-10)
+
+- Removed the unused `signatureFormDirty` calculation from the kitchen page.
+  This clears the ESLint error that blocked Vercel's production build; the
+  existing raw-image optimization notices remain non-blocking warnings.

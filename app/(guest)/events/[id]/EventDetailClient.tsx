@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentAppUserId } from '@/lib/auth/client-user'
 import { EventPaper, type EventPaperGuest } from '@/components/sofra-v2/EventPaper'
 import { InviteLanding } from '@/components/sofra-v2/InviteLanding'
 import type { UploadProgressState } from '@/components/sofra-v2/PhotoUploadProgress'
@@ -183,7 +184,7 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     setError('')
     setFeedbackSubmitted(false)
     try {
-      const stored = localStorage.getItem('sofra_user_id')
+      const stored = await getCurrentAppUserId(supabase)
       if (!stored) {
         const { data: publicEvent, error: publicEventError } = await supabase
           .from('events')
@@ -597,11 +598,25 @@ export default function EventDetailClient({ params }: { params: { id: string } }
     return true
   }
 
-  async function handleSubmitFeedback(rating: number, ease: number, comment: string): Promise<boolean> {
+  async function handleSubmitHostFeedback(rating: number, ease: number, comment: string): Promise<boolean> {
     if (!uidRef.current || !unlocked) return false
     setPrepError('')
     const { data, error: feedbackError } = await supabase.rpc('submit_sofra_feedback', {
       p_event_id: params.id, p_user_id: uidRef.current, p_rating: rating, p_planning_ease: ease, p_comment: comment,
+    })
+    if (feedbackError || data !== true) {
+      setPrepError('Could not send feedback. Try again.')
+      return false
+    }
+    setFeedbackSubmitted(true)
+    return true
+  }
+
+  async function handleSubmitGuestDietaryFeedback(dietaryNeedsMissed: boolean): Promise<boolean> {
+    if (!uidRef.current || !unlocked) return false
+    setPrepError('')
+    const { data, error: feedbackError } = await supabase.rpc('submit_guest_dietary_feedback', {
+      p_event_id: params.id, p_user_id: uidRef.current, p_dietary_needs_missed: dietaryNeedsMissed,
     })
     if (feedbackError || data !== true) {
       setPrepError('Could not send feedback. Try again.')
@@ -669,9 +684,9 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         title={event.title}
         kicker="You are invited!"
         buttonLabel="YALLA"
-        onClaimSeat={() => {
+        onClaimSeat={async () => {
           const rsvpDestination = `/events/${params.id}/rsvp`
-          router.push(localStorage.getItem('sofra_user_id') ? rsvpDestination : loginDestination(rsvpDestination))
+          router.push(await getCurrentAppUserId(supabase) ? rsvpDestination : loginDestination(rsvpDestination))
         }}
       />
     )
@@ -777,7 +792,8 @@ export default function EventDetailClient({ params }: { params: { id: string } }
         router.push('/events/' + params.id + '/update?template=photos')
       }}
       feedbackSubmitted={feedbackSubmitted}
-      onSubmitFeedback={handleSubmitFeedback}
+      onSubmitHostFeedback={handleSubmitHostFeedback}
+      onSubmitGuestDietaryFeedback={handleSubmitGuestDietaryFeedback}
     />
   )
 }
